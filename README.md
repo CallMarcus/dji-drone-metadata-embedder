@@ -60,6 +60,13 @@ sudo apt install ffmpeg
 2. Rename `exiftool(-k).exe` to `exiftool.exe`
 3. Place in `C:\exiftool` and add to PATH
 
+> **What does "add to PATH" mean?**
+> The `PATH` environment variable tells Windows where to find executable
+> programs. Adding a folder such as `C:\ffmpeg\bin` or `C:\exiftool` lets you
+> run `ffmpeg` or `exiftool` from any command prompt. You can modify `PATH`
+> through *System Properties → Environment Variables* or by running the `setx`
+> command shown above.
+
 #### macOS:
 ```bash
 brew install exiftool
