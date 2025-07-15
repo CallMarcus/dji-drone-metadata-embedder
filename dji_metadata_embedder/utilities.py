@@ -1,6 +1,9 @@
+import logging
 import re
 from pathlib import Path
 from typing import List, Tuple
+
+from rich.logging import RichHandler
 
 def iso6709(lat: float, lon: float, alt: float = 0.0) -> str:
     """Return an ISO 6709 location string for QuickTime metadata."""
@@ -60,3 +63,19 @@ def apply_redaction(telemetry: dict, mode: str) -> None:
         if telemetry.get("avg_gps"):
             lat, lon = telemetry["avg_gps"]
             telemetry["avg_gps"] = (round(lat, 3), round(lon, 3))
+
+
+def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
+    """Configure application wide logging."""
+    level = logging.INFO
+    if verbose:
+        level = logging.DEBUG
+    elif quiet:
+        level = logging.WARNING
+
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(rich_tracebacks=True)]
+    )

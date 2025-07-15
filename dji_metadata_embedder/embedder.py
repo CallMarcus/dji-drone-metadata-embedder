@@ -6,8 +6,13 @@ from pathlib import Path
 from datetime import datetime
 import json
 from typing import Dict, List, Tuple, Optional
+import logging
 
-from .utilities import apply_redaction
+from rich.progress import Progress
+
+logger = logging.getLogger(__name__)
+
+from .utilities import apply_redaction, setup_logging
 
 from .dat_parser import parse_v13 as parse_dat_v13
 
@@ -151,7 +156,7 @@ class DJIMetadataEmbedder:
                 telemetry_data['camera_settings'] = telemetry_data['camera_info'][0]
                 
         except Exception as e:
-            print(f"Error parsing SRT file {srt_path}: {e}")
+            logger.error("Error parsing SRT file %s: %s", srt_path, e)
             
         return telemetry_data
     
@@ -194,16 +199,16 @@ class DJIMetadataEmbedder:
             
             # Run ffmpeg
             result = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             if result.returncode == 0:
-                print(f"✓ Successfully processed: {video_path.name}")
+                logger.info("Successfully processed: %s", video_path.name)
                 return True
             else:
-                print(f"✗ FFmpeg error for {video_path.name}: {result.stderr}")
+                logger.error("FFmpeg error for %s: %s", video_path.name, result.stderr)
                 return False
                 
         except Exception as e:
-            print(f"✗ Error processing {video_path.name}: {e}")
+            logger.error("Error processing %s: %s", video_path.name, e)
             return False
     
     def embed_metadata_exiftool(self, video_path: Path, telemetry: Dict) -> bool:
@@ -232,7 +237,7 @@ class DJIMetadataEmbedder:
             return result.returncode == 0
             
         except Exception as e:
-            print(f"ExifTool error: {e}")
+            logger.error("ExifTool error: %s", e)
             return False
     
     def process_directory(self, use_exiftool: bool = False):
@@ -245,25 +250,29 @@ class DJIMetadataEmbedder:
         })
         
         if not video_files:
-            print(f"No MP4 files found in {self.directory}")
+            logger.warning("No MP4 files found in %s", self.directory)
             return
-        
-        print(f"Found {len(video_files)} video files to process")
-        print(f"Output directory: {self.output_dir}\n")
+
+        logger.info("Found %d video files to process", len(video_files))
+        logger.info("Output directory: %s\n", self.output_dir)
         
         success_count = 0
-        
-        for video_path in video_files:
-            # Look for corresponding SRT file
-            srt_path = video_path.with_suffix('.srt')
-            if not srt_path.exists():
-                srt_path = video_path.with_suffix('.SRT')
-            
-            if not srt_path.exists():
-                print(f"⚠ No SRT file found for: {video_path.name}")
-                continue
-            
-            print(f"Processing: {video_path.name}")
+
+        with Progress() as progress:
+            task = progress.add_task("Processing videos", total=len(video_files))
+            for video_path in video_files:
+                # Look for corresponding SRT file
+                srt_path = video_path.with_suffix('.srt')
+                if not srt_path.exists():
+                    srt_path = video_path.with_suffix('.SRT')
+
+                if not srt_path.exists():
+                    logger.warning("No SRT file found for: %s", video_path.name)
+                    progress.advance(task)
+                    continue
+
+                progress.update(task, description=video_path.name)
+                logger.debug("Processing %s", video_path.name)
             
             # Parse SRT telemetry
             telemetry = self.parse_dji_srt(srt_path)
@@ -286,7 +295,7 @@ class DJIMetadataEmbedder:
                     dat_data = parse_dat_v13(dat_file)
                     telemetry['dat_records'] = dat_data.get('records', [])
                 except Exception as e:
-                    print(f"⚠ Failed to parse DAT file {dat_file.name}: {e}")
+                    logger.warning("Failed to parse DAT file %s: %s", dat_file.name, e)
             
             # Generate output filename
             output_path = self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
@@ -315,11 +324,13 @@ class DJIMetadataEmbedder:
                 
                 with open(json_path, 'w') as f:
                     json.dump(json_data, f, indent=2)
+
+                progress.advance(task)
+            else:
+                progress.advance(task)
             
-            print()  # Empty line between files
-        
-        print(f"\nProcessing complete! Successfully processed {success_count}/{len(video_files)} videos")
-        print(f"Processed files saved to: {self.output_dir}")
+        logger.info("Processing complete! Successfully processed %d/%d videos", success_count, len(video_files))
+        logger.info("Processed files saved to: %s", self.output_dir)
 
 def check_dependencies():
     """Check if required tools are installed."""
@@ -332,19 +343,19 @@ def check_dependencies():
     for tool, cmd in dependencies.items():
         try:
             subprocess.run(cmd, capture_output=True, check=True)
-            print(f"✓ {tool} is installed")
+            logger.info("%s is installed", tool)
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print(f"✗ {tool} is NOT installed")
+            logger.error("%s is NOT installed", tool)
             missing.append(tool)
     
     if missing:
-        print("\nMissing dependencies:")
+        logger.warning("Missing dependencies:")
         if 'ffmpeg' in missing:
-            print("- FFmpeg: Download from https://ffmpeg.org/download.html")
-            print("  For Windows: Use the full build from gyan.dev or BtbN")
+            logger.warning("- FFmpeg: Download from https://ffmpeg.org/download.html")
+            logger.warning("  For Windows: Use the full build from gyan.dev or BtbN")
         if 'exiftool' in missing:
-            print("- ExifTool: Download from https://exiftool.org/")
-            print("  For Windows: Download the Windows Executable and add to PATH")
+            logger.warning("- ExifTool: Download from https://exiftool.org/")
+            logger.warning("  For Windows: Download the Windows Executable and add to PATH")
         return False
     return True
 
@@ -358,18 +369,19 @@ def main():
     parser.add_argument('--dat-auto', action='store_true', help='Automatically scan for matching DAT files')
     parser.add_argument('--redact', choices=['none', 'drop', 'fuzz'], default='none',
                         help='Redact GPS coordinates (none, drop or fuzz)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+    parser.add_argument('-q', '--quiet', action='store_true', help='Suppress info output')
     
     args = parser.parse_args()
-    
-    print("DJI Drone Media Metadata Embedder\n")
+    setup_logging(args.verbose, args.quiet)
+
+    logger.info("DJI Drone Media Metadata Embedder")
     
     if args.check or not check_dependencies():
         if args.check:
             return
-        print("\nPlease install missing dependencies before continuing.")
+        logger.error("Please install missing dependencies before continuing.")
         return
-    
-    print()  # Empty line after dependency check
     
     embedder = DJIMetadataEmbedder(
         args.directory,

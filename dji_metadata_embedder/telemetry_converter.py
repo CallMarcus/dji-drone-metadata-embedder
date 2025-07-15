@@ -4,6 +4,12 @@ import json
 from pathlib import Path
 from datetime import datetime
 import re
+import logging
+
+from rich.progress import Progress
+from .utilities import setup_logging
+
+logger = logging.getLogger(__name__)
 
 def extract_telemetry_to_gpx(srt_file, output_file=None):
     """
@@ -74,7 +80,7 @@ def extract_telemetry_to_gpx(srt_file, output_file=None):
             f.write('        </trkpt>\n')
         f.write(gpx_footer)
     
-    print(f"✓ GPX file created: {output_file}")
+    logger.info("GPX file created: %s", output_file)
     return output_file
 
 def batch_convert_to_gpx(directory):
@@ -85,22 +91,24 @@ def batch_convert_to_gpx(directory):
     srt_files = list(directory.glob("*.srt")) + list(directory.glob("*.SRT"))
     
     if not srt_files:
-        print(f"No SRT files found in {directory}")
+        logger.warning("No SRT files found in %s", directory)
         return
     
     gpx_dir = directory / "gpx_tracks"
     gpx_dir.mkdir(exist_ok=True)
     
-    print(f"Found {len(srt_files)} SRT files to convert")
-    
-    for srt_file in srt_files:
-        output_file = gpx_dir / f"{srt_file.stem}.gpx"
-        try:
-            extract_telemetry_to_gpx(srt_file, output_file)
-        except Exception as e:
-            print(f"✗ Error converting {srt_file.name}: {e}")
-    
-    print(f"\nGPX files saved to: {gpx_dir}")
+    logger.info("Found %d SRT files to convert", len(srt_files))
+    with Progress() as progress:
+        task = progress.add_task("Converting", total=len(srt_files))
+        for srt_file in srt_files:
+            output_file = gpx_dir / f"{srt_file.stem}.gpx"
+            try:
+                extract_telemetry_to_gpx(srt_file, output_file)
+            except Exception as e:
+                logger.error("Error converting %s: %s", srt_file.name, e)
+            progress.advance(task)
+
+    logger.info("GPX files saved to: %s", gpx_dir)
 
 def batch_convert_to_csv(directory):
     """
@@ -110,22 +118,24 @@ def batch_convert_to_csv(directory):
     srt_files = list(directory.glob("*.srt")) + list(directory.glob("*.SRT"))
 
     if not srt_files:
-        print(f"No SRT files found in {directory}")
+        logger.warning("No SRT files found in %s", directory)
         return
 
     csv_dir = directory / "csv_logs"
     csv_dir.mkdir(exist_ok=True)
 
-    print(f"Found {len(srt_files)} SRT files to convert")
+    logger.info("Found %d SRT files to convert", len(srt_files))
+    with Progress() as progress:
+        task = progress.add_task("Converting", total=len(srt_files))
+        for srt_file in srt_files:
+            output_file = csv_dir / f"{srt_file.stem}.csv"
+            try:
+                extract_telemetry_to_csv(srt_file, output_file)
+            except Exception as e:
+                logger.error("Error converting %s: %s", srt_file.name, e)
+            progress.advance(task)
 
-    for srt_file in srt_files:
-        output_file = csv_dir / f"{srt_file.stem}.csv"
-        try:
-            extract_telemetry_to_csv(srt_file, output_file)
-        except Exception as e:
-            print(f"✗ Error converting {srt_file.name}: {e}")
-
-    print(f"\nCSV files saved to: {csv_dir}")
+    logger.info("CSV files saved to: %s", csv_dir)
 
 def extract_telemetry_to_csv(srt_file, output_file=None):
     """
@@ -216,7 +226,7 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
             writer.writeheader()
             writer.writerows(rows)
     
-    print(f"✓ CSV file created: {output_file}")
+    logger.info("CSV file created: %s", output_file)
     return output_file
 
 if __name__ == "__main__":
@@ -227,8 +237,11 @@ if __name__ == "__main__":
     parser.add_argument('input', help='Input SRT file or directory')
     parser.add_argument('-o', '--output', help='Output file (for single file conversion)')
     parser.add_argument('-b', '--batch', action='store_true', help='Batch process directory')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+    parser.add_argument('-q', '--quiet', action='store_true', help='Suppress info output')
     
     args = parser.parse_args()
+    setup_logging(args.verbose, args.quiet)
     
     if args.batch:
         if args.command == 'gpx':
