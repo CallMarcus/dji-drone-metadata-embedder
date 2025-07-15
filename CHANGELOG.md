@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified Windows `PATH` instructions
 - Documented using `py` when `python` is unavailable
 - Minor documentation improvements
+- Switched to Rich-based logging with verbose/quiet modes
 
 
 ### Planned
