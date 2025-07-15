@@ -127,6 +127,11 @@ Batch convert directory to GPX:
 python src/telemetry_converter.py gpx /path/to/srt/files --batch
 ```
 
+Batch convert directory to CSV:
+```bash
+python src/telemetry_converter.py csv /path/to/srt/files --batch
+```
+
 ## Output
 
 The tool creates a `processed` subdirectory containing:

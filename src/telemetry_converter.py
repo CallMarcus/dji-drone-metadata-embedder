@@ -102,6 +102,31 @@ def batch_convert_to_gpx(directory):
     
     print(f"\nGPX files saved to: {gpx_dir}")
 
+def batch_convert_to_csv(directory):
+    """
+    Convert all SRT files in a directory to CSV files.
+    """
+    directory = Path(directory)
+    srt_files = list(directory.glob("*.srt")) + list(directory.glob("*.SRT"))
+
+    if not srt_files:
+        print(f"No SRT files found in {directory}")
+        return
+
+    csv_dir = directory / "csv_logs"
+    csv_dir.mkdir(exist_ok=True)
+
+    print(f"Found {len(srt_files)} SRT files to convert")
+
+    for srt_file in srt_files:
+        output_file = csv_dir / f"{srt_file.stem}.csv"
+        try:
+            extract_telemetry_to_csv(srt_file, output_file)
+        except Exception as e:
+            print(f"✗ Error converting {srt_file.name}: {e}")
+
+    print(f"\nCSV files saved to: {csv_dir}")
+
 def extract_telemetry_to_csv(srt_file, output_file=None):
     """
     Extract all telemetry data from DJI SRT file to CSV.
@@ -209,7 +234,7 @@ if __name__ == "__main__":
         if args.command == 'gpx':
             batch_convert_to_gpx(args.input)
         elif args.command == 'csv':
-            print("Batch CSV conversion not implemented yet")
+            batch_convert_to_csv(args.input)
     else:
         if args.command == 'gpx':
             extract_telemetry_to_gpx(args.input, args.output)
