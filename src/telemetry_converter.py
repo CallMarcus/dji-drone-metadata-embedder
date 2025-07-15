@@ -25,9 +25,11 @@ def extract_telemetry_to_gpx(srt_file, output_file=None):
             # Parse timestamp
             timestamp_line = lines[1]
             timestamp_match = re.search(r'(\d{2}:\d{2}:\d{2},\d{3})', timestamp_line)
-            
+
             # Parse telemetry data
             telemetry_line = ' '.join(lines[2:])
+            if '<font' in telemetry_line:
+                telemetry_line = re.sub(r'<[^>]+>', '', telemetry_line)
             
             # Extract GPS coordinates
             lat_match = re.search(r'\[latitude:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
@@ -123,6 +125,8 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
             
             # Parse telemetry data
             telemetry_line = ' '.join(lines[2:])
+            if "<font" in telemetry_line:
+                telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
             
             # Extract all data
             row = {
@@ -133,7 +137,11 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
                 'abs_altitude': '',
                 'iso': '',
                 'shutter': '',
-                'fnum': ''
+                'fnum': '',
+                'ev': '',
+                'ct': '',
+                'color_md': '',
+                'focal_len': ''
             }
             
             # GPS coordinates
@@ -153,6 +161,10 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
             iso_match = re.search(r'\[iso\s*:\s*(\d+)\]', telemetry_line)
             shutter_match = re.search(r'\[shutter\s*:\s*([^\]]+)\]', telemetry_line)
             fnum_match = re.search(r'\[fnum\s*:\s*(\d+)\]', telemetry_line)
+            ev_match = re.search(r'\[ev\s*:\s*([^\]]+)\]', telemetry_line)
+            ct_match = re.search(r'\[ct\s*:\s*([^\]]+)\]', telemetry_line)
+            color_md_match = re.search(r'\[color_md\s*:\s*([^\]]+)\]', telemetry_line)
+            focal_len_match = re.search(r'\[focal_len\s*:\s*([^\]]+)\]', telemetry_line)
             
             if iso_match:
                 row['iso'] = iso_match.group(1)
@@ -160,6 +172,14 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
                 row['shutter'] = shutter_match.group(1)
             if fnum_match:
                 row['fnum'] = fnum_match.group(1)
+            if ev_match:
+                row['ev'] = ev_match.group(1)
+            if ct_match:
+                row['ct'] = ct_match.group(1)
+            if color_md_match:
+                row['color_md'] = color_md_match.group(1)
+            if focal_len_match:
+                row['focal_len'] = focal_len_match.group(1)
             
             rows.append(row)
     

@@ -25,7 +25,9 @@ class DJIMetadataEmbedder:
             'first_gps': None,
             'avg_gps': None,
             'max_altitude': None,
-            'flight_duration': None
+            'flight_duration': None,
+            'srt_counts': [],
+            'diff_times': []
         }
         
         try:
@@ -46,6 +48,17 @@ class DJIMetadataEmbedder:
                     
                     # Parse telemetry data (usually in the 3rd line onward)
                     telemetry_line = ' '.join(lines[2:])
+
+                    # Remove HTML tags if present (newer DJI format)
+                    if '<font' in telemetry_line:
+                        telemetry_line = re.sub(r'<[^>]+>', '', telemetry_line)
+
+                    # Detect comprehensive format with frame counters
+                    srt_cnt_match = re.search(r'SrtCnt\s*:\s*(\d+)', telemetry_line)
+                    diff_time_match = re.search(r'DiffTime\s*:\s*([^\s]+)', telemetry_line)
+                    if srt_cnt_match or diff_time_match:
+                        telemetry_data.setdefault('srt_counts', []).append(int(srt_cnt_match.group(1)) if srt_cnt_match else None)
+                        telemetry_data.setdefault('diff_times', []).append(diff_time_match.group(1) if diff_time_match else None)
                     
                     # Extract GPS coordinates - Multiple format support
                     # Format 1: [latitude: xx.xxx] [longitude: xx.xxx]
@@ -78,17 +91,32 @@ class DJIMetadataEmbedder:
                         telemetry_data['rel_altitudes'].append(rel_alt)
                         telemetry_data['altitudes'].append(abs_alt)
                     
-                    # Extract camera info - [iso : xxxx] [shutter : 1/xx.x] [fnum : xxx]
+                    # Extract camera info including extended fields
                     iso_match = re.search(r'\[iso\s*:\s*(\d+)\]', telemetry_line)
                     shutter_match = re.search(r'\[shutter\s*:\s*([^\]]+)\]', telemetry_line)
                     fnum_match = re.search(r'\[fnum\s*:\s*(\d+)\]', telemetry_line)
-                    
-                    if iso_match:
-                        camera_data = {
-                            'iso': iso_match.group(1),
-                            'shutter': shutter_match.group(1) if shutter_match else None,
-                            'fnum': fnum_match.group(1) if fnum_match else None
-                        }
+                    ev_match = re.search(r'\[ev\s*:\s*([^\]]+)\]', telemetry_line)
+                    ct_match = re.search(r'\[ct\s*:\s*([^\]]+)\]', telemetry_line)
+                    color_md_match = re.search(r'\[color_md\s*:\s*([^\]]+)\]', telemetry_line)
+                    focal_len_match = re.search(r'\[focal_len\s*:\s*([^\]]+)\]', telemetry_line)
+
+                    if iso_match or shutter_match or fnum_match or ev_match or ct_match or color_md_match or focal_len_match:
+                        camera_data = {}
+                        if iso_match:
+                            camera_data['iso'] = iso_match.group(1)
+                        if shutter_match:
+                            camera_data['shutter'] = shutter_match.group(1)
+                        if fnum_match:
+                            camera_data['fnum'] = fnum_match.group(1)
+                        if ev_match:
+                            camera_data['ev'] = ev_match.group(1)
+                        if ct_match:
+                            camera_data['ct'] = ct_match.group(1)
+                        if color_md_match:
+                            camera_data['color_md'] = color_md_match.group(1)
+                        if focal_len_match:
+                            camera_data['focal_len'] = focal_len_match.group(1)
+
                         telemetry_data['camera_info'].append(camera_data)
             
             # Calculate summary statistics
