@@ -1,0 +1,11 @@
+# DJI Drone Metadata Embedder
+# No external Python packages required - uses only standard library!
+
+# Optional: For development and testing
+# pytest>=6.0.0
+# black>=21.0.0
+# flake8>=3.9.0
+
+# Note: This project requires the following external tools:
+# - FFmpeg (https://ffmpeg.org/)
+# - ExifTool (https://exiftool.org/) - optional

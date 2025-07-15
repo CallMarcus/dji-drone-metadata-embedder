@@ -1,0 +1,19 @@
+1
+00:00:00,000 --> 00:00:00,033
+[latitude: 59.302335] [longitude: 18.203059] [rel_alt: 1.300 abs_alt: 132.860] [iso : 2700] [shutter : 1/30.0] [fnum : 170]
+
+2
+00:00:00,033 --> 00:00:00,066
+[latitude: 59.302335] [longitude: 18.203059] [rel_alt: 1.300 abs_alt: 132.860] [iso : 2700] [shutter : 1/30.0] [fnum : 170]
+
+3
+00:00:00,066 --> 00:00:00,100
+[latitude: 59.302336] [longitude: 18.203058] [rel_alt: 1.300 abs_alt: 132.860] [iso : 2700] [shutter : 1/30.0] [fnum : 170]
+
+4
+00:00:00,100 --> 00:00:00,133
+[latitude: 59.302337] [longitude: 18.203057] [rel_alt: 1.400 abs_alt: 132.960] [iso : 2700] [shutter : 1/30.0] [fnum : 170]
+
+5
+00:00:00,133 --> 00:00:00,166
+[latitude: 59.302338] [longitude: 18.203056] [rel_alt: 1.500 abs_alt: 133.060] [iso : 2700] [shutter : 1/30.0] [fnum : 170]

@@ -1,0 +1,197 @@
+import os
+import subprocess
+import json
+from pathlib import Path
+from datetime import datetime
+import re
+
+def extract_telemetry_to_gpx(srt_file, output_file=None):
+    """
+    Extract GPS telemetry from DJI SRT file and create GPX file.
+    """
+    if not output_file:
+        output_file = Path(srt_file).with_suffix('.gpx')
+    
+    gps_points = []
+    
+    with open(srt_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    blocks = content.strip().split('\n\n')
+    
+    for block in blocks:
+        lines = block.strip().split('\n')
+        if len(lines) >= 3:
+            # Parse timestamp
+            timestamp_line = lines[1]
+            timestamp_match = re.search(r'(\d{2}:\d{2}:\d{2},\d{3})', timestamp_line)
+            
+            # Parse telemetry data
+            telemetry_line = ' '.join(lines[2:])
+            
+            # Extract GPS coordinates
+            lat_match = re.search(r'\[latitude:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
+            lon_match = re.search(r'\[longitude:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
+            alt_match = re.search(r'abs_alt:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
+            
+            if lat_match and lon_match:
+                point = {
+                    'lat': float(lat_match.group(1)),
+                    'lon': float(lon_match.group(1)),
+                    'ele': float(alt_match.group(1)) if alt_match else 0,
+                    'time': timestamp_match.group(1) if timestamp_match else None
+                }
+                gps_points.append(point)
+    
+    # Write GPX file
+    gpx_header = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="DJI SRT to GPX Converter"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://www.topografix.com/GPX/1/1"
+    xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+    <name>{}</name>
+    <time>{}</time>
+</metadata>
+<trk>
+    <name>DJI Flight Path</name>
+    <trkseg>
+'''.format(Path(srt_file).stem, datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'))
+    
+    gpx_footer = '''    </trkseg>
+</trk>
+</gpx>'''
+    
+    with open(output_file, 'w') as f:
+        f.write(gpx_header)
+        for point in gps_points:
+            f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
+            f.write(f'            <ele>{point["ele"]}</ele>\n')
+            if point['time']:
+                f.write(f'            <time>{point["time"]}</time>\n')
+            f.write('        </trkpt>\n')
+        f.write(gpx_footer)
+    
+    print(f"✓ GPX file created: {output_file}")
+    return output_file
+
+def batch_convert_to_gpx(directory):
+    """
+    Convert all SRT files in a directory to GPX files.
+    """
+    directory = Path(directory)
+    srt_files = list(directory.glob("*.srt")) + list(directory.glob("*.SRT"))
+    
+    if not srt_files:
+        print(f"No SRT files found in {directory}")
+        return
+    
+    gpx_dir = directory / "gpx_tracks"
+    gpx_dir.mkdir(exist_ok=True)
+    
+    print(f"Found {len(srt_files)} SRT files to convert")
+    
+    for srt_file in srt_files:
+        output_file = gpx_dir / f"{srt_file.stem}.gpx"
+        try:
+            extract_telemetry_to_gpx(srt_file, output_file)
+        except Exception as e:
+            print(f"✗ Error converting {srt_file.name}: {e}")
+    
+    print(f"\nGPX files saved to: {gpx_dir}")
+
+def extract_telemetry_to_csv(srt_file, output_file=None):
+    """
+    Extract all telemetry data from DJI SRT file to CSV.
+    """
+    if not output_file:
+        output_file = Path(srt_file).with_suffix('.csv')
+    
+    rows = []
+    
+    with open(srt_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    blocks = content.strip().split('\n\n')
+    
+    for block in blocks:
+        lines = block.strip().split('\n')
+        if len(lines) >= 3:
+            # Parse timestamp
+            timestamp_line = lines[1]
+            timestamp_match = re.search(r'(\d{2}:\d{2}:\d{2},\d{3})', timestamp_line)
+            
+            # Parse telemetry data
+            telemetry_line = ' '.join(lines[2:])
+            
+            # Extract all data
+            row = {
+                'timestamp': timestamp_match.group(1) if timestamp_match else '',
+                'latitude': '',
+                'longitude': '',
+                'rel_altitude': '',
+                'abs_altitude': '',
+                'iso': '',
+                'shutter': '',
+                'fnum': ''
+            }
+            
+            # GPS coordinates
+            lat_match = re.search(r'\[latitude:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
+            lon_match = re.search(r'\[longitude:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
+            if lat_match and lon_match:
+                row['latitude'] = lat_match.group(1)
+                row['longitude'] = lon_match.group(1)
+            
+            # Altitude
+            alt_match = re.search(r'\[rel_alt:\s*([+-]?\d+\.?\d*)\s*abs_alt:\s*([+-]?\d+\.?\d*)\]', telemetry_line)
+            if alt_match:
+                row['rel_altitude'] = alt_match.group(1)
+                row['abs_altitude'] = alt_match.group(2)
+            
+            # Camera settings
+            iso_match = re.search(r'\[iso\s*:\s*(\d+)\]', telemetry_line)
+            shutter_match = re.search(r'\[shutter\s*:\s*([^\]]+)\]', telemetry_line)
+            fnum_match = re.search(r'\[fnum\s*:\s*(\d+)\]', telemetry_line)
+            
+            if iso_match:
+                row['iso'] = iso_match.group(1)
+            if shutter_match:
+                row['shutter'] = shutter_match.group(1)
+            if fnum_match:
+                row['fnum'] = fnum_match.group(1)
+            
+            rows.append(row)
+    
+    # Write CSV
+    import csv
+    with open(output_file, 'w', newline='', encoding='utf-8') as f:
+        if rows:
+            writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+    
+    print(f"✓ CSV file created: {output_file}")
+    return output_file
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='DJI SRT telemetry converter utilities')
+    parser.add_argument('command', choices=['gpx', 'csv'], help='Conversion type')
+    parser.add_argument('input', help='Input SRT file or directory')
+    parser.add_argument('-o', '--output', help='Output file (for single file conversion)')
+    parser.add_argument('-b', '--batch', action='store_true', help='Batch process directory')
+    
+    args = parser.parse_args()
+    
+    if args.batch:
+        if args.command == 'gpx':
+            batch_convert_to_gpx(args.input)
+        elif args.command == 'csv':
+            print("Batch CSV conversion not implemented yet")
+    else:
+        if args.command == 'gpx':
+            extract_telemetry_to_gpx(args.input, args.output)
+        elif args.command == 'csv':
+            extract_telemetry_to_csv(args.input, args.output)
