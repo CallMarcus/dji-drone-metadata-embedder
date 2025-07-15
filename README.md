@@ -89,6 +89,15 @@ brew install exiftool
 sudo apt install libimage-exiftool-perl
 ```
 
+### 4. Docker
+
+If you only have Docker installed, use the prebuilt image which already
+includes FFmpeg and ExifTool:
+
+```bash
+docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
+```
+
 ## Usage
 
 If the command `python` is not recognized, use `py` instead.
