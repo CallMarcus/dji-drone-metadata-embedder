@@ -1,7 +1,6 @@
 import tempfile
 from pathlib import Path
 import sys
-import os
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -21,6 +20,7 @@ FORMAT3_SRT = """1
 [iso : 100] [shutter : 1/1000] [fnum : 280] [ev : 0] [ct : 5500] [color_md : default] [focal_len : 240] [latitude: 59.302336] [longitude: 18.203058] [rel_alt: 10.300 abs_alt: 142.860]</font>
 """
 
+
 def test_parse_dji_srt_format3():
     with tempfile.TemporaryDirectory() as tmpdir:
         srt_path = Path(tmpdir) / "sample.srt"
@@ -31,6 +31,7 @@ def test_parse_dji_srt_format3():
         assert data["gps_coords"][0] == (59.302335, 18.203059)
         assert data["camera_info"][0]["ev"] == "0"
         assert data["camera_info"][0]["focal_len"] == "240"
+
 
 def test_telemetry_converter_csv_format3():
     with tempfile.TemporaryDirectory() as tmpdir:

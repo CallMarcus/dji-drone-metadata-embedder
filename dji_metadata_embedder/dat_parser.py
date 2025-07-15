@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Dict, List
 
 
-_RECORD_STRUCT = struct.Struct('<IIfff')
-_HEADER = b'DAT13'
+_RECORD_STRUCT = struct.Struct("<IIfff")
+_HEADER = b"DAT13"
 
 
 def parse_v13(path: Path) -> Dict:
@@ -18,17 +18,19 @@ def parse_v13(path: Path) -> Dict:
     """
     data = path.read_bytes()
     if not data.startswith(_HEADER):
-        raise ValueError('Unsupported DAT file')
+        raise ValueError("Unsupported DAT file")
     records: List[Dict] = []
     offset = len(_HEADER)
     while offset + _RECORD_STRUCT.size <= len(data):
         gps_time, frame, lat, lon, alt = _RECORD_STRUCT.unpack_from(data, offset)
-        records.append({
-            'gps_time': gps_time,
-            'frame': frame,
-            'latitude': lat,
-            'longitude': lon,
-            'altitude': alt,
-        })
+        records.append(
+            {
+                "gps_time": gps_time,
+                "frame": frame,
+                "latitude": lat,
+                "longitude": lon,
+                "altitude": alt,
+            }
+        )
         offset += _RECORD_STRUCT.size
-    return {'records': records}
+    return {"records": records}
