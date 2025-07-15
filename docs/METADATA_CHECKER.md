@@ -7,8 +7,8 @@ and `exiftool` for EXIF data when available.
 ## Usage
 
 ```bash
-python src/metadata_check.py FILE [FILE ...]
-python src/metadata_check.py DIRECTORY
+python -m dji_metadata_embedder.metadata_check FILE [FILE ...]
+python -m dji_metadata_embedder.metadata_check DIRECTORY
 ```
 If the command `python` is not recognized, use `py` instead.
 

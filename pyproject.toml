@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dji-drone-metadata-embedder"
+version = "0.1.0"
+description = "Embed DJI drone SRT telemetry as metadata in MP4 files"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{name = "DJI Drone Tools"}]
+license = {file = "LICENSE"}
+dependencies = [
+    "ffmpeg-python>=0.2",
+    "rich>=13.0",
+    "piexif>=1.1"
+]
+
+[project.scripts]
+dji-embed = "dji_metadata_embedder.embedder:main"
+
