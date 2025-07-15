@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Metadata presence checker via `metadata_check.py`
 - Support for HTML-based SRT logs with extended camera info
 - Pytest test suite for parsing and FFmpeg command generation
+- Optional DAT flight log merging and parser
 
 ### Changed
 - Improved metadata checker output with clearer status icons

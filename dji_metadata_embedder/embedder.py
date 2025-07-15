@@ -7,11 +7,16 @@ from datetime import datetime
 import json
 from typing import Dict, List, Tuple, Optional
 
+from .dat_parser import parse_v13 as parse_dat_v13
+
+
 class DJIMetadataEmbedder:
-    def __init__(self, directory: str, output_dir: str = None):
+    def __init__(self, directory: str, output_dir: str = None, dat_path: str = None, dat_autoscan: bool = False):
         self.directory = Path(directory)
         self.output_dir = Path(output_dir) if output_dir else self.directory / "processed"
         self.output_dir.mkdir(exist_ok=True)
+        self.dat_path = Path(dat_path) if dat_path else None
+        self.dat_autoscan = dat_autoscan
         
     def parse_dji_srt(self, srt_path: Path) -> Dict:
         """Parse DJI SRT file and extract telemetry data."""
@@ -259,6 +264,25 @@ class DJIMetadataEmbedder:
             
             # Parse SRT telemetry
             telemetry = self.parse_dji_srt(srt_path)
+
+            # Optionally parse DAT telemetry
+            dat_file = None
+            if self.dat_path:
+                dat_file = self.dat_path
+            elif self.dat_autoscan:
+                cand = video_path.with_suffix('.DAT')
+                if cand.exists():
+                    dat_file = cand
+                else:
+                    matches = list(video_path.parent.glob(f"{video_path.stem}*.DAT"))
+                    if matches:
+                        dat_file = matches[0]
+            if dat_file and dat_file.exists():
+                try:
+                    dat_data = parse_dat_v13(dat_file)
+                    telemetry['dat_records'] = dat_data.get('records', [])
+                except Exception as e:
+                    print(f"⚠ Failed to parse DAT file {dat_file.name}: {e}")
             
             # Generate output filename
             output_path = self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
@@ -281,7 +305,8 @@ class DJIMetadataEmbedder:
                     'max_relative_altitude': telemetry.get('max_rel_altitude'),
                     'flight_duration': telemetry['flight_duration'],
                     'num_gps_points': len(telemetry['gps_coords']),
-                    'camera_settings': telemetry.get('camera_settings', {})
+                    'camera_settings': telemetry.get('camera_settings', {}),
+                    'dat_records': len(telemetry.get('dat_records', []))
                 }
                 
                 with open(json_path, 'w') as f:
@@ -325,6 +350,8 @@ def main():
     parser.add_argument('-o', '--output', help='Output directory (default: ./processed)')
     parser.add_argument('--exiftool', action='store_true', help='Also use exiftool for GPS metadata')
     parser.add_argument('--check', action='store_true', help='Only check dependencies')
+    parser.add_argument('--dat', help='Path to a DAT flight log to merge')
+    parser.add_argument('--dat-auto', action='store_true', help='Automatically scan for matching DAT files')
     
     args = parser.parse_args()
     
@@ -338,7 +365,7 @@ def main():
     
     print()  # Empty line after dependency check
     
-    embedder = DJIMetadataEmbedder(args.directory, args.output)
+    embedder = DJIMetadataEmbedder(args.directory, args.output, dat_path=args.dat, dat_autoscan=args.dat_auto)
     embedder.process_directory(use_exiftool=args.exiftool)
 
 if __name__ == "__main__":

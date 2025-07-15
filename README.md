@@ -9,6 +9,7 @@ A Python tool to embed telemetry data from DJI drone SRT files into MP4 video fi
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
 - **Telemetry Export**: Export flight data to JSON, GPX, or CSV formats
+- **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 
 ## Supported DJI Models
@@ -100,6 +101,8 @@ Options:
   -o, --output      Output directory (default: ./processed)
   --exiftool        Also use ExifTool for GPS metadata
   --check           Only check dependencies
+  --dat FILE        Merge specified DAT flight log
+  --dat-auto        Auto-detect DAT logs matching videos
 ```
 
 ### Examples
