@@ -1,0 +1,22 @@
+site_name: DJI Drone Metadata Embedder
+site_description: Embed DJI drone telemetry in video files and convert tracks
+repo_url: https://github.com/example/dji-drone-metadata-embedder
+site_dir: site
+nav:
+  - Home: index.md
+  - How-to Guides:
+      - Embed GPS: how-to/embed-gps.md
+      - Strip serial number: how-to/strip-serial-number.md
+      - Generate GPX: how-to/generate-gpx.md
+  - Reference:
+      - API Reference: api.md
+      - Metadata Checker: METADATA_CHECKER.md
+      - SRT Formats: SRT_FORMATS.md
+      - Release Process: RELEASE.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - import sys, os; sys.path.insert(0, os.path.abspath('.'))
