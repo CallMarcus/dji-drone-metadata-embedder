@@ -132,6 +132,18 @@ Batch convert directory to CSV:
 python src/telemetry_converter.py csv /path/to/srt/files --batch
 ```
 
+### Check Existing Metadata
+
+You can check if your videos or photos already contain GPS or altitude
+information using the metadata checker script:
+
+```bash
+python src/metadata_check.py DJI_0001.MP4
+python src/metadata_check.py /path/to/footage
+```
+
+See [docs/METADATA_CHECKER.md](docs/METADATA_CHECKER.md) for details.
+
 ## Output
 
 The tool creates a `processed` subdirectory containing:
