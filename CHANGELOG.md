@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Batch CSV conversion via `telemetry_converter.py csv --batch`
+
 ### Planned
 - Support for more DJI models
 - KML export format
