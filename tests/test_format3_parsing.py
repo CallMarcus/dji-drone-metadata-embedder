@@ -3,10 +3,10 @@ from pathlib import Path
 import sys
 import os
 
-sys.path.insert(0, os.path.abspath("src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dji_metadata_embedder import DJIMetadataEmbedder
-import telemetry_converter
+from dji_metadata_embedder import telemetry_converter
 
 FORMAT3_SRT = """1
 00:00:00,000 --> 00:00:00,033

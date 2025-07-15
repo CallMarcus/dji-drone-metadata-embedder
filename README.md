@@ -85,13 +85,13 @@ If the command `python` is not recognized, use `py` instead.
 
 Process a single directory:
 ```bash
-python src/dji_metadata_embedder.py /path/to/drone/footage
+dji-embed /path/to/drone/footage
 ```
 
 ### Options
 
 ```bash
-python src/dji_metadata_embedder.py [OPTIONS] DIRECTORY
+dji-embed [OPTIONS] DIRECTORY
 
 Arguments:
   DIRECTORY          Directory containing MP4 and SRT files
@@ -106,39 +106,39 @@ Options:
 
 Process footage with custom output directory:
 ```bash
-python src/dji_metadata_embedder.py "D:\DroneFootage\Flight1" -o "D:\ProcessedVideos"
+dji-embed "D:\DroneFootage\Flight1" -o "D:\ProcessedVideos"
 ```
 
 Process with ExifTool for additional metadata:
 ```bash
-python src/dji_metadata_embedder.py "D:\DroneFootage\Flight1" --exiftool
+dji-embed "D:\DroneFootage\Flight1" --exiftool
 ```
 
 Check dependencies:
 ```bash
-python src/dji_metadata_embedder.py --check "D:\DroneFootage"
+dji-embed --check "D:\DroneFootage"
 ```
 
 ### Convert Telemetry to Other Formats
 
 Extract GPS track to GPX:
 ```bash
-python src/telemetry_converter.py gpx DJI_0001.SRT
+python -m dji_metadata_embedder.telemetry_converter gpx DJI_0001.SRT
 ```
 
 Export telemetry to CSV:
 ```bash
-python src/telemetry_converter.py csv DJI_0001.SRT -o telemetry.csv
+python -m dji_metadata_embedder.telemetry_converter csv DJI_0001.SRT -o telemetry.csv
 ```
 
 Batch convert directory to GPX:
 ```bash
-python src/telemetry_converter.py gpx /path/to/srt/files --batch
+python -m dji_metadata_embedder.telemetry_converter gpx /path/to/srt/files --batch
 ```
 
 Batch convert directory to CSV:
 ```bash
-python src/telemetry_converter.py csv /path/to/srt/files --batch
+python -m dji_metadata_embedder.telemetry_converter csv /path/to/srt/files --batch
 ```
 
 ### Check Existing Metadata
@@ -147,8 +147,8 @@ You can check if your videos or photos already contain GPS or altitude
 information using the metadata checker script:
 
 ```bash
-python src/metadata_check.py DJI_0001.MP4
-python src/metadata_check.py /path/to/footage
+python -m dji_metadata_embedder.metadata_check DJI_0001.MP4
+python -m dji_metadata_embedder.metadata_check /path/to/footage
 ```
 
 See [docs/METADATA_CHECKER.md](docs/METADATA_CHECKER.md) for details.
@@ -215,7 +215,7 @@ GPS(59.302335,18.203059,132.860)
 ### "Python was not found"
 Use `py` instead of `python`:
 ```bash
-py src/dji_metadata_embedder.py /path/to/footage
+dji-embed /path/to/footage
 ```
 
 ### "ffmpeg is not recognized"

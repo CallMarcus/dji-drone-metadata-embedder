@@ -33,7 +33,7 @@ set SCRIPT_DIR=%~dp0
 REM Run the Python script
 echo Processing drone footage in: %~1
 echo.
-%PYTHON_CMD% "%SCRIPT_DIR%src\dji_metadata_embedder.py" %*
+dji-embed %*
 
 echo.
 echo Processing complete!
