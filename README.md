@@ -256,6 +256,10 @@ If your DJI model uses a different SRT format:
 1. Open an issue with a sample SRT file
 2. Or submit a PR with regex patterns for the new format
 
+## Release
+
+See [docs/RELEASE.md](docs/RELEASE.md) for instructions on publishing a new version.
+
 ## License
 
 MIT License - see LICENSE file for details

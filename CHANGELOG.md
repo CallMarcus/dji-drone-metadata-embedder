@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for HTML-based SRT logs with extended camera info
 - Pytest test suite for parsing and FFmpeg command generation
 - Optional DAT flight log merging and parser
+- GitHub Action to publish signed wheels to PyPI on semver tags
+- Release documentation in `docs/RELEASE.md`
 
 ### Changed
 - Improved metadata checker output with clearer status icons
