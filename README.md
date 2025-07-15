@@ -11,6 +11,7 @@ A Python tool to embed telemetry data from DJI drone SRT files into MP4 video fi
 - **Telemetry Export**: Export flight data to JSON, GPX, or CSV formats
 - **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Progress Bar**: See processing status while videos are being embedded
 
 ## Supported DJI Models
 
@@ -31,7 +32,17 @@ The tool has been tested with:
 
 ### 1. Install Python Dependencies
 
-No external Python packages required - uses only standard library!
+Install the required packages:
+
+```bash
+pip install rich ffmpeg-python piexif
+```
+
+Alternatively, install from the `requirements.txt` file:
+
+```bash
+pip install -r requirements.txt
+```
 
 ### 2. Install FFmpeg
 
@@ -78,6 +89,15 @@ brew install exiftool
 sudo apt install libimage-exiftool-perl
 ```
 
+### 4. Docker
+
+If you only have Docker installed, use the prebuilt image which already
+includes FFmpeg and ExifTool:
+
+```bash
+docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
+```
+
 ## Usage
 
 If the command `python` is not recognized, use `py` instead.
@@ -104,7 +124,11 @@ Options:
   --dat FILE        Merge specified DAT flight log
   --dat-auto        Auto-detect DAT logs matching videos
   --redact MODE     Redact GPS data (none, drop, fuzz)
+  --verbose         Show detailed progress
+  --quiet           Suppress progress bar and most output
 ```
+
+By default, processing shows a progress bar for each file. Use `--verbose` for detailed output or `--quiet` to reduce messages.
 
 ### Examples
 
@@ -240,6 +264,10 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 If your DJI model uses a different SRT format:
 1. Open an issue with a sample SRT file
 2. Or submit a PR with regex patterns for the new format
+
+## Release
+
+See [docs/RELEASE.md](docs/RELEASE.md) for instructions on publishing a new version.
 
 ## License
 

@@ -5,7 +5,9 @@ from typing import List, Tuple
 from .utilities import parse_telemetry_points, iso6709
 
 
-def embed_flight_path_ffmpeg(video: Path, points: List[Tuple[float, float, float, str]], output: Path) -> bool:
+def embed_flight_path_ffmpeg(
+    video: Path, points: List[Tuple[float, float, float, str]], output: Path
+) -> bool:
     """Embed per-frame GPS points using FFmpeg. Returns True on success."""
     cmd = [
         "ffmpeg",

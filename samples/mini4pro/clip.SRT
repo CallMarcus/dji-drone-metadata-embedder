@@ -1,0 +1,7 @@
+1
+00:00:00,000 --> 00:00:00,033
+[latitude: 59.0000] [longitude: 18.0000] [rel_alt: 1.0 abs_alt: 100.0] [iso : 100] [shutter : 1/30] [fnum : 170]
+
+2
+00:00:00,033 --> 00:00:00,066
+[latitude: 59.0001] [longitude: 18.0001] [rel_alt: 2.0 abs_alt: 101.0] [iso : 100] [shutter : 1/30] [fnum : 170]

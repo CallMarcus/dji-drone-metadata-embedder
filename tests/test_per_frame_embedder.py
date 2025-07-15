@@ -27,12 +27,20 @@ def test_per_frame_embedder(monkeypatch, tmp_path):
 
     def fake_run(cmd, capture_output=True, text=True):
         calls.append(cmd)
+
         class Res:
             returncode = 0
-            stdout = "\n".join([
-                "TAG:location.0.ISO6709=+59.1000+018.2000+0002.0/",
-                "TAG:location.1.ISO6709=+59.2000+018.3000+0003.0/",
-            ]) if cmd[0] == "ffprobe" else ""
+            stdout = (
+                "\n".join(
+                    [
+                        "TAG:location.0.ISO6709=+59.1000+018.2000+0002.0/",
+                        "TAG:location.1.ISO6709=+59.2000+018.3000+0003.0/",
+                    ]
+                )
+                if cmd[0] == "ffprobe"
+                else ""
+            )
+
         return Res()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -45,4 +53,3 @@ def test_per_frame_embedder(monkeypatch, tmp_path):
     ]
     assert calls[0][0] == "ffmpeg"
     assert calls[1][0] == "ffprobe"
-
