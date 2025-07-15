@@ -7,16 +7,19 @@ from datetime import datetime
 import json
 from typing import Dict, List, Tuple, Optional
 
+from .utilities import apply_redaction
+
 from .dat_parser import parse_v13 as parse_dat_v13
 
 
 class DJIMetadataEmbedder:
-    def __init__(self, directory: str, output_dir: str = None, dat_path: str = None, dat_autoscan: bool = False):
+    def __init__(self, directory: str, output_dir: str = None, dat_path: str = None, dat_autoscan: bool = False, redact: str = "none"):
         self.directory = Path(directory)
         self.output_dir = Path(output_dir) if output_dir else self.directory / "processed"
         self.output_dir.mkdir(exist_ok=True)
         self.dat_path = Path(dat_path) if dat_path else None
         self.dat_autoscan = dat_autoscan
+        self.redact = redact
         
     def parse_dji_srt(self, srt_path: Path) -> Dict:
         """Parse DJI SRT file and extract telemetry data."""
@@ -264,6 +267,7 @@ class DJIMetadataEmbedder:
             
             # Parse SRT telemetry
             telemetry = self.parse_dji_srt(srt_path)
+            apply_redaction(telemetry, self.redact)
 
             # Optionally parse DAT telemetry
             dat_file = None
@@ -352,6 +356,8 @@ def main():
     parser.add_argument('--check', action='store_true', help='Only check dependencies')
     parser.add_argument('--dat', help='Path to a DAT flight log to merge')
     parser.add_argument('--dat-auto', action='store_true', help='Automatically scan for matching DAT files')
+    parser.add_argument('--redact', choices=['none', 'drop', 'fuzz'], default='none',
+                        help='Redact GPS coordinates (none, drop or fuzz)')
     
     args = parser.parse_args()
     
@@ -365,7 +371,13 @@ def main():
     
     print()  # Empty line after dependency check
     
-    embedder = DJIMetadataEmbedder(args.directory, args.output, dat_path=args.dat, dat_autoscan=args.dat_auto)
+    embedder = DJIMetadataEmbedder(
+        args.directory,
+        args.output,
+        dat_path=args.dat,
+        dat_autoscan=args.dat_auto,
+        redact=args.redact,
+    )
     embedder.process_directory(use_exiftool=args.exiftool)
 
 if __name__ == "__main__":
