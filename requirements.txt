@@ -1,5 +1,7 @@
 # DJI Drone Metadata Embedder
-# No external Python packages required - uses only standard library!
+rich>=13.0
+ffmpeg-python>=0.2
+piexif>=1.1
 
 # Optional: For development and testing
 # pytest>=6.0.0
