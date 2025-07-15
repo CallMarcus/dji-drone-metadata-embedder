@@ -1,0 +1,2 @@
+mkdocs>=1.5
+mkdocstrings[python]>=0.24

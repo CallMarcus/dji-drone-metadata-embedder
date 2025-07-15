@@ -79,3 +79,6 @@ desktop.ini
 # Test files
 test/
 !tests/
+
+# MkDocs build output
+site/
