@@ -78,4 +78,4 @@ desktop.ini
 
 # Test files
 test/
-tests/
+!tests/
