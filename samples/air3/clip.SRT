@@ -1,0 +1,11 @@
+1
+00:00:00,000 --> 00:00:00,033
+<font size='36'>SrtCnt : 1, DiffTime : 33ms
+2024-01-01 12:00:00,000
+[iso : 100] [shutter : 1/1000] [fnum : 280] [latitude: 59.1111] [longitude: 18.2222] [rel_alt: 5.0 abs_alt: 105.0]</font>
+
+2
+00:00:00,033 --> 00:00:00,066
+<font size='36'>SrtCnt : 2, DiffTime : 33ms
+2024-01-01 12:00:00,033
+[iso : 100] [shutter : 1/1000] [fnum : 280] [latitude: 59.1112] [longitude: 18.2223] [rel_alt: 5.1 abs_alt: 105.1]</font>
