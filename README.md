@@ -72,6 +72,8 @@ sudo apt install libimage-exiftool-perl
 
 ## Usage
 
+If the command `python` is not recognized, use `py` instead.
+
 ### Basic Usage
 
 Process a single directory:

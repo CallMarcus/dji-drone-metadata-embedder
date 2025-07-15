@@ -10,6 +10,8 @@ and `exiftool` for EXIF data when available.
 python src/metadata_check.py FILE [FILE ...]
 python src/metadata_check.py DIRECTORY
 ```
+If the command `python` is not recognized, use `py` instead.
+
 
 You can provide one or more files or directories. When a directory is given all
 common DJI media types (`*.MP4`, `*.MOV`, `*.JPG`) are scanned.
