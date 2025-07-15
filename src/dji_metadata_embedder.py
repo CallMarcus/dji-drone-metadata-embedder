@@ -229,8 +229,12 @@ class DJIMetadataEmbedder:
     
     def process_directory(self, use_exiftool: bool = False):
         """Process all MP4/SRT pairs in the directory."""
-        # Find all MP4 files
-        video_files = list(self.directory.glob("*.mp4")) + list(self.directory.glob("*.MP4"))
+        # Find all MP4 files. On case-insensitive file systems the two globs
+        # may return duplicates, so use a set to deduplicate and then sort
+        video_files = sorted({
+            *self.directory.glob("*.mp4"),
+            *self.directory.glob("*.MP4")
+        })
         
         if not video_files:
             print(f"No MP4 files found in {self.directory}")
