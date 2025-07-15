@@ -12,10 +12,16 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional
+import logging
+
+from rich.progress import Progress
+from .utilities import setup_logging
 
 CHECK = "\u2705"  # green check mark
 CROSS = "\u274C"  # red cross
 
+
+logger = logging.getLogger(__name__)
 
 def run_ffprobe(path: Path) -> Optional[Dict]:
     """Return ffprobe JSON output for the media file or ``None`` on failure."""
@@ -67,7 +73,11 @@ def check_file(path: Path) -> Dict[str, bool]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check DJI media files for embedded flight metadata")
     parser.add_argument("paths", nargs="+", help="Files or directories to check")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress info output")
     args = parser.parse_args()
+
+    setup_logging(args.verbose, args.quiet)
 
     files = []
     for p in args.paths:
@@ -82,14 +92,17 @@ def main() -> None:
         else:
             files.append(path)
 
-    for file in files:
-        result = check_file(file)
-        status_parts = [
-            f"{CHECK} GPS" if result["gps"] else f"{CROSS} GPS",
-            f"{CHECK} altitude" if result["altitude"] else f"{CROSS} altitude",
-            f"{CHECK} creation_time" if result["creation_time"] else f"{CROSS} creation_time",
-        ]
-        print(f"{file}: {', '.join(status_parts)}")
+    with Progress() as progress:
+        task = progress.add_task("Checking", total=len(files))
+        for file in files:
+            result = check_file(file)
+            status_parts = [
+                f"{CHECK} GPS" if result["gps"] else f"{CROSS} GPS",
+                f"{CHECK} altitude" if result["altitude"] else f"{CROSS} altitude",
+                f"{CHECK} creation_time" if result["creation_time"] else f"{CROSS} creation_time",
+            ]
+            logger.info("%s: %s", file, ", ".join(status_parts))
+            progress.advance(task)
 
 
 if __name__ == "__main__":
