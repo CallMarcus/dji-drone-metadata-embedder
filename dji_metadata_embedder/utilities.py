@@ -35,3 +35,28 @@ def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, st
             alt = float(alt_match.group(3) if alt_match and len(alt_match.groups()) > 1 else (alt_match.group(1) if alt_match else 0.0))
             points.append((lat, lon, alt, timestamp))
     return points
+
+
+def redact_coords(coords: List[Tuple[float, float]], mode: str) -> List[Tuple[float, float]]:
+    """Redact or fuzz coordinate list based on ``mode``."""
+    if mode == "drop":
+        return []
+    if mode == "fuzz":
+        return [(round(lat, 3), round(lon, 3)) for lat, lon in coords]
+    return coords
+
+
+def apply_redaction(telemetry: dict, mode: str) -> None:
+    """Modify ``telemetry`` in place according to the redaction ``mode``."""
+    telemetry["gps_coords"] = redact_coords(telemetry.get("gps_coords", []), mode)
+
+    if mode == "drop":
+        telemetry["first_gps"] = None
+        telemetry["avg_gps"] = None
+    elif mode == "fuzz":
+        if telemetry.get("first_gps"):
+            lat, lon = telemetry["first_gps"]
+            telemetry["first_gps"] = (round(lat, 3), round(lon, 3))
+        if telemetry.get("avg_gps"):
+            lat, lon = telemetry["avg_gps"]
+            telemetry["avg_gps"] = (round(lat, 3), round(lon, 3))

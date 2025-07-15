@@ -103,6 +103,7 @@ Options:
   --check           Only check dependencies
   --dat FILE        Merge specified DAT flight log
   --dat-auto        Auto-detect DAT logs matching videos
+  --redact MODE     Redact GPS data (none, drop, fuzz)
 ```
 
 ### Examples
