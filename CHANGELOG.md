@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional DAT flight log merging and parser
 - GitHub Action to publish signed wheels to PyPI on semver tags
 - Release documentation in `docs/RELEASE.md`
+- Dockerfile providing FFmpeg and ExifTool for container use
 
 ### Changed
 - Improved metadata checker output with clearer status icons
