@@ -36,9 +36,9 @@ If your DJI drone uses a different SRT format:
    pip install pytest black flake8
    ```
 
-3. Run tests (when available):
+3. Run tests with `pytest`:
    ```bash
-   pytest tests/
+   pytest
    ```
 
 ## Code Style
