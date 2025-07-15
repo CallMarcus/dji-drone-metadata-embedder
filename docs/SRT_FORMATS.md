@@ -1,6 +1,6 @@
 # DJI SRT Telemetry Formats
 
-This document describes the various SRT telemetry formats used by different DJI drone models.
+This document describes the different SRT telemetry formats used by different DJI drone models.
 
 ## Format Types
 
