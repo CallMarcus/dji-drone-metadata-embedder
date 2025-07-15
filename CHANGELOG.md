@@ -37,6 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Batch CSV conversion via `telemetry_converter.py csv --batch`
+- Metadata presence checker via `metadata_check.py`
+- Support for HTML-based SRT logs with extended camera info
+- Pytest test suite for parsing and FFmpeg command generation
+
+### Changed
+- Improved metadata checker output with clearer status icons
+- Improved MP4 deduplication when scanning directories
+- Clarified Windows `PATH` instructions
+- Documented using `py` when `python` is unavailable
+- Minor documentation improvements
+
 
 ### Planned
 - Support for more DJI models
