@@ -19,3 +19,19 @@ dependencies = [
 [project.scripts]
 dji-embed = "dji_metadata_embedder.embedder:main"
 
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+target-version = "py38"
+line-length = 88
+src = ["dji_metadata_embedder", "tests"]
+
+[tool.ruff.isort]
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.12"
+files = ["dji_metadata_embedder"]
+ignore_missing_imports = true
+

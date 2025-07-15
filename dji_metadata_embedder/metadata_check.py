@@ -18,10 +18,11 @@ from rich.progress import Progress
 from .utilities import setup_logging
 
 CHECK = "\u2705"  # green check mark
-CROSS = "\u274C"  # red cross
+CROSS = "\u274c"  # red cross
 
 
 logger = logging.getLogger(__name__)
+
 
 def run_ffprobe(path: Path) -> Optional[Dict]:
     """Return ffprobe JSON output for the media file or ``None`` on failure."""
@@ -59,7 +60,10 @@ def check_file(path: Path) -> Dict[str, bool]:
 
     ff_tags = ffprobe_data.get("format", {}).get("tags", {})
 
-    gps_present = any(tag in exif_data for tag in ("GPSLatitude", "GPSLongitude")) or "location" in ff_tags
+    gps_present = (
+        any(tag in exif_data for tag in ("GPSLatitude", "GPSLongitude"))
+        or "location" in ff_tags
+    )
     altitude_present = "GPSAltitude" in exif_data or "altitude" in ff_tags
     creation_time_present = "creation_time" in ff_tags or "CreateDate" in exif_data
 
@@ -71,15 +75,19 @@ def check_file(path: Path) -> Dict[str, bool]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Check DJI media files for embedded flight metadata")
+    parser = argparse.ArgumentParser(
+        description="Check DJI media files for embedded flight metadata"
+    )
     parser.add_argument("paths", nargs="+", help="Files or directories to check")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress info output")
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Suppress info output"
+    )
     args = parser.parse_args()
 
     setup_logging(args.verbose, args.quiet)
 
-    files = []
+    files: list[Path] = []
     for p in args.paths:
         path = Path(p)
         if path.is_dir():
@@ -99,7 +107,11 @@ def main() -> None:
             status_parts = [
                 f"{CHECK} GPS" if result["gps"] else f"{CROSS} GPS",
                 f"{CHECK} altitude" if result["altitude"] else f"{CROSS} altitude",
-                f"{CHECK} creation_time" if result["creation_time"] else f"{CROSS} creation_time",
+                (
+                    f"{CHECK} creation_time"
+                    if result["creation_time"]
+                    else f"{CROSS} creation_time"
+                ),
             ]
             logger.info("%s: %s", file, ", ".join(status_parts))
             progress.advance(task)
