@@ -13,6 +13,9 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Optional
 
+CHECK = "\u2705"  # green check mark
+CROSS = "\u274C"  # red cross
+
 
 def run_ffprobe(path: Path) -> Optional[Dict]:
     """Return ffprobe JSON output for the media file or ``None`` on failure."""
@@ -82,9 +85,9 @@ def main() -> None:
     for file in files:
         result = check_file(file)
         status_parts = [
-            "GPS" if result["gps"] else "no GPS",
-            "altitude" if result["altitude"] else "no altitude",
-            "creation_time" if result["creation_time"] else "no creation_time",
+            f"{CHECK} GPS" if result["gps"] else f"{CROSS} GPS",
+            f"{CHECK} altitude" if result["altitude"] else f"{CROSS} altitude",
+            f"{CHECK} creation_time" if result["creation_time"] else f"{CROSS} creation_time",
         ]
         print(f"{file}: {', '.join(status_parts)}")
 
