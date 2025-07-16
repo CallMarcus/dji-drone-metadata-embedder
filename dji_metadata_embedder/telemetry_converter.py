@@ -23,12 +23,12 @@ def extract_telemetry_to_gpx(
     """
     Extract GPS telemetry from DJI SRT file and create GPX file.
     """
-    if not output_file:
-        output_file = Path(srt_file).with_suffix(".gpx")
+    srt_path = Path(srt_file)
+    output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
     gps_points = []
 
-    with open(srt_file, "r", encoding="utf-8") as f:
+    with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     blocks = content.strip().split("\n\n")
@@ -80,7 +80,7 @@ def extract_telemetry_to_gpx(
 </trk>
 </gpx>"""
 
-    with open(output_file, "w") as f:
+    with open(output_path, "w") as f:
         f.write(gpx_header)
         for point in gps_points:
             f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
@@ -90,8 +90,8 @@ def extract_telemetry_to_gpx(
             f.write("        </trkpt>\n")
         f.write(gpx_footer)
 
-    logger.info("GPX file created: %s", output_file)
-    return output_file
+    logger.info("GPX file created: %s", output_path)
+    return output_path
 
 
 def batch_convert_to_gpx(directory: Path | str) -> None:
@@ -156,12 +156,12 @@ def extract_telemetry_to_csv(
     """
     Extract all telemetry data from DJI SRT file to CSV.
     """
-    if not output_file:
-        output_file = Path(srt_file).with_suffix(".csv")
+    srt_path = Path(srt_file)
+    output_path = Path(output_file) if output_file else srt_path.with_suffix(".csv")
 
     rows = []
 
-    with open(srt_file, "r", encoding="utf-8") as f:
+    with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     blocks = content.strip().split("\n\n")
@@ -239,14 +239,14 @@ def extract_telemetry_to_csv(
     # Write CSV
     import csv
 
-    with open(output_file, "w", newline="", encoding="utf-8") as f:
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
         if rows:
             writer = csv.DictWriter(f, fieldnames=rows[0].keys())
             writer.writeheader()
             writer.writerows(rows)
 
-    logger.info("CSV file created: %s", output_file)
-    return output_file
+    logger.info("CSV file created: %s", output_path)
+    return output_path
 
 
 def convert_to_gpx(srt_file: str | Path, output_file: str | Path | None = None) -> Path:

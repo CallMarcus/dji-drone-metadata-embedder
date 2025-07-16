@@ -117,5 +117,5 @@ def parse_dji_srt(srt_path: Path) -> dict:
     """Standalone wrapper around :class:`DJIMetadataEmbedder` parsing."""
     from .embedder import DJIMetadataEmbedder
 
-    embedder = DJIMetadataEmbedder(srt_path.parent)
+    embedder = DJIMetadataEmbedder(str(srt_path.parent))
     return embedder.parse_dji_srt(srt_path)
