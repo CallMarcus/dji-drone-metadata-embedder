@@ -29,3 +29,9 @@ jobs:
           $tag = "v$version"
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/dji-embed.exe"
           wingetcreate update CallMarcus.DJI-Embed -v $version -u $url -t $env:WINGET_TOKEN -m .github/winget/installer.yaml --submit
+          $pyUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/python.zip"
+          wingetcreate update CallMarcus.DJI-Embed.Python -v $version -u $pyUrl -t $env:WINGET_TOKEN -m .github/winget/python.yaml --submit
+          $ffUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/ffmpeg.zip"
+          wingetcreate update CallMarcus.DJI-Embed.FFmpeg -v $version -u $ffUrl -t $env:WINGET_TOKEN -m .github/winget/ffmpeg.yaml --submit
+          $exUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/exiftool.zip"
+          wingetcreate update CallMarcus.DJI-Embed.ExifTool -v $version -u $exUrl -t $env:WINGET_TOKEN -m .github/winget/exiftool.yaml --submit

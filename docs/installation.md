@@ -13,6 +13,15 @@ winget install -e --id CallMarcus.DJI-Embed
 ```
 *Note: some corporate PCs block the Microsoft Store, which also disables `winget`. Contact your IT department if the installer fails.*
 
+### Incremental install
+If you prefer to install each component separately, run:
+```powershell
+winget install -e --id Python.Python.3
+winget install -e --id Gyan.FFmpeg
+winget install -e --id PhilHarvey.ExifTool
+pip install dji-metadata-embedder
+```
+
 
 ## Via `pip`
 
