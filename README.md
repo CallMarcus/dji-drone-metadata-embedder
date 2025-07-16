@@ -1,5 +1,7 @@
 # DJI Drone Metadata Embedder
 
+[![Winget](https://img.shields.io/badge/winget-CallMarcus.DJI--Embed-blue?logo=windows)](https://winget.run/pkg/CallMarcus/DJI-Embed) [![GitHub Release](https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases) [![PyPI](https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi)](https://pypi.org/project/dji-drone-metadata-embedder/)
+
 A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files. This tool extracts GPS coordinates, altitude, camera settings, and other telemetry data from SRT files and embeds them as metadata in the corresponding video files.
 
 See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows application with a graphical interface.

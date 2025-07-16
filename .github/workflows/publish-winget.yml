@@ -1,0 +1,31 @@
+name: Publish winget package
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  publish-winget:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          dotnet tool install --global wingetcreate
+          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build executable
+        run: pyinstaller --onefile -n dji-embed dji_metadata_embedder/embedder.py
+      - name: Publish via wingetcreate
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: |
+          $version = (Select-String -Path pyproject.toml -Pattern '^version').Line.Split('=')[1].Trim().Trim('"')
+          $tag = "v$version"
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/dji-embed.exe"
+          wingetcreate update CallMarcus.DJI-Embed -v $version -u $url -t $env:WINGET_TOKEN -m .github/winget/installer.yaml --submit
