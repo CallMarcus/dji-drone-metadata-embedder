@@ -4,7 +4,7 @@ A Python tool to embed telemetry data from DJI drone SRT files into MP4 video fi
 
 See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows application with a graphical interface.
 For detailed setup instructions and a quick-start tutorial, see [docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
-Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
+Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md). Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
 
 
 ## Features
