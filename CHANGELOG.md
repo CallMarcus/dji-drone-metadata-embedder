@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration with mapping services
 - Flight path visualization
 
+## [1.0.1] - 2025-07-16
+
+### Fixed
+- Packaging now includes the `src` package so the CLI works when installed from a wheel
+
 ## [1.0.0] - 2025-07-16
 
 ### Added
