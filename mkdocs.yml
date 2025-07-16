@@ -4,6 +4,7 @@ repo_url: https://github.com/example/dji-drone-metadata-embedder
 site_dir: site
 nav:
   - Home: index.md
+  - Development Roadmap: development_roadmap.md
   - How-to Guides:
       - Embed GPS: how-to/embed-gps.md
       - Strip serial number: how-to/strip-serial-number.md
