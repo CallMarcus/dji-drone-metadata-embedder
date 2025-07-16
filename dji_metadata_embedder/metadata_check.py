@@ -74,6 +74,14 @@ def check_file(path: Path) -> Dict[str, bool]:
     }
 
 
+def check_metadata(path: str | Path) -> Dict[str, bool]:
+    """Public helper to check a media file for DJI metadata."""
+    file_path = Path(path)
+    if not file_path.exists():
+        return {}
+    return check_file(file_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check DJI media files for embedded flight metadata"
