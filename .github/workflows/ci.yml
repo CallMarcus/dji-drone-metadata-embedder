@@ -22,7 +22,7 @@ jobs:
           pip install .
           pip install ruff mypy pytest build
       - name: Ruff
-        run: ruff .
+        run: ruff check .
       - name: Mypy
         run: mypy
       - name: Pytest
