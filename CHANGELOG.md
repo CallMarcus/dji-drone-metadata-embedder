@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-01-15
+## [Unreleased]
+
+### Planned
+- Support for more DJI models
+- KML export format
+- GUI interface
+- Video thumbnail generation with GPS overlay
+- Integration with mapping services
+- Flight path visualization
+
+## [1.0.0] - 2025-07-16
 
 ### Added
 - Initial release
@@ -18,24 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV telemetry export
 - Automatic dependency checking
 - Cross-platform support (Windows, macOS, Linux)
-
-### Supported Formats
-- DJI Mini 3 Pro: `[latitude: xx.xxx] [longitude: xx.xxx]` format
-- Legacy format: `GPS(lat,lon,alt)` format
-- Camera settings extraction (ISO, shutter speed, f-number)
-- Altitude data (relative and absolute)
-
-### Features
-- No video re-encoding (fast processing)
-- Preserves original video quality
-- Embeds SRT as subtitle track
-- Creates JSON summaries with flight statistics
-- Handles case-insensitive file extensions
-- Progress feedback during batch processing
-
-## [Unreleased]
-
-### Added
 - Batch CSV conversion via `telemetry_converter.py csv --batch`
 - Metadata presence checker via `metadata_check.py`
 - Support for HTML-based SRT logs with extended camera info
@@ -53,11 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minor documentation improvements
 - Switched to Rich-based logging with verbose/quiet modes
 
+### Supported Formats
+- DJI Mini 3 Pro: `[latitude: xx.xxx] [longitude: xx.xxx]` format
+- Legacy format: `GPS(lat,lon,alt)` format
+- Camera settings extraction (ISO, shutter speed, f-number)
+- Altitude data (relative and absolute)
 
-### Planned
-- Support for more DJI models
-- KML export format
-- GUI interface
-- Video thumbnail generation with GPS overlay
-- Integration with mapping services
-- Flight path visualization
+### Features
+- No video re-encoding (fast processing)
+- Preserves original video quality
+- Embeds SRT as subtitle track
+- Creates JSON summaries with flight statistics
+- Handles case-insensitive file extensions
+- Progress feedback during batch processing
+
