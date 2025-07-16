@@ -9,7 +9,7 @@ description = "Embed DJI drone SRT telemetry as metadata in MP4 files"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{name = "DJI Drone Tools"}]
-license = {file = "LICENSE"}
+license = "MIT"
 dependencies = [
     "ffmpeg-python>=0.2",
     "rich>=13.0",
@@ -18,6 +18,9 @@ dependencies = [
 
 [project.scripts]
 dji-embed = "dji_metadata_embedder.embedder:main"
+
+[tool.setuptools.packages.find]
+include = ["dji_metadata_embedder"]
 
 [tool.black]
 line-length = 88
