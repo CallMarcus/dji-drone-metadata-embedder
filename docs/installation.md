@@ -11,7 +11,7 @@ Or install the bundled package:
 ```powershell
 winget install -e --id CallMarcus.DJI-Embed
 ```
-*Note: corporate PCs may block the Microsoft Store. Contact your IT department if installation fails.*
+*Note: some corporate PCs block the Microsoft Store, which also disables `winget`. Contact your IT department if the installer fails.*
 
 
 ## Via `pip`
