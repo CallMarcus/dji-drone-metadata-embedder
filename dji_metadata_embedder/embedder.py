@@ -10,6 +10,8 @@ from rich.progress import Progress
 
 from .dat_parser import parse_v13 as parse_dat_v13
 from .utilities import apply_redaction, setup_logging
+from src.utils.dependency_manager import DependencyManager
+from src.utils import system_info
 
 logger = logging.getLogger(__name__)
 
@@ -446,11 +448,42 @@ def check_dependencies():
     return True
 
 
+def run_doctor() -> None:
+    """Print system and dependency information."""
+    manager = DependencyManager(Path("tools"))
+    dep_status = manager.verify_dependencies()
+    dep_info = manager.get_dependency_info()
+    summary = system_info.get_system_summary()
+
+    logger.info("System information:")
+    for key, value in summary.items():
+        logger.info("  %s: %s", key, value)
+
+    logger.info("Dependency check:")
+    for name, ok in dep_status.items():
+        status = "OK" if ok else "MISSING"
+        logger.info("  %s: %s", name, status)
+        info = dep_info.get(name, {})
+        if info.get("path"):
+            logger.info("    path: %s", info["path"])
+        if info.get("version"):
+            logger.info("    version: %s", info["version"])
+
+    if all(dep_status.values()):
+        logger.info("All dependencies verified.")
+    else:
+        logger.warning("Some dependencies are missing or not functional.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Embed DJI drone telemetry from SRT files into MP4 videos"
     )
-    parser.add_argument("directory", help="Directory containing MP4 and SRT files")
+    parser.add_argument(
+        "directory",
+        nargs="?",
+        help="Directory containing MP4 and SRT files",
+    )
     parser.add_argument(
         "-o", "--output", help="Output directory (default: ./processed)"
     )
@@ -458,6 +491,11 @@ def main():
         "--exiftool", action="store_true", help="Also use exiftool for GPS metadata"
     )
     parser.add_argument("--check", action="store_true", help="Only check dependencies")
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help="Show system information and verify dependencies",
+    )
     parser.add_argument("--dat", help="Path to a DAT flight log to merge")
     parser.add_argument(
         "--dat-auto",
@@ -480,11 +518,18 @@ def main():
 
     logger.info("DJI Drone Media Metadata Embedder")
 
+    if args.doctor:
+        run_doctor()
+        return
+
     if args.check or not check_dependencies():
         if args.check:
             return
         logger.error("Please install missing dependencies before continuing.")
         return
+
+    if not args.directory:
+        parser.error("the following arguments are required: directory")
 
     embedder = DJIMetadataEmbedder(
         args.directory,

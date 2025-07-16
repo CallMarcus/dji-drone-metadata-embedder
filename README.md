@@ -123,7 +123,7 @@ dji-embed /path/to/drone/footage
 ### Options
 
 ```bash
-dji-embed [OPTIONS] DIRECTORY
+dji-embed [OPTIONS] [DIRECTORY]
 
 Arguments:
   DIRECTORY          Directory containing MP4 and SRT files
@@ -132,6 +132,7 @@ Options:
   -o, --output      Output directory (default: ./processed)
   --exiftool        Also use ExifTool for GPS metadata
   --check           Only check dependencies
+  --doctor          Show system information and dependency status
   --dat FILE        Merge specified DAT flight log
   --dat-auto        Auto-detect DAT logs matching videos
   --redact MODE     Redact GPS data (none, drop, fuzz)
@@ -139,7 +140,7 @@ Options:
   --quiet           Suppress progress bar and most output
 ```
 
-By default, processing shows a progress bar for each file. Use `--verbose` for detailed output or `--quiet` to reduce messages.
+By default, processing shows a progress bar for each file. Use `--verbose` for detailed output or `--quiet` to reduce messages. The `--doctor` option does not require a directory argument.
 
 ### Examples
 
@@ -156,6 +157,11 @@ dji-embed "D:\DroneFootage\Flight1" --exiftool
 Check dependencies:
 ```bash
 dji-embed --check "D:\DroneFootage"
+```
+
+Run the environment doctor:
+```bash
+dji-embed --doctor
 ```
 
 ### Convert Telemetry to Other Formats
