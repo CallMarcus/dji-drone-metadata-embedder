@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dji-drone-metadata-embedder"
-version = "0.1.0"
+version = "1.0.0"
 description = "Embed DJI drone SRT telemetry as metadata in MP4 files"
 readme = "README.md"
 requires-python = ">=3.8"
