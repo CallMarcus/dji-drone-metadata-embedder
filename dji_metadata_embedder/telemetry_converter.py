@@ -237,6 +237,22 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
     return output_file
 
 
+def convert_to_gpx(srt_file: str | Path, output_file: str | Path | None = None) -> Path:
+    """Wrapper for backwards compatibility.
+
+    Converts ``srt_file`` to GPX using :func:`extract_telemetry_to_gpx`.
+    """
+    return extract_telemetry_to_gpx(srt_file, output_file)
+
+
+def convert_to_csv(srt_file: str | Path, output_file: str | Path | None = None) -> Path:
+    """Wrapper for backwards compatibility.
+
+    Converts ``srt_file`` to CSV using :func:`extract_telemetry_to_csv`.
+    """
+    return extract_telemetry_to_csv(srt_file, output_file)
+
+
 if __name__ == "__main__":
     import argparse
 

@@ -2,6 +2,7 @@ import logging
 import re
 from pathlib import Path
 from typing import List, Tuple
+import subprocess
 
 from rich.logging import RichHandler
 
@@ -94,3 +95,27 @@ def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
         datefmt="[%X]",
         handlers=[RichHandler(rich_tracebacks=True)],
     )
+
+
+def check_dependencies() -> Tuple[bool, list[str]]:
+    """Check if ``ffmpeg`` and ``exiftool`` executables are available."""
+    from .embedder import check_dependencies as _check
+
+    deps_ok = _check()
+    missing: list[str] = []
+    if not deps_ok:
+        # replicate expected return from original utility
+        for tool in ("ffmpeg", "exiftool"):
+            try:
+                subprocess.run([tool, "-version"], capture_output=True, check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                missing.append(tool)
+    return deps_ok, missing
+
+
+def parse_dji_srt(srt_path: Path) -> dict:
+    """Standalone wrapper around :class:`DJIMetadataEmbedder` parsing."""
+    from .embedder import DJIMetadataEmbedder
+
+    embedder = DJIMetadataEmbedder(srt_path.parent)
+    return embedder.parse_dji_srt(srt_path)
