@@ -37,9 +37,10 @@ This single package **bundles** the PyInstaller build *and* the needed binaries.
 
 **Call to Codex:**
 
-- Write `tools/bootstrap.ps1` (< 150 lines) with verbose logging and a `-Silent` flag.
-- Add a CI job (`windows‑bootstrap‑smoke‑test`) that spins up a fresh `windows-latest` GH runner, executes the script, and asserts `dji-embed --version` works.
-- Update `docs/installation.md` with a copy‑paste one‑liner:
+* Write `tools/bootstrap.ps1` (< 150 lines) with verbose logging and a `-Silent` flag.
+* Add a CI job (`windows‑bootstrap‑smoke‑test`) that spins up a fresh `windows-latest` GH runner, executes the script, and asserts `dji-embed --version` works.
+* Update `docs/installation.md` with a copy‑paste one‑liner:
+
   ```powershell
   iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
   ```
@@ -73,23 +74,60 @@ pip install dji-metadata-embedder
 
 Add the following under **Phase 1 – Foundation** in the primary `agents.md` roadmap:
 
-| Ref      | Task                                                                 | Owner | Status |
-| -------- | -------------------------------------------------------------------- | ----- | ------ |
-| **A1.4** | `tools/bootstrap.ps1` with CI smoke‑test                             | Codex | ☐ TODO |
-| **A2.1** | winget full package manifest (`CallMarcus.DJI-Embed`)                | Codex | ☐ TODO |
-| **A2.2** | Incremental winget manifests for Python, FFmpeg, ExifTool references | Codex | ☐ TODO |
+| Ref      | Task                                                                    | Owner | Status |
+| -------- | ----------------------------------------------------------------------- | ----- | ------ |
+| **A1.4** | `tools/bootstrap.ps1` with CI smoke‑test                                | Codex | ☐ TODO |
+| **A2.1** | winget full package manifest (`CallMarcus.DJI-Embed`)                   | Codex | ☐ TODO |
+| **A2.2** | Incremental winget manifests for Python, FFmpeg, ExifTool references    | Codex | ☐ TODO |
+| **P1.1** | **PyPI trusted‑publisher hookup** – finish `release.yml` & first upload | Codex | ☐ TODO |
 
-These integrate cleanly with the already planned PyInstaller (A1) and package‑manager (A2) milestones.
+---
+
+### 🔑 **P1.1 – PyPI trusted‑publisher hookup**
+
+*Problem:* PyPI shows "pending publisher" because no workflow run has yet *signed in* via OIDC.
+
+**Acceptance criteria**
+
+1. `release.yml` builds sdist + wheel via `pypa/build` and then publishes with **`pypa/gh-action-pypi-publish`** using **trusted‑publisher** (OIDC) – *no API token needed*.
+2. The workflow is attached to the **Environment** selected in PyPI (or "Any" if no env).  Add `environment: pypi` in the `deploy` job.
+3. Upload succeeds on a signed Git tag starting with `v`, e.g. `v0.3.0`, and PyPI project page shows the artefacts within \~2 min.
+4. README badge auto‑displays the new version.
+
+**Steps for Codex**
+
+1. Update **`release.yml`**:
+
+   ```yaml
+   permissions:
+     id-token: write      # allow OIDC auth with PyPI
+     contents: read       # minimal required
+   jobs:
+     deploy:
+       environment: pypi  # must match PyPI "pending" line
+       steps:
+         - uses: actions/checkout@v4
+         - uses: pypa/gh-action-pypi-publish@release/v1
+           with:
+             print-auth-token: false  # safety
+             skip-existing: true
+   ```
+2. In PyPI **Settings → Trusted Publishers** select *GitHub Actions*, repo `CallMarcus/dji-drone-metadata-embedder`, branch pattern `refs/tags/v*`, environment `pypi`.
+3. Commit, push, then create annotated tag `v0.3.0` – trigger workflow.
+4. If success, tick this task.
+
+📌 *Fallback:* For testing you can still use a classic `PYPI_API_TOKEN` secret; OIDC is preferred.
 
 ---
 
 ## 📑 Documentation delta
 
-- **docs/installation.md** gets a new *“Windows quick‑start”* heading with:
+* **docs/installation.md** gets a new *“Windows quick‑start”* heading with:
+
   1. The PowerShell one‑liner;
   2. The single‑command winget install;
   3. A footnote on corporate PCs (no Store).
-- **docs/faq.md** gains *“My antivirus blocked the EXE”* and *“Winget cannot find package”* entries.
+* **docs/faq.md** gains *“My antivirus blocked the EXE”* and *“Winget cannot find package”* entries.
 
 ---
 
@@ -98,4 +136,3 @@ These integrate cleanly with the already planned PyInstaller (A1) and package‑
 ---
 
 *Draft prepared by ChatGPT for integration into the live roadmap.*
-
