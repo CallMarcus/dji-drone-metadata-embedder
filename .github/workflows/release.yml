@@ -5,9 +5,14 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  build-and-publish:
+  deploy:
     runs-on: ubuntu-22.04
+    environment: pypi
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,7 +37,8 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+          print-auth-token: false
       - name: Attach artefacts to release
         uses: softprops/action-gh-release@v1
         with:

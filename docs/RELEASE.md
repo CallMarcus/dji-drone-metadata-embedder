@@ -7,7 +7,7 @@ The workflow performs the following steps:
 1. Build the wheel and source distribution using `python -m build`.
 2. Import a GPG key from the `GPG_PRIVATE_KEY` repository secret.
 3. Sign all files in `dist/` with `gpg --detach-sign`.
-4. Upload the package to PyPI using the `PYPI_API_TOKEN` secret.
+4. Upload the package to PyPI via the Trusted Publishers flow (OIDC).
 5. Attach the artefacts and their signatures to the GitHub release page.
 
 ## Creating a Release
