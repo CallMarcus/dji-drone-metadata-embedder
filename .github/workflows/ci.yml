@@ -29,3 +29,14 @@ jobs:
         run: pytest
       - name: Build package
         run: python -m build
+
+  windows-bootstrap-smoke-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bootstrap and verify
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          .\tools\bootstrap.ps1 -Silent -NoLaunch
+          dji-embed --version

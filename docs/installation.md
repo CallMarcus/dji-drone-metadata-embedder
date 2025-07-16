@@ -2,6 +2,18 @@
 
 Follow these steps to install **DJI Drone Metadata Embedder** and its dependencies.
 
+## Windows quick-start
+Use this one-liner to install everything via PowerShell:
+```powershell
+iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
+```
+Or install the bundled package:
+```powershell
+winget install -e --id CallMarcus.DJI-Embed
+```
+*Note: corporate PCs may block the Microsoft Store. Contact your IT department if installation fails.*
+
+
 ## Via `pip`
 
 ```bash

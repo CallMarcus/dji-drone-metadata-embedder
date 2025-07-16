@@ -6,5 +6,6 @@ Use the guides in this site to embed GPS data in your footage, redact sensitive 
 
 - [Installation](installation.md)
 - [User Guide](user_guide.md)
+- [FAQ](faq.md)
 - [Troubleshooting](troubleshooting.md)
 - [Development Roadmap](development_roadmap.md)
