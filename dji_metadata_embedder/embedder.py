@@ -15,6 +15,25 @@ logger = logging.getLogger(__name__)
 
 
 class DJIMetadataEmbedder:
+    """Embed DJI telemetry data into video files.
+
+    The embedder scans a directory for MP4 videos and their matching SRT files
+    and writes processed copies with subtitle tracks and metadata. A DAT flight
+    log can be merged if provided or automatically discovered. Processed files
+    are written to ``output_dir``.
+
+    Parameters
+    ----------
+    directory: path to folder containing MP4/SRT pairs
+    output_dir: destination directory for processed files
+    dat_path: optional path to a DAT flight log
+    dat_autoscan: search for DAT logs matching each video
+    redact: GPS redaction mode ("none", "drop", "fuzz")
+
+    Usage:
+        embedder = DJIMetadataEmbedder("/videos")
+        embedder.process_directory()
+    """
     def __init__(
         self,
         directory: str,
