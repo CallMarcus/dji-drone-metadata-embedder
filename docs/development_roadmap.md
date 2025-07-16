@@ -27,6 +27,15 @@ This roadmap tracks the planned evolution of **DJI Drone Metadata Embedder** fro
 - **GitHub Actions CI/CD** workflow for releases.
 - **User documentation** including installation and troubleshooting guides.
 
+### Packaging & Installer Tasks
+The following A-series items are scheduled for upcoming releases. See `agents.md` for full implementation notes.
+
+| Ref  | Task                                                            | Status |
+| ---- | --------------------------------------------------------------- | ------ |
+| A1.4 | PowerShell bootstrap script with CI smoke test                  | TODO   |
+| A2.1 | Winget full package manifest                                    | TODO   |
+| A2.2 | Incremental winget manifests for Python, FFmpeg, ExifTool       | TODO   |
+
 ## Current Progress
 - The repository currently contains the original CLI implementation.
 - A basic `dependency_manager.py` exists but other Phase 1 modules are missing.
