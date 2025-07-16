@@ -1,3 +1,11 @@
+"""Conversion utilities for DJI SRT telemetry files.
+
+This module contains helper functions for extracting telemetry data from DJI
+subtitle (SRT) files. The data can be converted to GPX tracks or CSV logs, and
+directories of SRT files can be processed in batch. A small CLI wrapper is
+provided for convenience.
+"""
+
 from pathlib import Path
 from datetime import datetime
 import re
@@ -9,7 +17,9 @@ from .utilities import setup_logging
 logger = logging.getLogger(__name__)
 
 
-def extract_telemetry_to_gpx(srt_file, output_file=None):
+def extract_telemetry_to_gpx(
+    srt_file: Path | str, output_file: Path | str | None = None
+) -> Path:
     """
     Extract GPS telemetry from DJI SRT file and create GPX file.
     """
@@ -84,7 +94,7 @@ def extract_telemetry_to_gpx(srt_file, output_file=None):
     return output_file
 
 
-def batch_convert_to_gpx(directory):
+def batch_convert_to_gpx(directory: Path | str) -> None:
     """
     Convert all SRT files in a directory to GPX files.
     """
@@ -112,7 +122,7 @@ def batch_convert_to_gpx(directory):
     logger.info("GPX files saved to: %s", gpx_dir)
 
 
-def batch_convert_to_csv(directory):
+def batch_convert_to_csv(directory: Path | str) -> None:
     """
     Convert all SRT files in a directory to CSV files.
     """
@@ -140,7 +150,9 @@ def batch_convert_to_csv(directory):
     logger.info("CSV files saved to: %s", csv_dir)
 
 
-def extract_telemetry_to_csv(srt_file, output_file=None):
+def extract_telemetry_to_csv(
+    srt_file: Path | str, output_file: Path | str | None = None
+) -> Path:
     """
     Extract all telemetry data from DJI SRT file to CSV.
     """
