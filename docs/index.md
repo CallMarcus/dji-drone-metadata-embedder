@@ -4,4 +4,7 @@ Welcome to the documentation for **DJI Drone Metadata Embedder**. This project p
 
 Use the guides in this site to embed GPS data in your footage, redact sensitive information and generate GPX tracks.
 
-The [Development Roadmap](development_roadmap.md) outlines the planned phases for turning this tool into a user-friendly Windows application.
+- [Installation](installation.md)
+- [User Guide](user_guide.md)
+- [Troubleshooting](troubleshooting.md)
+- [Development Roadmap](development_roadmap.md)
