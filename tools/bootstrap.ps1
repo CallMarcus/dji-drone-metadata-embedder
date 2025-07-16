@@ -35,7 +35,20 @@ function Ensure-Python{
 $python=Ensure-Python
 Log "Using Python: $python"
 & $python -m pip install --upgrade pip | Out-Null
-& $python -m pip install --upgrade dji-metadata-embedder | Out-Null
+
+# Try installing from PyPI first
+$package='dji-drone-metadata-embedder'
+& $python -m pip install --upgrade $package | Out-Null
+if($LASTEXITCODE -ne 0){
+    Log "PyPI install failed; attempting local install"
+    $repo=Join-Path $PSScriptRoot '..'
+    if(Test-Path (Join-Path $repo 'pyproject.toml')){
+        & $python -m pip install $repo | Out-Null
+        if($LASTEXITCODE -ne 0){ throw "Failed to install $package" }
+    }else{
+        throw "Failed to install $package and local project not found"
+    }
+}
 
 $binDir=Join-Path $env:LOCALAPPDATA 'dji-embed\\bin'
 New-Item -Force -ItemType Directory $binDir | Out-Null
