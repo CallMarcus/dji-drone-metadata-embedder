@@ -7,7 +7,7 @@ Run this first to ensure everything is properly set up.
 import subprocess
 import sys
 import importlib
-import os
+from importlib import util
 from pathlib import Path
 
 
@@ -27,22 +27,24 @@ def test_python_version():
 def test_package_importable():
     """Test that the main package can be imported."""
     print("\n📦 Testing package imports...")
-    
+
     try:
-        import dji_metadata_embedder
-        print("   ✅ Main package imported")
-        
+        if util.find_spec("dji_metadata_embedder") is None:
+            raise ImportError("dji_metadata_embedder not found")
+
         from dji_metadata_embedder import DJIMetadataEmbedder
-        print("   ✅ DJIMetadataEmbedder imported")
-        
         from dji_metadata_embedder.telemetry_converter import convert_to_gpx
-        print("   ✅ Telemetry converter imported")
-        
         from dji_metadata_embedder.metadata_check import check_metadata
+
+        _ = (DJIMetadataEmbedder, convert_to_gpx, check_metadata)
+
+        print("   ✅ Main package imported")
+        print("   ✅ DJIMetadataEmbedder imported")
+        print("   ✅ Telemetry converter imported")
         print("   ✅ Metadata checker imported")
-        
+
         return True
-        
+
     except ImportError as e:
         print(f"   ❌ Import failed: {e}")
         return False
@@ -68,7 +70,7 @@ def test_dependencies():
             print(f"   ❌ {dep_name} not found")
     
     if missing:
-        print(f"\n   📝 Install missing dependencies with:")
+        print("\n   📝 Install missing dependencies with:")
         print(f"   pip install {' '.join(missing)}")
         return False
     

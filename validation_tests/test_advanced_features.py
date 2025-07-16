@@ -6,7 +6,6 @@ metadata checking, and CLI functionality.
 
 import sys
 from pathlib import Path
-import json
 import tempfile
 import subprocess
 import xml.etree.ElementTree as ET
@@ -17,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
     from dji_metadata_embedder.telemetry_converter import convert_to_gpx, convert_to_csv
     from dji_metadata_embedder.metadata_check import check_metadata
-    from dji_metadata_embedder.utilities import parse_dji_srt
 except ImportError as e:
     print(f"❌ Could not import DJI modules: {e}")
     print("   Try running: pip install -e .")
@@ -147,7 +145,6 @@ def test_csv_conversion():
                 
                 if len(lines) >= 2:  # Header + at least one data row
                     header = lines[0].strip()
-                    first_row = lines[1].strip()
                     
                     print(f"   📋 CSV has {len(lines)-1} data rows")
                     print(f"   📝 Header: {header}")
@@ -219,7 +216,7 @@ def test_metadata_checker():
         dummy_path = Path("test_video.mp4")
         
         # The function should handle non-existent files gracefully
-        result = check_metadata(dummy_path)
+        check_metadata(dummy_path)
         print("   ✅ Metadata checker handles missing files")
         return True
         
@@ -293,7 +290,7 @@ def test_cli_dependency_check():
                 
                 return True
             else:
-                print(f"   ❌ CLI dependency check failed unexpectedly")
+                print("   ❌ CLI dependency check failed unexpectedly")
                 return False
                 
     except FileNotFoundError:

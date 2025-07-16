@@ -6,15 +6,12 @@ Tests parsing of different SRT formats and data extraction.
 
 import sys
 from pathlib import Path
-import json
 import tempfile
-import shutil
 
 # Add the package to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from dji_metadata_embedder.embedder import DJIMetadataEmbedder
     from dji_metadata_embedder.utilities import parse_dji_srt
 except ImportError as e:
     print(f"❌ Could not import DJI modules: {e}")
@@ -54,7 +51,7 @@ def test_sample_srt_parsing():
                     print(f"      📍 First GPS: {lat:.6f}, {lon:.6f}")
                     success_count += 1
                 else:
-                    print(f"      ❌ No GPS data extracted")
+                    print("      ❌ No GPS data extracted")
                     
                 if telemetry['altitudes']:
                     print(f"      🏔️  Max altitude: {max(telemetry['altitudes']):.1f}m")
@@ -106,7 +103,7 @@ def test_real_srt_parsing():
                 
                 success_count += 1
             else:
-                print(f"      ❌ No GPS data extracted")
+                print("      ❌ No GPS data extracted")
                 
             if telemetry['altitudes']:
                 print(f"      🏔️  Altitude range: {min(telemetry['altitudes']):.1f} - {max(telemetry['altitudes']):.1f}m")
@@ -179,7 +176,7 @@ GPS(59.302340,18.203065,132.960)
                     print(f"      📍 First GPS: {lat:.6f}, {lon:.6f}")
                     success_count += 1
                 else:
-                    print(f"      ❌ No GPS data extracted")
+                    print("      ❌ No GPS data extracted")
                 
                 if telemetry['altitudes']:
                     print(f"      🏔️  Altitude: {telemetry['altitudes'][0]:.1f}m")
@@ -226,17 +223,17 @@ def test_telemetry_statistics():
                 'flight_duration': telemetry['flight_duration'],
             }
             
-            print(f"      📊 Statistics calculated:")
+            print("      📊 Statistics calculated:")
             for key, value in stats.items():
                 if value is not None:
                     print(f"         {key}: {value}")
             
             # Validate statistics
             if stats['total_gps_points'] > 0:
-                print(f"      ✅ Statistics calculation successful")
+                print("      ✅ Statistics calculation successful")
                 return True
             else:
-                print(f"      ❌ No data for statistics")
+                print("      ❌ No data for statistics")
                 
         except Exception as e:
             print(f"      ❌ Statistics calculation failed: {e}")

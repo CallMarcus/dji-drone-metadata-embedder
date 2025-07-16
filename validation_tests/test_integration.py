@@ -131,7 +131,7 @@ def test_full_processing_workflow(test_dir):
             print(f"   ✅ Output video created: {expected_output.name}")
             print(f"      📊 Size: {expected_output.stat().st_size:,} bytes")
         else:
-            print(f"   ❌ Output video not created")
+            print("   ❌ Output video not created")
             success = False
         
         if expected_json.exists():
@@ -149,7 +149,7 @@ def test_full_processing_workflow(test_dir):
                     print(f"      ❌ Missing JSON field: {field}")
                     success = False
         else:
-            print(f"   ❌ JSON summary not created")
+            print("   ❌ JSON summary not created")
             success = False
         
         return success
@@ -190,7 +190,7 @@ def test_workflow_simulation(mp4_file, srt_file, test_dir):
         with open(test_json, 'w') as f:
             json.dump(json_data, f, indent=2)
         
-        print(f"   ✅ JSON generation successful")
+        print("   ✅ JSON generation successful")
         print(f"      📍 GPS: {json_data['first_gps']}")
         print(f"      🏔️  Altitude: {json_data['max_altitude']}")
         
@@ -274,7 +274,7 @@ def test_cli_integration(test_dir):
             
             return True
         else:
-            print(f"   ❌ CLI dependency check failed")
+            print("   ❌ CLI dependency check failed")
             return False
             
     except FileNotFoundError:
@@ -295,7 +295,7 @@ def test_error_handling():
             
             # Test with non-existent directory
             try:
-                embedder = DJIMetadataEmbedder(Path("/non/existent/directory"))
+                DJIMetadataEmbedder(Path("/non/existent/directory"))
                 print("   ⚠️  No error for non-existent directory (may be handled later)")
             except Exception:
                 print("   ✅ Properly handles non-existent directory")
@@ -304,7 +304,7 @@ def test_error_handling():
             empty_dir = temp_path / "empty"
             empty_dir.mkdir()
             
-            embedder = DJIMetadataEmbedder(empty_dir)
+            DJIMetadataEmbedder(empty_dir)
             # This should handle gracefully - not crash
             print("   ✅ Handles empty directory gracefully")
             
@@ -332,7 +332,7 @@ def test_error_handling():
 
 def cleanup_test_environment(test_dir):
     """Clean up the test environment."""
-    print(f"\n🧹 Cleaning up test environment...")
+    print("\n🧹 Cleaning up test environment...")
     
     try:
         if test_dir.exists():

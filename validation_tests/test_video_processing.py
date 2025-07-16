@@ -8,9 +8,6 @@ import sys
 from pathlib import Path
 import json
 import tempfile
-import shutil
-import subprocess
-import os
 
 # Add the package to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -69,7 +66,7 @@ def test_embedder_initialization():
             if embedder2.output_dir == custom_output:
                 print("   ✅ Custom output directory set correctly")
             else:
-                print(f"   ❌ Custom output directory mismatch")
+                print("   ❌ Custom output directory mismatch")
                 return False
             
             print("   ✅ Embedder initialization successful")
@@ -91,8 +88,8 @@ def test_video_file_detection():
         return test_video_detection_with_samples()
     
     try:
-        embedder = DJIMetadataEmbedder(drone_footage_dir)
-        
+        DJIMetadataEmbedder(drone_footage_dir)
+
         # Get list of video files (simulating internal file discovery)
         video_files = list(drone_footage_dir.glob("*.mp4")) + list(drone_footage_dir.glob("*.MP4"))
         srt_files = list(drone_footage_dir.glob("*.srt")) + list(drone_footage_dir.glob("*.SRT"))
@@ -180,8 +177,8 @@ def test_metadata_embedding_simulation():
             # Test embedder setup
             with tempfile.TemporaryDirectory() as temp_dir:
                 output_dir = Path(temp_dir) / "test_output"
-                embedder = DJIMetadataEmbedder(drone_footage_dir, output_dir)
-                
+                DJIMetadataEmbedder(drone_footage_dir, output_dir)
+
                 # Simulate the telemetry parsing step
                 from dji_metadata_embedder.utilities import parse_dji_srt
                 telemetry = parse_dji_srt(srt_file)
@@ -189,7 +186,7 @@ def test_metadata_embedding_simulation():
                 if telemetry['gps_coords']:
                     print(f"      ✅ SRT parsing successful ({len(telemetry['gps_coords'])} GPS points)")
                 else:
-                    print(f"      ❌ SRT parsing failed")
+                    print("      ❌ SRT parsing failed")
                     return False
                 
                 # Test output filename generation
@@ -208,7 +205,7 @@ def test_metadata_embedding_simulation():
                     'num_gps_points': len(telemetry['gps_coords'])
                 }
                 
-                print(f"      📈 Simulation successful")
+                print("      📈 Simulation successful")
                 print(f"         GPS: {json_data['first_gps']}")
                 print(f"         Altitude: {json_data['max_altitude']}")
                 print(f"         Points: {json_data['num_gps_points']}")
@@ -248,7 +245,7 @@ def simulate_with_samples():
             print(f"      ✅ Sample parsing successful ({len(telemetry['gps_coords'])} GPS points)")
             return True
         else:
-            print(f"      ❌ Sample parsing failed")
+            print("      ❌ Sample parsing failed")
             return False
             
     except Exception as e:
@@ -278,7 +275,7 @@ def simulate_embedding_logic():
     ]
     
     print(f"      📝 FFmpeg command constructed: {len(ffmpeg_cmd)} arguments")
-    print(f"      🎯 Command structure valid")
+    print("      🎯 Command structure valid")
     
     return True
 
