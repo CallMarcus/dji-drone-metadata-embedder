@@ -35,11 +35,11 @@ This single package **bundles** the PyInstaller build *and* the needed binaries.
 
 \---- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | | 1    | **Self‑elevate** if not running as Admin.                                                                 | `#Requires -RunAsAdministrator` or `Start-Process -Verb runAs`. | | 2    | Detect **Python ≥ 3.10**; if absent, install via the Microsoft Store silent CLI (`storecli install`).     | Fallback: winget.                                               | | 3    | Grab **static FFmpeg + ExifTool zips** from GitHub Releases, extract into `%LOCALAPPDATA%\dji‑embed\bin`. | Use SHA‑256 checksum validation.                                | | 4    | Run `pip install --upgrade --no‑cache-dir dji‑metadata‑embedder` *inside the same PowerShell session*.    | Works even if system Python just got installed.                 | | 5    | Add `%LOCALAPPDATA%\dji‑embed\bin` and `%APPDATA%\Python\Scripts` to the *current user* PATH (no reboot). | `[Environment]::SetEnvironmentVariable` with "User" scope.      | | 6    | Launch `dji-embed wizard` so the pilot sees the Rich UI immediately.                                      | Optional banner + analytics ping.                               |
 
-**Call to Codex:**
+**Call to Codex (completed):**
 
-* Write `tools/bootstrap.ps1` (< 150 lines) with verbose logging and a `-Silent` flag.
-* Add a CI job (`windows‑bootstrap‑smoke‑test`) that spins up a fresh `windows-latest` GH runner, executes the script, and asserts `dji-embed --version` works.
-* Update `docs/installation.md` with a copy‑paste one‑liner:
+* Write `tools/bootstrap.ps1` (< 150 lines) with verbose logging and a `-Silent` flag. **✓ Done**
+* Add a CI job (`windows‑bootstrap‑smoke‑test`) that spins up a fresh `windows-latest` GH runner, executes the script, and asserts `dji-embed --version` works. **✓ Done**
+* Update `docs/installation.md` with a copy‑paste one‑liner: **✓ Done**
 
   ```powershell
   iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
@@ -62,11 +62,11 @@ winget install -e --id PhilHarvey.ExifTool
 pip install dji-metadata-embedder
 ```
 
-**Winget packaging tasks for Codex:**
+**Winget packaging tasks for Codex (completed):**
 
-1. Add `installer.yaml` to `.github/winget/` (upgrade‑safe).
-2. GH Action `publish-winget.yml` builds the PyInstaller EXE and submits a PR to `microsoft/winget-pkgs` via `wingetcreate`.
-3. On success, bump README badges (`winget | GitHub Release | PyPI`).
+1. Add `installer.yaml` to `.github/winget/` (upgrade‑safe). **✓ Done**
+2. GH Action `publish-winget.yml` builds the PyInstaller EXE and submits a PR to `microsoft/winget-pkgs` via `wingetcreate`. **✓ Done**
+3. On success, bump README badges (`winget | GitHub Release | PyPI`). **✓ Done**
 
 ---
 
@@ -76,8 +76,8 @@ Add the following under **Phase 1 – Foundation** in the primary `agents.md` r
 
 | Ref      | Task                                                                    | Owner | Status |
 | -------- | ----------------------------------------------------------------------- | ----- | ------ |
-| **A1.4** | `tools/bootstrap.ps1` with CI smoke‑test                                | Codex | ☐ TODO |
-| **A2.1** | winget full package manifest (`CallMarcus.DJI-Embed`)                   | Codex | ☐ TODO |
+| **A1.4** | `tools/bootstrap.ps1` with CI smoke‑test                                | Codex | ☑ DONE |
+| **A2.1** | winget full package manifest (`CallMarcus.DJI-Embed`)                   | Codex | ☑ DONE |
 | **A2.2** | Incremental winget manifests for Python, FFmpeg, ExifTool references    | Codex | ☐ TODO |
 | **P1.1** | **PyPI trusted‑publisher hookup** – finish `release.yml` & first upload | Codex | ☐ TODO |
 

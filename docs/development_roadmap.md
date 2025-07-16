@@ -32,13 +32,15 @@ The following A-series items are scheduled for upcoming releases. See `agents.md
 
 | Ref  | Task                                                            | Status |
 | ---- | --------------------------------------------------------------- | ------ |
-| A1.4 | PowerShell bootstrap script with CI smoke test                  | TODO   |
-| A2.1 | Winget full package manifest                                    | TODO   |
+| A1.4 | PowerShell bootstrap script with CI smoke test                  | DONE   |
+| A2.1 | Winget full package manifest                                    | DONE   |
 | A2.2 | Incremental winget manifests for Python, FFmpeg, ExifTool       | TODO   |
 
 ## Current Progress
 - The repository currently contains the original CLI implementation.
 - A basic `dependency_manager.py` exists but other Phase 1 modules are missing.
-- No GUI, build scripts or installer have been created yet.
+- `tools/bootstrap.ps1` and its CI smoke test are implemented.
+- Winget packaging workflow and manifest are in place.
+- No GUI has been created yet.
 
 The project aims to deliver a one-click Windows application with comprehensive documentation and automated builds.
