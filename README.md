@@ -3,6 +3,9 @@
 A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files. This tool extracts GPS coordinates, altitude, camera settings, and other telemetry data from SRT files and embeds them as metadata in the corresponding video files.
 
 See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows application with a graphical interface.
+For detailed setup instructions and a quick-start tutorial, see [docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
+Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
+
 
 ## Features
 
@@ -120,7 +123,7 @@ dji-embed /path/to/drone/footage
 ### Options
 
 ```bash
-dji-embed [OPTIONS] DIRECTORY
+dji-embed [OPTIONS] [DIRECTORY]
 
 Arguments:
   DIRECTORY          Directory containing MP4 and SRT files
@@ -129,6 +132,7 @@ Options:
   -o, --output      Output directory (default: ./processed)
   --exiftool        Also use ExifTool for GPS metadata
   --check           Only check dependencies
+  --doctor          Show system information and dependency status
   --dat FILE        Merge specified DAT flight log
   --dat-auto        Auto-detect DAT logs matching videos
   --redact MODE     Redact GPS data (none, drop, fuzz)
@@ -136,7 +140,7 @@ Options:
   --quiet           Suppress progress bar and most output
 ```
 
-By default, processing shows a progress bar for each file. Use `--verbose` for detailed output or `--quiet` to reduce messages.
+By default, processing shows a progress bar for each file. Use `--verbose` for detailed output or `--quiet` to reduce messages. The `--doctor` option does not require a directory argument.
 
 ### Examples
 
@@ -153,6 +157,11 @@ dji-embed "D:\DroneFootage\Flight1" --exiftool
 Check dependencies:
 ```bash
 dji-embed --check "D:\DroneFootage"
+```
+
+Run the environment doctor:
+```bash
+dji-embed --doctor
 ```
 
 ### Convert Telemetry to Other Formats
@@ -248,6 +257,7 @@ GPS(59.302335,18.203059,132.860)
 
 ## Troubleshooting
 
+See [docs/troubleshooting.md](docs/troubleshooting.md) for additional tips.
 ### "Python was not found"
 Use `py` instead of `python`:
 ```bash

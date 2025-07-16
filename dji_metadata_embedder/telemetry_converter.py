@@ -1,3 +1,11 @@
+"""Conversion utilities for DJI SRT telemetry files.
+
+This module contains helper functions for extracting telemetry data from DJI
+subtitle (SRT) files. The data can be converted to GPX tracks or CSV logs, and
+directories of SRT files can be processed in batch. A small CLI wrapper is
+provided for convenience.
+"""
+
 from pathlib import Path
 from datetime import datetime
 import re
@@ -9,16 +17,18 @@ from .utilities import setup_logging
 logger = logging.getLogger(__name__)
 
 
-def extract_telemetry_to_gpx(srt_file, output_file=None):
+def extract_telemetry_to_gpx(
+    srt_file: Path | str, output_file: Path | str | None = None
+) -> Path:
     """
     Extract GPS telemetry from DJI SRT file and create GPX file.
     """
-    if not output_file:
-        output_file = Path(srt_file).with_suffix(".gpx")
+    srt_path = Path(srt_file)
+    output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
     gps_points = []
 
-    with open(srt_file, "r", encoding="utf-8") as f:
+    with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     blocks = content.strip().split("\n\n")
@@ -70,7 +80,7 @@ def extract_telemetry_to_gpx(srt_file, output_file=None):
 </trk>
 </gpx>"""
 
-    with open(output_file, "w") as f:
+    with open(output_path, "w") as f:
         f.write(gpx_header)
         for point in gps_points:
             f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
@@ -80,11 +90,11 @@ def extract_telemetry_to_gpx(srt_file, output_file=None):
             f.write("        </trkpt>\n")
         f.write(gpx_footer)
 
-    logger.info("GPX file created: %s", output_file)
-    return output_file
+    logger.info("GPX file created: %s", output_path)
+    return output_path
 
 
-def batch_convert_to_gpx(directory):
+def batch_convert_to_gpx(directory: Path | str) -> None:
     """
     Convert all SRT files in a directory to GPX files.
     """
@@ -112,7 +122,7 @@ def batch_convert_to_gpx(directory):
     logger.info("GPX files saved to: %s", gpx_dir)
 
 
-def batch_convert_to_csv(directory):
+def batch_convert_to_csv(directory: Path | str) -> None:
     """
     Convert all SRT files in a directory to CSV files.
     """
@@ -140,16 +150,18 @@ def batch_convert_to_csv(directory):
     logger.info("CSV files saved to: %s", csv_dir)
 
 
-def extract_telemetry_to_csv(srt_file, output_file=None):
+def extract_telemetry_to_csv(
+    srt_file: Path | str, output_file: Path | str | None = None
+) -> Path:
     """
     Extract all telemetry data from DJI SRT file to CSV.
     """
-    if not output_file:
-        output_file = Path(srt_file).with_suffix(".csv")
+    srt_path = Path(srt_file)
+    output_path = Path(output_file) if output_file else srt_path.with_suffix(".csv")
 
     rows = []
 
-    with open(srt_file, "r", encoding="utf-8") as f:
+    with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     blocks = content.strip().split("\n\n")
@@ -227,14 +239,14 @@ def extract_telemetry_to_csv(srt_file, output_file=None):
     # Write CSV
     import csv
 
-    with open(output_file, "w", newline="", encoding="utf-8") as f:
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
         if rows:
             writer = csv.DictWriter(f, fieldnames=rows[0].keys())
             writer.writeheader()
             writer.writerows(rows)
 
-    logger.info("CSV file created: %s", output_file)
-    return output_file
+    logger.info("CSV file created: %s", output_path)
+    return output_path
 
 
 def convert_to_gpx(srt_file: str | Path, output_file: str | Path | None = None) -> Path:

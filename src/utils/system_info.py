@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Utility functions for gathering basic system information."""
+
+from __future__ import annotations
 
 import os
 import platform
@@ -11,11 +11,15 @@ from typing import Dict
 
 
 def get_windows_version() -> str:
-    """Return the detected Windows version or "Unknown"."""
-    if platform.system() != "Windows":
+    """Return the detected Windows version or ``"Unknown"``.
+
+    Uses ``sys.getwindowsversion`` on Windows and safely falls back to
+    ``"Unknown"`` on other platforms.
+    """
+    if platform.system() != "Windows" or not hasattr(sys, "getwindowsversion"):
         return "Unknown"
 
-    ver = sys.getwindowsversion()
+    ver = sys.getwindowsversion()  # type: ignore[attr-defined]
     if ver.major == 10:
         # Windows 10 or 11 share major version 10
         return "11" if ver.build >= 22000 else "10"
@@ -36,12 +40,14 @@ def get_disk_space(path: Path) -> int:
 
 
 def has_admin_privileges() -> bool:
-    """Return True if the process has administrative privileges."""
+    """Return ``True`` if the current process has administrative rights."""
     if os.name == "nt":
         try:
             import ctypes
 
-            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+            if hasattr(ctypes, "windll"):
+                return bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
+            return False
         except Exception:  # noqa: BLE001
             return False
     return os.geteuid() == 0
