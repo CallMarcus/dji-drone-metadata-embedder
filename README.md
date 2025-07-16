@@ -98,6 +98,12 @@ includes FFmpeg and ExifTool:
 docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 ```
 
+### 5. Windows Quick Setup
+
+If you prefer a simple install, see
+[Windows Quick Setup](docs/how-to/windows-bundle.md) for instructions on using
+`pipx` or creating a standalone executable with PyInstaller.
+
 ## Usage
 
 If the command `python` is not recognized, use `py` instead.
