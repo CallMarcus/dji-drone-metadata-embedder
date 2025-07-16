@@ -19,6 +19,9 @@ dependencies = [
 [project.scripts]
 dji-embed = "dji_metadata_embedder.embedder:main"
 
+[tool.setuptools.packages.find]
+include = ["dji_metadata_embedder"]
+
 [tool.black]
 line-length = 88
 
