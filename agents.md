@@ -135,4 +135,3 @@ Add the following under **Phase 1 – Foundation** in the primary `agents.md` r
 
 ---
 
-*Draft prepared by ChatGPT for integration into the live roadmap.*
