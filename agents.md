@@ -12,6 +12,15 @@ This document breaks down the development of the DJI Metadata Embedder into spec
 **Current State**: Working Python package with CLI interface, requires manual dependency installation
 **Target State**: Standalone Windows executable with GUI, includes all dependencies
 
+### Next release targets (v0.3.x)
+
+- 🛠  A1  PyInstaller one‑file binaries (Win / macOS / Linux)
+- 🛠  A2  winget, Scoop, Homebrew, Chocolatey packages
+- 🛠  B1  Embedded FFmpeg + ExifTool with auto‑extract
+- 🛠  B2  `dji‑embed doctor` dependency checker
+- 🛠  C1  Interactive wizard mode (Rich prompts)
+- 🌓  C2  Optional Tauri GUI wrapper
+- 📚  C3  Quick‑start screencast + GIFs
 ---
 
 ## 🎯 Phase 1: Foundation & Setup (Priority: HIGH)
