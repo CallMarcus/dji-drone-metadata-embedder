@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.2] - 2025-07-17
 
-### Planned
-- Support for more DJI models
-- KML export format
-- GUI interface
-- Video thumbnail generation with GPS overlay
-- Integration with mapping services
-- Flight path visualization
+### Added
+- PowerShell bootstrap script for one-click setup on Windows
+- Winget package `CallMarcus.DJI-Embed` with bundled dependencies
+- Release workflow builds a signed `dji-embed.exe` via PyInstaller
+- CI smoke test validates the bootstrap installer
+- `tools/sync_version.py` to keep version numbers aligned
+
+### Changed
+- README and docs reorganised for novice Windows users
+
+### Fixed
+- Reliable winget publish workflow
 
 ## [1.0.1] - 2025-07-16
 
