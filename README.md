@@ -1,12 +1,59 @@
 # DJI Drone Metadata Embedder
 
-[![Winget](https://img.shields.io/badge/winget-CallMarcus.DJI--Embed-blue?logo=windows)](https://winget.run/pkg/CallMarcus/DJI-Embed) [![GitHub Release](https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases) [![PyPI](https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi)](https://pypi.org/project/dji-drone-metadata-embedder/)
+[![Winget]][winget]
+[![GitHub Release]][release]
+[![PyPI]][pypi]
 
-A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files. This tool extracts GPS coordinates, altitude, camera settings, and other telemetry data from SRT files and embeds them as metadata in the corresponding video files.
+A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files.
+This tool extracts GPS coordinates, altitude, camera settings and other telemetry data from SRT files and embeds
+them as metadata in the corresponding video files.
 
-See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows application with a graphical interface.
-For detailed setup instructions and a quick-start tutorial, see [docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
-Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md). Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
+See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows
+application with a graphical interface.
+For detailed setup instructions and a quick-start tutorial, see
+[docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
+Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
+Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
+
+## Easy Windows install
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
+```
+
+```powershell
+winget install -e --id CallMarcus.DJI-Embed
+```
+
+### Windows – manual path
+
+```powershell
+winget install -e --id Python.Python.3
+winget install -e --id Gyan.FFmpeg
+winget install -e --id PhilHarvey.ExifTool
+pip install dji-metadata-embedder
+```
+
+## macOS / Linux quick-start
+
+```bash
+brew install ffmpeg exiftool
+sudo apt update && sudo apt install ffmpeg exiftool
+pip install dji-drone-metadata-embedder
+```
+
+```bash
+docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
+```
+
+<details>
+<summary>Advanced</summary>
+
+- Build from source with `pip install -r requirements.txt`
+- Use the provided `Dockerfile` for custom images
+- Review CI scripts under `.github/workflows`
+
+</details>
 
 
 ## Features
@@ -34,82 +81,6 @@ The tool has been tested with:
 - Python 3.6 or higher
 - FFmpeg
 - ExifTool (optional, for additional metadata embedding)
-
-## Installation
-
-### 1. Install Python Dependencies
-
-Install the required packages:
-
-```bash
-pip install rich ffmpeg-python piexif
-```
-
-Alternatively, install from the `requirements.txt` file:
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Install FFmpeg
-
-#### Windows:
-1. Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (get the "full" build)
-2. Extract to `C:\ffmpeg`
-3. Add `C:\ffmpeg\bin` to your PATH:
-   ```cmd
-   setx /M PATH "%PATH%;C:\ffmpeg\bin"
-   ```
-
-#### macOS:
-```bash
-brew install ffmpeg
-```
-
-#### Linux:
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
-
-### 3. Install ExifTool (Optional)
-
-#### Windows:
-1. Download from [exiftool.org](https://exiftool.org/)
-2. Rename `exiftool(-k).exe` to `exiftool.exe`
-3. Place in `C:\exiftool` and add to PATH
-
-> **What does "add to PATH" mean?**
-> The `PATH` environment variable tells Windows where to find executable
-> programs. Adding a folder such as `C:\ffmpeg\bin` or `C:\exiftool` lets you
-> run `ffmpeg` or `exiftool` from any command prompt. You can modify `PATH`
-> through *System Properties → Environment Variables* or by running the `setx`
-> command shown above.
-
-#### macOS:
-```bash
-brew install exiftool
-```
-
-#### Linux:
-```bash
-sudo apt install libimage-exiftool-perl
-```
-
-### 4. Docker
-
-If you only have Docker installed, use the prebuilt image which already
-includes FFmpeg and ExifTool:
-
-```bash
-docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
-```
-
-### 5. Windows Quick Setup
-
-If you prefer a simple install, see
-[Windows Quick Setup](docs/how-to/windows-bundle.md) for instructions on using
-`pipx` or creating a standalone executable with PyInstaller.
 
 ## Usage
 
@@ -142,7 +113,9 @@ Options:
   --quiet           Suppress progress bar and most output
 ```
 
-By default, processing shows a progress bar for each file. Use `--verbose` for detailed output or `--quiet` to reduce messages. The `--doctor` option does not require a directory argument.
+By default, processing shows a progress bar for each file.
+Use `--verbose` for detailed output or `--quiet` to reduce messages.
+The `--doctor` option does not require a directory argument.
 
 ### Examples
 
@@ -307,3 +280,10 @@ MIT License - see LICENSE file for details
 ## Disclaimer
 
 This tool is not affiliated with or endorsed by DJI. Use at your own risk.
+
+[Winget]: https://img.shields.io/badge/winget-CallMarcus.DJI--Embed-blue?logo=windows
+[winget]: https://winget.run/pkg/CallMarcus/DJI-Embed
+[GitHub Release]: https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github
+[release]: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases
+[PyPI]: https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi
+[pypi]: https://pypi.org/project/dji-drone-metadata-embedder/
