@@ -25,6 +25,8 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 winget install -e --id CallMarcus.DJI-Embed
 ```
 
+You can also download a ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases) if `winget` is unavailable.
+
 ### Windows – manual path
 
 ```powershell
