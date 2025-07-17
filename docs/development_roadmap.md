@@ -36,6 +36,13 @@ The following A-series items are scheduled for upcoming releases. See `agents.md
 | A2.1 | Winget full package manifest                                    | DONE   |
 | A2.2 | Incremental winget manifests for Python, FFmpeg, ExifTool       | TODO   |
 
+## AI Agents Integration
+These milestones describe how AI coding assistants will further streamline DJI metadata embedding and winget publishing.
+
+- **Document AI usage in `agents.md`** – explain where automated helpers fit into the tooling.
+- **Use agents for automated testing** – offload routine CI checks to scripted agents.
+- **Incorporate AI for release note generation** – produce consistent notes for each winget release.
+
 ## Current Progress
 - The repository currently contains the original CLI implementation.
 - A basic `dependency_manager.py` exists but other Phase 1 modules are missing.
