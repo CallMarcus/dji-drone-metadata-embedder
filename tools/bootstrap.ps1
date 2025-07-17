@@ -1,13 +1,20 @@
 #requires -version 5.1
 param(
     [switch]$Silent,
-    [switch]$NoLaunch
+    [switch]$NoLaunch,
+    [string]$Version
 )
 
 $ErrorActionPreference = 'Stop'
 $VerbosePreference = if($Silent){'SilentlyContinue'} else{'Continue'}
 
-function Log($Msg){ Write-Host "[+] $Msg" }
+if(-not $Version){
+    try{
+        $Version = (Invoke-RestMethod https://api.github.com/repos/CallMarcus/dji-drone-metadata-embedder/releases/latest).tag_name.TrimStart('v')
+    }catch{ throw 'Failed to determine latest version' }
+}
+
+function Log($Msg){ if(-not $Silent){ Write-Host "[+] $Msg" } }
 
 # Elevate if not admin
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -38,7 +45,8 @@ Log "Using Python: $python"
 
 # Try installing from PyPI first
 $package='dji-drone-metadata-embedder'
-& $python -m pip install --upgrade $package | Out-Null
+$pkgArg = if($Version){"$package==$Version"}else{$package}
+& $python -m pip install --upgrade $pkgArg | Out-Null
 if($LASTEXITCODE -ne 0){
     Log "PyPI install failed; attempting local install"
     $repo=Join-Path $PSScriptRoot '..'
@@ -85,6 +93,8 @@ Remove-Item $tmp -Recurse -Force
 $pyScripts=Join-Path $env:APPDATA 'Python\Scripts'
 foreach($p in @($binDir,$pyScripts)){ if(-not ($env:PATH -split ';' | Where-Object { $_ -eq $p })){ $env:PATH="$p;$env:PATH" } }
 try{ [Environment]::SetEnvironmentVariable('PATH',$env:PATH,'User') }catch{}
+if($isAdmin){
+    try{ [Environment]::SetEnvironmentVariable('PATH',$env:PATH,'Machine') }catch{ Log 'HKLM PATH update failed' }}
 
 if(-not $NoLaunch){ & dji-embed wizard }
 Log 'Done.'

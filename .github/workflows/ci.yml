@@ -20,7 +20,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
-          pip install ruff mypy pytest build
+          pip install ruff mypy pytest build jinja2
       - name: Ruff
         run: ruff check .
       - name: Mypy
@@ -29,4 +29,6 @@ jobs:
         run: pytest
       - name: Build package
         run: python -m build
+      - name: Check versions
+        run: python tools/sync_version.py --check
 
