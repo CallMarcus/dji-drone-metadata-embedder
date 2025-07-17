@@ -1,20 +1,19 @@
 # Installation
 
-Follow these steps to install **DJI Drone Metadata Embedder** and its dependencies.
+[← Back to README](../README.md)
 
-## Windows quick-start
-Use this one-liner to install everything via PowerShell:
+## Easy Windows install
+
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
-Or install the bundled package:
+
 ```powershell
 winget install -e --id CallMarcus.DJI-Embed
 ```
-*Note: some corporate PCs block the Microsoft Store, which also disables `winget`. Contact your IT department if the installer fails.*
 
-### Incremental install
-If you prefer to install each component separately, run:
+### Windows – manual path
+
 ```powershell
 winget install -e --id Python.Python.3
 winget install -e --id Gyan.FFmpeg
@@ -22,43 +21,23 @@ winget install -e --id PhilHarvey.ExifTool
 pip install dji-metadata-embedder
 ```
 
-
-## Via `pip`
+## macOS / Linux quick-start
 
 ```bash
+brew install ffmpeg exiftool
+sudo apt update && sudo apt install ffmpeg exiftool
 pip install dji-drone-metadata-embedder
 ```
 
-This installs the `dji-embed` command into your current Python environment. Ensure the Python `Scripts` directory is in your `PATH` so the command is available.
-
-## Via `pipx`
-
-[`pipx`](https://pypa.github.io/pipx/) creates an isolated environment and places the command on your user path. It is a convenient option on Windows.
-
 ```bash
-python -m pip install --user pipx
-python -m pipx ensurepath
-pipx install dji-drone-metadata-embedder
+docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 ```
 
-Restart your terminal so `dji-embed` is found.
+<details>
+<summary>Advanced</summary>
 
-## FFmpeg
+- Build from source with `pip install -r requirements.txt`
+- Use the provided `Dockerfile` to customize images
+- CI scripts live under `.github/workflows`
 
-The embedder relies on [FFmpeg](https://ffmpeg.org/) for video processing. Install it according to your platform:
-
-- **Windows:** download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/), extract it and add the `bin` folder to your `PATH`.
-- **macOS:** `brew install ffmpeg`
-- **Linux:** use your package manager, e.g. `sudo apt install ffmpeg`
-
-Verify the installation with `ffmpeg -version`.
-
-## ExifTool (optional)
-
-ExifTool is only required when embedding additional metadata. Install it if you plan to use the `--exiftool` option.
-
-- **Windows:** grab the Windows package from [exiftool.org](https://exiftool.org/), rename the executable to `exiftool.exe` and add its folder to `PATH`.
-- **macOS:** `brew install exiftool`
-- **Linux:** `sudo apt install libimage-exiftool-perl`
-
-With these tools installed you are ready to embed metadata into your DJI footage.
+</details>
