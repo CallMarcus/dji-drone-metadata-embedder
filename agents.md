@@ -42,7 +42,7 @@ This single package **bundles** the PyInstaller build *and* the needed binaries.
 * Update `docs/installation.md` with a copy‑paste one‑liner: **✓ Done**
 
   ```powershell
-  iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
+  iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/main/tools/bootstrap.ps1 | iex
   ```
 
 ---
