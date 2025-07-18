@@ -279,7 +279,7 @@ try {
 $package = 'dji-metadata-embedder'
 $pkgArg = if($Version) { "$package==$Version" } else { $package }
 
-# Install the main package (use correct name for Windows/macOS)
+# Install the main package (try PyPI first, then GitHub repo)
 $package = 'dji-metadata-embedder'
 $pkgArg = if($Version) { "$package==$Version" } else { $package }
 
@@ -306,18 +306,33 @@ try {
             throw "Both package names failed"
         }
     } catch {
-        LogError "Package installation failed: $($_.Exception.Message)"
-        LogError ""
-        LogError "TROUBLESHOOTING:"
-        LogError "1. Check internet connection"
-        LogError "2. Try manually: pip install dji-metadata-embedder"
-        LogError "3. Or try: pip install dji-drone-metadata-embedder"
-        LogError "4. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
-        LogError ""
-        if (-not $Silent) {
-            Read-Host "Press Enter to exit"
+        LogWarn "PyPI packages not found, installing from GitHub repository..."
+        try {
+            # Install directly from GitHub
+            $repoUrl = "git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git"
+            $installOutput = & $python -m pip install $repoUrl 2>&1
+            
+            if ($LASTEXITCODE -eq 0) {
+                Log "Package installed successfully from GitHub repository"
+            } else {
+                throw "GitHub installation also failed"
+            }
+        } catch {
+            LogError "All installation methods failed: $($_.Exception.Message)"
+            LogError ""
+            LogError "TROUBLESHOOTING:"
+            LogError "1. Check internet connection"
+            LogError "2. Try manually: pip install git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git"
+            LogError "3. Or clone and install locally:"
+            LogError "   git clone https://github.com/CallMarcus/dji-drone-metadata-embedder.git"
+            LogError "   cd dji-drone-metadata-embedder"
+            LogError "   pip install ."
+            LogError ""
+            if (-not $Silent) {
+                Read-Host "Press Enter to exit"
+            }
+            exit 1
         }
-        exit 1
     }
 }
 
