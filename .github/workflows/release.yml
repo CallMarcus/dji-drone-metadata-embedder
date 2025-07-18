@@ -1,66 +1,59 @@
-name: Release
+# .github/workflows/release.yml
+name: Build and Publish to PyPI
 
 on:
+  release:
+    types: [published]
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*'
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  deploy:
-    runs-on: ubuntu-22.04
-    environment: pypi
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build pyinstaller==6.* jinja2
-      - name: Build executable
-        id: build-exe
-        run: |
-          pyinstaller --onefile -n dji-embed dji_metadata_embedder/__main__.py
-          mv dist/dji-embed.exe ./
-          echo "EXE=dji-embed.exe" >> "$GITHUB_OUTPUT"
-      - name: Update winget manifest
-        run: |
-          py tools/sync_version.py ${{ github.ref_name }} dji-embed.exe
-      - name: Build distribution
-        run: python -m build
-      - name: Import GPG key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-      - name: Sign artefacts
-        run: |
-          for file in dist/*; do
-            gpg --batch --yes --armor --detach-sign "$file"
-          done
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
-          print-auth-token: false
-      - name: Attach artefacts to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/*
-            dist/*.asc
-      - name: Upload EXE
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ steps.build-exe.outputs.EXE }}
-          asset_name: dji-embed.exe
-          asset_content_type: application/octet-stream
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-latest
 
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        build
+        --user
+    - name: Build a binary wheel and a source tarball
+      run: python3 -m build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: >-
+      Publish Python 🐍 distribution 📦 to PyPI
+    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dji-drone-metadata-embedder
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
