@@ -12,6 +12,8 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 winget install -e --id CallMarcus.DJI-Embed
 ```
 
+If winget cannot locate the package, it may still be awaiting approval. Run the PowerShell one-liner above instead.
+
 ### Windows – manual path
 
 ```powershell

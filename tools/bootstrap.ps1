@@ -5,16 +5,25 @@ param(
     [string]$Version
 )
 
+
 $ErrorActionPreference = 'Stop'
 $VerbosePreference = if($Silent){'SilentlyContinue'} else{'Continue'}
+
+function Log($Msg){ if(-not $Silent){ Write-Host "[+] $Msg" } }
 
 if(-not $Version){
     try{
         $Version = (Invoke-RestMethod https://api.github.com/repos/CallMarcus/dji-drone-metadata-embedder/releases/latest).tag_name.TrimStart('v')
-    }catch{ throw 'Failed to determine latest version' }
+    }catch{
+        try{
+            $Version = (Invoke-RestMethod https://pypi.org/pypi/dji-drone-metadata-embedder/json).info.version
+        }catch{
+            throw 'Failed to determine latest version'
+        }
+    }
 }
 
-function Log($Msg){ if(-not $Silent){ Write-Host "[+] $Msg" } }
+Log "Installing dji-drone-metadata-embedder $Version"
 
 # Elevate if not admin
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
