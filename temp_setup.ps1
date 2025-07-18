@@ -6,7 +6,7 @@ cd C:\Claude\dji-drone-metadata-embedder
 # Create __init__.py
 @'
 """DJI Drone Metadata Embedder."""
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 from .cli import main
 __all__ = ["main", "__version__"]
 '@ | Out-File -FilePath "src\dji_metadata_embedder\__init__.py" -Encoding UTF8
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 def main():
-    print("DJI Metadata Embedder v1.0.2")
+    print("DJI Metadata Embedder v1.0.3")
     print("Usage: dji-embed <input_directory>")
     if len(sys.argv) < 2:
         print("Error: Please provide an input directory")
