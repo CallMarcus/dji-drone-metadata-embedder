@@ -11,14 +11,17 @@ $VerbosePreference = if($Silent){'SilentlyContinue'} else{'Continue'}
 
 function Log($Msg){ if(-not $Silent){ Write-Host "[+] $Msg" } }
 
+$DefaultVersion = '1.0.2'
+
 if(-not $Version){
     try{
-        $Version = (Invoke-RestMethod https://api.github.com/repos/CallMarcus/dji-drone-metadata-embedder/releases/latest).tag_name.TrimStart('v')
+        $Version = (Invoke-RestMethod https://api.github.com/repos/CallMarcus/dji-drone-metadata-embedder/releases/latest -Headers @{ 'User-Agent' = 'bootstrap' }).tag_name.TrimStart('v')
     }catch{
         try{
-            $Version = (Invoke-RestMethod https://pypi.org/pypi/dji-drone-metadata-embedder/json).info.version
+            $Version = (Invoke-RestMethod https://pypi.org/pypi/dji-drone-metadata-embedder/json -UseBasicParsing).info.version
         }catch{
-            throw 'Failed to determine latest version'
+            $Version = $DefaultVersion
+            Log "Falling back to bundled version $DefaultVersion"
         }
     }
 }
