@@ -43,11 +43,19 @@ if(-not $isAdmin){
 # Ensure Python >=3.10
 function Ensure-Python{
     $py=Get-Command python -ErrorAction SilentlyContinue
-    if($py){$v=&$py.Path -c "import sys;print(f'{sys.version_info.major}.{sys.version_info.minor}')";if([version]$v -ge [version]'3.10'){return $py.Path}}
+    if($py){
+        $v=& $py.Path -c "import sys;print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if($LASTEXITCODE -eq 0 -and [version]$v -ge [version]'3.10'){ return $py.Path }
+    }
+
     $store="$env:SystemRoot\System32\storecli.exe"
     if(Test-Path $store){ try{ & $store install --productid 9NRWMJP3717T --silent }catch{} }
+
     $py=Get-Command python -ErrorAction SilentlyContinue
-    if(-not $py){ & winget install -e --id Python.Python.3.11 --accept-package-agreements --accept-source-agreements --silent }
+    if($py){ & $py.Path -c "" 2>$null; if($LASTEXITCODE -ne 0){ $py=$null }}
+    if(-not $py){
+        & winget install -e --id Python.Python.3.11 --accept-package-agreements --accept-source-agreements --silent
+    }
     return (Get-Command python).Path
 }
 
@@ -60,14 +68,10 @@ $package='dji-drone-metadata-embedder'
 $pkgArg = if($Version){"$package==$Version"}else{$package}
 & $python -m pip install --upgrade $pkgArg | Out-Null
 if($LASTEXITCODE -ne 0){
-    Log "PyPI install failed; attempting local install"
-    $repo=Join-Path $PSScriptRoot '..'
-    if(Test-Path (Join-Path $repo 'pyproject.toml')){
-        & $python -m pip install $repo | Out-Null
-        if($LASTEXITCODE -ne 0){ throw "Failed to install $package" }
-    }else{
-        throw "Failed to install $package and local project not found"
-    }
+    Log "PyPI install failed; fetching from GitHub"
+    $url="https://github.com/CallMarcus/dji-drone-metadata-embedder/archive/refs/tags/v$Version.tar.gz"
+    & $python -m pip install $url | Out-Null
+    if($LASTEXITCODE -ne 0){ throw "Failed to install $package" }
 }
 
 $binDir=Join-Path $env:LOCALAPPDATA 'dji-embed\\bin'
