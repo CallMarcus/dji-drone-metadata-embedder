@@ -21,8 +21,6 @@ Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
-The script attempts to fetch the latest release. If your network blocks GitHub or PyPI it will fall back to version `1.0.2`. Pass `-Version` to override.
-
 ```powershell
 winget install -e --id CallMarcus.DJI-Embed
 ```
