@@ -5,7 +5,7 @@
 ## Easy Windows install
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/main/tools/bootstrap.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
 ```powershell

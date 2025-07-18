@@ -3,7 +3,7 @@ PackageVersion: 0.0.0
 PackageName: DJI Drone Metadata Embedder
 Publisher: CallMarcus
 License: MIT
-LicenseUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/main/LICENSE
+LicenseUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/master/LICENSE
 ShortDescription: Embed DJI drone SRT telemetry as metadata in MP4 files.
 Installers:
   - Architecture: x64
