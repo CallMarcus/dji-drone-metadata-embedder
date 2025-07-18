@@ -1,9 +1,10 @@
 ﻿"""CLI entry point."""
 import sys
 from pathlib import Path
+from . import __version__
 
 def main():
-    print("DJI Metadata Embedder v1.0.2")
+    print(f"DJI Metadata Embedder v{__version__}")
     print("Usage: dji-embed <input_directory>")
     if len(sys.argv) < 2:
         print("Error: Please provide an input directory")
