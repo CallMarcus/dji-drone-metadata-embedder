@@ -275,8 +275,12 @@ try {
     LogWarn "Pip upgrade encountered issues, continuing..."
 }
 
-# Install the main package
-$package = 'dji-drone-metadata-embedder'
+# Install the main package (use correct name for Windows/macOS)
+$package = 'dji-metadata-embedder'
+$pkgArg = if($Version) { "$package==$Version" } else { $package }
+
+# Install the main package (use correct name for Windows/macOS)
+$package = 'dji-metadata-embedder'
 $pkgArg = if($Version) { "$package==$Version" } else { $package }
 
 try {
@@ -289,17 +293,32 @@ try {
         throw "Installation failed with exit code $LASTEXITCODE"
     }
 } catch {
-    LogError "Package installation failed: $($_.Exception.Message)"
-    LogError ""
-    LogError "TROUBLESHOOTING:"
-    LogError "1. Check internet connection"
-    LogError "2. Try: pip install dji-drone-metadata-embedder"
-    LogError "3. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
-    LogError ""
-    if (-not $Silent) {
-        Read-Host "Press Enter to exit"
+    # Try alternative package name as fallback
+    LogWarn "Primary package installation failed, trying alternative name..."
+    $altPackage = 'dji-drone-metadata-embedder'
+    $altPkgArg = if($Version) { "$altPackage==$Version" } else { $altPackage }
+    
+    try {
+        $installOutput = & $python -m pip install --upgrade $altPkgArg 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Log "Package installed successfully using alternative name"
+        } else {
+            throw "Both package names failed"
+        }
+    } catch {
+        LogError "Package installation failed: $($_.Exception.Message)"
+        LogError ""
+        LogError "TROUBLESHOOTING:"
+        LogError "1. Check internet connection"
+        LogError "2. Try manually: pip install dji-metadata-embedder"
+        LogError "3. Or try: pip install dji-drone-metadata-embedder"
+        LogError "4. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
+        LogError ""
+        if (-not $Silent) {
+            Read-Host "Press Enter to exit"
+        }
+        exit 1
     }
-    exit 1
 }
 
 # Install tools (FFmpeg and ExifTool)
