@@ -51,10 +51,10 @@
 
 | Task | Description | Status | Files Affected |
 |------|-------------|---------|----------------|
-| **0.4.1** | Remove temp_setup.ps1 (temporary fix file) | ❌ TODO | `temp_setup.ps1` |
-| **0.4.2** | Decide on GUI: remove or properly integrate | ❌ TODO | `/gui/` directory |
-| **0.4.3** | Fix version management (remove sync_version.py complexity) | ❌ TODO | `tools/sync_version.py` |
-| **0.4.4** | Update tests to work with new structure | ❌ TODO | `tests/*.py` |
+| **0.4.1** | Remove temp_setup.ps1 (temporary fix file) | ✅ DONE | `temp_setup.ps1` |
+| **0.4.2** | Decide on GUI: remove or properly integrate | ✅ DONE | `/gui/` directory |
+| **0.4.3** | Fix version management (remove sync_version.py complexity) | ✅ DONE | `tools/sync_version.py` |
+| **0.4.4** | Update tests to work with new structure | ✅ DONE | `tests/*.py` |
 
 ---
 
