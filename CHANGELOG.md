@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Winget package `CallMarcus.DJI-Embed` with bundled dependencies
 - Release workflow builds a signed `dji-embed.exe` via PyInstaller
 - CI smoke test validates the bootstrap installer
-- `tools/sync_version.py` to keep version numbers aligned
 
 ### Changed
 - README and docs reorganised for novice Windows users
