@@ -1,137 +1,197 @@
 # AI Coding Assistant – Task Breakdown (`agents.md`)
 
-*Last updated: 16 July 2025*
+*Last updated: January 2025 - CRITICAL UPDATE*
 
 ---
 
-## 🎯 Primary mission: **Zero‑friction install for everyday Windows pilots**
+## 🚨 CURRENT STATUS: Core Package Structure Broken
 
-> We now treat *"novice Windows hobbyists"* as **the** target persona. All roadmap items must ladder up to a "double‑click and go" experience; professional cross‑platform users are still served via Docker/CLI, but they are *not* the optimisation focus.
-
-Claude’s audit highlighted five blockers (Python, PATH, FFmpeg, ExifTool, CLI fear). Below are the two **turnkey on‑ramps** that must be production‑ready *before* v1.0.  After those ship we loop back to polish cross‑platform/advanced features.
+**Critical Issue**: The package has accumulated technical debt from mixed development approaches. We have duplicate package locations, broken imports, and failing CI/CD. **We must fix these foundational issues before any deployment work.**
 
 ---
 
-### 1 · PowerShell Bootstrap Script (📜 `tools/bootstrap.ps1`)
+## 📋 PHASE 0: Emergency Core Fixes (IMMEDIATE PRIORITY)
 
-| Step | What the script does                                                                                                                      | Implementation hints                                              |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1    | **Self‑elevate if needed**, or fall back to user‑mode install when corporate GPOs block admin rights.                                     | Use `#Requires -RunAsAdministrator` and graceful downgrade logic. |
-| 2    | Ensure **Python ≥ 3.10** – Install silently from MS Store, else `winget` fallback.                                                        | Print friendly emoji feedback (✔ Installed / ⚠ Skipped).          |
-| 3    | Download & verify **static FFmpeg + ExifTool** bundles from GitHub Release assets, then extract to `%LOCALAPPDATA%\dji‑embed\bin`.        | SHA‑256 validation + retry on hash mismatch.                      |
-| 4    | `pip install --upgrade dji‑metadata‑embedder` into the freshly‑installed Python env.                                                      | No global PATH edits if user‑mode; rely on shim script.           |
-| 5    | Update PATH for the **current session** so the user can type `dji-embed` immediately; persist PATH for future shells when policy permits. | `[Environment]::SetEnvironmentVariable -Scope User`.              |
-| 6    | Auto‑launch **wizard UI** (`dji-embed wizard`) or **drag‑&‑drop GUI** once Task C2 ships.                                                 | Provide `-NoLaunch` flag for automation.                          |
+> **Goal**: Get the package working locally before attempting any deployment
 
----
+### 0.1 · Fix Package Structure ⚡ CRITICAL
 
-### 2 · winget One‑liner installer (Task A2)
+| Task | Description | Status | Files Affected |
+|------|-------------|---------|----------------|
+| **0.1.1** | Consolidate duplicate package locations (`/dji_metadata_embedder/` vs `/src/dji_metadata_embedder/`) | ❌ TODO | All Python files |
+| **0.1.2** | Fix all import statements after consolidation | ❌ TODO | `src/**/*.py`, `tests/*.py` |
+| **0.1.3** | Update pyproject.toml with correct paths and dependencies | ❌ TODO | `pyproject.toml` |
+| **0.1.4** | Remove `pathlib` from dependencies (it's built-in) | ❌ TODO | `pyproject.toml`, `requirements.txt` |
 
-```powershell
-winget install -e --id CallMarcus.DJI-Embed
+**Implementation**:
+```bash
+# Run the cleanup script provided by Claude
+.\cleanup_and_restructure.ps1
 ```
 
-This single package **bundles** the PyInstaller build *and* the needed binaries. Advanced users can still install individual deps as before.
+### 0.2 · Fix CLI Entry Point ⚡ CRITICAL  
 
-\---- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | | 1    | **Self‑elevate** if not running as Admin.                                                                 | `#Requires -RunAsAdministrator` or `Start-Process -Verb runAs`. | | 2    | Detect **Python ≥ 3.10**; if absent, install via the Microsoft Store silent CLI (`storecli install`).     | Fallback: winget.                                               | | 3    | Grab **static FFmpeg + ExifTool zips** from GitHub Releases, extract into `%LOCALAPPDATA%\dji‑embed\bin`. | Use SHA‑256 checksum validation.                                | | 4    | Run `pip install --upgrade --no‑cache-dir dji‑metadata‑embedder` *inside the same PowerShell session*.    | Works even if system Python just got installed.                 | | 5    | Add `%LOCALAPPDATA%\dji‑embed\bin` and `%APPDATA%\Python\Scripts` to the *current user* PATH (no reboot). | `[Environment]::SetEnvironmentVariable` with "User" scope.      | | 6    | Launch `dji-embed wizard` so the pilot sees the Rich UI immediately.                                      | Optional banner + analytics ping.                               |
+| Task | Description | Status | Files Affected |
+|------|-------------|---------|----------------|
+| **0.2.1** | Replace stub `cli.py` with full implementation | ❌ TODO | `src/dji_metadata_embedder/cli.py` |
+| **0.2.2** | Create `utilities.py` for dependency checking | ❌ TODO | `src/dji_metadata_embedder/utilities.py` |
+| **0.2.3** | Ensure `dji-embed --version` works | ❌ TODO | Entry point configuration |
+| **0.2.4** | Test all subcommands: embed, check, convert, wizard | ❌ TODO | CLI testing |
 
-**Call to Codex (completed):**
+### 0.3 · Fix CI/CD Workflows
 
-* Write `tools/bootstrap.ps1` (< 150 lines) with verbose logging and a `-Silent` flag. **✓ Done**
-* Add a CI job (`windows‑bootstrap‑smoke‑test`) that spins up a fresh `windows-latest` GH runner, executes the script, and asserts `dji-embed --version` works. **✓ Done**
-* Update `docs/installation.md` with a copy‑paste one‑liner: **✓ Done**
+| Task | Description | Status | Files Affected |
+|------|-------------|---------|----------------|
+| **0.3.1** | Update CI workflow to reference correct package location | ❌ TODO | `.github/workflows/ci.yml` |
+| **0.3.2** | Fix release workflow for PyPI publishing | ❌ TODO | `.github/workflows/release.yml` |
+| **0.3.3** | Remove or fix broken workflows | ❌ TODO | `.github/workflows/*.yml` |
+| **0.3.4** | Add proper dependency installation in CI | ❌ TODO | All workflow files |
 
-  ```powershell
-  iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
-  ```
+### 0.4 · Clean Up Technical Debt
 
----
-
-### 2 · **winget** One‑liner Paths
-
-Once the winget manifests are accepted upstream (Task A2), users can either:
-
-```powershell
-# Full meta‑installer (bundles Python, FFmpeg, ExifTool)
-winget install -e --id CallMarcus.DJI-Embed
-
-# OR step‑by‑step manual path if they want granular control
-winget install -e --id Python.Python.3
-winget install -e --id Gyan.FFmpeg
-winget install -e --id PhilHarvey.ExifTool
-pip install dji-metadata-embedder
-```
-
-**Winget packaging tasks for Codex (completed):**
-
-1. Add `installer.yaml` to `.github/winget/` (upgrade‑safe). **✓ Done**
-2. GH Action `publish-winget.yml` builds the PyInstaller EXE and submits a PR to `microsoft/winget-pkgs` via `wingetcreate`. **✓ Done**
-3. On success, bump README badges (`winget | GitHub Release | PyPI`). **✓ Done**
+| Task | Description | Status | Files Affected |
+|------|-------------|---------|----------------|
+| **0.4.1** | Remove temp_setup.ps1 (temporary fix file) | ❌ TODO | `temp_setup.ps1` |
+| **0.4.2** | Decide on GUI: remove or properly integrate | ❌ TODO | `/gui/` directory |
+| **0.4.3** | Fix version management (remove sync_version.py complexity) | ❌ TODO | `tools/sync_version.py` |
+| **0.4.4** | Update tests to work with new structure | ❌ TODO | `tests/*.py` |
 
 ---
 
-## ⛭ Rolling this into the existing roadmap
+## 📋 PHASE 1: Core Functionality Verification (AFTER Phase 0)
 
-Add the following under **Phase 1 – Foundation** in the primary `agents.md` roadmap:
+> **Goal**: Ensure all features work correctly before deployment
 
-| Ref      | Task                                                                    | Owner | Status |
-| -------- | ----------------------------------------------------------------------- | ----- | ------ |
-| **A1.4** | `tools/bootstrap.ps1` with CI smoke‑test                                | Codex | ☑ DONE |
-| **A2.1** | winget full package manifest (`CallMarcus.DJI-Embed`)                   | Codex | ☑ DONE |
-| **A2.2** | Incremental winget manifests for Python, FFmpeg, ExifTool references    | Codex | ☐ TODO |
-| **P1.1** | **PyPI trusted‑publisher hookup** – finish `release.yml` & first upload | Codex | ☐ TODO |
+### 1.1 · Test Core Features
+
+| Task | Description | Status |
+|------|-------------|---------|
+| **1.1.1** | Verify SRT parsing for all formats (Mini 3/4 Pro, Avata 2, legacy) | ❌ TODO |
+| **1.1.2** | Test video metadata embedding with FFmpeg | ❌ TODO |
+| **1.1.3** | Test ExifTool GPS metadata embedding | ❌ TODO |
+| **1.1.4** | Verify DAT file parsing and integration | ❌ TODO |
+| **1.1.5** | Test telemetry export (GPX, CSV) | ❌ TODO |
+
+### 1.2 · Documentation Update
+
+| Task | Description | Status |
+|------|-------------|---------|
+| **1.2.1** | Update README with correct installation instructions | ❌ TODO |
+| **1.2.2** | Document all CLI commands and options | ❌ TODO |
+| **1.2.3** | Add troubleshooting guide | ❌ TODO |
+| **1.2.4** | Update CHANGELOG.md | ❌ TODO |
 
 ---
 
-### 🔑 **P1.1 – PyPI trusted‑publisher hookup**
+## 📋 PHASE 2: Windows User Experience (ONLY after Phase 0 & 1)
 
-*Problem:* PyPI shows "pending publisher" because no workflow run has yet *signed in* via OIDC.
+> **Goal**: Zero-friction install for everyday Windows pilots
 
-**Acceptance criteria**
+*Note: The excellent work below from the previous agents.md should be implemented AFTER we fix the core package*
 
-1. `release.yml` builds sdist + wheel via `pypa/build` and then publishes with **`pypa/gh-action-pypi-publish`** using **trusted‑publisher** (OIDC) – *no API token needed*.
-2. The workflow is attached to the **Environment** selected in PyPI (or "Any" if no env).  Add `environment: pypi` in the `deploy` job.
-3. Upload succeeds on a signed Git tag starting with `v`, e.g. `v0.3.0`, and PyPI project page shows the artefacts within \~2 min.
-4. README badge auto‑displays the new version.
+### 2.1 · PowerShell Bootstrap Script (📜 `tools/bootstrap.ps1`)
 
-**Steps for Codex**
+| Step | What the script does | Implementation hints | Status |
+|------|---------------------|---------------------|---------|
+| 1 | **Self-elevate if needed** | Use `#Requires -RunAsAdministrator` | ✅ DONE |
+| 2 | Ensure **Python ≥ 3.10** | Install from MS Store/winget | ✅ DONE |
+| 3 | Download **FFmpeg + ExifTool** | SHA-256 validation | ✅ DONE |
+| 4 | `pip install dji-metadata-embedder` | From PyPI | ⚠️ BLOCKED |
+| 5 | Update PATH | Current session + persistent | ✅ DONE |
+| 6 | Auto-launch wizard | `dji-embed wizard` | ⚠️ BLOCKED |
 
-1. Update **`release.yml`**:
+**Blocker**: Package must be working and published to PyPI first!
 
-   ```yaml
-   permissions:
-     id-token: write      # allow OIDC auth with PyPI
-     contents: read       # minimal required
-   jobs:
-     deploy:
-       environment: pypi  # must match PyPI "pending" line
-       steps:
-         - uses: actions/checkout@v4
-         - uses: pypa/gh-action-pypi-publish@release/v1
-           with:
-             print-auth-token: false  # safety
-             skip-existing: true
+### 2.2 · Winget Package
+
+| Task | Description | Status |
+|------|-------------|---------|
+| **2.2.1** | Submit winget manifest | ⚠️ BLOCKED on working package |
+| **2.2.2** | GitHub Action for winget updates | ✅ DONE (untested) |
+| **2.2.3** | Documentation for winget install | ⚠️ BLOCKED |
+
+---
+
+## 📋 PHASE 3: Advanced Features (Future)
+
+### 3.1 · GUI Development (Optional)
+
+| Task | Description | Status |
+|------|-------------|---------|
+| **3.1.1** | Decide: Keep GUI or remove? | ❌ TODO |
+| **3.1.2** | If keeping: Move to src/dji_metadata_embedder/gui | ❌ TODO |
+| **3.1.3** | Create dji-embed-gui entry point | ❌ TODO |
+| **3.1.4** | PyInstaller bundle with GUI | ❌ TODO |
+
+### 3.2 · Docker Enhancement
+
+| Task | Description | Status |
+|------|-------------|---------|
+| **3.2.1** | Update Dockerfile with new structure | ❌ TODO |
+| **3.2.2** | Multi-arch builds (ARM64 support) | ❌ TODO |
+| **3.2.3** | Docker Hub automated builds | ❌ TODO |
+
+---
+
+## 🎯 IMMEDIATE ACTION ITEMS
+
+1. **Run diagnostic script** to assess current state:
+   ```bash
+   python diagnostic_script.py
    ```
-2. In PyPI **Settings → Trusted Publishers** select *GitHub Actions*, repo `CallMarcus/dji-drone-metadata-embedder`, branch pattern `refs/tags/v*`, environment `pypi`.
-3. Commit, push, then create annotated tag `v0.3.0` – trigger workflow.
-4. If success, tick this task.
 
-📌 *Fallback:* For testing you can still use a classic `PYPI_API_TOKEN` secret; OIDC is preferred.
+2. **Execute cleanup script** to fix structure:
+   ```powershell
+   .\cleanup_and_restructure.ps1
+   ```
+
+3. **Replace core files** with Claude's fixed versions:
+   - pyproject.toml
+   - src/dji_metadata_embedder/cli.py
+   - src/dji_metadata_embedder/utilities.py
+   - .github/workflows/ci.yml
+   - .github/workflows/release.yml
+
+4. **Test locally**:
+   ```bash
+   pip install -e .[dev]
+   pytest
+   dji-embed --version
+   ```
+
+5. **Only after all tests pass**, proceed to Phase 1
 
 ---
 
-## 📑 Documentation delta
+## 📊 Success Metrics
 
-* **docs/installation.md** gets a new *“Windows quick‑start”* heading with:
+### Phase 0 Success (Required before proceeding):
+- [ ] Package imports without errors
+- [ ] `dji-embed --version` returns correct version
+- [ ] All tests pass locally
+- [ ] CI/CD workflows pass on GitHub
+- [ ] Can build package with `python -m build`
 
-  1. The PowerShell one‑liner;
-  2. The single‑command winget install;
-  3. A footnote on corporate PCs (no Store).
-* **docs/faq.md** gains *“My antivirus blocked the EXE”* and *“Winget cannot find package”* entries.
+### Phase 1 Success:
+- [ ] All SRT formats parse correctly
+- [ ] Video processing works end-to-end
+- [ ] Documentation is accurate and complete
+- [ ] Package installs cleanly from test PyPI
+
+### Phase 2 Success:
+- [ ] Windows users can install with one command
+- [ ] No Python/CLI knowledge required
+- [ ] Works on Windows 10/11 without admin rights
+- [ ] Less than 3 minutes from download to first processed video
 
 ---
 
-> **Outcome:** A Windows DJI hobbyist with zero Python or CLI knowledge can embed GPS metadata in < 3 minutes and 1‑2 clicks. That knocks out pain‑points #1–4 and slashes onboarding friction.
+## ⚠️ CRITICAL NOTE
+
+**DO NOT proceed with deployment tasks (bootstrap script, winget, PyPI publishing) until Phase 0 is complete!** 
+
+The current package structure is broken. Attempting to deploy it will only frustrate users and damage the project's reputation. Fix first, deploy second.
 
 ---
 
+*Updated by Claude after thorough code analysis. Previous deployment-focused tasks moved to Phase 2.*
