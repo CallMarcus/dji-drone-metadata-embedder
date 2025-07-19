@@ -1,6 +1,5 @@
 import tempfile
 from pathlib import Path
-import sys
 
 from dji_metadata_embedder import DJIMetadataEmbedder
 from dji_metadata_embedder import telemetry_converter
