@@ -1,6 +1,6 @@
 # AI Coding Assistant – Task Breakdown (`agents.md`)
 
-*Last updated: January 2025 - CRITICAL UPDATE*
+*Last updated: July 19th, 2025 - CRITICAL UPDATE*
 
 ---
 
