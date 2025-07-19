@@ -18,10 +18,10 @@
 
 | Task | Description | Status | Files Affected |
 |------|-------------|---------|----------------|
-| **0.1.1** | Consolidate duplicate package locations (`/dji_metadata_embedder/` vs `/src/dji_metadata_embedder/`) | ❌ TODO | All Python files |
-| **0.1.2** | Fix all import statements after consolidation | ❌ TODO | `src/**/*.py`, `tests/*.py` |
-| **0.1.3** | Update pyproject.toml with correct paths and dependencies | ❌ TODO | `pyproject.toml` |
-| **0.1.4** | Remove `pathlib` from dependencies (it's built-in) | ❌ TODO | `pyproject.toml`, `requirements.txt` |
+| **0.1.1** | Consolidate duplicate package locations (`/dji_metadata_embedder/` vs `/src/dji_metadata_embedder/`) | ✅ DONE | All Python files |
+| **0.1.2** | Fix all import statements after consolidation | ✅ DONE | `src/**/*.py`, `tests/*.py` |
+| **0.1.3** | Update pyproject.toml with correct paths and dependencies | ✅ DONE | `pyproject.toml` |
+| **0.1.4** | Remove `pathlib` from dependencies (it's built-in) | ✅ DONE | `pyproject.toml`, `requirements.txt` |
 
 **Implementation**:
 ```bash
@@ -33,19 +33,19 @@
 
 | Task | Description | Status | Files Affected |
 |------|-------------|---------|----------------|
-| **0.2.1** | Replace stub `cli.py` with full implementation | ❌ TODO | `src/dji_metadata_embedder/cli.py` |
-| **0.2.2** | Create `utilities.py` for dependency checking | ❌ TODO | `src/dji_metadata_embedder/utilities.py` |
-| **0.2.3** | Ensure `dji-embed --version` works | ❌ TODO | Entry point configuration |
-| **0.2.4** | Test all subcommands: embed, check, convert, wizard | ❌ TODO | CLI testing |
+| **0.2.1** | Replace stub `cli.py` with full implementation | ✅ DONE | `src/dji_metadata_embedder/cli.py` |
+| **0.2.2** | Create `utilities.py` for dependency checking | ✅ DONE | `src/dji_metadata_embedder/utilities.py` |
+| **0.2.3** | Ensure `dji-embed --version` works | ✅ DONE | Entry point configuration |
+| **0.2.4** | Test all subcommands: embed, check, convert, wizard | ✅ DONE | CLI testing |
 
 ### 0.3 · Fix CI/CD Workflows
 
 | Task | Description | Status | Files Affected |
 |------|-------------|---------|----------------|
-| **0.3.1** | Update CI workflow to reference correct package location | ❌ TODO | `.github/workflows/ci.yml` |
-| **0.3.2** | Fix release workflow for PyPI publishing | ❌ TODO | `.github/workflows/release.yml` |
-| **0.3.3** | Remove or fix broken workflows | ❌ TODO | `.github/workflows/*.yml` |
-| **0.3.4** | Add proper dependency installation in CI | ❌ TODO | All workflow files |
+| **0.3.1** | Update CI workflow to reference correct package location | ✅ DONE | `.github/workflows/ci.yml` |
+| **0.3.2** | Fix release workflow for PyPI publishing | ✅ DONE | `.github/workflows/release.yml` |
+| **0.3.3** | Remove or fix broken workflows | ✅ DONE | `.github/workflows/*.yml` |
+| **0.3.4** | Add proper dependency installation in CI | ✅ DONE | All workflow files |
 
 ### 0.4 · Clean Up Technical Debt
 
