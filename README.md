@@ -8,6 +8,12 @@ A Python tool to embed telemetry data from DJI drone SRT files into MP4 video fi
 This tool extracts GPS coordinates, altitude, camera settings and other telemetry data from SRT files and embeds
 them as metadata in the corresponding video files.
 
+> **Note**
+> 
+> The core functionality should work for embedding telemetry from DJI drones,
+> but the tool is still undergoing active testing and refinement. Expect
+> breaking changes and incomplete features as stability issues are addressed.
+
 See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows
 application with a graphical interface.
 For detailed setup instructions and a quick-start tutorial, see
