@@ -98,19 +98,18 @@ def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
 
 
 def check_dependencies() -> Tuple[bool, list[str]]:
-    """Check if ``ffmpeg`` and ``exiftool`` executables are available."""
-    from .embedder import check_dependencies as _check
+    """Return ``(True, [])`` if external tools are available."""
 
-    deps_ok = _check()
+    tools = {"ffmpeg": ["ffmpeg", "-version"], "exiftool": ["exiftool", "-ver"]}
     missing: list[str] = []
-    if not deps_ok:
-        # replicate expected return from original utility
-        for tool in ("ffmpeg", "exiftool"):
-            try:
-                subprocess.run([tool, "-version"], capture_output=True, check=True)
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                missing.append(tool)
-    return deps_ok, missing
+
+    for name, cmd in tools.items():
+        try:
+            subprocess.run(cmd, capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            missing.append(name)
+
+    return (not missing), missing
 
 
 def parse_dji_srt(srt_path: Path) -> dict:
