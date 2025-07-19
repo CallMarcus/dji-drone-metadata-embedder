@@ -1,8 +1,5 @@
 import struct
 from pathlib import Path
-import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dji_metadata_embedder import parse_dat_v13
 

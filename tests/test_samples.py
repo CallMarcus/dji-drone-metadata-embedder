@@ -4,8 +4,6 @@ import hashlib
 import subprocess
 import base64
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from dji_metadata_embedder.per_frame_embedder import embed_flight_path_ffmpeg
 from dji_metadata_embedder import telemetry_converter
 from dji_metadata_embedder.utilities import parse_telemetry_points
