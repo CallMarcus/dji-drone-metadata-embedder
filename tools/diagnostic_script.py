@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Diagnostic script to identify issues with DJI Metadata Embedder setup."""
-import os
 import sys
 import subprocess
 import json
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 
@@ -73,16 +73,15 @@ class DiagnosticTool:
         print("\n🔍 Checking dependencies...")
         
         # Python dependencies
-        try:
-            import click
+        # Python dependencies
+        if importlib.util.find_spec("click"):
             self.log_info("click is installed")
-        except ImportError:
+        else:
             self.log_issue("click is not installed")
-            
-        try:
-            import rich
+
+        if importlib.util.find_spec("rich"):
             self.log_info("rich is installed")
-        except ImportError:
+        else:
             self.log_issue("rich is not installed")
             
         # External tools

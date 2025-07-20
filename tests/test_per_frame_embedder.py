@@ -1,5 +1,3 @@
-import sys
-from pathlib import Path
 import subprocess
 
 from dji_metadata_embedder import embed_flight_path, extract_frame_locations
