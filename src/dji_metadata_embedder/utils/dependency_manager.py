@@ -14,7 +14,7 @@ class DependencyManager:
     """Manage download and verification of external dependencies."""
 
     FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.zip"
-    EXIFTOOL_URL = "https://exiftool.org/exiftool-12.76.zip"
+    EXIFTOOL_URL = "https://exiftool.org/exiftool-13.32_64.zip"
 
     def __init__(self, tools_dir: Path) -> None:
         """Initialize manager with tools directory."""
