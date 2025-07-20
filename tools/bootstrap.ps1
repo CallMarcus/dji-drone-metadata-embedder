@@ -425,8 +425,24 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 # Install ExifTool with correct version
 $exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
     param($zipFile, $tempDir)
-    Expand-Archive -Path $zipFile -DestinationPath $tempDir -Force -Verbose:$false
+function Install-Tool($Name, $Url, $ExtractLogic) {
+    # ... (rest of the function remains unchanged)
+}
+
+# Install ExifTool with correct version
+$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
+    param($zipFile, $tempDir)
+    # Use .NET ZipFile extraction to avoid verbose output
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    if (Test-Path $tempDir) {
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFile, $tempDir)
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
+    if ($exeTool) {
+        Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
+    }
+}    $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
     }
