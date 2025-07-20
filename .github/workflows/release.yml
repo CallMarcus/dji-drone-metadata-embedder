@@ -2,7 +2,8 @@ name: Build and Publish to PyPI
 
 on:
   release:
-    types: [published]
+    types:
+      - published
   push:
     tags:
       - 'v*'
@@ -31,3 +32,4 @@ jobs:
         with:
           print-auth-token: false
           skip-existing: true
+
