@@ -114,6 +114,10 @@ class DependencyManager:
                 if path:
                     candidate = path
                     break
+        if not candidate:
+            found = shutil.which("ffmpeg")
+            if found:
+                candidate = Path(found)
         return candidate
 
     def _find_exiftool_executable(self) -> Optional[Path]:
@@ -124,4 +128,8 @@ class DependencyManager:
                 if path:
                     candidate = path
                     break
+        if not candidate:
+            found = shutil.which("exiftool")
+            if found:
+                candidate = Path(found)
         return candidate
