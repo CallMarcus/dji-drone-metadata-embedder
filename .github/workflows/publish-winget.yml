@@ -1,4 +1,3 @@
----
 name: Publish winget package
 
 "on":
@@ -10,18 +9,24 @@ name: Publish winget package
 jobs:
   publish-winget:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Install wingetcreate
+        shell: pwsh
         run: |
-          Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest \
+          Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest `
             -OutFile wingetcreate.exe
+
       - name: Submit package
+        shell: pwsh
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
         run: |
-          .\wingetcreate.exe submit .github/winget/installer.yaml \
+          .\wingetcreate.exe submit .github/winget/installer.yaml `
             --token $env:WINGET_PAT
