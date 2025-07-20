@@ -1,6 +1,7 @@
+---
 name: Build and Publish to PyPI
 
-on:
+'on':
   release:
     types:
       - published
@@ -32,4 +33,3 @@ jobs:
         with:
           print-auth-token: false
           skip-existing: true
-
