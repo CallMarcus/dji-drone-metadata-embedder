@@ -6,7 +6,8 @@ This page lists solutions to common issues encountered when running `dji-embed`.
 
 The program requires FFmpeg to be installed and available on your `PATH`.
 
-- Verify with `ffmpeg -version`.
+- Verify with `ffmpeg -version` (single dash).
+- Running `ffmpeg --version` will produce an `Unrecognized option '--version'` error.
 - On Windows, download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add its `bin` folder to your `PATH`.
 
 ## "exiftool is not recognized"
