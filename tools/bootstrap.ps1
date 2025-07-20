@@ -306,50 +306,6 @@ try {
 $binDir = Join-Path $env:LOCALAPPDATA 'dji-embed\bin'
 New-Item -Force -ItemType Directory $binDir | Out-Null
 
-# Function to download with progress
-function Download-WithProgress($Url, $OutFile) {
-    $uri = [System.Uri]$Url
-    $request = [System.Net.HttpWebRequest]::Create($uri)
-    $request.Method = "GET"
-    
-    try {
-        $response = $request.GetResponse()
-        $totalBytes = $response.ContentLength
-        $responseStream = $response.GetResponseStream()
-        
-        $buffer = New-Object byte[] 8192
-        $targetStream = [System.IO.File]::Create($OutFile)
-        $downloadedBytes = 0
-        $lastPercent = 0
-        
-        while (($read = $responseStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            $targetStream.Write($buffer, 0, $read)
-            $downloadedBytes += $read
-            
-            if ($totalBytes -gt 0) {
-                $percent = [Math]::Floor(($downloadedBytes / $totalBytes) * 100)
-                if ($percent -ne $lastPercent) {
-                    Write-Progress -Activity "Downloading" -Status "$percent% Complete" -PercentComplete $percent
-                    $lastPercent = $percent
-                }
-            }
-        }
-        
-        Write-Progress -Activity "Downloading" -Completed
-        $targetStream.Close()
-        $responseStream.Close()
-        $response.Close()
-        
-        return $true
-    }
-    catch {
-        if ($targetStream) { $targetStream.Close() }
-        if ($responseStream) { $responseStream.Close() }
-        if ($response) { $response.Close() }
-        throw
-    }
-}
-
 # Function to download and extract tools safely
 function Install-Tool($Name, $Url, $ExtractLogic) {
     try {
@@ -425,13 +381,6 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 # Install ExifTool with correct version
 $exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
     param($zipFile, $tempDir)
-function Install-Tool($Name, $Url, $ExtractLogic) {
-    # ... (rest of the function remains unchanged)
-}
-
-# Install ExifTool with correct version
-$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
-    param($zipFile, $tempDir)
     # Use .NET ZipFile extraction to avoid verbose output
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     if (Test-Path $tempDir) {
@@ -441,10 +390,8 @@ $exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.z
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
-    }
-}    $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
-    if ($exeTool) {
-        Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
+    } else {
+        throw "ExifTool executable not found in archive"
     }
 }
 
@@ -470,6 +417,35 @@ if ($pathChanged) {
     }
 }
 
+# Verify tools are actually installed
+LogInfo "Verifying tool installation..."
+$ffmpegPath = Join-Path $binDir "ffmpeg.exe"
+$exiftoolPath = Join-Path $binDir "exiftool.exe"
+
+if (Test-Path $ffmpegPath) {
+    LogInfo "FFmpeg found at: $ffmpegPath"
+    try {
+        $version = & $ffmpegPath -version 2>&1 | Select-Object -First 1
+        LogInfo "FFmpeg version: $version"
+    } catch {
+        LogWarn "FFmpeg exists but failed to run"
+    }
+} else {
+    LogError "FFmpeg not found at: $ffmpegPath"
+}
+
+if (Test-Path $exiftoolPath) {
+    LogInfo "ExifTool found at: $exiftoolPath"
+    try {
+        $version = & $exiftoolPath -ver 2>&1
+        LogInfo "ExifTool version: $version"
+    } catch {
+        LogWarn "ExifTool exists but failed to run"
+    }
+} else {
+    LogError "ExifTool not found at: $exiftoolPath"
+}
+
 # Verify installation
 LogInfo "Verifying installation..."
 $djiEmbedWorking = $false
@@ -477,7 +453,7 @@ try {
     $result = & dji-embed --version 2>&1
     if ($LASTEXITCODE -eq 0) {
         $djiEmbedWorking = $true
-        Log "[OK] dji-embed command is working"
+        Log "✓ dji-embed command is working"
     }
 } catch {}
 
@@ -487,7 +463,7 @@ if (-not $djiEmbedWorking) {
         $result = & $python -m dji_metadata_embedder --version 2>&1
         if ($LASTEXITCODE -eq 0) {
             $djiEmbedWorking = $true
-            Log "[OK] dji-embed working via Python module"
+            Log "✓ dji-embed working via Python module"
         }
     } catch {}
 }
@@ -495,14 +471,14 @@ if (-not $djiEmbedWorking) {
 # Final status report
 Log ""
 Log "=== INSTALLATION SUMMARY ==="
-Log "Python: [OK] Working"
-Log "DJI Metadata Embedder: $(if($djiEmbedWorking){'[OK] Working'}else{'[WARN] May need PATH refresh'})"
-Log "FFmpeg: $(if($ffmpegSuccess){'[OK] Installed'}else{'[WARN] Install manually'})"
-Log "ExifTool: $(if($exifSuccess){'[OK] Installed'}else{'[WARN] Install manually'})"
+Log "Python: ✓ Working"
+Log "DJI Metadata Embedder: $(if($djiEmbedWorking){'✓ Working'}else{'⚠ May need PATH refresh'})"
+Log "FFmpeg: $(if($ffmpegSuccess){'✓ Installed'}else{'⚠ Install manually'})"
+Log "ExifTool: $(if($exifSuccess){'✓ Installed'}else{'⚠ Install manually'})"
 Log ""
 
 if ($djiEmbedWorking) {
-    Log "Installation completed successfully!"
+    Log "🎉 Installation completed successfully!"
     Log ""
     Log "USAGE:"
     Log "  dji-embed /path/to/drone/videos"
@@ -534,6 +510,11 @@ if (-not $ffmpegSuccess -or -not $exifSuccess) {
 if(-not $NoLaunch -and $djiEmbedWorking) { 
     try {
         LogInfo "Launching setup wizard..."
+        # Set environment variables for the tools location
+        $env:DJIEMBED_FFMPEG_PATH = Join-Path $binDir "ffmpeg.exe"
+        $env:DJIEMBED_EXIFTOOL_PATH = Join-Path $binDir "exiftool.exe"
+        
+        # Launch wizard with explicit environment
         & dji-embed wizard
     } catch {
         LogInfo "You can run 'dji-embed wizard' manually later"
