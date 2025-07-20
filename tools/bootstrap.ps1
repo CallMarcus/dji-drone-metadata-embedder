@@ -276,11 +276,7 @@ try {
 }
 
 # Install the main package (use correct name for Windows/macOS)
-$package = 'dji-metadata-embedder'
-$pkgArg = if($Version) { "$package==$Version" } else { $package }
-
-# Install the main package (try PyPI first, then GitHub repo)
-$package = 'dji-metadata-embedder'
+$package = 'dji-drone-metadata-embedder'
 $pkgArg = if($Version) { "$package==$Version" } else { $package }
 
 try {
@@ -293,52 +289,66 @@ try {
         throw "Installation failed with exit code $LASTEXITCODE"
     }
 } catch {
-    # Try alternative package name as fallback
-    LogWarn "Primary package installation failed, trying alternative name..."
-    $altPackage = 'dji-drone-metadata-embedder'
-    $altPkgArg = if($Version) { "$altPackage==$Version" } else { $altPackage }
-    
-    try {
-        $installOutput = & $python -m pip install --upgrade $altPkgArg 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Log "Package installed successfully using alternative name"
-        } else {
-            throw "Both package names failed"
-        }
-    } catch {
-        LogWarn "PyPI packages not found, installing from GitHub repository..."
-        try {
-            # Install directly from GitHub
-            $repoUrl = "git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git"
-            $installOutput = & $python -m pip install $repoUrl 2>&1
-            
-            if ($LASTEXITCODE -eq 0) {
-                Log "Package installed successfully from GitHub repository"
-            } else {
-                throw "GitHub installation also failed"
-            }
-        } catch {
-            LogError "All installation methods failed: $($_.Exception.Message)"
-            LogError ""
-            LogError "TROUBLESHOOTING:"
-            LogError "1. Check internet connection"
-            LogError "2. Try manually: pip install git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git"
-            LogError "3. Or clone and install locally:"
-            LogError "   git clone https://github.com/CallMarcus/dji-drone-metadata-embedder.git"
-            LogError "   cd dji-drone-metadata-embedder"
-            LogError "   pip install ."
-            LogError ""
-            if (-not $Silent) {
-                Read-Host "Press Enter to exit"
-            }
-            exit 1
-        }
+    LogError "Package installation failed: $($_.Exception.Message)"
+    LogError ""
+    LogError "TROUBLESHOOTING:"
+    LogError "1. Check internet connection"
+    LogError "2. Try manually: pip install dji-drone-metadata-embedder"
+    LogError "3. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
+    LogError ""
+    if (-not $Silent) {
+        Read-Host "Press Enter to exit"
     }
+    exit 1
 }
 
 # Install tools (FFmpeg and ExifTool)
 $binDir = Join-Path $env:LOCALAPPDATA 'dji-embed\bin'
 New-Item -Force -ItemType Directory $binDir | Out-Null
+
+# Function to download with progress
+function Download-WithProgress($Url, $OutFile) {
+    $uri = [System.Uri]$Url
+    $request = [System.Net.HttpWebRequest]::Create($uri)
+    $request.Method = "GET"
+    
+    try {
+        $response = $request.GetResponse()
+        $totalBytes = $response.ContentLength
+        $responseStream = $response.GetResponseStream()
+        
+        $buffer = New-Object byte[] 8192
+        $targetStream = [System.IO.File]::Create($OutFile)
+        $downloadedBytes = 0
+        $lastPercent = 0
+        
+        while (($read = $responseStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $targetStream.Write($buffer, 0, $read)
+            $downloadedBytes += $read
+            
+            if ($totalBytes -gt 0) {
+                $percent = [Math]::Floor(($downloadedBytes / $totalBytes) * 100)
+                if ($percent -ne $lastPercent) {
+                    Write-Progress -Activity "Downloading" -Status "$percent% Complete" -PercentComplete $percent
+                    $lastPercent = $percent
+                }
+            }
+        }
+        
+        Write-Progress -Activity "Downloading" -Completed
+        $targetStream.Close()
+        $responseStream.Close()
+        $response.Close()
+        
+        return $true
+    }
+    catch {
+        if ($targetStream) { $targetStream.Close() }
+        if ($responseStream) { $responseStream.Close() }
+        if ($response) { $response.Close() }
+        throw
+    }
+}
 
 # Function to download and extract tools safely
 function Install-Tool($Name, $Url, $ExtractLogic) {
@@ -348,8 +358,24 @@ function Install-Tool($Name, $Url, $ExtractLogic) {
         $tempFile = Join-Path $env:TEMP $fileName
         $tempDir = Join-Path $env:TEMP "$Name-extract"
         
-        # Download with progress
-        Invoke-WebRequest -Uri $Url -OutFile $tempFile -UseBasicParsing
+        # Download with .NET WebClient for better handling of large files
+        try {
+            $wc = New-Object System.Net.WebClient
+            $wc.Headers.Add("User-Agent", "DJI-Embed-Installer")
+            $wc.DownloadFile($Url, $tempFile)
+        } catch {
+            # Fallback to Invoke-WebRequest if WebClient fails
+            LogWarn "WebClient failed, trying Invoke-WebRequest..."
+            Invoke-WebRequest -Uri $Url -OutFile $tempFile -UseBasicParsing
+        }
+        
+        # Check if file was downloaded
+        if (-not (Test-Path $tempFile)) {
+            throw "Download failed - file not found"
+        }
+        
+        $fileSize = (Get-Item $tempFile).Length
+        LogInfo "Downloaded $Name ($([Math]::Round($fileSize/1MB, 1)) MB)"
         
         # Extract and install
         & $ExtractLogic $tempFile $tempDir
@@ -362,22 +388,42 @@ function Install-Tool($Name, $Url, $ExtractLogic) {
         return $true
     } catch {
         LogWarn "$Name installation failed: $($_.Exception.Message)"
+        
+        # Additional help for common issues
+        if ($Name -eq "FFmpeg" -and $_.Exception.Message -like "*Central Directory*") {
+            LogWarn "The FFmpeg download may have been corrupted. Please download manually from:"
+            LogWarn "https://www.gyan.dev/ffmpeg/builds/"
+        }
+        
         return $false
     }
 }
 
 # Install FFmpeg
-$ffmpegSuccess = Install-Tool "FFmpeg" "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip" {
+$ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" {
     param($zipFile, $tempDir)
-    Expand-Archive $zipFile $tempDir -Force
-    $ffBin = Get-ChildItem $tempDir -Directory | Select-Object -First 1 | ForEach-Object { Join-Path $_ 'bin' }
-    if (Test-Path $ffBin) {
-        Copy-Item "$ffBin\*" $binDir -Recurse -Force
+    
+    # Use .NET for extraction of large files
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFile, $tempDir)
+    
+    # Find the ffmpeg executable
+    $ffmpegExe = Get-ChildItem -Path $tempDir -Filter "ffmpeg.exe" -Recurse | Select-Object -First 1
+    if ($ffmpegExe) {
+        Copy-Item $ffmpegExe.FullName (Join-Path $binDir "ffmpeg.exe") -Force
+        
+        # Also copy ffprobe if found
+        $ffprobeExe = Get-ChildItem -Path $tempDir -Filter "ffprobe.exe" -Recurse | Select-Object -First 1
+        if ($ffprobeExe) {
+            Copy-Item $ffprobeExe.FullName (Join-Path $binDir "ffprobe.exe") -Force
+        }
+    } else {
+        throw "FFmpeg executable not found in archive"
     }
 }
 
-# Install ExifTool  
-$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-12.76.zip" {
+# Install ExifTool with correct version
+$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-12.92.zip" {
     param($zipFile, $tempDir)
     Expand-Archive $zipFile $tempDir -Force
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
@@ -450,6 +496,22 @@ if ($djiEmbedWorking) {
     LogWarn "Installation completed but command may not be in PATH"
     LogWarn "Try opening a new Command Prompt/PowerShell window"
     LogWarn "Or use: python -m dji_metadata_embedder"
+}
+
+# If tools failed, provide manual download links
+if (-not $ffmpegSuccess -or -not $exifSuccess) {
+    Log ""
+    Log "=== MANUAL DOWNLOAD LINKS ==="
+    if (-not $ffmpegSuccess) {
+        Log "FFmpeg: https://www.gyan.dev/ffmpeg/builds/"
+        Log "  1. Download 'release essentials' build"
+        Log "  2. Extract and copy ffmpeg.exe to: $binDir"
+    }
+    if (-not $exifSuccess) {
+        Log "ExifTool: https://exiftool.org/"
+        Log "  1. Download Windows Executable"
+        Log "  2. Rename to exiftool.exe and copy to: $binDir"
+    }
 }
 
 # Launch wizard if requested  
