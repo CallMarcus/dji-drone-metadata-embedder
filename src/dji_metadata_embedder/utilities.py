@@ -118,6 +118,20 @@ def check_dependencies() -> Tuple[bool, list[str]]:
     
     try:
         for name, cmd in tools.items():
+            # Check environment variables first (set by bootstrap script)
+            env_var = f"DJIEMBED_{name.upper()}_PATH"
+            tool_path = os.environ.get(env_var)
+            
+            if tool_path and Path(tool_path).exists():
+                # Use the explicit path from environment variable
+                test_cmd = [tool_path] + cmd[1:]
+                try:
+                    subprocess.run(test_cmd, capture_output=True, check=True)
+                    continue  # Tool found, skip to next
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    pass  # Fall through to normal check
+            
+            # Normal check
             try:
                 # Use shell=True on Windows to find executables in PATH
                 subprocess.run(cmd, capture_output=True, check=True, 

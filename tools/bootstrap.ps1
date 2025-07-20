@@ -379,7 +379,7 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 }
 
 # Install ExifTool with correct version
-$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
+$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32.zip" {
     param($zipFile, $tempDir)
     # Use .NET ZipFile extraction to avoid verbose output
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -437,10 +437,16 @@ if (Test-Path $ffmpegPath) {
 if (Test-Path $exiftoolPath) {
     LogInfo "ExifTool found at: $exiftoolPath"
     try {
-        $version = & $exiftoolPath -ver 2>&1
-        LogInfo "ExifTool version: $version"
+        # ExifTool might need to be run with full path
+        $version = & "$exiftoolPath" -ver 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            LogInfo "ExifTool version: $version"
+        } else {
+            LogWarn "ExifTool exists but returned error code: $LASTEXITCODE"
+            LogWarn "Error output: $version"
+        }
     } catch {
-        LogWarn "ExifTool exists but failed to run"
+        LogWarn "ExifTool exists but failed to run: $($_.Exception.Message)"
     }
 } else {
     LogError "ExifTool not found at: $exiftoolPath"
@@ -453,7 +459,7 @@ try {
     $result = & dji-embed --version 2>&1
     if ($LASTEXITCODE -eq 0) {
         $djiEmbedWorking = $true
-        Log "✓ dji-embed command is working"
+        Log "[OK] dji-embed command is working"
     }
 } catch {}
 
@@ -463,7 +469,7 @@ if (-not $djiEmbedWorking) {
         $result = & $python -m dji_metadata_embedder --version 2>&1
         if ($LASTEXITCODE -eq 0) {
             $djiEmbedWorking = $true
-            Log "✓ dji-embed working via Python module"
+            Log "[OK] dji-embed working via Python module"
         }
     } catch {}
 }
@@ -471,14 +477,14 @@ if (-not $djiEmbedWorking) {
 # Final status report
 Log ""
 Log "=== INSTALLATION SUMMARY ==="
-Log "Python: ✓ Working"
-Log "DJI Metadata Embedder: $(if($djiEmbedWorking){'✓ Working'}else{'⚠ May need PATH refresh'})"
-Log "FFmpeg: $(if($ffmpegSuccess){'✓ Installed'}else{'⚠ Install manually'})"
-Log "ExifTool: $(if($exifSuccess){'✓ Installed'}else{'⚠ Install manually'})"
+Log "Python: [OK] Working"
+Log "DJI Metadata Embedder: $(if($djiEmbedWorking){'[OK] Working'}else{'[WARN] May need PATH refresh'})"
+Log "FFmpeg: $(if($ffmpegSuccess){'[OK] Installed'}else{'[WARN] Install manually'})"
+Log "ExifTool: $(if($exifSuccess){'[OK] Installed'}else{'[WARN] Install manually'})"
 Log ""
 
 if ($djiEmbedWorking) {
-    Log "🎉 Installation completed successfully!"
+    Log "Installation completed successfully!"
     Log ""
     Log "USAGE:"
     Log "  dji-embed /path/to/drone/videos"

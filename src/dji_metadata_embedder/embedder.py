@@ -16,27 +16,7 @@ from .utils import system_info
 logger = logging.getLogger(__name__)
 
 
-def run_doctor():
-    """Display system information and dependency status."""
-    import os
-    from pathlib import Path
-    from .utilities import check_dependencies
-    
-    # System information
-    logger.info("System information:")
-    sys_info = system_info.get_system_summary()
-    for key, value in sys_info.items():
-        logger.info(f"  {key}: {value}")
-    
-    # Check dependencies using the same method as check_dependencies
-    logger.info("Dependency check:")
-    deps_ok, missing = check_dependencies()
-    
-    logger.info(f"  ffmpeg: {'FOUND' if 'ffmpeg' not in missing else 'MISSING'}")
-    logger.info(f"  exiftool: {'FOUND' if 'exiftool' not in missing else 'MISSING'}")
-    
-    if not deps_ok:
-        logger.warning("Some dependencies are missing or not functional.")
+
 
 
 class DJIMetadataEmbedder:
@@ -256,10 +236,20 @@ class DJIMetadataEmbedder:
         output_path: Path,
     ) -> bool:
         """Embed SRT as subtitle track and add metadata using ffmpeg."""
+        import os
+        import platform
+        
         try:
+            # Check for ffmpeg in environment variable first (Windows)
+            ffmpeg_cmd = "ffmpeg"
+            if platform.system() == "Windows":
+                env_ffmpeg = os.environ.get("DJIEMBED_FFMPEG_PATH")
+                if env_ffmpeg and Path(env_ffmpeg).exists():
+                    ffmpeg_cmd = env_ffmpeg
+            
             # Build ffmpeg command
             cmd = [
-                "ffmpeg",
+                ffmpeg_cmd,
                 "-i",
                 str(video_path),
                 "-i",
@@ -319,14 +309,24 @@ class DJIMetadataEmbedder:
         self, video_path: Path, telemetry: Dict[str, Any]
     ) -> bool:
         """Use exiftool to embed GPS metadata (alternative/additional method)."""
+        import os
+        import platform
+        
         try:
             if not telemetry["first_gps"]:
                 return False
 
             lat, lon = telemetry["first_gps"]
+            
+            # Check for exiftool in environment variable first (Windows)
+            exiftool_cmd = "exiftool"
+            if platform.system() == "Windows":
+                env_exiftool = os.environ.get("DJIEMBED_EXIFTOOL_PATH")
+                if env_exiftool and Path(env_exiftool).exists():
+                    exiftool_cmd = env_exiftool
 
             cmd = [
-                "exiftool",
+                exiftool_cmd,
                 f"-GPSLatitude={abs(lat)}",
                 f'-GPSLatitudeRef={"N" if lat >= 0 else "S"}',
                 f"-GPSLongitude={abs(lon)}",
@@ -444,58 +444,27 @@ class DJIMetadataEmbedder:
         logger.info("Processed files saved to: %s", self.output_dir)
 
 
-def check_dependencies():
-    """Check if required tools are installed."""
-    dependencies = {"ffmpeg": ["ffmpeg", "-version"], "exiftool": ["exiftool", "-ver"]}
 
-    missing = []
-    for tool, cmd in dependencies.items():
-        try:
-            subprocess.run(cmd, capture_output=True, check=True)
-            logger.info("%s is installed", tool)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            logger.error("%s is NOT installed", tool)
-            missing.append(tool)
-
-    if missing:
-        logger.warning("Missing dependencies:")
-        if "ffmpeg" in missing:
-            logger.warning("- FFmpeg: Download from https://ffmpeg.org/download.html")
-            logger.warning("  For Windows: Use the full build from gyan.dev or BtbN")
-        if "exiftool" in missing:
-            logger.warning("- ExifTool: Download from https://exiftool.org/")
-            logger.warning(
-                "  For Windows: Download the Windows Executable and add to PATH"
-            )
-        return False
-    return True
 
 
 def run_doctor() -> None:
     """Print system and dependency information."""
-    import os
-
-    bin_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "dji-embed" / "bin"
-    manager = DependencyManager(bin_dir)
-    dep_status = manager.verify_dependencies()
-    dep_info = manager.get_dependency_info()
-    summary = system_info.get_system_summary()
-
+    from .utilities import check_dependencies
+    
+    # System information
     logger.info("System information:")
-    for key, value in summary.items():
+    sys_info = system_info.get_system_summary()
+    for key, value in sys_info.items():
         logger.info("  %s: %s", key, value)
-
+    
+    # Check dependencies using the utilities function which checks environment vars
     logger.info("Dependency check:")
-    for name, ok in dep_status.items():
-        status = "OK" if ok else "MISSING"
-        logger.info("  %s: %s", name, status)
-        info = dep_info.get(name, {})
-        if info.get("path"):
-            logger.info("    path: %s", info["path"])
-        if info.get("version"):
-            logger.info("    version: %s", info["version"])
-
-    if all(dep_status.values()):
+    deps_ok, missing = check_dependencies()
+    
+    logger.info("  ffmpeg: %s", "FOUND" if "ffmpeg" not in missing else "MISSING")
+    logger.info("  exiftool: %s", "FOUND" if "exiftool" not in missing else "MISSING")
+    
+    if deps_ok:
         logger.info("All dependencies verified.")
     else:
         logger.warning("Some dependencies are missing or not functional.")
@@ -548,9 +517,17 @@ def main():
         run_doctor()
         return
 
-    if args.check or not check_dependencies():
-        if args.check:
-            return
+    from .utilities import check_dependencies
+    
+    deps_ok, missing = check_dependencies()
+    
+    if args.check:
+        if not deps_ok:
+            logger.error("Missing dependencies: %s", ", ".join(missing))
+        return
+    
+    if not deps_ok:
+        logger.error("Missing dependencies: %s", ", ".join(missing))
         logger.error("Please install missing dependencies before continuing.")
         return
 
