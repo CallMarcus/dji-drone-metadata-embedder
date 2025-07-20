@@ -1,3 +1,4 @@
+---
 name: Publish winget package
 
 "on":
@@ -23,10 +24,15 @@ jobs:
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest `
             -OutFile wingetcreate.exe
 
+      - name: Validate manifest
+        shell: pwsh
+        run: |
+          .\wingetcreate.exe validate .github/winget/CallMarcus.DJI-Embed.yaml
+
       - name: Submit package
         shell: pwsh
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
         run: |
-          .\wingetcreate.exe submit .github/winget/installer.yaml `
+          .\wingetcreate.exe submit .github/winget/CallMarcus.DJI-Embed.yaml `
             --token $env:WINGET_PAT
