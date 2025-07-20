@@ -24,7 +24,9 @@ def main() -> None:
 
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
-@click.option("-o", "--output", type=click.Path(file_okay=False), help="Output directory")
+@click.option(
+    "-o", "--output", type=click.Path(file_okay=False), help="Output directory"
+)
 @click.option("--exiftool", is_flag=True, help="Also use ExifTool for GPS metadata")
 @click.option("--dat", type=click.Path(exists=True), help="DAT flight log to merge")
 @click.option("--dat-auto", is_flag=True, help="Auto-detect DAT logs matching videos")
@@ -52,9 +54,7 @@ def embed(
 
     deps_ok, missing = check_dependencies()
     if not deps_ok:
-        raise click.ClickException(
-            f"Missing dependencies: {', '.join(missing)}"
-        )
+        raise click.ClickException(f"Missing dependencies: {', '.join(missing)}")
 
     embedder = DJIMetadataEmbedder(
         directory,
@@ -122,6 +122,24 @@ def wizard() -> None:
     """Launch interactive setup wizard."""
     run_doctor()
     click.echo("Wizard functionality not yet implemented.")
+
+
+@main.command()
+def doctor() -> None:
+    """Show system information and verify dependencies."""
+    run_doctor()
+
+
+@main.command()
+def gui() -> None:
+    """Launch graphical interface (placeholder)."""
+    click.echo("Not yet implemented")
+
+
+@main.command()
+def init() -> None:
+    """Perform initial setup (placeholder)."""
+    click.echo("Not yet implemented")
 
 
 if __name__ == "__main__":  # pragma: no cover
