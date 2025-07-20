@@ -1,6 +1,7 @@
+---
 name: CI
 
-on:
+'on':
   push:
     branches: [master]
   pull_request:
@@ -23,7 +24,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('**/pyproject.toml') }}  # yamllint disable-line rule:line-length
           restore-keys: |
             ${{ runner.os }}-${{ matrix.python-version }}-pip-
       - name: Install dependencies
@@ -39,4 +40,3 @@ jobs:
         run: pytest
       - name: Build package
         run: python -m build
-
