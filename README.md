@@ -254,6 +254,7 @@ Ensure FFmpeg is in your PATH. Test with:
 ```bash
 ffmpeg -version
 ```
+`ffmpeg` uses a single dash here. Typing `ffmpeg --version` will result in `Unrecognized option '--version'`.
 
 ### No GPS data in JSON
 Check that your SRT files contain GPS coordinates. Open an SRT file to verify the format.
