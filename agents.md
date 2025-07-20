@@ -4,7 +4,15 @@
 
 ---
 
-## ✅ Phase 0 Complete - Package Structure Fixed!
+## Phase 0 – Core plumbing
+**✔ Package structure consolidated**
+**⚠ CI / workflow YAML needs formatting**
+**⚠ .pre‑commit file needs formatting**
+
+### 0.2 · Re-format YAML files
+| Task | Description | Status |
+|------|-------------|--------|
+| **0.2.1** | Split `.github/workflows/*.yml` and `.pre‑commit‑config.yaml` into proper multi-line YAML | ❌ TODO |
 
 The package structure has been successfully consolidated and all core functionality is working. We can now proceed with testing and deployment.
 
@@ -57,7 +65,7 @@ The bootstrap script is now complete and ready for use!
 | Task | Description | Status |
 |------|-------------|---------|
 | **2.2.1** | Submit winget manifest | ❌ TODO |
-| **2.2.2** | GitHub Action for winget updates | ✅ DONE (untested) |
+| **2.2.2** | GitHub Action for winget updates | ⚠ IMPLEMENTED – needs first successful run |
 | **2.2.3** | Documentation for winget install | ❌ TODO |
 
 ### 2.3 · Quick Install Methods
