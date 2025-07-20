@@ -473,7 +473,10 @@ def check_dependencies():
 
 def run_doctor() -> None:
     """Print system and dependency information."""
-    manager = DependencyManager(Path("tools"))
+    import os
+
+    bin_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "dji-embed" / "bin"
+    manager = DependencyManager(bin_dir)
     dep_status = manager.verify_dependencies()
     dep_info = manager.get_dependency_info()
     summary = system_info.get_system_summary()
