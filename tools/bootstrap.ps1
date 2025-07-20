@@ -425,7 +425,7 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 # Install ExifTool with correct version
 $exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
     param($zipFile, $tempDir)
-    Expand-Archive $zipFile $tempDir -Force
+    Expand-Archive -Path $zipFile -DestinationPath $tempDir -Force -Verbose:$false
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
@@ -486,7 +486,7 @@ Log "ExifTool: $(if($exifSuccess){'[OK] Installed'}else{'[WARN] Install manually
 Log ""
 
 if ($djiEmbedWorking) {
-    Log "🎉 Installation completed successfully!"
+    Log "Installation completed successfully!"
     Log ""
     Log "USAGE:"
     Log "  dji-embed /path/to/drone/videos"
