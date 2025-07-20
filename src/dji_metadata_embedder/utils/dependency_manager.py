@@ -114,6 +114,13 @@ class DependencyManager:
                 if path:
                     candidate = path
                     break
+        # Look in tools_dir itself when executables are placed directly under bin
+        if not candidate and self.tools_dir.exists():
+            for name in ("ffmpeg.exe", "ffmpeg"):
+                path = self.tools_dir / name
+                if path.exists():
+                    candidate = path
+                    break
         if not candidate:
             found = shutil.which("ffmpeg")
             if found:
@@ -126,6 +133,12 @@ class DependencyManager:
             for name in ("exiftool.exe", "exiftool"):
                 path = next(self.exiftool_dir.rglob(name), None)
                 if path:
+                    candidate = path
+                    break
+        if not candidate and self.tools_dir.exists():
+            for name in ("exiftool.exe", "exiftool"):
+                path = self.tools_dir / name
+                if path.exists():
                     candidate = path
                     break
         if not candidate:
