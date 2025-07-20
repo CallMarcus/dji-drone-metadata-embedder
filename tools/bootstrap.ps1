@@ -425,7 +425,11 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 # Install ExifTool with correct version
 $exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32_64.zip" {
     param($zipFile, $tempDir)
-    Expand-Archive $zipFile $tempDir -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    if (Test-Path $tempDir) {
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFile, $tempDir)
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
@@ -461,7 +465,7 @@ try {
     $result = & dji-embed --version 2>&1
     if ($LASTEXITCODE -eq 0) {
         $djiEmbedWorking = $true
-        Log "✓ dji-embed command is working"
+        Log "[OK] dji-embed command is working"
     }
 } catch {}
 
@@ -471,7 +475,7 @@ if (-not $djiEmbedWorking) {
         $result = & $python -m dji_metadata_embedder --version 2>&1
         if ($LASTEXITCODE -eq 0) {
             $djiEmbedWorking = $true
-            Log "✓ dji-embed working via Python module"
+            Log "[OK] dji-embed working via Python module"
         }
     } catch {}
 }
@@ -479,14 +483,14 @@ if (-not $djiEmbedWorking) {
 # Final status report
 Log ""
 Log "=== INSTALLATION SUMMARY ==="
-Log "Python: ✓ Working"
-Log "DJI Metadata Embedder: $(if($djiEmbedWorking){'✓ Working'}else{'⚠ May need PATH refresh'})"
-Log "FFmpeg: $(if($ffmpegSuccess){'✓ Installed'}else{'⚠ Install manually'})"
-Log "ExifTool: $(if($exifSuccess){'✓ Installed'}else{'⚠ Install manually'})"
+Log "Python: [OK] Working"
+Log "DJI Metadata Embedder: $(if($djiEmbedWorking){'[OK] Working'}else{'[WARN] May need PATH refresh'})"
+Log "FFmpeg: $(if($ffmpegSuccess){'[OK] Installed'}else{'[WARN] Install manually'})"
+Log "ExifTool: $(if($exifSuccess){'[OK] Installed'}else{'[WARN] Install manually'})"
 Log ""
 
 if ($djiEmbedWorking) {
-    Log "🎉 Installation completed successfully!"
+    Log "Installation completed successfully!"
     Log ""
     Log "USAGE:"
     Log "  dji-embed /path/to/drone/videos"
