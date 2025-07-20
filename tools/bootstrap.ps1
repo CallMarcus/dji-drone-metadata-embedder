@@ -188,7 +188,7 @@ function Ensure-Python {
 # IMPROVED: Get latest version with robust fallback handling
 if(-not $Version){
     # Default fallback version that we know works
-    $fallbackVersion = "1.0.3"
+    $fallbackVersion = "1.0.4"
     
     try{
         LogInfo "Checking for latest version..."
@@ -423,7 +423,7 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 }
 
 # Install ExifTool with correct version
-$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-12.92.zip" {
+$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-12.76.zip" {
     param($zipFile, $tempDir)
     Expand-Archive $zipFile $tempDir -Force
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1

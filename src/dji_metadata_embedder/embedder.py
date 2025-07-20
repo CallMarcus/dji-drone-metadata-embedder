@@ -16,6 +16,29 @@ from .utils import system_info
 logger = logging.getLogger(__name__)
 
 
+def run_doctor():
+    """Display system information and dependency status."""
+    import os
+    from pathlib import Path
+    from .utilities import check_dependencies
+    
+    # System information
+    logger.info("System information:")
+    sys_info = system_info.get_system_summary()
+    for key, value in sys_info.items():
+        logger.info(f"  {key}: {value}")
+    
+    # Check dependencies using the same method as check_dependencies
+    logger.info("Dependency check:")
+    deps_ok, missing = check_dependencies()
+    
+    logger.info(f"  ffmpeg: {'FOUND' if 'ffmpeg' not in missing else 'MISSING'}")
+    logger.info(f"  exiftool: {'FOUND' if 'exiftool' not in missing else 'MISSING'}")
+    
+    if not deps_ok:
+        logger.warning("Some dependencies are missing or not functional.")
+
+
 class DJIMetadataEmbedder:
     """Embed DJI telemetry data into video files.
 

@@ -99,15 +99,35 @@ def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
 
 def check_dependencies() -> Tuple[bool, list[str]]:
     """Return ``(True, [])`` if external tools are available."""
+    import os
+    import platform
+    from pathlib import Path
 
     tools = {"ffmpeg": ["ffmpeg", "-version"], "exiftool": ["exiftool", "-ver"]}
     missing: list[str] = []
 
-    for name, cmd in tools.items():
-        try:
-            subprocess.run(cmd, capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            missing.append(name)
+    # Add dji-embed bin directory to PATH temporarily (Windows only)
+    original_path = os.environ.get("PATH", "")
+    path_modified = False
+    
+    if platform.system() == "Windows":
+        bin_dir = Path.home() / "AppData" / "Local" / "dji-embed" / "bin"
+        if bin_dir.exists() and str(bin_dir) not in original_path:
+            os.environ["PATH"] = str(bin_dir) + os.pathsep + original_path
+            path_modified = True
+    
+    try:
+        for name, cmd in tools.items():
+            try:
+                # Use shell=True on Windows to find executables in PATH
+                subprocess.run(cmd, capture_output=True, check=True, 
+                              shell=(platform.system() == "Windows"))
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                missing.append(name)
+    finally:
+        # Restore original PATH if we modified it
+        if path_modified:
+            os.environ["PATH"] = original_path
 
     return (not missing), missing
 
