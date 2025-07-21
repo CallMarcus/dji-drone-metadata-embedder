@@ -46,7 +46,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 
 ## Validation tests
 
-The scripts in [`validation_tests`](../validation_tests/README.md) verify that
+The scripts in [`validation_tests`](validation_tests.md) verify that
 your installation is ready for real footage. Before running them, make sure that
 `ffmpeg` and `exiftool` can be found on your `PATH`.
 
