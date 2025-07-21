@@ -26,7 +26,7 @@ jobs:
           pip install -e .
           pip install -r docs/requirements.txt
       - run: mkdocs build --strict
-      - uses: actions/upload-pages-artifact@v1
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: site
   deploy:
@@ -37,4 +37,4 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
