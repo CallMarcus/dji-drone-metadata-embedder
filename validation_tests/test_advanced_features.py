@@ -274,7 +274,7 @@ def test_cli_dependency_check():
     try:
         # Test check command with a dummy directory
         with tempfile.TemporaryDirectory() as temp_dir:
-            result = subprocess.run(['dji-embed', '--check', temp_dir], 
+            result = subprocess.run(['dji-embed', 'check', temp_dir],
                                   capture_output=True, text=True, timeout=15)
             
             if result.returncode in [0, 1]:  # 0 = success, 1 = some deps missing
