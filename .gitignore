@@ -28,6 +28,7 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+!dji-embed.spec
 
 # Installer logs
 pip-log.txt
