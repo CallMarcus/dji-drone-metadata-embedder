@@ -4,7 +4,6 @@ Creates dji-embed.exe with all dependencies bundled
 """
 
 import os
-import sys
 import shutil
 from pathlib import Path
 import PyInstaller.__main__
@@ -46,7 +45,7 @@ def build_executable():
     # Run PyInstaller
     PyInstaller.__main__.run(args)
 
-    print(f"✅ Executable built: dist/dji-embed.exe")
+    print("✅ Executable built: dist/dji-embed.exe")
 
     # Calculate SHA256
     import hashlib
