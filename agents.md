@@ -83,6 +83,7 @@ The bootstrap script is now complete and ready for use!
 | **2.2.1** | Submit winget manifest           | ❌ TODO                                    |
 | **2.2.2** | GitHub Action for winget updates | ⚠ IMPLEMENTED – needs first successful run |
 | **2.2.3** | Documentation for winget install | ❌ TODO                                    |
+| **2.2.4** | Create dji-embed.exe with PyInstaller | ❌ TODO |
 
 ### 2.3 · Quick Install Methods
 
