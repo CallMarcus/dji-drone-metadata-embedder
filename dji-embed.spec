@@ -1,42 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-block_cipher = None
 
 a = Analysis(
-    ['src/dji_metadata_embedder/__main__.py'],
-    pathex=[],
+    ['_pyinstaller_entry.py'],
+    pathex=['src'],
     binaries=[],
-    datas=[
-        ('src/dji_metadata_embedder/templates', 'templates'),
-    ],
-    hiddenimports=[
-        'dji_metadata_embedder',
-        'dji_metadata_embedder.cli',
-        'dji_metadata_embedder.core',
-        'dji_metadata_embedder.parsers',
-        'dji_metadata_embedder.telemetry_converter',
-        'dji_metadata_embedder.metadata_check',
-        'dji_metadata_embedder.wizard',
-        'rich',
-        'click',
-        'tqdm',
-    ],
+    datas=[],
+    hiddenimports=['dji_metadata_embedder', 'dji_metadata_embedder.cli', 'dji_metadata_embedder.core', 'dji_metadata_embedder.parsers', 'dji_metadata_embedder.telemetry_converter', 'dji_metadata_embedder.metadata_check', 'dji_metadata_embedder.wizard', 'click', 'rich', 'tqdm'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
+    optimize=0,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
     name='dji-embed',
