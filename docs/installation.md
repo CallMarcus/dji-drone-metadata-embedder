@@ -1,6 +1,6 @@
 # Installation
 
-[← Back to README](../README.md)
+[← Back to Home](index.md)
 
 ## Easy Windows install
 
