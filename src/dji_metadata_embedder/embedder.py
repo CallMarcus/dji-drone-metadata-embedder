@@ -10,7 +10,6 @@ from rich.progress import Progress
 
 from .dat_parser import parse_v13 as parse_dat_v13
 from .utilities import apply_redaction, setup_logging
-from .utils.dependency_manager import DependencyManager
 from .utils import system_info
 
 logger = logging.getLogger(__name__)
