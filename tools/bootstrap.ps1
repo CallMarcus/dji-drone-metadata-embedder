@@ -328,6 +328,8 @@ try {
 
 # Install tools (FFmpeg and ExifTool)
 $binDir = Join-Path $env:LOCALAPPDATA 'dji-embed\bin'
+$FFmpegUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
+$ExifToolUrl = 'https://exiftool.org/exiftool-13.32_64.zip'
 New-Item -Force -ItemType Directory $binDir | Out-Null
 
 # Function to download and extract tools safely
@@ -380,7 +382,7 @@ function Install-Tool($Name, $Url, $ExtractLogic) {
 }
 
 # Install FFmpeg
-$ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" {
+$ffmpegSuccess = Install-Tool "FFmpeg" $FFmpegUrl {
     param($zipFile, $tempDir)
     
     # Use .NET for extraction of large files
@@ -403,7 +405,7 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 }
 
 # Install ExifTool with correct version
-$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32.zip" {
+$exifSuccess = Install-Tool "ExifTool" $ExifToolUrl {
     param($zipFile, $tempDir)
     # Use .NET ZipFile extraction to avoid verbose output
     Add-Type -AssemblyName System.IO.Compression.FileSystem
