@@ -1,4 +1,4 @@
-# DJI Metadata Embedder - Fix Summary
+# DJI Metadata Embedder - Fix Summary (v1.0.5)
 
 ## Issue Fixed
 The bootstrap script was failing because it tried to install version `1.0.4-test1` which is not a valid Python package version format (PEP 440 doesn't allow hyphens).
@@ -24,7 +24,7 @@ Run the release script:
 
 This will:
 - Delete the problematic v1.0.4-test1 tag
-- Create a proper v1.0.4 tag
+- Create a proper v1.0.5 tag
 - Push it to GitHub to trigger release workflows
 
 ### 3. Monitor GitHub Actions
@@ -57,7 +57,7 @@ The updated script now:
 
 After creating the release:
 - [ ] Bootstrap script installs successfully
-- [ ] `dji-embed --version` shows 1.0.4
+- [ ] `dji-embed --version` shows 1.0.5
 - [ ] FFmpeg and ExifTool are downloaded
 - [ ] Basic video processing works
 - [ ] Winget package updates (may take 24-48 hours)
