@@ -20,7 +20,7 @@ If winget cannot locate the package, it may still be awaiting approval. Run the 
 winget install -e --id Python.Python.3
 winget install -e --id Gyan.FFmpeg
 winget install -e --id PhilHarvey.ExifTool
-pip install dji-metadata-embedder
+pip install dji-drone-metadata-embedder
 ```
 
 ## macOS / Linux quick-start

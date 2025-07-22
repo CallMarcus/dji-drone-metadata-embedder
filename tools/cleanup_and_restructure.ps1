@@ -99,7 +99,7 @@ Write-Host "Missing files created" -ForegroundColor Green
 
 # Step 6: Reinstall in development mode
 Write-Host "`nStep 6: Reinstalling package..." -ForegroundColor Yellow
-& python -m pip uninstall dji-metadata-embedder dji-drone-metadata-embedder -y 2>$null
+& python -m pip uninstall dji-drone-metadata-embedder -y 2>$null
 & python -m pip install -e .
 
 # Step 7: Verify installation
