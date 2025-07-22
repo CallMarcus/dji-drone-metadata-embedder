@@ -1,6 +1,6 @@
 # AI Coding Assistant – Task Breakdown (`agents.md`)
 
-*Last updated: July 20th, 2025*
+*Last updated: July 23rd, 2025*
 
 ***
 
@@ -80,7 +80,7 @@ The bootstrap script is now complete and ready for use!
 
 | Task      | Description                      | Status                                     |
 |-----------|----------------------------------|--------------------------------------------|
-| **2.2.1** | Submit winget manifest           | ❌ TODO                                    |
+| **2.2.1** | Submit winget manifest           | ⏳ IN PROGRESS – awaiting publication                                    |
 | **2.2.2** | GitHub Action for winget updates | ⚠ IMPLEMENTED – needs first successful run |
 | **2.2.3** | Documentation for winget install | ❌ TODO                                    |
 | **2.2.4** | Create dji-embed.exe with PyInstaller | ❌ TODO |
@@ -126,13 +126,15 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/CallMarcus/dji-drone-m
 
 ## 🎯 IMMEDIATE ACTION ITEMS
 
-1.  **Test the bootstrap script**:
+1.  **Submit winget package** – run `publish-winget.yml` and ensure the package appears in winget search.
+
+2.  **Test the bootstrap script**:
 
 ```powershell
 .\tools\bootstrap.ps1
 ```
 
-2.  **Run comprehensive tests**:
+3.  **Run comprehensive tests**:
 
 ```bash
 pip install -e .[dev]
@@ -140,7 +142,7 @@ pytest
 dji-embed --version
 ```
 
-3.  **Test all CLI commands**:
+4.  **Test all CLI commands**:
 
 ```bash
 dji-embed embed /path/to/videos
@@ -149,7 +151,7 @@ dji-embed convert /path/to/files --format gpx
 dji-embed wizard
 ```
 
-4.  **Verify PyPI package**:
+5.  **Verify PyPI package**:
 
 ```bash
 python -m build
@@ -170,6 +172,7 @@ twine check dist/*
 
 ### Phase 2 Success:
 
+-   [ ] Winget package published and searchable
 -   [ ] Windows users can install with one command
 -   [ ] No Python/CLI knowledge required
 -   [ ] Works on Windows 10/11 without admin rights
@@ -185,14 +188,13 @@ twine check dist/*
 
 ## 🚀 Current Focus
 
-With Phase 0 complete, the immediate priority is:
+With Phase 0 complete, the immediate priorities are:
 
-1.  **Test the bootstrap script** on various Windows configurations
-2.  **Verify all core features** work correctly (Phase 1.1)
-3.  **Update documentation** to reflect the current state
-4.  **Prepare for PyPI release** with proper versioning
+1.  **Publish the winget package** – run the submission workflow and confirm it can be installed via `winget`.
+2.  **Thoroughly test all features** using the validation suite and manual checks.
+3.  **Update documentation** to reflect the verified functionality.
 
-The package is now ready for real-world testing and deployment!
+The project is ready for real-world testing and public distribution once winget publication succeeds.
 
 ***
 
