@@ -22,7 +22,7 @@ If ExifTool is installed but fails with a missing `perl5*.dll` message, the
 `exiftool_files` directory was not copied alongside `exiftool.exe`.
 
 - Delete the incomplete installation folder (usually `C:\Users\<user>\AppData\Local\dji-embed\bin`).
-- Re-run the [PowerShell bootstrap](../README.md#easy-windows-install) to extract
+- Re-run the [PowerShell bootstrap](installation.md#easy-windows-install) to extract
   ExifTool correctly.
 
 ## "python was not found"
