@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > being stabilised. Expect ongoing changes and potential breakage as bugs are
 > fixed and the build process is improved.
 
+## [1.0.5] - 2025-07-22
+
+### Fixed
+- Bootstrap script now handles pre-release versions properly
+- Pre-release tags (like `1.0.4-test1`) install from GitHub instead of PyPI
+- Better error messages when version format issues occur
+- Fallback to stable version if pre-release installation fails
+
+### Added
+- Support for installing directly from GitHub tags in bootstrap script
+- Improved version detection and handling in Windows installer
+
 ## [1.0.4] - 2025-07-20
 
 ### Changed
