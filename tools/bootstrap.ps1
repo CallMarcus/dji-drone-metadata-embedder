@@ -277,7 +277,19 @@ try {
 
 # Install the main package (use correct name for Windows/macOS)
 $package = 'dji-drone-metadata-embedder'
-$pkgArg = if($Version) { "$package==$Version" } else { $package }
+
+# Check if version contains pre-release identifiers (hyphen)
+if ($Version -and $Version -match '-') {
+    LogWarn "Detected pre-release version: $Version"
+    LogWarn "Pre-release versions must be installed from GitHub"
+    
+    # Install from GitHub for pre-releases
+    $gitUrl = "git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git@v$Version"
+    $pkgArg = $gitUrl
+    Log "Installing from GitHub: v$Version"
+} else {
+    $pkgArg = if($Version) { "$package==$Version" } else { $package }
+}
 
 try {
     Log "Installing $package..."
@@ -286,7 +298,18 @@ try {
     if ($LASTEXITCODE -eq 0) {
         Log "Package installed successfully"
     } else {
-        throw "Installation failed with exit code $LASTEXITCODE"
+        # If GitHub install fails, try without version specification
+        if ($Version -and $Version -match '-') {
+            LogWarn "GitHub installation failed, trying latest stable version..."
+            $installOutput = & $python -m pip install --upgrade $package 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Log "Latest stable version installed successfully"
+            } else {
+                throw "Installation failed with exit code $LASTEXITCODE"
+            }
+        } else {
+            throw "Installation failed with exit code $LASTEXITCODE"
+        }
     }
 } catch {
     LogError "Package installation failed: $($_.Exception.Message)"
@@ -294,7 +317,8 @@ try {
     LogError "TROUBLESHOOTING:"
     LogError "1. Check internet connection"
     LogError "2. Try manually: pip install dji-drone-metadata-embedder"
-    LogError "3. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
+    LogError "3. For pre-release: pip install git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git@v$Version"
+    LogError "4. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
     LogError ""
     if (-not $Silent) {
         Read-Host "Press Enter to exit"
