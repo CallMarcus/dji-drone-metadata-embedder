@@ -41,7 +41,7 @@ You can also download a ready-to-run **dji-embed.exe** from the [GitHub Releases
 winget install -e --id Python.Python.3
 winget install -e --id Gyan.FFmpeg
 winget install -e --id PhilHarvey.ExifTool
-pip install dji-metadata-embedder
+pip install dji-drone-metadata-embedder
 ```
 
 ## macOS / Linux quick-start
@@ -88,7 +88,7 @@ The tool has been tested with:
 
 ## Requirements
 
-- Python 3.6 or higher
+ - Python 3.10 or higher
 - FFmpeg
 - ExifTool (optional, for additional metadata embedding)
 

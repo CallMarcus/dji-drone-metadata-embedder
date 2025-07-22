@@ -5,7 +5,7 @@ needing to manage a Python environment manually.
 
 ## Option 1: pipx
 
-1. [Install Python](https://www.python.org/) 3.8 or newer.
+1. [Install Python](https://www.python.org/) 3.10 or newer.
 2. Open **PowerShell** and install `pipx`:
    ```powershell
    python -m pip install --user pipx
@@ -24,7 +24,7 @@ needing to manage a Python environment manually.
 
 ## Option 2: PyInstaller executable
 
-1. Install Python 3.8+ and download [PyInstaller](https://pyinstaller.org/) using
+1. Install Python 3.10+ and download [PyInstaller](https://pyinstaller.org/) using
    PowerShell:
    ```powershell
    pip install pyinstaller

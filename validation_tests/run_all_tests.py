@@ -87,10 +87,10 @@ def check_prerequisites():
     
     # Check Python version
     version = sys.version_info
-    if version >= (3, 8):
+    if version >= (3, 10):
         print(f"   ✅ Python {version.major}.{version.minor}.{version.micro}")
     else:
-        print(f"   ❌ Python {version.major}.{version.minor}.{version.micro} (need 3.8+)")
+        print(f"   ❌ Python {version.major}.{version.minor}.{version.micro} (need 3.10+)")
         prerequisites_ok = False
     
     # Check if we're in the right directory
