@@ -1,6 +1,6 @@
 ---
 PackageIdentifier: CallMarcus.DJI-Embed
-PackageVersion: 1.0.5
+PackageVersion: 1.0.6
 PackageName: DJI Drone Metadata Embedder
 Publisher: CallMarcus
 License: MIT
@@ -11,7 +11,7 @@ ShortDescription: >-
 Installers:
   - Architecture: x64
     InstallerUrl: >-
-      https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/download/v1.0.5/dji-embed.exe
+      https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/download/v1.0.6/dji-embed.exe
     InstallerSha256: '{{SHA256}}'
     InstallerType: exe
 ManifestType: installer

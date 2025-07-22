@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > being stabilised. Expect ongoing changes and potential breakage as bugs are
 > fixed and the build process is improved.
 
+## [1.0.6] - 2025-07-23
+
+### Fixed
+- ExifTool extraction now copies bundled libraries correctly
+- `dji-embed embed` processes all videos instead of stopping early
+
 ## [1.0.5] - 2025-07-22
 
 ### Fixed
