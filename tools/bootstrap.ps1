@@ -416,6 +416,12 @@ $exifSuccess = Install-Tool "ExifTool" $ExifToolUrl {
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
+
+        # Copy the bundled Perl library directory if present
+        $libDir = Join-Path $exeTool.DirectoryName "exiftool_files"
+        if (Test-Path $libDir) {
+            Copy-Item $libDir (Join-Path $binDir "exiftool_files") -Recurse -Force
+        }
     } else {
         throw "ExifTool executable not found in archive"
     }
