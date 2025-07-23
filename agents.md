@@ -7,15 +7,6 @@
 ## Phase 0 – Core plumbing
 
 **✔ Package structure consolidated** **⚠ CI / workflow YAML needs formatting** **⚠ .pre‑commit file needs formatting**
-
-**T0.A · Reformat YAML files**  
-*Files*: .github/workflows/\*.yml, .precommitconfig.yaml  
-*Checklist*:
-
--   Prettyprint with newlines & proper indent
--   yamllint --strict passes  
-    *Done when*: CI still green **and** git diff shows readable YAML.
-
 **T0.B · Verify Winget workflow**
 *Files*: .github/workflows/publish-winget.yml
 *Checklist*:
@@ -25,14 +16,6 @@
 -   Use `winget validate` prior to submission (replaces deprecated
     `wingetcreate validate`)
     *Done when*: First successful run appears in the Actions tab.
-
-### 0.2 · Re-format YAML files
-
-| Task      | Description                                                                               | Status  |
-|-----------|-------------------------------------------------------------------------------------------|---------|
-| **0.2.1** | Split `.github/workflows/*.yml` and `.pre‑commit‑config.yaml` into proper multi-line YAML | ❌ TODO |
-
-The package structure has been successfully consolidated and all core functionality is working. We can now proceed with testing and deployment.
 
 ***
 
