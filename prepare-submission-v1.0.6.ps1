@@ -24,12 +24,12 @@ if (Test-Path $sourceDir) {
     exit 1
 }
 
-# Validate with wingetcreate if available
-if (Get-Command wingetcreate -ErrorAction SilentlyContinue) {
+# Validate with winget if available
+if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "`nValidating manifests..." -ForegroundColor Yellow
-    wingetcreate validate $packageDir
+    winget validate $packageDir
 } else {
-    Write-Host "`n⚠️  Install wingetcreate for validation: winget install wingetcreate" -ForegroundColor Yellow
+    Write-Host "`n⚠️  Install winget for validation: https://aka.ms/getwinget" -ForegroundColor Yellow
 }
 
 Write-Host "`n✅ Submission files ready in: $submitDir" -ForegroundColor Green
