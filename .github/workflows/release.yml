@@ -1,7 +1,7 @@
 ---
 name: Build and Publish to PyPI
 
-'on':
+on:  # yamllint disable-line rule:truthy
   release:
     types:
       - published
