@@ -24,6 +24,7 @@
 -   Run the job once; artefact = valid manifest in manifests/
 -   Use `winget validate` prior to submission (replaces deprecated
     `wingetcreate validate`)
+-   Install winget from <https://aka.ms/getwinget> if the CLI is missing
     *Done when*: First successful run appears in the Actions tab.
 
 ### 0.2 · Re-format YAML files

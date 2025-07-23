@@ -29,7 +29,7 @@ if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "`nValidating manifests..." -ForegroundColor Yellow
     winget validate $packageDir
 } else {
-    Write-Host "`n⚠️  Install winget for validation" -ForegroundColor Yellow
+    Write-Host "`n⚠️  Install winget for validation: https://aka.ms/getwinget" -ForegroundColor Yellow
 }
 
 Write-Host "`n✅ Submission files ready in: $submitDir" -ForegroundColor Green
