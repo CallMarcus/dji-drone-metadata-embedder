@@ -27,7 +27,7 @@ jobs:
       - name: Validate manifest
         shell: pwsh
         run: |
-          .\wingetcreate.exe validate `
+          winget validate `
             .github/winget-manifests/CallMarcus.DJIMetadataEmbedder.yaml
 
       - name: Submit package
