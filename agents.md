@@ -17,7 +17,7 @@
     *Done when*: CI still green **and** git diff shows readable YAML.
 
 **T0.B · Verify Winget workflow**  
-*Files*: .github/workflows/winget.yml (or correct name)  
+*Files*: .github/workflows/publish-winget.yml
 *Checklist*:
 
 -   Ensure on: workflow_dispatch so it can be run manually
