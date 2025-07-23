@@ -49,10 +49,10 @@ Write-Host "3. Copy the contents of $submitDir\manifests to your fork"
 Write-Host "4. Create a PR with title: 'New package: CallMarcus.DJIMetadataEmbedder version $Version'"
 Write-Host "`nManifests are ready in: $submitDir" -ForegroundColor Green
 
-# Optional: Validate with wingetcreate
-if (Get-Command wingetcreate -ErrorAction SilentlyContinue) {
+# Optional: Validate manifests with winget
+if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "`nValidating manifests..." -ForegroundColor Cyan
-    wingetcreate validate $packageDir
+    winget validate $packageDir
 } else {
-    Write-Host "`nTip: Install wingetcreate for validation: winget install wingetcreate" -ForegroundColor Gray
+    Write-Host "`nTip: Install winget for validation: https://aka.ms/getwinget" -ForegroundColor Gray
 }
