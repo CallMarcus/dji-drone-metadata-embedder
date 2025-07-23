@@ -17,7 +17,7 @@ if (Test-Path $sourceDir) {
     Copy-Item "$sourceDir\CallMarcus.DJIMetadataEmbedder.yaml" "$packageDir\" -Force
     Copy-Item "$sourceDir\CallMarcus.DJIMetadataEmbedder.installer.yaml" "$packageDir\" -Force
     Copy-Item "$sourceDir\CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml" "$packageDir\" -Force
-    
+
     Write-Host "✅ Manifests copied to submission directory" -ForegroundColor Green
 } else {
     Write-Host "❌ Source manifests not found!" -ForegroundColor Red
