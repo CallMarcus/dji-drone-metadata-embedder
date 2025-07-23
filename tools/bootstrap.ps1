@@ -188,7 +188,7 @@ function Ensure-Python {
 # IMPROVED: Get latest version with robust fallback handling
 if(-not $Version){
     # Default fallback version that we know works
-    $fallbackVersion = "1.0.5"
+    $fallbackVersion = "1.0.6"
     
     try{
         LogInfo "Checking for latest version..."
@@ -416,6 +416,12 @@ $exifSuccess = Install-Tool "ExifTool" $ExifToolUrl {
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
+
+        # Copy the bundled Perl library directory if present
+        $libDir = Join-Path $exeTool.DirectoryName "exiftool_files"
+        if (Test-Path $libDir) {
+            Copy-Item $libDir (Join-Path $binDir "exiftool_files") -Recurse -Force
+        }
     } else {
         throw "ExifTool executable not found in archive"
     }

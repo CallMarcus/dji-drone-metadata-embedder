@@ -47,7 +47,11 @@ These milestones describe how AI coding assistants will further streamline DJI m
 - The repository currently contains the original CLI implementation.
 - A basic `dependency_manager.py` exists but other Phase 1 modules are missing.
 - `tools/bootstrap.ps1` and its CI smoke test are implemented.
-- Winget packaging workflow and manifest are in place.
+- Winget packaging workflow is ready but the package is not yet published.
 - No GUI has been created yet.
 
 The project aims to deliver a one-click Windows application with comprehensive documentation and automated builds.
+
+### Next Steps
+- Finalise winget publication and verify the package is searchable.
+- Run validation tests on all features before adding new ones.
