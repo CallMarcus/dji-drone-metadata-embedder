@@ -27,25 +27,21 @@ jobs:
       - name: Ensure winget CLI
         shell: powershell
         run: |
+          Write-Host 'Checking winget availability…'
           winget --version
 
       - name: Validate manifest
-        shell: pwsh
+        shell: powershell
         run: |
-          $cmd = Get-Command winget.exe -ErrorAction SilentlyContinue
-          $winget = $cmd.Source
-          if (-not $winget) {
-            $pkg = Get-AppxPackage Microsoft.DesktopAppInstaller
-            $winget = Join-Path $pkg.InstallLocation 'winget.exe'
-          }
-          & $winget validate `
-            .github/winget-manifests/CallMarcus.DJIMetadataEmbedder.yaml
+          Write-Host 'Validating manifest…'
+          winget validate .github/winget-manifests/CallMarcus.DJIMetadataEmbedder.yaml
 
       - name: Submit package
-        shell: pwsh
+        shell: powershell
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
         run: |
+          Write-Host 'Submitting package…'
           .\wingetcreate.exe submit `
             .github/winget-manifests/CallMarcus.DJIMetadataEmbedder.yaml `
             --token $env:WINGET_PAT
