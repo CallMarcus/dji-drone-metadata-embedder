@@ -54,5 +54,5 @@ if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "`nValidating manifests..." -ForegroundColor Cyan
     winget validate $packageDir
 } else {
-    Write-Host "`nTip: Install winget for validation" -ForegroundColor Gray
+    Write-Host "`nTip: Install winget for validation: https://aka.ms/getwinget" -ForegroundColor Gray
 }
