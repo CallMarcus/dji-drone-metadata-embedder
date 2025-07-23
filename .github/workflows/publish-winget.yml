@@ -25,12 +25,9 @@ jobs:
             -OutFile wingetcreate.exe
 
       - name: Ensure winget CLI
-        shell: pwsh
+        shell: powershell
         run: |
-          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            Write-Error 'winget CLI not found on runner—abort.'
-            exit 1
-          }
+          winget --version
 
       - name: Validate manifest
         shell: pwsh
