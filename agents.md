@@ -7,6 +7,7 @@
 ## Phase 0 – Core plumbing
 
 **✔ Package structure consolidated** **⚠ CI / workflow YAML needs formatting** **⚠ .pre‑commit file needs formatting**
+
 **T0.B · Verify Winget workflow**
 *Files*: .github/workflows/publish-winget.yml
 *Checklist*:
