@@ -1,0 +1,50 @@
+---
+name: Winget Submission
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to submit (e.g., 1.0.6)'
+        required: true
+        type: string
+
+jobs:
+  submit-to-winget:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Download the exe from the release
+          gh release download v${{ inputs.version }} -p "dji-embed.exe" -D .
+          
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          $hash = Get-FileHash -Path "dji-embed.exe" -Algorithm SHA256
+          echo "hash=$($hash.Hash)" >> $env:GITHUB_OUTPUT
+          echo "SHA256: $($hash.Hash)"
+          
+      - name: Update manifest with SHA256
+        run: |
+          $manifestPath = ".github/winget-manifests/CallMarcus.DJIMetadataEmbedder.installer.yaml"
+          $content = Get-Content $manifestPath -Raw
+          $content = $content -replace 'PLACEHOLDER_SHA256', '${{ steps.sha256.outputs.hash }}'
+          $content | Set-Content $manifestPath
+          
+      - name: Install wingetcreate
+        run: |
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          
+      - name: Submit to winget-pkgs
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_PAT }}
+        run: |
+          # Create PR to winget-pkgs
+          .\wingetcreate.exe submit `
+            .github/winget-manifests/ `
+            --token $env:GITHUB_TOKEN
