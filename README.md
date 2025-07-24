@@ -1,6 +1,5 @@
 # DJI Drone Metadata Embedder
 
-[![Winget]][winget]
 [![GitHub Release]][release]
 [![PyPI]][pypi]
 
@@ -26,21 +25,11 @@ Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
-
-```powershell
-winget install -e --id CallMarcus.DJI-Embed
-```
-
-If winget reports **"No package found"**, the package is still pending publication. Use the PowerShell one-liner above instead.
-
-You can also download a ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases) if `winget` is unavailable.
-
+You can also download a ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
+> Note: A winget package may be provided in the future.
 ### Windows – manual path
 
 ```powershell
-winget install -e --id Python.Python.3
-winget install -e --id Gyan.FFmpeg
-winget install -e --id PhilHarvey.ExifTool
 pip install dji-drone-metadata-embedder
 ```
 
@@ -292,8 +281,6 @@ MIT License - see LICENSE file for details
 
 This tool is not affiliated with or endorsed by DJI. Use at your own risk.
 
-[Winget]: https://img.shields.io/badge/winget-CallMarcus.DJI--Embed-blue?logo=windows
-[winget]: https://winget.run/pkg/CallMarcus/DJI-Embed
 [GitHub Release]: https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github
 [release]: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases
 [PyPI]: https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi

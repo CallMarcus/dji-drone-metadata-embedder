@@ -4,8 +4,7 @@ Write-Host "Creating GitHub Release for v1.0.6..." -ForegroundColor Green
 # Check if GitHub CLI is installed
 $ghInstalled = Get-Command gh -ErrorAction SilentlyContinue
 if (-not $ghInstalled) {
-    Write-Host "GitHub CLI not found. Installing via winget..." -ForegroundColor Yellow
-    winget install GitHub.cli
+    Write-Host "GitHub CLI not found. Please install it from https://cli.github.com/ and rerun this script." -ForegroundColor Yellow
     Write-Host "Please restart PowerShell after installation and run this script again." -ForegroundColor Yellow
     exit 1
 }

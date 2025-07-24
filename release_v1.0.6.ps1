@@ -20,4 +20,3 @@ Write-Host "`nNext steps:" -ForegroundColor Yellow
 Write-Host "1. Monitor GitHub Actions at: https://github.com/CallMarcus/dji-drone-metadata-embedder/actions"
 Write-Host "2. Wait for PyPI release to complete"
 Write-Host "3. Test the bootstrap script after release is published"
-Write-Host "4. Check winget package update (may take 24-48 hours)"

@@ -22,9 +22,5 @@ git push origin vX.Y.Z
 
 Once the tag is pushed, the workflow will publish the signed packages and attach them to the release page automatically.
 
-## Winget Submission
 
-Winget manifests are published using the `publish-winget.yml` workflow. This workflow
-requires a Personal Access Token with permission to submit packages to the
-Microsoft Store. Add this token to the repository secrets as `WINGET_PAT` before
-running the workflow.
+Winget publishing is currently disabled and may return in the future.
