@@ -7,7 +7,6 @@
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
-> A winget package may be provided in a future release.
 
 
 ### Windows – manual path

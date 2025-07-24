@@ -26,7 +26,6 @@ Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 You can also download a ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
-> Note: A winget package may be provided in the future.
 ### Windows – manual path
 
 ```powershell

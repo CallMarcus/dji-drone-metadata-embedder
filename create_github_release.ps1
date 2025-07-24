@@ -1,5 +1,5 @@
-# Create GitHub Release for v1.0.6
-Write-Host "Creating GitHub Release for v1.0.6..." -ForegroundColor Green
+# Create GitHub Release for v1.0.7
+Write-Host "Creating GitHub Release for v1.0.7..." -ForegroundColor Green
 
 # Check if GitHub CLI is installed
 $ghInstalled = Get-Command gh -ErrorAction SilentlyContinue
@@ -35,7 +35,7 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 
 **PyPI:**
 ``````bash
-pip install dji-drone-metadata-embedder==1.0.6
+pip install dji-drone-metadata-embedder==1.0.7
 ``````
 
 **Docker:**
@@ -48,19 +48,19 @@ docker pull callmarcus/dji-embed:latest
 - [User Guide](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/master/docs/user_guide.md)
 - [Troubleshooting](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/master/docs/troubleshooting.md)
 
-**Full Changelog**: https://github.com/CallMarcus/dji-drone-metadata-embedder/compare/v1.0.5...v1.0.6
+**Full Changelog**: https://github.com/CallMarcus/dji-drone-metadata-embedder/compare/v1.0.6...v1.0.7
 "@
 
 # Create the release using GitHub CLI
 try {
-    gh release create v1.0.6 `
-        --title "v1.0.6 - Bug Fix Release" `
+    gh release create v1.0.7 `
+        --title "v1.0.7 - Cleanup Release" `
         --notes $releaseNotes `
         --latest
     
     Write-Host "✅ GitHub Release created successfully!" -ForegroundColor Green
     Write-Host ""
-    Write-Host "View the release at: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/tag/v1.0.6" -ForegroundColor Cyan
+    Write-Host "View the release at: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/tag/v1.0.7" -ForegroundColor Cyan
 } catch {
     Write-Host "❌ Failed to create release: $_" -ForegroundColor Red
     Write-Host ""
