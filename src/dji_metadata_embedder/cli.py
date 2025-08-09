@@ -12,11 +12,34 @@ from .telemetry_converter import (
     extract_telemetry_to_gpx,
     extract_telemetry_to_csv,
 )
-from .utilities import check_dependencies, setup_logging
+from .utilities import check_dependencies, setup_logging, get_tool_versions
+
+
+def print_version(ctx, param, value):
+    """Custom version callback that shows tool versions."""
+    if not value or ctx.resilient_parsing:
+        return
+    
+    tool_versions = get_tool_versions()
+    
+    click.echo(f"dji-embed {__version__}")
+    click.echo(f"  python: {click.get_current_context().find_root().info_name}")
+    
+    for tool, version in tool_versions.items():
+        click.echo(f"  {tool}: {version}")
+    
+    ctx.exit()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__, prog_name="dji-embed")
+@click.option(
+    "--version", 
+    is_flag=True, 
+    callback=print_version, 
+    expose_value=False, 
+    is_eager=True,
+    help="Show version and tool information"
+)
 def main() -> None:
     """DJI Metadata Embedder command line interface."""
     pass

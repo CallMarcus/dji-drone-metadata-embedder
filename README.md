@@ -100,88 +100,176 @@ If the command `python` is not recognized, use `py` instead.
 
 Process a single directory:
 ```bash
-dji-embed /path/to/drone/footage
+dji-embed embed /path/to/drone/footage
 ```
 
-### Options
+### Commands
 
 ```bash
-dji-embed [OPTIONS] [DIRECTORY]
+dji-embed [OPTIONS] COMMAND [ARGS]...
+
+Commands:
+  embed    Embed telemetry from SRT files into MP4 videos
+  check    Check media files for embedded metadata
+  convert  Convert SRT telemetry to GPX or CSV
+  doctor   Show system information and verify dependencies
+  wizard   Launch interactive setup wizard
+  gui      Launch graphical interface (placeholder)
+  init     Perform initial setup (placeholder)
+
+Global Options:
+  --version   Show the version and exit
+  -h, --help  Show this message and exit
+```
+
+### Embed Command Options
+
+```bash
+dji-embed embed [OPTIONS] DIRECTORY
 
 Arguments:
   DIRECTORY          Directory containing MP4 and SRT files
 
 Options:
-  -o, --output      Output directory (default: ./processed)
-  --exiftool        Also use ExifTool for GPS metadata
-  --check           Only check dependencies
-  --doctor          Show system information and dependency status
-  --dat FILE        Merge specified DAT flight log
-  --dat-auto        Auto-detect DAT logs matching videos
-  --redact MODE     Redact GPS data (none, drop, fuzz)
-  --verbose         Show detailed progress
-  --quiet           Suppress progress bar and most output
+  -o, --output DIRECTORY     Output directory
+  --exiftool                 Also use ExifTool for GPS metadata
+  --dat PATH                 DAT flight log to merge
+  --dat-auto                 Auto-detect DAT logs matching videos
+  --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
+  -v, --verbose              Verbose output
+  -q, --quiet                Suppress progress output
 ```
 
 By default, processing shows a progress bar for each file.
 Use `--verbose` for detailed output or `--quiet` to reduce messages.
-The `--doctor` option does not require a directory argument.
 
 ### Examples
 
 Process footage with custom output directory:
 ```bash
-dji-embed "D:\DroneFootage\Flight1" -o "D:\ProcessedVideos"
+dji-embed embed "D:\DroneFootage\Flight1" -o "D:\ProcessedVideos"
 ```
 
 Process with ExifTool for additional metadata:
 ```bash
-dji-embed "D:\DroneFootage\Flight1" --exiftool
+dji-embed embed "D:\DroneFootage\Flight1" --exiftool
 ```
 
-Check dependencies:
+Check existing metadata in files:
 ```bash
-dji-embed --check "D:\DroneFootage"
+dji-embed check "D:\DroneFootage\Flight1"
 ```
 
-Run the environment doctor:
+Run system diagnostics:
 ```bash
-dji-embed --doctor
+dji-embed doctor
 ```
 
 ### Convert Telemetry to Other Formats
 
 Extract GPS track to GPX:
 ```bash
-python -m dji_metadata_embedder.telemetry_converter gpx DJI_0001.SRT
+dji-embed convert gpx DJI_0001.SRT
 ```
 
 Export telemetry to CSV:
 ```bash
-python -m dji_metadata_embedder.telemetry_converter csv DJI_0001.SRT -o telemetry.csv
+dji-embed convert csv DJI_0001.SRT -o telemetry.csv
 ```
 
 Batch convert directory to GPX:
 ```bash
-python -m dji_metadata_embedder.telemetry_converter gpx /path/to/srt/files --batch
+dji-embed convert gpx /path/to/srt/files --batch
 ```
 
 Batch convert directory to CSV:
 ```bash
-python -m dji_metadata_embedder.telemetry_converter csv /path/to/srt/files --batch
+dji-embed convert csv /path/to/srt/files --batch
 ```
 
 ### Check Existing Metadata
 
 You can check if your videos or photos already contain GPS or altitude
-information using the metadata checker script:
+information using the check command:
 
 ```bash
-python -m dji_metadata_embedder.metadata_check DJI_0001.MP4
-python -m dji_metadata_embedder.metadata_check /path/to/footage
+dji-embed check DJI_0001.MP4
+dji-embed check /path/to/footage
 ```
 
 See [docs/METADATA_CHECKER.md](docs/METADATA_CHECKER.md) for details.
+
+## CLI Reference
+
+### All Commands
+
+#### `dji-embed embed` - Process Videos
+Embed telemetry from SRT files into MP4 videos.
+
+```bash
+dji-embed embed [OPTIONS] DIRECTORY
+
+Arguments:
+  DIRECTORY                  Directory containing MP4 and SRT files
+
+Options:
+  -o, --output DIRECTORY     Output directory
+  --exiftool                 Also use ExifTool for GPS metadata  
+  --dat PATH                 DAT flight log to merge
+  --dat-auto                 Auto-detect DAT logs matching videos
+  --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
+  -v, --verbose              Verbose output
+  -q, --quiet                Suppress progress output
+```
+
+#### `dji-embed check` - Check Metadata
+Check media files for existing embedded metadata.
+
+```bash
+dji-embed check [OPTIONS] [PATHS]...
+
+Arguments:
+  PATHS...                   Files or directories to check
+
+Options:
+  -v, --verbose              Verbose output
+  -q, --quiet                Suppress info output
+```
+
+#### `dji-embed convert` - Export Formats
+Convert SRT telemetry to GPX or CSV formats.
+
+```bash
+dji-embed convert [OPTIONS] {gpx|csv} INPUT
+
+Arguments:
+  {gpx|csv}                  Output format (GPX or CSV)
+  INPUT                      SRT file or directory to convert
+
+Options:
+  -o, --output PATH          Output file path
+  -b, --batch                Batch process directory
+  -v, --verbose              Verbose output
+  -q, --quiet                Suppress info output
+```
+
+#### `dji-embed doctor` - System Diagnostics
+Show system information and verify all dependencies.
+
+```bash
+dji-embed doctor
+
+No arguments or options required.
+```
+
+#### `dji-embed wizard` - Interactive Setup
+Launch interactive setup wizard (under development).
+
+```bash
+dji-embed wizard
+
+No arguments or options required.
+```
 
 ## Output
 
@@ -242,22 +330,52 @@ GPS(59.302335,18.203059,132.860)
 
 ## Troubleshooting
 
-See [docs/troubleshooting.md](docs/troubleshooting.md) for additional tips.
-### "Python was not found"
-Use `py` instead of `python`:
+See [docs/troubleshooting.md](docs/troubleshooting.md) for comprehensive troubleshooting.
+
+### Quick Fixes
+
+#### "Python was not found"
+Use `py` instead of `python` on Windows:
 ```bash
-dji-embed /path/to/footage
+dji-embed doctor
 ```
 
-### "ffmpeg is not recognized"
+#### "ffmpeg is not recognized"
 Ensure FFmpeg is in your PATH. Test with:
 ```bash
 ffmpeg -version
 ```
-`ffmpeg` uses a single dash here. Typing `ffmpeg --version` will result in `Unrecognized option '--version'`.
+Note: `ffmpeg` uses a single dash. Using `ffmpeg --version` will result in `Unrecognized option '--version'`.
 
-### No GPS data in JSON
-Check that your SRT files contain GPS coordinates. Open an SRT file to verify the format.
+#### "Command not found: dji-embed"
+If the command isn't found after installation:
+```bash
+python -m pip install --user dji-drone-metadata-embedder
+# or
+pipx install dji-drone-metadata-embedder
+```
+
+#### No GPS data in JSON output
+1. Check that your SRT files contain GPS coordinates:
+   ```bash
+   dji-embed check /path/to/your/files
+   ```
+2. Open an SRT file in a text editor to verify the format
+3. Run diagnostics to check for parsing issues:
+   ```bash
+   dji-embed doctor
+   ```
+
+#### Processing fails with "No matching MP4/SRT pairs"
+Ensure your files follow the naming convention:
+- Video: `DJI_0001.MP4`
+- Subtitle: `DJI_0001.SRT`
+
+#### Permission errors on Windows
+Run PowerShell as Administrator or use the bootstrap installer:
+```powershell
+iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
+```
 
 ## Contributing
 

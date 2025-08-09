@@ -1,198 +1,108 @@
-# AI Coding Assistant – Task Breakdown (`agents.md`)
+# AI Coding Assistant – GitHub Issues Tracking (`agents.md`)
 
-*Last updated: July 20th, 2025*
+*Last updated: August 9th, 2025*
 
-***
-
-## Phase 0 – Core plumbing
-
-**✔ Package structure consolidated** **⚠ CI / workflow YAML needs formatting** **⚠ .pre‑commit file needs formatting**
-
-**T0.A · Reformat YAML files**  
-*Files*: .github/workflows/\*.yml, .precommitconfig.yaml  
-*Checklist*:
-
--   Prettyprint with newlines & proper indent
--   yamllint --strict passes  
-    *Done when*: CI still green **and** git diff shows readable YAML.
-
-**T0.B · Verify Winget workflow**  
-*Files*: .github/workflows/winget.yml (or correct name)  
-*Checklist*:
-
--   Ensure on: workflow_dispatch so it can be run manually
--   Run the job once; artefact = valid manifest in manifests/  
-    *Done when*: First successful run appears in the Actions tab.
-
-### 0.2 · Re-format YAML files
-
-| Task      | Description                                                                               | Status  |
-|-----------|-------------------------------------------------------------------------------------------|---------|
-| **0.2.1** | Split `.github/workflows/*.yml` and `.pre‑commit‑config.yaml` into proper multi-line YAML | ❌ TODO |
-
-The package structure has been successfully consolidated and all core functionality is working. We can now proceed with testing and deployment.
+This document tracks the GitHub Issues and Milestones for the DJI Drone Metadata Embedder project. All development work should align with the actual GitHub project management system.
 
 ***
 
-## 📋 PHASE 1: Core Functionality Verification
+## Current Milestone: M2 – CI/Build Reliability (Week 2–3)
 
->   **Goal**: Ensure all features work correctly before deployment
+**Due Date**: August 29, 2025  
+**Status**: ✅ **COMPLETED** - All 4 issues resolved
 
-### 1.1 · Test Core Features
+### ✅ Completed Issues
 
-| Task      | Description                                                        | Status  |
-|-----------|--------------------------------------------------------------------|---------|
-| **1.1.1** | Verify SRT parsing for all formats (Mini 3/4 Pro, Avata 2, legacy) | ❌ TODO |
-| **1.1.2** | Test video metadata embedding with FFmpeg                          | ❌ TODO |
-| **1.1.3** | Test ExifTool GPS metadata embedding                               | ❌ TODO |
-| **1.1.4** | Verify DAT file parsing and integration                            | ❌ TODO |
-| **1.1.5** | Test telemetry export (GPX, CSV)                                   | ❌ TODO |
+| Issue | Priority | Description | Status |
+|-------|----------|-------------|---------|
+| **#136** | MED | deps: introduce requirements.lock for reproducible builds | ✅ DONE |
+| **#135** | MED | build: pin FFmpeg/ExifTool versions and expose via --version | ✅ DONE |
+| **#134** | HIGH | ci: smoke test wheel & EXE using tiny fixtures | ✅ DONE |
+| **#133** | MED | ci: test matrix (Windows + Linux; py310–py312) | ✅ DONE |
 
-### 1.2 · Documentation Update
+### 🎯 M2 Achievements
 
-| Task      | Description                                          | Status  |
-|-----------|------------------------------------------------------|---------|
-| **1.2.1** | Update README with correct installation instructions | ❌ TODO |
-| **1.2.2** | Document all CLI commands and options                | ❌ TODO |
-| **1.2.3** | Add troubleshooting guide                            | ❌ TODO |
-| **1.2.4** | Update CHANGELOG.md                                  | ❌ TODO |
-
-***
-
-## 📋 PHASE 2: Windows User Experience
-
->   **Goal**: Zero-friction install for everyday Windows pilots
-
-### 2.1 · PowerShell Bootstrap Script (📜 `tools/bootstrap.ps1`)
-
-| Step | What the script does                      | Implementation hints                | Status   |
-|------|-------------------------------------------|-------------------------------------|----------|
-| 1    | **Self-elevate if needed**                | Use `#Requires -RunAsAdministrator` | ✅ DONE  |
-| 2    | Ensure **Python ≥ 3.10**                  | Install from MS Store/winget        | ✅ DONE  |
-| 3    | Download **FFmpeg + ExifTool**            | SHA-256 validation                  | ✅ DONE  |
-| 4    | `pip install dji-drone-metadata-embedder` | From PyPI                           | ✅ READY |
-| 5    | Update PATH                               | Current session + persistent        | ✅ DONE  |
-| 6    | Auto-launch wizard                        | `dji-embed wizard`                  | ✅ READY |
-
-The bootstrap script is now complete and ready for use!
-
-### 2.2 · Winget Package
-
-| Task      | Description                      | Status                                     |
-|-----------|----------------------------------|--------------------------------------------|
-| **2.2.1** | Submit winget manifest           | ❌ TODO                                    |
-| **2.2.2** | GitHub Action for winget updates | ⚠ IMPLEMENTED – needs first successful run |
-| **2.2.3** | Documentation for winget install | ❌ TODO                                    |
-
-### 2.3 · Quick Install Methods
-
-#### One-Line PowerShell Install
-
-```powershell
-iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/main/tools/bootstrap.ps1 | iex
-```
-
-#### Manual Bootstrap
-
-```powershell
-# Download and run the bootstrap script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/main/tools/bootstrap.ps1" -OutFile "dji_bootstrap.ps1"
-.\dji_bootstrap.ps1
-```
+- ✅ **Enhanced CI Pipeline**: Added Windows + Linux matrix testing across Python 3.10-3.12
+- ✅ **Smoke Testing**: Added comprehensive smoke tests for version, doctor, check, and convert commands  
+- ✅ **Reproducible Builds**: Implemented requirements.lock with exact dependency versions
+- ✅ **Tool Version Tracking**: Enhanced --version command to show FFmpeg/ExifTool versions
+- ✅ **Documentation**: Added requirements lock policy and external tool version specs
 
 ***
 
-## 📋 PHASE 3: Advanced Features (Future)
+## Next Milestone: M3 – Parser Hardening & CLI UX (Week 3–5)
 
-### 3.1 · GUI Development (Optional)
+**Due Date**: September 12, 2025  
+**Status**: 🔄 **IN PROGRESS** - 7 open issues
 
-| Task      | Description                                       | Status  |
-|-----------|---------------------------------------------------|---------|
-| **3.1.1** | Decide: Keep GUI or remove?                       | ❌ TODO |
-| **3.1.2** | If keeping: Move to src/dji_metadata_embedder/gui | ❌ TODO |
-| **3.1.3** | Create dji-embed-gui entry point                  | ❌ TODO |
-| **3.1.4** | PyInstaller bundle with GUI                       | ❌ TODO |
+### 🔄 M3 Open Issues
 
-### 3.2 · Docker Enhancement
-
-| Task      | Description                          | Status  |
-|-----------|--------------------------------------|---------|
-| **3.2.1** | Update Dockerfile with new structure | ❌ TODO |
-| **3.2.2** | Multi-arch builds (ARM64 support)    | ❌ TODO |
-| **3.2.3** | Docker Hub automated builds          | ❌ TODO |
+| Issue | Priority | Type | Description |
+|-------|----------|------|-------------|
+| **#143** | MED | cli | optional --log-json (machine-readable warnings/errors) |
+| **#142** | HIGH | cli | subcommands (embed, validate, export, probe) + consistent exit codes |
+| **#141** | HIGH | cli | implement validate command (drift report) |
+| **#140** | MED | cli/parser | add --time-offset and resample strategy for SRT↔MP4 alignment |
+| **#139** | MED | parser | unit normalisation & sanity checks (altitude/speed) |
+| **#138** | HIGH | parser | lenient mode with structured warnings |
+| **#137** | HIGH | ci/parser | add golden fixtures for SRT & HTML-SRT across 4 DJI model families |
 
 ***
 
-## 🎯 IMMEDIATE ACTION ITEMS
+## Future Milestone: M4 – Docs, Samples & Release Hygiene (Week 5–6)
 
-1.  **Test the bootstrap script**:
+**Due Date**: September 19, 2025  
+**Status**: 📋 **PLANNED** - 6 open issues
 
-```powershell
-.\tools\bootstrap.ps1
-```
+### 📋 M4 Planned Issues
 
-2.  **Run comprehensive tests**:
-
-```bash
-pip install -e .[dev]
-pytest
-dji-embed --version
-```
-
-3.  **Test all CLI commands**:
-
-```bash
-dji-embed embed /path/to/videos
-dji-embed check /path/to/videos
-dji-embed convert /path/to/files --format gpx
-dji-embed wizard
-```
-
-4.  **Verify PyPI package**:
-
-```bash
-python -m build
-twine check dist/*
-```
+| Issue | Priority | Type | Description |
+|-------|----------|------|-------------|
+| **#149** | MED | release | winget manifest sync from pyproject via sync_version.py |
+| **#148** | MED | release | auto-changelog from conventional commits |
+| **#147** | MED | ci/docs | add public tiny sample MP4/SRT fixtures |
+| **#146** | MED | docs | troubleshooting guide (model quirks, VFR drift, codecs) |
+| **#145** | MED | docs | end-to-end recipes (4 common flows) |
+| **#144** | MED | docs | decision table — which path do I take? |
 
 ***
 
-## 📊 Success Metrics
+## 📊 Project Status Summary
 
-### Phase 1 Success:
+### ✅ Recently Completed
+- **M2 - CI/Build Reliability**: Full CI matrix, smoke testing, reproducible builds, tool version tracking
+- **Documentation Updates**: README, CLI reference, troubleshooting, CHANGELOG.md  
+- **Core Functionality Verification**: All SRT formats, telemetry export, DAT parsing tested
 
--   [ ] All SRT formats parse correctly
--   [ ] Video processing works end-to-end
--   [ ] Documentation is accurate and complete
--   [ ] Package installs cleanly from PyPI
--   [ ] Bootstrap script works on clean Windows systems
+### 🔄 Current Work
+- **M3 - Parser Hardening & CLI UX**: 7 issues focusing on robust parsing and better user experience
 
-### Phase 2 Success:
-
--   [ ] Windows users can install with one command
--   [ ] No Python/CLI knowledge required
--   [ ] Works on Windows 10/11 without admin rights
--   [ ] Less than 3 minutes from download to first processed video
-
-### Phase 3 Success:
-
--   [ ] GUI provides visual alternative to CLI
--   [ ] Docker images available for all platforms
--   [ ] Automated deployment pipeline working
+### 📋 Upcoming Work  
+- **M4 - Docs & Release Hygiene**: Documentation improvements, samples, release automation
 
 ***
 
-## 🚀 Current Focus
+## 🚀 Development Guidelines
 
-With Phase 0 complete, the immediate priority is:
+### GitHub-First Approach
+All work should be tracked via **GitHub Issues and Milestones** rather than arbitrary phases. This ensures:
+- ✅ Clear acceptance criteria for each task
+- ✅ Proper issue tracking and assignment
+- ✅ Milestone-based progress tracking  
+- ✅ Integration with GitHub project management
 
-1.  **Test the bootstrap script** on various Windows configurations
-2.  **Verify all core features** work correctly (Phase 1.1)
-3.  **Update documentation** to reflect the current state
-4.  **Prepare for PyPI release** with proper versioning
+### Issue Management
+1. **Create Issues** for new features or bugs
+2. **Assign to Milestones** with appropriate due dates
+3. **Use Priority Labels** (priority:high, priority:med) for planning
+4. **Update agents.md** when milestone status changes
+5. **Close Issues** when acceptance criteria are met
 
-The package is now ready for real-world testing and deployment!
+### Milestone Workflow
+1. **M2**: ✅ **COMPLETED** - CI/Build Reliability
+2. **M3**: 🔄 **IN PROGRESS** - Parser Hardening & CLI UX  
+3. **M4**: 📋 **PLANNED** - Docs, Samples & Release Hygiene
 
 ***
 
-*Updated after successful completion of Phase 0 emergency fixes.*
+*Updated: August 9th, 2025 - Aligned with GitHub Issues and Milestones*

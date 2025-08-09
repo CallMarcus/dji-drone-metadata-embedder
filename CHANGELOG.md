@@ -11,6 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > being stabilised. Expect ongoing changes and potential breakage as bugs are
 > fixed and the build process is improved.
 
+## [Unreleased]
+
+### Added - M2 CI/Build Reliability
+- CI test matrix for Windows + Linux across Python 3.10-3.12 (Issue #133)
+- Comprehensive smoke tests for CLI commands after package build (Issue #134)
+- Enhanced --version command showing FFmpeg/ExifTool versions (Issue #135)
+- requirements.lock file for reproducible builds across environments (Issue #136)
+- Documentation for requirements lock policy and external tool versions
+
+### Fixed
+- YAML formatting in CI workflows and pre-commit configuration
+- Updated CLI documentation to reflect current command structure
+- Cross-platform pip caching in GitHub Actions workflows
+
+### Changed  
+- Standardized quote usage in YAML files for consistency
+- Enhanced pre-commit hooks with proper arguments and dependencies
+- Improved README with comprehensive CLI reference and troubleshooting
+- Updated all examples to use correct subcommand syntax
+- CI now uses exact locked dependency versions for consistency
+- Updated agents.md to align with GitHub Issues and Milestones
+
+### Documentation
+- Added complete CLI reference section with all commands and options
+- Enhanced troubleshooting guide with common issues and solutions
+- Updated installation instructions and command examples
+- Fixed outdated command syntax throughout documentation
+- Added external tool version specifications and compatibility matrix
+
 ## [1.0.4] - 2025-07-20
 
 ### Changed
