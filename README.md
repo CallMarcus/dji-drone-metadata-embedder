@@ -232,6 +232,12 @@ GPS(59.302335,18.203059,132.860)
 ## Troubleshooting
 
 See [docs/troubleshooting.md](docs/troubleshooting.md) for additional tips.
+
+### Check tool versions
+Display the application, FFmpeg and ExifTool versions:
+```bash
+dji-embed --version
+```
 ### "Python was not found"
 Use `py` instead of `python`:
 ```bash

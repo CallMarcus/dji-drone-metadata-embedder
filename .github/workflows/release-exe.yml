@@ -33,6 +33,21 @@ jobs:
       - name: Build EXE
         shell: pwsh
         run: python tools/build_exe.py
+      - name: Download wheel from PyPI
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.workflow_run.head_branch }}'
+          $ver = $tag.TrimStart('v')
+          pip download dji-drone-metadata-embedder==$ver --no-deps -d dist
+      - name: Generate SHA256SUMS.txt
+        shell: pwsh
+        run: |
+          $hashLines = @()
+          Get-ChildItem dist -File | ForEach-Object {
+            $hash = Get-FileHash $_.FullName -Algorithm SHA256
+            $hashLines += "$($hash.Hash)  $($_.Name)"
+          }
+          $hashLines | Out-File -Encoding ascii dist/SHA256SUMS.txt
       - name: Attach to GitHub Release
         shell: pwsh
         env:
