@@ -9,6 +9,7 @@ The workflow performs the following steps:
 3. Sign all files in `dist/` with `gpg --detach-sign`.
 4. Upload the package to PyPI via the Trusted Publishers flow (OIDC).
 5. Attach the artefacts and their signatures to the GitHub release page.
+6. Generate `SHA256SUMS.txt` for the wheel and Windows executable and upload it with the release assets.
 
 ## Creating a Release
 
