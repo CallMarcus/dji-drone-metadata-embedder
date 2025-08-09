@@ -139,9 +139,16 @@ def _check_targets(version: str, root: Path) -> bool:
                 mismatches.append(manifest)
 
     if mismatches:
-        print("Version drift detected in:", file=sys.stderr)
+        print(
+            f"Version mismatch: expected {version} in the following files:",
+            file=sys.stderr,
+        )
         for path in mismatches:
             print(f" - {path}", file=sys.stderr)
+        print(
+            f"Hint: run 'python tools/sync_version.py {version}' to update",
+            file=sys.stderr,
+        )
         return False
     return True
 
