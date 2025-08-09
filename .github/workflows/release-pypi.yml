@@ -1,10 +1,7 @@
 ---
-name: Build and Publish to PyPI
+name: Release to PyPI
 
-on:  # yamllint disable-line rule:truthy
-  release:
-    types:
-      - published
+on:
   push:
     tags:
       - 'v*'
@@ -24,8 +21,7 @@ jobs:
           python-version: '3.x'
       - name: Verify tag matches project version
         run: |
-          TAG="${GITHUB_REF##*/}"
-          TAG="${TAG#v}"
+          TAG="${GITHUB_REF_NAME#v}"
           python tools/sync_version.py "$TAG" --check
       - name: Install dependencies
         run: |
@@ -38,3 +34,7 @@ jobs:
         with:
           print-auth-token: false
           skip-existing: true
+      - name: Summary
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "Published [dji-drone-metadata-embedder $TAG](https://pypi.org/project/dji-drone-metadata-embedder/$TAG/)" >> "$GITHUB_STEP_SUMMARY"
