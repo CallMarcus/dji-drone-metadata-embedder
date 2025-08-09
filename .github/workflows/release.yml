@@ -22,6 +22,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - name: Verify tag matches project version
+        run: |
+          TAG="${GITHUB_REF##*/}"
+          TAG="${TAG#v}"
+          python tools/sync_version.py "$TAG" --check
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

@@ -36,7 +36,7 @@ path = "src/pkg/__init__.py"
     (root / "winget/manifest.yaml").write_text(f'PackageVersion: {version}\n')
 
 
-def test_sync_and_check(tmp_path: Path):
+def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     sync_version = _load_module()
     _write_project(tmp_path, "0.1.0")
 
@@ -52,14 +52,23 @@ def test_sync_and_check(tmp_path: Path):
     ]:
         assert "1.2.3" in (tmp_path / rel).read_text()
 
-    # Check mode should pass
-    sync_version.main(["--check"], project_root=tmp_path)
+    # Explicit check with matching version should pass
+    sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
 
-    # Introduce drift and ensure check fails
+    # Providing a mismatched version should fail with a helpful message
+    with pytest.raises(SystemExit):
+        sync_version.main(["9.9.9", "--check"], project_root=tmp_path)
+    err = capsys.readouterr().err
+    assert "expected 9.9.9" in err
+    assert "src/pkg/__init__.py" in err
+
+    # Introduce drift and ensure check reports the offending file
     (tmp_path / "README.md").write_text(
         '[![Version](https://img.shields.io/badge/version-0.0.1-blue)][release]\n'
     )
-    with pytest.raises(SystemExit) as exc:
-        sync_version.main(["--check"], project_root=tmp_path)
-    assert exc.value.code == 1
+    with pytest.raises(SystemExit):
+        sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
+    err = capsys.readouterr().err
+    assert "expected 1.2.3" in err
+    assert "README.md" in err
 
