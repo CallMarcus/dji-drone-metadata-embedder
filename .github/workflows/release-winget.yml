@@ -1,0 +1,46 @@
+---
+name: Submit to winget
+
+on:
+  workflow_run:
+    workflows: ["Build Windows EXE"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify tag matches project version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.workflow_run.head_branch }}'
+          $tag = $tag.TrimStart('v')
+          python tools/sync_version.py $tag --check
+      - name: Install wingetcreate
+        shell: pwsh
+        run: dotnet tool install --global wingetcreate
+      - name: Submit manifest
+        id: winget
+        shell: pwsh
+        env:
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.event.workflow_run.head_branch }}'
+          $version = $tag.TrimStart('v')
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"
+          $output = wingetcreate update --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN
+          $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
+          if (-not $pr) { $pr = 'https://github.com/microsoft/winget-pkgs/pulls' }
+          "pr_url=$pr" >> $env:GITHUB_OUTPUT
+      - name: Summary
+        shell: pwsh
+        run: |
+          echo "Winget PR: ${{ steps.winget.outputs.pr_url }}" >> $env:GITHUB_STEP_SUMMARY

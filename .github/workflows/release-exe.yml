@@ -1,0 +1,47 @@
+---
+name: Build Windows EXE
+
+on:
+  workflow_run:
+    workflows: ["Release to PyPI"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify tag matches project version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.workflow_run.head_branch }}'
+          $tag = $tag.TrimStart('v')
+          python tools/sync_version.py $tag --check
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install -r requirements-build.txt
+      - name: Build EXE
+        shell: pwsh
+        run: python tools/build_exe.py
+      - name: Attach to GitHub Release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.event.workflow_run.head_branch }}'
+          gh release upload $tag dist/* --clobber
+      - name: Summary
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.workflow_run.head_branch }}'
+          echo "Windows binaries attached to [release $tag](https://github.com/${{ github.repository }}/releases/tag/$tag)" >> $env:GITHUB_STEP_SUMMARY
