@@ -97,6 +97,74 @@ def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
     )
 
 
+def get_tool_versions() -> dict[str, str]:
+    """Get versions of external tools if available."""
+    import os
+    import platform
+    from pathlib import Path
+    
+    tools = {
+        "ffmpeg": ["ffmpeg", "-version"],
+        "exiftool": ["exiftool", "-ver"]
+    }
+    versions: dict[str, str] = {}
+    
+    # Add dji-embed bin directory to PATH temporarily (Windows only)
+    original_path = os.environ.get("PATH", "")
+    path_modified = False
+    
+    if platform.system() == "Windows":
+        bin_dir = Path.home() / "AppData" / "Local" / "dji-embed" / "bin"
+        if bin_dir.exists() and str(bin_dir) not in original_path:
+            os.environ["PATH"] = str(bin_dir) + os.pathsep + original_path
+            path_modified = True
+    
+    try:
+        for name, cmd in tools.items():
+            # Check environment variables first (set by bootstrap script)
+            env_var = f"DJIEMBED_{name.upper()}_PATH"
+            tool_path = os.environ.get(env_var)
+            
+            if tool_path and Path(tool_path).exists():
+                test_cmd = [tool_path] + cmd[1:]
+            else:
+                test_cmd = cmd
+            
+            try:
+                result = subprocess.run(
+                    test_cmd, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    output = result.stdout or result.stderr
+                    # Parse version from output
+                    if name == "ffmpeg":
+                        # Extract version from "ffmpeg version X.Y.Z" line
+                        import re
+                        match = re.search(r"ffmpeg version ([^\s]+)", output)
+                        if match:
+                            versions[name] = match.group(1)
+                        else:
+                            versions[name] = "unknown"
+                    elif name == "exiftool":
+                        # ExifTool returns just the version number
+                        versions[name] = output.strip()
+                    else:
+                        versions[name] = "detected"
+                else:
+                    versions[name] = "not available"
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+                versions[name] = "not available"
+    finally:
+        # Restore original PATH
+        if path_modified:
+            os.environ["PATH"] = original_path
+    
+    return versions
+
+
 def check_dependencies() -> Tuple[bool, list[str]]:
     """Return ``(True, [])`` if external tools are available."""
     import os

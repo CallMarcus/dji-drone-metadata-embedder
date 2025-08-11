@@ -40,3 +40,28 @@ jobs:
         run: pytest
       - name: Build package
         run: python -m build
+      
+      - name: Smoke test - Version check
+        run: |
+          echo "Testing dji-embed --version"
+          dji-embed --version
+          
+      - name: Smoke test - Doctor command  
+        run: |
+          echo "Testing dji-embed doctor (expect dependency warnings)"
+          dji-embed doctor || true
+          
+      - name: Smoke test - Check command with samples
+        run: |
+          echo "Testing dji-embed check with sample files"
+          dji-embed check examples/DJI_sample.SRT
+          dji-embed check samples/mini4pro/clip.SRT
+          dji-embed check samples/avata2/clip.SRT
+          dji-embed check samples/air3/clip.SRT
+          
+      - name: Smoke test - Convert command
+        run: |
+          echo "Testing dji-embed convert functionality"
+          dji-embed convert gpx examples/DJI_sample.SRT -o test_smoke.gpx
+          dji-embed convert csv examples/DJI_sample.SRT -o test_smoke.csv
+          ls -la test_smoke.*

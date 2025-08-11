@@ -31,10 +31,3 @@ jobs:
       - name: Build sdist and wheel
         run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          print-auth-token: false
-          skip-existing: true
-      - name: Summary
-        run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          echo "Published [dji-drone-metadata-embedder $TAG](https://pypi.org/project/dji-drone-metadata-embedder/$TAG/)" >> "$GITHUB_STEP_SUMMARY"
