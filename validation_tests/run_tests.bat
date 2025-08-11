@@ -30,7 +30,7 @@ if %errorlevel% neq 0 (
     py --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo ERROR: Python not found in PATH
-        echo Please install Python 3.8+ and add to PATH
+        echo Please install Python 3.10+ and add to PATH
         pause
         exit /b 1
     ) else (

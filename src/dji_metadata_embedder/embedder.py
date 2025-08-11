@@ -10,13 +10,9 @@ from rich.progress import Progress
 
 from .dat_parser import parse_v13 as parse_dat_v13
 from .utilities import apply_redaction, setup_logging
-from .utils.dependency_manager import DependencyManager
 from .utils import system_info
 
 logger = logging.getLogger(__name__)
-
-
-
 
 
 class DJIMetadataEmbedder:
@@ -39,6 +35,7 @@ class DJIMetadataEmbedder:
         embedder = DJIMetadataEmbedder("/videos")
         embedder.process_directory()
     """
+
     def __init__(
         self,
         directory: str,
@@ -238,7 +235,7 @@ class DJIMetadataEmbedder:
         """Embed SRT as subtitle track and add metadata using ffmpeg."""
         import os
         import platform
-        
+
         try:
             # Check for ffmpeg in environment variable first (Windows)
             ffmpeg_cmd = "ffmpeg"
@@ -246,7 +243,7 @@ class DJIMetadataEmbedder:
                 env_ffmpeg = os.environ.get("DJIEMBED_FFMPEG_PATH")
                 if env_ffmpeg and Path(env_ffmpeg).exists():
                     ffmpeg_cmd = env_ffmpeg
-            
+
             # Build ffmpeg command
             cmd = [
                 ffmpeg_cmd,
@@ -311,13 +308,13 @@ class DJIMetadataEmbedder:
         """Use exiftool to embed GPS metadata (alternative/additional method)."""
         import os
         import platform
-        
+
         try:
             if not telemetry["first_gps"]:
                 return False
 
             lat, lon = telemetry["first_gps"]
-            
+
             # Check for exiftool in environment variable first (Windows)
             exiftool_cmd = "exiftool"
             if platform.system() == "Windows":
@@ -379,62 +376,68 @@ class DJIMetadataEmbedder:
                 progress.update(task, description=video_path.name)
                 logger.debug("Processing %s", video_path.name)
 
-            # Parse SRT telemetry
-            telemetry = self.parse_dji_srt(srt_path)
-            apply_redaction(telemetry, self.redact)
+                # Parse SRT telemetry
+                telemetry = self.parse_dji_srt(srt_path)
+                apply_redaction(telemetry, self.redact)
 
-            # Optionally parse DAT telemetry
-            dat_file = None
-            if self.dat_path:
-                dat_file = self.dat_path
-            elif self.dat_autoscan:
-                cand = video_path.with_suffix(".DAT")
-                if cand.exists():
-                    dat_file = cand
+                # Optionally parse DAT telemetry
+                dat_file = None
+                if self.dat_path:
+                    dat_file = self.dat_path
+                elif self.dat_autoscan:
+                    cand = video_path.with_suffix(".DAT")
+                    if cand.exists():
+                        dat_file = cand
+                    else:
+                        matches = list(
+                            video_path.parent.glob(f"{video_path.stem}*.DAT")
+                        )
+                        if matches:
+                            dat_file = matches[0]
+                if dat_file and dat_file.exists():
+                    try:
+                        dat_data = parse_dat_v13(dat_file)
+                        telemetry["dat_records"] = dat_data.get("records", [])
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to parse DAT file %s: %s", dat_file.name, e
+                        )
+
+                # Generate output filename
+                output_path = (
+                    self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
+                )
+
+                # Embed metadata using ffmpeg
+                if self.embed_metadata_ffmpeg(
+                    video_path, srt_path, telemetry, output_path
+                ):
+                    success_count += 1
+
+                    # Optionally use exiftool for additional metadata
+                    if use_exiftool:
+                        self.embed_metadata_exiftool(output_path, telemetry)
+
+                    # Save telemetry summary as JSON
+                    json_path = self.output_dir / f"{video_path.stem}_telemetry.json"
+                    json_data = {
+                        "filename": video_path.name,
+                        "first_gps": telemetry["first_gps"],
+                        "average_gps": telemetry["avg_gps"],
+                        "max_altitude": telemetry["max_altitude"],
+                        "max_relative_altitude": telemetry.get("max_rel_altitude"),
+                        "flight_duration": telemetry["flight_duration"],
+                        "num_gps_points": len(telemetry["gps_coords"]),
+                        "camera_settings": telemetry.get("camera_settings", {}),
+                        "dat_records": len(telemetry.get("dat_records", [])),
+                    }
+
+                    with open(json_path, "w") as f:
+                        json.dump(json_data, f, indent=2)
+
+                    progress.advance(task)
                 else:
-                    matches = list(video_path.parent.glob(f"{video_path.stem}*.DAT"))
-                    if matches:
-                        dat_file = matches[0]
-            if dat_file and dat_file.exists():
-                try:
-                    dat_data = parse_dat_v13(dat_file)
-                    telemetry["dat_records"] = dat_data.get("records", [])
-                except Exception as e:
-                    logger.warning("Failed to parse DAT file %s: %s", dat_file.name, e)
-
-            # Generate output filename
-            output_path = (
-                self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
-            )
-
-            # Embed metadata using ffmpeg
-            if self.embed_metadata_ffmpeg(video_path, srt_path, telemetry, output_path):
-                success_count += 1
-
-                # Optionally use exiftool for additional metadata
-                if use_exiftool:
-                    self.embed_metadata_exiftool(output_path, telemetry)
-
-                # Save telemetry summary as JSON
-                json_path = self.output_dir / f"{video_path.stem}_telemetry.json"
-                json_data = {
-                    "filename": video_path.name,
-                    "first_gps": telemetry["first_gps"],
-                    "average_gps": telemetry["avg_gps"],
-                    "max_altitude": telemetry["max_altitude"],
-                    "max_relative_altitude": telemetry.get("max_rel_altitude"),
-                    "flight_duration": telemetry["flight_duration"],
-                    "num_gps_points": len(telemetry["gps_coords"]),
-                    "camera_settings": telemetry.get("camera_settings", {}),
-                    "dat_records": len(telemetry.get("dat_records", [])),
-                }
-
-                with open(json_path, "w") as f:
-                    json.dump(json_data, f, indent=2)
-
-                progress.advance(task)
-            else:
-                progress.advance(task)
+                    progress.advance(task)
 
         logger.info(
             "Processing complete! Successfully processed %d/%d videos",
@@ -444,26 +447,23 @@ class DJIMetadataEmbedder:
         logger.info("Processed files saved to: %s", self.output_dir)
 
 
-
-
-
 def run_doctor() -> None:
     """Print system and dependency information."""
     from .utilities import check_dependencies
-    
+
     # System information
     logger.info("System information:")
     sys_info = system_info.get_system_summary()
     for key, value in sys_info.items():
         logger.info("  %s: %s", key, value)
-    
+
     # Check dependencies using the utilities function which checks environment vars
     logger.info("Dependency check:")
     deps_ok, missing = check_dependencies()
-    
+
     logger.info("  ffmpeg: %s", "FOUND" if "ffmpeg" not in missing else "MISSING")
     logger.info("  exiftool: %s", "FOUND" if "exiftool" not in missing else "MISSING")
-    
+
     if deps_ok:
         logger.info("All dependencies verified.")
     else:
@@ -518,14 +518,14 @@ def main():
         return
 
     from .utilities import check_dependencies
-    
+
     deps_ok, missing = check_dependencies()
-    
+
     if args.check:
         if not deps_ok:
             logger.error("Missing dependencies: %s", ", ".join(missing))
         return
-    
+
     if not deps_ok:
         logger.error("Missing dependencies: %s", ", ".join(missing))
         logger.error("Please install missing dependencies before continuing.")

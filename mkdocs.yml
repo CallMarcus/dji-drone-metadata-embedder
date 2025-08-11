@@ -4,6 +4,11 @@ repo_url: https://github.com/example/dji-drone-metadata-embedder
 site_dir: site
 nav:
   - Home: index.md
+  - Installation: installation.md
+  - User Guide: user_guide.md
+  - FAQ: faq.md
+  - Troubleshooting: troubleshooting.md
+  - Validation Tests: validation_tests.md
   - Development Roadmap: development_roadmap.md
   - How-to Guides:
       - Embed GPS: how-to/embed-gps.md

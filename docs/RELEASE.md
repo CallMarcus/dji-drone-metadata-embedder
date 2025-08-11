@@ -9,6 +9,7 @@ The workflow performs the following steps:
 3. Sign all files in `dist/` with `gpg --detach-sign`.
 4. Upload the package to PyPI via the Trusted Publishers flow (OIDC).
 5. Attach the artefacts and their signatures to the GitHub release page.
+6. Generate `SHA256SUMS.txt` for the wheel and Windows executable and upload it with the release assets.
 
 ## Creating a Release
 
@@ -22,9 +23,5 @@ git push origin vX.Y.Z
 
 Once the tag is pushed, the workflow will publish the signed packages and attach them to the release page automatically.
 
-## Winget Submission
 
-Winget manifests are published using the `publish-winget.yml` workflow. This workflow
-requires a Personal Access Token with permission to submit packages to the
-Microsoft Store. Add this token to the repository secrets as `WINGET_PAT` before
-running the workflow.
+Winget publishing is currently disabled and may return in the future.

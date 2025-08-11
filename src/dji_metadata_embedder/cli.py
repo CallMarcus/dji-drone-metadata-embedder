@@ -15,30 +15,30 @@ from .telemetry_converter import (
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
-def print_version(ctx, param, value):
-    """Custom version callback that shows tool versions."""
+def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> None:
+    """Print application and toolchain versions."""
     if not value or ctx.resilient_parsing:
         return
-    
-    tool_versions = get_tool_versions()
-    
     click.echo(f"dji-embed {__version__}")
-    click.echo(f"  python: {click.get_current_context().find_root().info_name}")
-    
-    for tool, version in tool_versions.items():
-        click.echo(f"  {tool}: {version}")
-    
+    versions = get_tool_versions()
+    for name in ("ffmpeg", "exiftool"):
+        ver = versions.get(name)
+        if ver:
+            line = ver if ver.lower().startswith(name) else f"{name} {ver}"
+        else:
+            line = f"{name} not found"
+        click.echo(line)
     ctx.exit()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
-    "--version", 
-    is_flag=True, 
-    callback=print_version, 
-    expose_value=False, 
+    "--version",
+    is_flag=True,
+    expose_value=False,
     is_eager=True,
-    help="Show version and tool information"
+    callback=_print_version,
+    help="Show version and exit",
 )
 def main() -> None:
     """DJI Metadata Embedder command line interface."""

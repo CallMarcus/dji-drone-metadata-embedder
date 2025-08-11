@@ -19,7 +19,7 @@ elif command -v python &> /dev/null; then
     PYTHON_CMD=python
 else
     echo "Error: Python is not installed"
-    echo "Please install Python 3.6 or higher"
+    echo "Please install Python 3.10 or higher"
     exit 1
 fi
 

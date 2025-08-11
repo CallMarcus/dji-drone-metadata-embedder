@@ -1,13 +1,10 @@
 ---
-name: Build and Publish to PyPI
+name: Release to PyPI
 
-"on":
-  release:
-    types:
-      - published
+on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   id-token: write
@@ -21,7 +18,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.x'
+      - name: Verify tag matches project version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          python tools/sync_version.py "$TAG" --check
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,6 +31,3 @@ jobs:
       - name: Build sdist and wheel
         run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          print-auth-token: false
-          skip-existing: true

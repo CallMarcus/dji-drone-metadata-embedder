@@ -28,26 +28,19 @@ This roadmap tracks the planned evolution of **DJI Drone Metadata Embedder** fro
 - **User documentation** including installation and troubleshooting guides.
 
 ### Packaging & Installer Tasks
-The following A-series items are scheduled for upcoming releases. See `agents.md` for full implementation notes.
-
-| Ref  | Task                                                            | Status |
-| ---- | --------------------------------------------------------------- | ------ |
-| A1.4 | PowerShell bootstrap script with CI smoke test                  | DONE   |
-| A2.1 | Winget full package manifest                                    | DONE   |
-| A2.2 | Incremental winget manifests for Python, FFmpeg, ExifTool       | TODO   |
-
+Winget packaging has been removed for now. Future releases may revisit this.
 ## AI Agents Integration
-These milestones describe how AI coding assistants will further streamline DJI metadata embedding and winget publishing.
 
 - **Document AI usage in `agents.md`** – explain where automated helpers fit into the tooling.
 - **Use agents for automated testing** – offload routine CI checks to scripted agents.
-- **Incorporate AI for release note generation** – produce consistent notes for each winget release.
 
 ## Current Progress
 - The repository currently contains the original CLI implementation.
 - A basic `dependency_manager.py` exists but other Phase 1 modules are missing.
 - `tools/bootstrap.ps1` and its CI smoke test are implemented.
-- Winget packaging workflow and manifest are in place.
 - No GUI has been created yet.
 
 The project aims to deliver a one-click Windows application with comprehensive documentation and automated builds.
+
+### Next Steps
+- Run validation tests on all features before adding new ones.

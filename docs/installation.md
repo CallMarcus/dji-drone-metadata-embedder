@@ -1,6 +1,6 @@
 # Installation
 
-[← Back to README](../README.md)
+[← Back to Home](index.md)
 
 ## Easy Windows install
 
@@ -8,23 +8,12 @@
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
-```powershell
-winget install -e --id CallMarcus.DJI-Embed
-```
-
-If winget cannot locate the package, it may still be awaiting approval. Run the PowerShell one-liner above instead.
 
 ### Windows – manual path
 
 ```powershell
-winget install -e --id Python.Python.3
-winget install -e --id Gyan.FFmpeg
-winget install -e --id PhilHarvey.ExifTool
-pip install dji-metadata-embedder
+pip install dji-drone-metadata-embedder
 ```
-
-## macOS / Linux quick-start
-
 ```bash
 brew install ffmpeg exiftool
 sudo apt update && sudo apt install ffmpeg exiftool
@@ -43,3 +32,15 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - CI scripts live under `.github/workflows`
 
 </details>
+
+## Validation tests
+
+The scripts in [`validation_tests`](validation_tests.md) verify that
+your installation is ready for real footage. Before running them, make sure that
+`ffmpeg` and `exiftool` can be found on your `PATH`.
+
+`validation_tests/test_installation_and_dependencies.py` specifically checks for
+these binaries. If either command is missing the tests will fail early. Use the
+installation steps above—your package manager on
+macOS/Linux—to install FFmpeg and ExifTool before running the validation suite.
+

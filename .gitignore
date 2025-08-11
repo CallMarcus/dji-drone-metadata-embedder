@@ -10,7 +10,6 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -24,10 +23,12 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+dist/
 
 # PyInstaller
 *.manifest
 *.spec
+!dji-embed.spec
 
 # Installer logs
 pip-log.txt

@@ -40,6 +40,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed outdated command syntax throughout documentation
 - Added external tool version specifications and compatibility matrix
 
+## [1.0.7] - 2025-07-24
+
+### Removed
+- Winget packaging workflow and manifests
+
+## [1.0.6] - 2025-07-23
+
+### Fixed
+- ExifTool extraction now copies bundled libraries correctly
+- `dji-embed embed` processes all videos instead of stopping early
+
+## [1.0.5] - 2025-07-22
+
+### Fixed
+- Bootstrap script now handles pre-release versions properly
+- Pre-release tags (like `1.0.4-test1`) install from GitHub instead of PyPI
+- Better error messages when version format issues occur
+- Fallback to stable version if pre-release installation fails
+
+### Added
+- Support for installing directly from GitHub tags in bootstrap script
+- Improved version detection and handling in Windows installer
+
 ## [1.0.4] - 2025-07-20
 
 ### Changed

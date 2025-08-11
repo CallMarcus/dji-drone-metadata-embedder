@@ -14,7 +14,7 @@ py validation_tests\run_all_tests.py
 ## Test Categories
 
 ### 1. Installation & Dependencies (`test_installation_and_dependencies.py`)
-- ✅ Python version compatibility (3.10+)
+ - ✅ Python version compatibility (3.10+)
 - ✅ Package imports work correctly
 - ✅ Python dependencies (rich, ffmpeg-python, piexif)
 - ✅ External tools (FFmpeg, ExifTool)

@@ -188,7 +188,7 @@ function Ensure-Python {
 # IMPROVED: Get latest version with robust fallback handling
 if(-not $Version){
     # Default fallback version that we know works
-    $fallbackVersion = "1.0.4"
+    $fallbackVersion = "1.0.7"
     
     try{
         LogInfo "Checking for latest version..."
@@ -277,7 +277,19 @@ try {
 
 # Install the main package (use correct name for Windows/macOS)
 $package = 'dji-drone-metadata-embedder'
-$pkgArg = if($Version) { "$package==$Version" } else { $package }
+
+# Check if version contains pre-release identifiers (hyphen)
+if ($Version -and $Version -match '-') {
+    LogWarn "Detected pre-release version: $Version"
+    LogWarn "Pre-release versions must be installed from GitHub"
+    
+    # Install from GitHub for pre-releases
+    $gitUrl = "git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git@v$Version"
+    $pkgArg = $gitUrl
+    Log "Installing from GitHub: v$Version"
+} else {
+    $pkgArg = if($Version) { "$package==$Version" } else { $package }
+}
 
 try {
     Log "Installing $package..."
@@ -286,7 +298,18 @@ try {
     if ($LASTEXITCODE -eq 0) {
         Log "Package installed successfully"
     } else {
-        throw "Installation failed with exit code $LASTEXITCODE"
+        # If GitHub install fails, try without version specification
+        if ($Version -and $Version -match '-') {
+            LogWarn "GitHub installation failed, trying latest stable version..."
+            $installOutput = & $python -m pip install --upgrade $package 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Log "Latest stable version installed successfully"
+            } else {
+                throw "Installation failed with exit code $LASTEXITCODE"
+            }
+        } else {
+            throw "Installation failed with exit code $LASTEXITCODE"
+        }
     }
 } catch {
     LogError "Package installation failed: $($_.Exception.Message)"
@@ -294,7 +317,8 @@ try {
     LogError "TROUBLESHOOTING:"
     LogError "1. Check internet connection"
     LogError "2. Try manually: pip install dji-drone-metadata-embedder"
-    LogError "3. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
+    LogError "3. For pre-release: pip install git+https://github.com/CallMarcus/dji-drone-metadata-embedder.git@v$Version"
+    LogError "4. If issues persist, visit: https://github.com/CallMarcus/dji-drone-metadata-embedder"
     LogError ""
     if (-not $Silent) {
         Read-Host "Press Enter to exit"
@@ -304,6 +328,8 @@ try {
 
 # Install tools (FFmpeg and ExifTool)
 $binDir = Join-Path $env:LOCALAPPDATA 'dji-embed\bin'
+$FFmpegUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
+$ExifToolUrl = 'https://exiftool.org/exiftool-13.32_64.zip'
 New-Item -Force -ItemType Directory $binDir | Out-Null
 
 # Function to download and extract tools safely
@@ -356,7 +382,7 @@ function Install-Tool($Name, $Url, $ExtractLogic) {
 }
 
 # Install FFmpeg
-$ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" {
+$ffmpegSuccess = Install-Tool "FFmpeg" $FFmpegUrl {
     param($zipFile, $tempDir)
     
     # Use .NET for extraction of large files
@@ -379,7 +405,7 @@ $ffmpegSuccess = Install-Tool "FFmpeg" "https://www.gyan.dev/ffmpeg/builds/ffmpe
 }
 
 # Install ExifTool with correct version
-$exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32.zip" {
+$exifSuccess = Install-Tool "ExifTool" $ExifToolUrl {
     param($zipFile, $tempDir)
     # Use .NET ZipFile extraction to avoid verbose output
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -390,6 +416,12 @@ $exifSuccess = Install-Tool "ExifTool" "https://exiftool.org/exiftool-13.32.zip"
     $exeTool = Get-ChildItem $tempDir -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
     if ($exeTool) {
         Copy-Item $exeTool.FullName (Join-Path $binDir "exiftool.exe") -Force
+
+        # Copy the bundled Perl library directory if present
+        $libDir = Join-Path $exeTool.DirectoryName "exiftool_files"
+        if (Test-Path $libDir) {
+            Copy-Item $libDir (Join-Path $binDir "exiftool_files") -Recurse -Force
+        }
     } else {
         throw "ExifTool executable not found in archive"
     }
