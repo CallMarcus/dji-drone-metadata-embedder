@@ -15,6 +15,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Ensure consistent line endings to avoid version check issues
+          fetch-depth: 0
+      - name: Configure git line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
