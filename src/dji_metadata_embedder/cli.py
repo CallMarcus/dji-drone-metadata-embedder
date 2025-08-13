@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import sys
 import click
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
@@ -13,6 +16,16 @@ from .telemetry_converter import (
     extract_telemetry_to_csv,
 )
 from .utilities import check_dependencies, setup_logging, get_tool_versions
+
+
+# Exit codes for consistent CLI behavior
+class ExitCode:
+    SUCCESS = 0
+    GENERAL_ERROR = 1
+    DEPENDENCY_ERROR = 2
+    VALIDATION_ERROR = 3
+    FILE_ERROR = 4
+    PARSER_ERROR = 5
 
 
 def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> None:
@@ -28,7 +41,7 @@ def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> N
         else:
             line = f"{name} not found"
         click.echo(line)
-    ctx.exit()
+    ctx.exit(ExitCode.SUCCESS)
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -40,9 +53,25 @@ def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> N
     callback=_print_version,
     help="Show version and exit",
 )
-def main() -> None:
-    """DJI Metadata Embedder command line interface."""
-    pass
+@click.option(
+    "--log-json",
+    is_flag=True,
+    help="Output structured JSON logs for machine processing",
+    envvar="DJIEMBED_LOG_JSON",
+)
+@click.pass_context
+def main(ctx: click.Context, log_json: bool) -> None:
+    """DJI Metadata Embedder - Embed drone telemetry into videos.
+    
+    Available commands:
+      embed     Embed telemetry from SRT files into MP4 videos
+      validate  Validate SRT/MP4 pairs and report drift
+      export    Export telemetry to GPX or CSV formats
+      probe     Analyze video files for embedded metadata
+      doctor    Check system dependencies and configuration
+    """
+    ctx.ensure_object(dict)
+    ctx.obj['log_json'] = log_json
 
 
 @main.command()
@@ -141,28 +170,115 @@ def convert(
 
 
 @main.command()
-def wizard() -> None:
-    """Launch interactive setup wizard."""
-    run_doctor()
-    click.echo("Wizard functionality not yet implemented.")
-
-
-@main.command()
-def doctor() -> None:
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+@click.pass_context
+def doctor(ctx: click.Context, verbose: bool, quiet: bool) -> None:
     """Show system information and verify dependencies."""
-    run_doctor()
+    log_json = ctx.obj.get('log_json', False)
+    setup_logging(verbose, quiet, log_json)
+    
+    try:
+        result = run_doctor()
+        if log_json:
+            click.echo(json.dumps({"status": "success", "doctor_result": result}))
+        sys.exit(ExitCode.SUCCESS)
+    except Exception as e:
+        error_msg = f"Doctor check failed: {e}"
+        if log_json:
+            click.echo(json.dumps({"error": "doctor_failed", "message": error_msg}))
+        else:
+            click.echo(f"Error: {error_msg}", err=True)
+        sys.exit(ExitCode.GENERAL_ERROR)
 
 
+# Legacy command aliases for backward compatibility
+@main.command(hidden=True)
+@click.argument("paths", nargs=-1, type=click.Path())
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+@click.pass_context
+def check(ctx: click.Context, paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
+    """Legacy alias for 'probe' command."""
+    ctx.invoke(probe, paths=paths, verbose=verbose, quiet=quiet)
+
+
+@main.command(hidden=True)
+@click.argument("command", type=click.Choice(["gpx", "csv"], case_sensitive=False))
+@click.argument("input", type=click.Path(exists=True))
+@click.option("-o", "--output", type=click.Path())
+@click.option("-b", "--batch", is_flag=True, help="Batch process directory")
+@click.option("-v", "--verbose", is_flag=True)
+@click.option("-q", "--quiet", is_flag=True)
+@click.pass_context
+def convert(ctx: click.Context, command: str, input: str, output: str | None, batch: bool, verbose: bool, quiet: bool) -> None:
+    """Legacy alias for 'export' command."""
+    ctx.invoke(export, format=command, input=input, output=output, batch=batch, verbose=verbose, quiet=quiet)
+
+
+# New validate command for M3 milestone
 @main.command()
-def gui() -> None:
-    """Launch graphical interface (placeholder)."""
-    click.echo("Not yet implemented")
-
-
-@main.command()
-def init() -> None:
-    """Perform initial setup (placeholder)."""
-    click.echo("Not yet implemented")
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--drift-threshold",
+    type=float,
+    default=1.0,
+    help="Drift threshold in seconds for warnings",
+)
+@click.option(
+    "--format",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    help="Output format for drift report",
+)
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+@click.pass_context
+def validate(
+    ctx: click.Context,
+    directory: str,
+    drift_threshold: float,
+    format: str,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Validate SRT/MP4 pairs and generate drift analysis report."""
+    log_json = ctx.obj.get('log_json', False)
+    setup_logging(verbose, quiet, log_json)
+    
+    try:
+        from .core.validator import validate_directory
+        
+        validation_result = validate_directory(
+            Path(directory),
+            drift_threshold=drift_threshold
+        )
+        
+        if format == "json" or log_json:
+            click.echo(json.dumps(validation_result))
+        else:
+            # Text format output
+            click.echo(f"Validation Report for: {directory}")
+            click.echo(f"Files processed: {validation_result.get('total_files', 0)}")
+            click.echo(f"Valid pairs: {validation_result.get('valid_pairs', 0)}")
+            click.echo(f"Issues found: {len(validation_result.get('issues', []))}")
+            
+            for issue in validation_result.get('issues', []):
+                click.echo(f"  ⚠️ {issue}")
+        
+        # Exit with appropriate code
+        if validation_result.get('issues'):
+            sys.exit(ExitCode.VALIDATION_ERROR)
+        else:
+            sys.exit(ExitCode.SUCCESS)
+            
+    except Exception as e:
+        error_msg = f"Validation failed: {e}"
+        if log_json:
+            click.echo(json.dumps({"error": "validation_failed", "message": error_msg}))
+        else:
+            click.echo(f"Error: {error_msg}", err=True)
+        sys.exit(ExitCode.GENERAL_ERROR)
 
 
 if __name__ == "__main__":  # pragma: no cover

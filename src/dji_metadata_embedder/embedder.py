@@ -30,9 +30,11 @@ class DJIMetadataEmbedder:
     dat_path: optional path to a DAT flight log
     dat_autoscan: search for DAT logs matching each video
     redact: GPS redaction mode ("none", "drop", "fuzz")
+    time_offset: time offset in seconds to align SRT with MP4
+    resample_strategy: resampling strategy for SRT↔MP4 alignment ("linear", "nearest", "cubic")
 
     Usage:
-        embedder = DJIMetadataEmbedder("/videos")
+        embedder = DJIMetadataEmbedder("/videos", time_offset=0.5)
         embedder.process_directory()
     """
 
@@ -43,6 +45,8 @@ class DJIMetadataEmbedder:
         dat_path: Optional[str] = None,
         dat_autoscan: bool = False,
         redact: str = "none",
+        time_offset: float = 0.0,
+        resample_strategy: str = "linear",
     ):
         self.directory = Path(directory)
         self.output_dir = (
@@ -52,6 +56,8 @@ class DJIMetadataEmbedder:
         self.dat_path = Path(dat_path) if dat_path else None
         self.dat_autoscan = dat_autoscan
         self.redact = redact
+        self.time_offset = time_offset
+        self.resample_strategy = resample_strategy
 
     def parse_dji_srt(self, srt_path: Path) -> Dict[str, Any]:
         """Parse DJI SRT file and extract telemetry data."""
@@ -343,17 +349,32 @@ class DJIMetadataEmbedder:
             logger.error("ExifTool error: %s", e)
             return False
 
-    def process_directory(self, use_exiftool: bool = False):
-        """Process all MP4/SRT pairs in the directory."""
+    def process_directory(self, use_exiftool: bool = False) -> Dict[str, Any]:
+        """Process all MP4/SRT pairs in the directory.
+        
+        Returns:
+            Dict containing processing results and statistics
+        """
         # Find all MP4 files. On case-insensitive file systems the two globs
         # may return duplicates, so use a set to deduplicate and then sort
         video_files = sorted(
             {*self.directory.glob("*.mp4"), *self.directory.glob("*.MP4")}
         )
 
+        # Initialize result structure
+        result = {
+            "processed": 0,
+            "total_files": len(video_files),
+            "warnings": [],
+            "errors": [],
+            "output_directory": str(self.output_dir)
+        }
+
         if not video_files:
-            logger.warning("No MP4 files found in %s", self.directory)
-            return
+            warning_msg = f"No MP4 files found in {self.directory}"
+            logger.warning(warning_msg)
+            result["warnings"].append(warning_msg)
+            return result
 
         logger.info("Found %d video files to process", len(video_files))
         logger.info("Output directory: %s\n", self.output_dir)
@@ -369,7 +390,9 @@ class DJIMetadataEmbedder:
                     srt_path = video_path.with_suffix(".SRT")
 
                 if not srt_path.exists():
-                    logger.warning("No SRT file found for: %s", video_path.name)
+                    warning_msg = f"No SRT file found for: {video_path.name}"
+                    logger.warning(warning_msg)
+                    result["warnings"].append(warning_msg)
                     progress.advance(task)
                     continue
 
@@ -439,12 +462,16 @@ class DJIMetadataEmbedder:
                 else:
                     progress.advance(task)
 
+        result["processed"] = success_count
+        
         logger.info(
             "Processing complete! Successfully processed %d/%d videos",
             success_count,
             len(video_files),
         )
         logger.info("Processed files saved to: %s", self.output_dir)
+        
+        return result
 
 
 def run_doctor() -> None:

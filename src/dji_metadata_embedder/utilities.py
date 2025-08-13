@@ -81,7 +81,7 @@ def apply_redaction(telemetry: dict, mode: str) -> None:
             telemetry["avg_gps"] = (round(lat, 3), round(lon, 3))
 
 
-def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
+def setup_logging(verbose: bool = False, quiet: bool = False, json_logs: bool = False) -> None:
     """Configure application wide logging."""
     level = logging.INFO
     if verbose:
@@ -89,12 +89,21 @@ def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
     elif quiet:
         level = logging.WARNING
 
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler(rich_tracebacks=True)],
-    )
+    if json_logs:
+        # Use standard logging for JSON output
+        logging.basicConfig(
+            level=level,
+            format="%(message)s",
+            datefmt="[%X]",
+        )
+    else:
+        # Use Rich for pretty output
+        logging.basicConfig(
+            level=level,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[RichHandler(rich_tracebacks=True)],
+        )
 
 
 def get_tool_versions() -> dict[str, str]:
