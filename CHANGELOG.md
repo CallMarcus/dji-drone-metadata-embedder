@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-01-13
+
+### Added - M3 Parser Hardening & CLI UX
+- Golden fixtures for comprehensive testing across 4 DJI model families (Issue #137)
+  - Mini 3/4 Pro square bracket format
+  - Air 3 HTML-formatted SRT with extended telemetry
+  - Avata 2 legacy GPS format with BAROMETER data
+  - Mavic 3 Enterprise format with RTK and extended data
+- Lenient parser mode with structured warnings for malformed SRT files (Issue #138)
+- Unit normalization and sanity checks for altitude/speed validation (Issue #139)
+- CLI time-offset and resample strategy options for SRT↔MP4 alignment (Issue #140)
+- CLI validate command with comprehensive drift analysis reports (Issue #141)
+- Professional CLI structure with subcommands (embed, validate, export, probe, doctor) (Issue #142)
+- Consistent exit codes across all CLI commands for automation (Issue #142)
+- JSON logging option (--log-json) for machine-readable warnings/errors (Issue #143)
+
 ### Added - M2 CI/Build Reliability
 - CI test matrix for Windows + Linux across Python 3.10-3.12 (Issue #133)
 - Comprehensive smoke tests for CLI commands after package build (Issue #134)
@@ -24,8 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML formatting in CI workflows and pre-commit configuration
 - Updated CLI documentation to reflect current command structure
 - Cross-platform pip caching in GitHub Actions workflows
+- Ruff validation errors including unused imports and boolean comparisons
+- Duplicate function definitions and naming conflicts
 
 ### Changed  
+- Restructured CLI from flat commands to professional subcommand hierarchy
 - Standardized quote usage in YAML files for consistency
 - Enhanced pre-commit hooks with proper arguments and dependencies
 - Improved README with comprehensive CLI reference and troubleshooting
