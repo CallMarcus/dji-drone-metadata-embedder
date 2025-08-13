@@ -6,7 +6,6 @@ and edge cases, implementing M3 milestone requirement #137.
 
 import pytest
 from pathlib import Path
-import json
 import tempfile
 
 from src.dji_metadata_embedder.utilities import parse_telemetry_points
@@ -17,8 +16,7 @@ from src.dji_metadata_embedder.core.validator import (
 from tests.fixtures.golden_srt_samples import (
     GOLDEN_SAMPLES, 
     EDGE_CASE_SAMPLES,
-    create_golden_fixtures,
-    validate_sample_parsing
+    create_golden_fixtures
 )
 
 
@@ -48,7 +46,7 @@ class TestGoldenFixtures:
             
             # Test format validation
             validation = validate_srt_format(temp_path, lenient=True)
-            assert validation["valid"] == True
+            assert validation["valid"]
             assert validation["format_detected"] == "mini3_4pro"
             assert validation["telemetry_points"] == sample["expected_points"]
             
@@ -134,7 +132,7 @@ class TestGoldenFixtures:
             
             # Test format validation recognizes extended features
             validation = validate_srt_format(temp_path, lenient=True)
-            assert validation["valid"] == True
+            assert validation["valid"]
             
         finally:
             temp_path.unlink()
@@ -178,7 +176,7 @@ class TestLenientParserMode:
             assert len(points) > 0  # Should get at least some points
             
             validation = validate_srt_format(temp_path, lenient=True)
-            assert validation["valid"] == True
+            assert validation["valid"]
             assert validation["telemetry_points"] > 0
             
         finally:
@@ -220,7 +218,7 @@ class TestLenientParserMode:
             
             # Validation should work with unicode
             validation = validate_srt_format(temp_path, lenient=True)
-            assert validation["valid"] == True
+            assert validation["valid"]
             
         finally:
             temp_path.unlink()
@@ -303,7 +301,7 @@ class TestComprehensiveValidation:
                 
                 # Validation should pass
                 validation = validate_srt_format(temp_path, lenient=True)
-                assert validation["valid"] == True, f"Validation failed for {sample_name}"
+                assert validation["valid"], f"Validation failed for {sample_name}"
                 
                 # Unit normalization should work
                 normalization = normalize_telemetry_units(points)

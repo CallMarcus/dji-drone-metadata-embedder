@@ -227,57 +227,6 @@ def check_dependencies() -> Tuple[bool, list[str]]:
     return (not missing), missing
 
 
-def get_tool_versions() -> dict[str, str | None]:
-    """Return version strings for ffmpeg and ExifTool.
-
-    Looks for executables in ``PATH`` or paths specified via
-    ``DJIEMBED_FFMPEG_PATH``/``DJIEMBED_EXIFTOOL_PATH`` environment
-    variables. Returns a mapping of tool name to its first line of version
-    output, or ``None`` if the tool isn't available.
-    """
-    import os
-    import platform
-
-    tools = {"ffmpeg": ["ffmpeg", "-version"], "exiftool": ["exiftool", "-ver"]}
-    versions: dict[str, str | None] = {}
-
-    original_path = os.environ.get("PATH", "")
-    path_modified = False
-
-    if platform.system() == "Windows":
-        bin_dir = Path.home() / "AppData" / "Local" / "dji-embed" / "bin"
-        if bin_dir.exists() and str(bin_dir) not in original_path:
-            os.environ["PATH"] = str(bin_dir) + os.pathsep + original_path
-            path_modified = True
-
-    try:
-        for name, cmd in tools.items():
-            env_var = f"DJIEMBED_{name.upper()}_PATH"
-            tool_path = os.environ.get(env_var)
-            if tool_path and Path(tool_path).exists():
-                test_cmd = [tool_path] + cmd[1:]
-                shell = False
-            else:
-                test_cmd = cmd
-                shell = platform.system() == "Windows"
-            try:
-                result = subprocess.run(
-                    test_cmd,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    shell=shell,
-                )
-                versions[name] = result.stdout.strip().splitlines()[0]
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                versions[name] = None
-    finally:
-        if path_modified:
-            os.environ["PATH"] = original_path
-
-    return versions
-
-
 def parse_dji_srt(srt_path: Path) -> dict:
     """Standalone wrapper around :class:`DJIMetadataEmbedder` parsing."""
     from .embedder import DJIMetadataEmbedder

@@ -6,7 +6,6 @@ import json
 import sys
 import click
 from pathlib import Path
-from typing import Any
 
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
@@ -198,7 +197,7 @@ def doctor(ctx: click.Context, verbose: bool, quiet: bool) -> None:
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 @click.pass_context
-def check(ctx: click.Context, paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
+def check_legacy(ctx: click.Context, paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     """Legacy alias for 'probe' command."""
     ctx.invoke(probe, paths=paths, verbose=verbose, quiet=quiet)
 
@@ -211,7 +210,7 @@ def check(ctx: click.Context, paths: tuple[str, ...], verbose: bool, quiet: bool
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
 @click.pass_context
-def convert(ctx: click.Context, command: str, input: str, output: str | None, batch: bool, verbose: bool, quiet: bool) -> None:
+def convert_legacy(ctx: click.Context, command: str, input: str, output: str | None, batch: bool, verbose: bool, quiet: bool) -> None:
     """Legacy alias for 'export' command."""
     ctx.invoke(export, format=command, input=input, output=output, batch=batch, verbose=verbose, quiet=quiet)
 
