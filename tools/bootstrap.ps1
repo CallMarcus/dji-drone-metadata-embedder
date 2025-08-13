@@ -188,7 +188,7 @@ function Ensure-Python {
 # IMPROVED: Get latest version with robust fallback handling
 if(-not $Version){
     # Default fallback version that we know works
-    $fallbackVersion = "1.0.7"
+    $fallbackVersion = "1.1.0"
     
     try{
         LogInfo "Checking for latest version..."
