@@ -68,7 +68,7 @@ if __name__ == '__main__':
         print("Building executable...")
         PyInstaller.__main__.run(args)
 
-        print("Executable built: dist/dji-embed.exe")
+        print("SUCCESS: Executable built at dist/dji-embed.exe")
 
         # Calculate SHA256
         import hashlib
