@@ -1,13 +1,10 @@
 """Validation module for SRT/MP4 pairs and drift analysis."""
 
-import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Tuple
 import re
-from datetime import datetime, timedelta
-
-from ..utilities import parse_telemetry_points
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
@@ -386,8 +383,8 @@ def normalize_telemetry_units(telemetry_data: List[Tuple[float, float, float, st
         try:
             speeds = []
             for i in range(1, len(telemetry_data)):
-                lat1, lon1, alt1 = latitudes[i-1], longitudes[i-1], altitudes[i-1]
-                lat2, lon2, alt2 = latitudes[i], longitudes[i], altitudes[i]
+                lat1, lon1, _ = latitudes[i-1], longitudes[i-1], altitudes[i-1]
+                lat2, lon2, _ = latitudes[i], longitudes[i], altitudes[i]
                 
                 # Simple distance calculation (not geodesic, but good enough for sanity check)
                 dist = ((lat2-lat1)**2 + (lon2-lon1)**2)**0.5 * 111000  # Rough conversion to meters
