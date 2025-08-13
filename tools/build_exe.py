@@ -68,7 +68,7 @@ if __name__ == '__main__':
         print("Building executable...")
         PyInstaller.__main__.run(args)
 
-        print("✅ Executable built: dist/dji-embed.exe")
+        print("Executable built: dist/dji-embed.exe")
 
         # Calculate SHA256
         import hashlib
@@ -76,7 +76,7 @@ if __name__ == '__main__':
         exe_path = Path("dist/dji-embed.exe")
         if exe_path.exists():
             sha256 = hashlib.sha256(exe_path.read_bytes()).hexdigest()
-            print(f"📊 SHA256: {sha256}")
+            print(f"SHA256: {sha256}")
             return sha256
         else:
             raise FileNotFoundError("Executable not created")
