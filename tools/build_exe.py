@@ -47,13 +47,10 @@ if __name__ == '__main__':
             "--hidden-import=dji_metadata_embedder",
             "--hidden-import=dji_metadata_embedder.cli",
             "--hidden-import=dji_metadata_embedder.core",
-            "--hidden-import=dji_metadata_embedder.parsers",
             "--hidden-import=dji_metadata_embedder.telemetry_converter",
             "--hidden-import=dji_metadata_embedder.metadata_check",
-            "--hidden-import=dji_metadata_embedder.wizard",
             "--hidden-import=click",
             "--hidden-import=rich",
-            "--hidden-import=tqdm",
             "--distpath=dist",
             "--workpath=build",
             "--clean",
@@ -68,7 +65,9 @@ if __name__ == '__main__':
         print("Building executable...")
         PyInstaller.__main__.run(args)
 
+        ci-build-reliability-m2
         print("SUCCESS: Executable built at dist/dji-embed.exe")
+
 
         # Calculate SHA256
         import hashlib
