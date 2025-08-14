@@ -329,7 +329,7 @@ try {
 # Install tools (FFmpeg and ExifTool)
 $binDir = Join-Path $env:LOCALAPPDATA 'dji-embed\bin'
 $FFmpegUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
-$ExifToolUrl = 'https://exiftool.org/exiftool-13.32_64.zip'
+$ExifToolUrl = 'https://sourceforge.net/projects/exiftool/files/exiftool-13.33_64.zip/download'
 New-Item -Force -ItemType Directory $binDir | Out-Null
 
 # Function to download and extract tools safely
@@ -547,15 +547,15 @@ if (-not $ffmpegSuccess -or -not $exifSuccess) {
 # Launch wizard if requested  
 if(-not $NoLaunch -and $djiEmbedWorking) { 
     try {
-        LogInfo "Launching setup wizard..."
+        LogInfo "Launching system check..."
         # Set environment variables for the tools location
         $env:DJIEMBED_FFMPEG_PATH = Join-Path $binDir "ffmpeg.exe"
         $env:DJIEMBED_EXIFTOOL_PATH = Join-Path $binDir "exiftool.exe"
         
-        # Launch wizard with explicit environment
-        & dji-embed wizard
+        # Launch doctor command to verify installation
+        & dji-embed doctor
     } catch {
-        LogInfo "You can run 'dji-embed wizard' manually later"
+        LogInfo "You can run 'dji-embed doctor' to verify your installation later"
     }
 }
 
