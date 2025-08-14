@@ -5,13 +5,19 @@ on:
   workflow_run:
     workflows: ["Release to PyPI"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.1.2)'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   build:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ (github.event_name == 'workflow_dispatch') || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +34,12 @@ jobs:
       - name: Sync and verify project version
         shell: pwsh
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
-          $tag = $tag.TrimStart('v')
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = '${{ inputs.version }}'
+          } else {
+            $tag = '${{ github.event.workflow_run.head_branch }}'
+            $tag = $tag.TrimStart('v')
+          }
           python tools/sync_version.py $tag
           python tools/sync_version.py $tag --check
       - name: Install dependencies
@@ -44,8 +54,13 @@ jobs:
       - name: Download wheel from PyPI
         shell: pwsh
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
-          $ver = $tag.TrimStart('v')
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = 'v${{ inputs.version }}'
+            $ver = '${{ inputs.version }}'
+          } else {
+            $tag = '${{ github.event.workflow_run.head_branch }}'
+            $ver = $tag.TrimStart('v')
+          }
           pip download dji-drone-metadata-embedder==$ver --no-deps -d dist
       - name: Generate SHA256SUMS.txt
         shell: pwsh
@@ -61,10 +76,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = 'v${{ inputs.version }}'
+          } else {
+            $tag = '${{ github.event.workflow_run.head_branch }}'
+          }
           gh release upload $tag dist/* --clobber
       - name: Summary
         shell: pwsh
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = 'v${{ inputs.version }}'
+          } else {
+            $tag = '${{ github.event.workflow_run.head_branch }}'
+          }
           echo "Windows binaries attached to [release $tag](https://github.com/${{ github.repository }}/releases/tag/$tag)" >> $env:GITHUB_STEP_SUMMARY
