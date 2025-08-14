@@ -101,10 +101,21 @@ def _update_targets(version: str, root: Path) -> None:
     # winget manifests (optional)
     winget_dir = root / "winget"
     if winget_dir.exists():
-        for manifest in winget_dir.rglob("*.yml"):
+        # Update PackageVersion in all manifest files (.yml and .yaml)
+        yml_files = list(winget_dir.rglob("*.yml"))
+        yaml_files = list(winget_dir.rglob("*.yaml"))
+        for manifest in yml_files + yaml_files:
             _replace_in_file(manifest, r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", f"PackageVersion: {version}")
-        for manifest in winget_dir.rglob("*.yaml"):
-            _replace_in_file(manifest, r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", f"PackageVersion: {version}")
+            
+        # Update installer URL version references in installer manifest
+        installer_files = list(winget_dir.glob("*.installer.yaml")) + list(winget_dir.glob("*.installer.yml"))
+        for installer_file in installer_files:
+            # Update download URLs that contain version numbers
+            _replace_in_file(
+                installer_file, 
+                r"(https://github\.com/[^/]+/[^/]+/releases/download/v)(?P<ver>\d+\.\d+\.\d+)/", 
+                rf"\g<1>{version}/"
+            )
 
 
 def _check_targets(version: str, root: Path) -> bool:
@@ -134,9 +145,17 @@ def _check_targets(version: str, root: Path) -> bool:
         manifest_files = list(winget_dir.rglob("*.yml")) + list(winget_dir.rglob("*.yaml"))
         for manifest in manifest_files:
             text = manifest.read_text(encoding="utf-8")
+            
+            # Check PackageVersion field
             match = re.search(r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", text)
             if not match or match.group("ver") != version:
                 mismatches.append(manifest)
+            
+            # For installer manifests, also check download URL versions
+            if ".installer." in manifest.name:
+                url_match = re.search(r"https://github\.com/[^/]+/[^/]+/releases/download/v(?P<ver>\d+\.\d+\.\d+)/", text)
+                if url_match and url_match.group("ver") != version:
+                    mismatches.append(manifest)
 
     if mismatches:
         print(
