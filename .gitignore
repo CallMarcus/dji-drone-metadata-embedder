@@ -83,3 +83,4 @@ test/
 
 # MkDocs build output
 site/
+# Release v1.1.2 - Windows EXE build retry
