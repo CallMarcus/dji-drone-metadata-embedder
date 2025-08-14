@@ -1,7 +1,7 @@
 # DJI Drone Metadata Embedder
 
 [![GitHub Release]][release]
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)][release]
+[![Version](https://img.shields.io/badge/version-1.1.1-blue)][release]
 [![PyPI]][pypi]
 
 A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files.

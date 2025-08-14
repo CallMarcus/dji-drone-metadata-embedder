@@ -15,16 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **M4 Milestone Completion**: Docs, Samples & Release Hygiene
+- **ci**: Implement auto-changelog from conventional commits (6e84081)
+- **winget**: Add winget manifest sync from pyproject via sync_version.py (296f3f8)
 - Add public tiny sample MP4/SRT fixtures for testing (3c1604d)
-- Auto-changelog from conventional commits with GitHub Actions integration (6e84081)
-- Winget manifest sync from pyproject via sync_version.py (296f3f8)
-
-### CI/CD
-
-- Auto-changelog generation workflow for releases and manual triggers
-- Winget manifest structure with installer, locale, and version files
-- Enhanced sync_version.py with winget manifest and download URL synchronization
 
 ### Fixed
 
@@ -35,8 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add decision table for user guidance (#144) (cbd4884)
 - Add end-to-end recipes for common workflows (#145) (581fdd6)
 - Enhance troubleshooting guide with comprehensive solutions (3af8471)
-- Complete CHANGELOG_AUTOMATION.md with conventional commit guidelines
-- Enhanced RELEASE.md with winget integration documentation
+- Update root documents to reflect production-ready status (eae30c6)
 
 ## [1.1.0] - 2025-01-13
 
