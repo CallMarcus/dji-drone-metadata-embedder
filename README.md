@@ -376,6 +376,18 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
+### Commit Message Format
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automatic changelog generation:
+
+```bash
+feat(cli): add new validate command
+fix(parser): handle malformed SRT timestamps  
+docs: update troubleshooting guide
+```
+
+See [docs/CHANGELOG_AUTOMATION.md](docs/CHANGELOG_AUTOMATION.md) for detailed guidelines.
+
 ### Adding Support for New Models
 
 If your DJI model uses a different SRT format:

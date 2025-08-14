@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add public tiny sample MP4/SRT fixtures for testing (3c1604d)
+
+### Fixed
+
+- Simplify build_exe output (2833e54)
+
+### Documentation
+
+- Add decision table for user guidance (#144) (cbd4884)
+- Add end-to-end recipes for common workflows (#145) (581fdd6)
+- Enhance troubleshooting guide with comprehensive solutions (3af8471)
+
 ## [1.1.0] - 2025-01-13
 
 ### Added - M3 Parser Hardening & CLI UX
