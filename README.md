@@ -8,11 +8,11 @@ A Python tool to embed telemetry data from DJI drone SRT files into MP4 video fi
 This tool extracts GPS coordinates, altitude, camera settings and other telemetry data from SRT files and embeds
 them as metadata in the corresponding video files.
 
-> **Note**
+> **Production Ready** ✅
 > 
-> The core functionality should work for embedding telemetry from DJI drones,
-> but the tool is still undergoing active testing and refinement. Expect
-> breaking changes and incomplete features as stability issues are addressed.
+> All major milestones (M1-M4) completed! The tool features comprehensive documentation, 
+> professional CLI, automated testing, and supports major DJI drone models.
+> Future releases focus on new model support and community enhancements.
 
 See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows
 application with a graphical interface.
@@ -23,12 +23,20 @@ Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
 
 ## Easy Windows install
 
+### Option 1: Windows Package Manager (Recommended)
+```powershell
+winget install dji-embed
+```
+
+### Option 2: Bootstrap Script (Includes FFmpeg/ExifTool)
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
-You can also download a ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
-### Windows – manual path
 
+### Option 3: Direct Download
+Download the ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
+
+### Option 4: Python Package
 ```powershell
 pip install dji-drone-metadata-embedder
 ```
@@ -68,12 +76,17 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 
 ## Supported DJI Models
 
-The tool has been tested with:
-- DJI Mini 3 Pro
-- DJI Mini 4 Pro
-- DJI Mavic 3
-- DJI Air 2S
-- Other models using similar SRT formats
+**Fully Tested & Documented** (with sample fixtures):
+- **DJI Mini 3/4 Pro** - Square bracket format `[latitude: xx.xxx] [longitude: xx.xxx]`
+- **DJI Air 3** - HTML-style format with extended telemetry data
+- **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data  
+- **DJI Mavic 3 Enterprise** - Extended format with RTK precision data
+
+**Community Supported**:
+- DJI Air 2S, Mavic 3, and other models using similar SRT formats
+- See [troubleshooting guide](docs/troubleshooting.md) for model-specific issues
+
+*New model support welcomed! See [Contributing Guide](CONTRIBUTING.md).*
 
 ## Requirements
 

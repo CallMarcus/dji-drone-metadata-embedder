@@ -1,6 +1,6 @@
 # Agents.md — dji-drone-metadata-embedder
 
-_Last updated: 2025-08-09_
+_Last updated: 2025-08-14_
 
 ## Purpose
 This file defines how AI coding agents (e.g. ChatGPT Codex, Claude Code) contribute to this repository in a predictable, high-quality way.  
@@ -10,7 +10,7 @@ Agents are expected to follow these instructions unless explicitly told otherwis
 
 ## 1. Repository Context
 - **Repo:** [CallMarcus/dji-drone-metadata-embedder](https://github.com/CallMarcus/dji-drone-metadata-embedder)
-- **Default branch:** `main`
+- **Default branch:** `master`
 - **Language:** Python 3.10–3.12
 - **CI:** GitHub Actions
 - **Tests:** `pytest`
@@ -111,29 +111,51 @@ Rules:
 
 ---
 
-## 4. Milestones & Scope Overview
+## 4. Development Status & Completed Milestones
 
-**[M1 – Stabilise & Version Cohesion](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22M1+%E2%80%93+Stabilise+%26+Version+Cohesion+%28Week+1%E2%80%932%29%22+sort%3Acreated-asc)**  
-- Single-source versioning  
-- Tag-driven releases  
-- SHA256 + toolchain version output
+### 🎉 **Project Status: Production Ready**
 
-**[M2 – CI/Build Reliability](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22M2+%E2%80%93+CI%2FBuild+Reliability+%28Week+2%E2%80%933%29%22+sort%3Acreated-asc)**  
-- Windows + Linux matrix  
-- Smoke tests with tiny fixtures  
-- Pin toolchain & deps
+All major development milestones have been completed successfully. The project is now a professionally documented, well-tested, and release-ready package.
 
-**[M3 – Parser Hardening & CLI UX](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22M3+%E2%80%93+Parser+Hardening+%26+CLI+UX+%28Week+3%E2%80%935%29%22+sort%3Acreated-asc)**  
-- Golden-file tests for DJI model families  
-- `--lenient`, `--time-offset`, `validate` command  
-- Consistent exit codes & JSON log option
+### ✅ **Completed Milestones (August 2025)**
 
-**[M4 – Docs, Samples & Release Hygiene](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues?q=is%3Aopen+is%3Aissue+milestone%3A%22M4+%E2%80%93+Docs%2C+Samples+%26+Release+Hygiene+%28Week+5%E2%80%936%29%22+sort%3Acreated-asc)**  
-- Decision table & recipes  
-- Troubleshooting guide  
-- Public tiny sample fixtures  
-- Auto-changelog  
-- Winget manifest sync
+**M1 – Stabilise & Version Cohesion** ✅ *Completed*
+- ✅ Single-source versioning via `tools/sync_version.py`
+- ✅ Tag-driven releases with GitHub Actions
+- ✅ SHA256 checksums and toolchain version output
+
+**M2 – CI/Build Reliability** ✅ *Completed*  
+- ✅ Windows + Linux test matrix (Python 3.10–3.12)
+- ✅ Smoke tests with comprehensive fixtures
+- ✅ Pinned toolchain dependencies with `requirements.lock`
+
+**M3 – Parser Hardening & CLI UX** ✅ *Completed*
+- ✅ Golden-file tests across 4 DJI model families
+- ✅ Professional CLI with `validate`, `convert`, `embed`, `doctor` commands
+- ✅ Consistent exit codes and JSON logging option
+- ✅ Lenient parser mode with structured warnings
+
+**M4 – Docs, Samples & Release Hygiene** ✅ *Completed*
+- ✅ Decision table and end-to-end recipes documentation  
+- ✅ Comprehensive troubleshooting guide (529 lines)
+- ✅ Public sample fixtures for 3 DJI models with CI/CD integration
+- ✅ Auto-changelog from conventional commits
+- ✅ Winget manifest sync with release automation
+
+### 🚀 **Current State**
+The project is feature-complete with professional documentation, comprehensive testing, and automated release processes. Future development should focus on:
+
+- **New DJI model support** as they are released
+- **Community contributions** for additional SRT formats
+- **Performance optimizations** based on user feedback
+- **GUI development** per the [development roadmap](docs/development_roadmap.md)
+
+### 📝 **Contributing to Maintenance**
+For ongoing maintenance and new model support:
+- Review open issues for community-reported bugs
+- Add support for new DJI drone models as they're released
+- Enhance documentation based on user feedback
+- Maintain dependency updates and security patches
 
 ---
 

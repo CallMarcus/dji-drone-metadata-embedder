@@ -5,17 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Stability Notice**
+> **Project Status: Production Ready** ✅
 >
-> While the core features work for embedding DJI telemetry, the project is still
-> being stabilised. Expect ongoing changes and potential breakage as bugs are
-> fixed and the build process is improved.
+> All major milestones (M1-M4) have been completed. The project features comprehensive 
+> documentation, automated testing, professional CLI, and streamlined release processes.
+> Future releases will focus on new DJI model support and community enhancements.
 
 ## [Unreleased]
 
 ### Added
 
+- **M4 Milestone Completion**: Docs, Samples & Release Hygiene
 - Add public tiny sample MP4/SRT fixtures for testing (3c1604d)
+- Auto-changelog from conventional commits with GitHub Actions integration (6e84081)
+- Winget manifest sync from pyproject via sync_version.py (296f3f8)
+
+### CI/CD
+
+- Auto-changelog generation workflow for releases and manual triggers
+- Winget manifest structure with installer, locale, and version files
+- Enhanced sync_version.py with winget manifest and download URL synchronization
 
 ### Fixed
 
@@ -26,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add decision table for user guidance (#144) (cbd4884)
 - Add end-to-end recipes for common workflows (#145) (581fdd6)
 - Enhance troubleshooting guide with comprehensive solutions (3af8471)
+- Complete CHANGELOG_AUTOMATION.md with conventional commit guidelines
+- Enhanced RELEASE.md with winget integration documentation
 
 ## [1.1.0] - 2025-01-13
 
