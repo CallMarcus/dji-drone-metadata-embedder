@@ -65,7 +65,6 @@ if __name__ == '__main__':
         print("Building executable...")
         PyInstaller.__main__.run(args)
 
-        ci-build-reliability-m2
         print("SUCCESS: Executable built at dist/dji-embed.exe")
 
 
