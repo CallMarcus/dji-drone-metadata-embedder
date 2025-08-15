@@ -81,9 +81,9 @@ jobs:
           $installerManifest = $installerManifest -replace "v1\.1\.2", $tag  # Update URL to actual tag
           Set-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $installerManifest
           
-          # Submit using prepared manifests
+          # Submit using prepared manifests (exclude README.md)
           try {
-            $output = .\wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN winget/ 2>&1
+            $output = .\wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN winget/CallMarcus.DJIMetadataEmbedder.yaml winget/CallMarcus.DJIMetadataEmbedder.installer.yaml winget/CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml 2>&1
             Write-Host "Wingetcreate output:"
             Write-Host $output
             $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
