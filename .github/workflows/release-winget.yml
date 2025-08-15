@@ -36,7 +36,9 @@ jobs:
           python tools/sync_version.py $version --check
       - name: Install wingetcreate
         shell: pwsh
-        run: dotnet tool install --global wingetcreate
+        run: |
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          Write-Host "Downloaded wingetcreate.exe"
       - name: Submit manifest
         id: winget
         shell: pwsh
@@ -52,7 +54,7 @@ jobs:
             $tag = "v$version"
           }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"
-          $output = wingetcreate update --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN
+          $output = .\wingetcreate.exe update CallMarcus.DJIMetadataEmbedder --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN
           $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
           if (-not $pr) { $pr = 'https://github.com/microsoft/winget-pkgs/pulls' }
           "pr_url=$pr" >> $env:GITHUB_OUTPUT
