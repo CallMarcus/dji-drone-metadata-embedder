@@ -58,8 +58,32 @@ jobs:
           Write-Host "URL: $url"
           Write-Host "Package ID: CallMarcus.DJIMetadataEmbedder"
           
+          # First verify the release exists and get the actual hash
+          $exeUrl = "${url}dji-embed.exe"
+          Write-Host "Checking EXE URL: $exeUrl"
+          
           try {
-            $output = .\wingetcreate.exe update CallMarcus.DJIMetadataEmbedder --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN 2>&1
+            $response = Invoke-WebRequest -Uri $exeUrl -Method Head
+            Write-Host "EXE exists: HTTP $($response.StatusCode)"
+          } catch {
+            Write-Host "ERROR: EXE not found at $exeUrl"
+            throw "Release assets not found. Make sure the GitHub release exists with dji-embed.exe"
+          }
+          
+          # Download and calculate actual hash
+          Invoke-WebRequest -Uri $exeUrl -OutFile "temp-dji-embed.exe"
+          $actualHash = Get-FileHash "temp-dji-embed.exe" -Algorithm SHA256
+          Write-Host "Actual EXE hash: $($actualHash.Hash)"
+          
+          # Update installer manifest with correct hash and URLs
+          $installerManifest = Get-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" -Raw
+          $installerManifest = $installerManifest -replace "PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE", $actualHash.Hash
+          $installerManifest = $installerManifest -replace "v1\.1\.2", $tag  # Update URL to actual tag
+          Set-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $installerManifest
+          
+          # Submit using prepared manifests
+          try {
+            $output = .\wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN winget/ 2>&1
             Write-Host "Wingetcreate output:"
             Write-Host $output
             $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
