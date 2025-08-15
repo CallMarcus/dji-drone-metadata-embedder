@@ -5,13 +5,19 @@ on:
   workflow_run:
     workflows: ["Build Windows EXE"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to submit to winget (e.g., 1.1.2)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   submit:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,9 +27,13 @@ jobs:
       - name: Verify tag matches project version
         shell: pwsh
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
-          $tag = $tag.TrimStart('v')
-          python tools/sync_version.py $tag --check
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'
+          } else {
+            # For workflow_run, get version from current project files since head_branch is unreliable
+            $version = (python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
+          }
+          python tools/sync_version.py $version --check
       - name: Install wingetcreate
         shell: pwsh
         run: dotnet tool install --global wingetcreate
@@ -33,8 +43,14 @@ jobs:
         env:
           WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
-          $version = $tag.TrimStart('v')
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'
+            $tag = "v$version"
+          } else {
+            # For workflow_run, get version from current project files
+            $version = (python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
+            $tag = "v$version"
+          }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"
           $output = wingetcreate update --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN
           $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
