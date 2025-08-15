@@ -5,13 +5,19 @@ on:
   workflow_run:
     workflows: ["Build Windows EXE"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to submit to winget (e.g., 1.1.2)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   submit:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,25 +27,73 @@ jobs:
       - name: Verify tag matches project version
         shell: pwsh
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
-          $tag = $tag.TrimStart('v')
-          python tools/sync_version.py $tag --check
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'
+          } else {
+            # For workflow_run, get version from current project files since head_branch is unreliable
+            $version = (python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
+          }
+          python tools/sync_version.py $version --check
       - name: Install wingetcreate
         shell: pwsh
-        run: dotnet tool install --global wingetcreate
+        run: |
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          Write-Host "Downloaded wingetcreate.exe"
       - name: Submit manifest
         id: winget
         shell: pwsh
         env:
-          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_PAT }}
         run: |
-          $tag = '${{ github.event.workflow_run.head_branch }}'
-          $version = $tag.TrimStart('v')
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'
+            $tag = "v$version"
+          } else {
+            # For workflow_run, get version from current project files
+            $version = (python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
+            $tag = "v$version"
+          }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"
-          $output = wingetcreate update --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN
-          $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
-          if (-not $pr) { $pr = 'https://github.com/microsoft/winget-pkgs/pulls' }
-          "pr_url=$pr" >> $env:GITHUB_OUTPUT
+          Write-Host "Submitting to winget with version: $version"
+          Write-Host "URL: $url"
+          Write-Host "Package ID: CallMarcus.DJIMetadataEmbedder"
+          
+          # First verify the release exists and get the actual hash
+          $exeUrl = "${url}dji-embed.exe"
+          Write-Host "Checking EXE URL: $exeUrl"
+          
+          try {
+            $response = Invoke-WebRequest -Uri $exeUrl -Method Head
+            Write-Host "EXE exists: HTTP $($response.StatusCode)"
+          } catch {
+            Write-Host "ERROR: EXE not found at $exeUrl"
+            throw "Release assets not found. Make sure the GitHub release exists with dji-embed.exe"
+          }
+          
+          # Download and calculate actual hash
+          Invoke-WebRequest -Uri $exeUrl -OutFile "temp-dji-embed.exe"
+          $actualHash = Get-FileHash "temp-dji-embed.exe" -Algorithm SHA256
+          Write-Host "Actual EXE hash: $($actualHash.Hash)"
+          
+          # Update installer manifest with correct hash and URLs
+          $installerManifest = Get-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" -Raw
+          $installerManifest = $installerManifest -replace "PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE", $actualHash.Hash
+          $installerManifest = $installerManifest -replace "v1\.1\.2", $tag  # Update URL to actual tag
+          Set-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $installerManifest
+          
+          # Submit using prepared manifests (exclude README.md)
+          try {
+            $output = .\wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN winget/CallMarcus.DJIMetadataEmbedder.yaml winget/CallMarcus.DJIMetadataEmbedder.installer.yaml winget/CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml 2>&1
+            Write-Host "Wingetcreate output:"
+            Write-Host $output
+            $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
+            if (-not $pr) { $pr = 'https://github.com/microsoft/winget-pkgs/pulls' }
+            "pr_url=$pr" >> $env:GITHUB_OUTPUT
+          } catch {
+            Write-Host "Error occurred: $_"
+            Write-Host "Output: $output"
+            throw
+          }
       - name: Summary
         shell: pwsh
         run: |
