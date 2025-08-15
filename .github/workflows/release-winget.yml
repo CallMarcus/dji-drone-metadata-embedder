@@ -41,7 +41,7 @@ jobs:
         id: winget
         shell: pwsh
         env:
-          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_PAT }}
         run: |
           if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
             $version = '${{ inputs.version }}'
