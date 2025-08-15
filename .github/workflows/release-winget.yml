@@ -54,10 +54,22 @@ jobs:
             $tag = "v$version"
           }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"
-          $output = .\wingetcreate.exe update CallMarcus.DJIMetadataEmbedder --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN
-          $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
-          if (-not $pr) { $pr = 'https://github.com/microsoft/winget-pkgs/pulls' }
-          "pr_url=$pr" >> $env:GITHUB_OUTPUT
+          Write-Host "Submitting to winget with version: $version"
+          Write-Host "URL: $url"
+          Write-Host "Package ID: CallMarcus.DJIMetadataEmbedder"
+          
+          try {
+            $output = .\wingetcreate.exe update CallMarcus.DJIMetadataEmbedder --submit --version $version --urls "$url" --token $env:WINGET_GITHUB_TOKEN 2>&1
+            Write-Host "Wingetcreate output:"
+            Write-Host $output
+            $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
+            if (-not $pr) { $pr = 'https://github.com/microsoft/winget-pkgs/pulls' }
+            "pr_url=$pr" >> $env:GITHUB_OUTPUT
+          } catch {
+            Write-Host "Error occurred: $_"
+            Write-Host "Output: $output"
+            throw
+          }
       - name: Summary
         shell: pwsh
         run: |
