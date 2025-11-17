@@ -68,37 +68,31 @@ Most branches with these prefixes are safe to delete:
 - `docs/*` - Merged documentation
 - `3l1c1y-codex/*` - Merged AI work
 
-**Script to Delete Stale Branches:**
+**Automated Scripts Available:**
+We've created comprehensive cleanup scripts in `scripts/`:
+- `scripts/delete-stale-branches.sh` (Bash)
+- `scripts/delete-stale-branches.ps1` (PowerShell)
+
+Both scripts support dry-run mode and detailed progress reporting.
+
+**Important Note - GitHub UI Required:**
+Due to repository permissions, branch deletion must be done through GitHub's web interface:
+
+1. Go to: `https://github.com/CallMarcus/dji-drone-metadata-embedder/branches/stale`
+2. Review stale branches (filtered by last commit date)
+3. Delete branches matching these patterns:
+   - `codex/*` (~117 branches)
+   - `3l1c1y-codex/*` (1 branch)
+   - `ci-*`, `docs-*` (merged CI/docs branches)
+   - Other merged feature branches
+
+**Alternative - GitHub CLI:**
 ```bash
-#!/bin/bash
-# delete-stale-branches.sh - Review before executing!
+# If you have admin access
+gh api repos/CallMarcus/dji-drone-metadata-embedder/git/refs/heads/codex/add-* --method DELETE
 
-# Fetch latest refs
-git fetch --all --prune
-
-# Delete codex branches (example - test with dry-run first)
-git push origin --delete $(git branch -r | grep 'origin/codex/' | sed 's/origin\///' | xargs)
-git push origin --delete $(git branch -r | grep 'origin/3l1c1y-codex/' | sed 's/origin\///' | xargs)
-
-# Add similar commands for other patterns
-```
-
-**PowerShell Version:**
-```powershell
-# delete-stale-branches.ps1
-git fetch --all --prune
-
-# Get all remote branches matching pattern
-$staleBranches = git branch -r | Where-Object { $_ -match 'origin/(codex|3l1c1y-codex|feat|fix|ci-|docs-|milestone-)' }
-
-# Review first!
-$staleBranches | ForEach-Object { Write-Host $_ }
-
-# Uncomment to actually delete:
-# $staleBranches | ForEach-Object {
-#     $branch = $_ -replace '^\s*origin/', ''
-#     git push origin --delete $branch
-# }
+# Or use the scripts for local testing:
+bash scripts/delete-stale-branches.sh  # Dry-run
 ```
 
 ---
