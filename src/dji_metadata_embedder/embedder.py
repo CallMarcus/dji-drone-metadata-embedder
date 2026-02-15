@@ -87,7 +87,8 @@ class DJIMetadataEmbedder:
     Parameters
     ----------
     directory: path to folder containing MP4/SRT pairs
-    output_dir: destination directory for processed files
+    output_dir: destination directory for processed files (ignored if overwrite=True)
+    overwrite: if True, write embedded video over the original file (in-place)
     dat_path: optional path to a DAT flight log
     dat_autoscan: search for DAT logs matching each video
     redact: GPS redaction mode ("none", "drop", "fuzz")
@@ -103,6 +104,7 @@ class DJIMetadataEmbedder:
         self,
         directory: str,
         output_dir: Optional[str] = None,
+        overwrite: bool = False,
         dat_path: Optional[str] = None,
         dat_autoscan: bool = False,
         redact: str = "none",
@@ -113,7 +115,9 @@ class DJIMetadataEmbedder:
         self.output_dir = (
             Path(output_dir) if output_dir else self.directory / "processed"
         )
-        self.output_dir.mkdir(exist_ok=True)
+        self.overwrite = overwrite
+        if not self.overwrite:
+            self.output_dir.mkdir(exist_ok=True)
         self.dat_path = Path(dat_path) if dat_path else None
         self.dat_autoscan = dat_autoscan
         self.redact = redact
@@ -428,7 +432,7 @@ class DJIMetadataEmbedder:
             "total_files": len(video_files),
             "warnings": [],
             "errors": [],
-            "output_directory": str(self.output_dir)
+            "output_directory": str(self.directory if self.overwrite else self.output_dir),
         }
 
         if not video_files:
@@ -438,7 +442,10 @@ class DJIMetadataEmbedder:
             return result
 
         logger.info("Found %d video files to process", len(video_files))
-        logger.info("Output directory: %s\n", self.output_dir)
+        if self.overwrite:
+            logger.info("Overwrite mode: embedding in place (destination = input folder)\n")
+        else:
+            logger.info("Output directory: %s\n", self.output_dir)
 
         success_count = 0
 
@@ -488,9 +495,13 @@ class DJIMetadataEmbedder:
                         )
 
                 # Final output path; write to temp first, then atomic move (issue #162).
-                output_path = (
-                    self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
-                )
+                # When overwrite (issue #163), destination = same as input file.
+                if self.overwrite:
+                    output_path = video_path
+                else:
+                    output_path = (
+                        self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
+                    )
                 temp_output_path = Path(str(output_path) + _TEMP_SUFFIX)
 
                 # Embed metadata using ffmpeg into temp file
@@ -520,7 +531,7 @@ class DJIMetadataEmbedder:
                             self.embed_metadata_exiftool(output_path, telemetry)
 
                         # Save telemetry summary as JSON (atomic write)
-                        json_path = self.output_dir / f"{video_path.stem}_telemetry.json"
+                        json_path = output_path.parent / f"{video_path.stem}_telemetry.json"
                         json_tmp_path = Path(str(json_path) + _TEMP_SUFFIX)
                         json_data = {
                             "filename": video_path.name,
@@ -608,7 +619,12 @@ def main():
         help="Directory containing MP4 and SRT files",
     )
     parser.add_argument(
-        "-o", "--output", help="Output directory (default: ./processed)"
+        "-o", "--output", help="Output directory (default: ./processed); ignored if --overwrite"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite original video files in place (destination = input folder)",
     )
     parser.add_argument(
         "--exiftool", action="store_true", help="Also use exiftool for GPS metadata"
@@ -665,6 +681,7 @@ def main():
     embedder = DJIMetadataEmbedder(
         args.directory,
         args.output,
+        overwrite=args.overwrite,
         dat_path=args.dat,
         dat_autoscan=args.dat_auto,
         redact=args.redact,

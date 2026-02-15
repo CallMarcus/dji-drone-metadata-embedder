@@ -170,3 +170,37 @@ class TestProcessDirectoryAtomicWrite:
         assert result["processed"] == 0
         assert not final_output.exists()
         assert not temp_output.exists()
+
+    def test_overwrite_mode_writes_in_place(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With overwrite=True, embedded video replaces the original file (issue #163)."""
+        video = tmp_path / "clip.mp4"
+        srt = tmp_path / "clip.srt"
+        video.write_bytes(b"original video content here")
+        srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nGPS(1,2,3)")
+
+        def fake_run(cmd: list, *args, **kwargs):
+            res = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+            if cmd and "ffmpeg" in str(cmd[0]).lower():
+                out_path = Path(cmd[-1])
+                out_path.write_bytes(b"embedded in place (padded for validation)")
+                return res
+            if cmd and "ffprobe" in str(cmd[0]).lower():
+                return res
+            return res
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(
+            "dji_metadata_embedder.embedder.Progress",
+            self._fake_progress_class(),
+        )
+
+        embedder = DJIMetadataEmbedder(str(tmp_path), overwrite=True)
+        result = embedder.process_directory(use_exiftool=False)
+
+        assert result["processed"] == 1
+        assert result["output_directory"] == str(tmp_path)
+        assert video.exists()
+        assert video.read_bytes() == b"embedded in place (padded for validation)"
+        assert not Path(str(video) + _TEMP_SUFFIX).exists()
