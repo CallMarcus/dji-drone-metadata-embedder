@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -14,6 +15,66 @@ from .utils import system_info
 
 logger = logging.getLogger(__name__)
 
+# Suffix for temporary output files (before atomic move to final path).
+_TEMP_SUFFIX = ".tmp"
+
+
+def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
+    """Validate temp output before moving to final destination.
+
+    Ensures the file is not corrupted after embedding (e.g. on interruption).
+    Checks: file exists, size >= original, and ffprobe can read the container.
+
+    Parameters
+    ----------
+    original_path : Path
+        Original source video path (for size comparison).
+    temp_path : Path
+        Path to the temporary embedded output file.
+
+    Returns
+    -------
+    bool
+        True if validation passes and the file is safe to move to destination.
+    """
+    if not temp_path.exists():
+        logger.debug("Validation failed: temp file does not exist %s", temp_path)
+        return False
+    try:
+        original_size = original_path.stat().st_size
+        temp_size = temp_path.stat().st_size
+    except OSError as e:
+        logger.warning("Validation failed: could not stat files: %s", e)
+        return False
+    if temp_size < original_size:
+        logger.warning(
+            "Validation failed: output size %d < original size %d for %s",
+            temp_size,
+            original_size,
+            temp_path.name,
+        )
+        return False
+    # Verify the container is valid (ffprobe -v error exits 0 only if readable).
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-i", str(temp_path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            err = getattr(result, "stderr", "") or getattr(result, "stdout", "")
+            logger.warning(
+                "Validation failed: ffprobe reported error for %s: %s",
+                temp_path.name,
+                err,
+            )
+            return False
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.warning("Validation failed: ffprobe check failed: %s", e)
+        return False
+    return True
+
 
 class DJIMetadataEmbedder:
     """Embed DJI telemetry data into video files.
@@ -26,7 +87,8 @@ class DJIMetadataEmbedder:
     Parameters
     ----------
     directory: path to folder containing MP4/SRT pairs
-    output_dir: destination directory for processed files
+    output_dir: destination directory for processed files (ignored if overwrite=True)
+    overwrite: if True, write embedded video over the original file (in-place)
     dat_path: optional path to a DAT flight log
     dat_autoscan: search for DAT logs matching each video
     redact: GPS redaction mode ("none", "drop", "fuzz")
@@ -42,6 +104,7 @@ class DJIMetadataEmbedder:
         self,
         directory: str,
         output_dir: Optional[str] = None,
+        overwrite: bool = False,
         dat_path: Optional[str] = None,
         dat_autoscan: bool = False,
         redact: str = "none",
@@ -52,7 +115,9 @@ class DJIMetadataEmbedder:
         self.output_dir = (
             Path(output_dir) if output_dir else self.directory / "processed"
         )
-        self.output_dir.mkdir(exist_ok=True)
+        self.overwrite = overwrite
+        if not self.overwrite:
+            self.output_dir.mkdir(exist_ok=True)
         self.dat_path = Path(dat_path) if dat_path else None
         self.dat_autoscan = dat_autoscan
         self.redact = redact
@@ -367,7 +432,7 @@ class DJIMetadataEmbedder:
             "total_files": len(video_files),
             "warnings": [],
             "errors": [],
-            "output_directory": str(self.output_dir)
+            "output_directory": str(self.directory if self.overwrite else self.output_dir),
         }
 
         if not video_files:
@@ -377,7 +442,10 @@ class DJIMetadataEmbedder:
             return result
 
         logger.info("Found %d video files to process", len(video_files))
-        logger.info("Output directory: %s\n", self.output_dir)
+        if self.overwrite:
+            logger.info("Overwrite mode: embedding in place (destination = input folder)\n")
+        else:
+            logger.info("Output directory: %s\n", self.output_dir)
 
         success_count = 0
 
@@ -426,40 +494,84 @@ class DJIMetadataEmbedder:
                             "Failed to parse DAT file %s: %s", dat_file.name, e
                         )
 
-                # Generate output filename
-                output_path = (
-                    self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
-                )
+                # Final output path; write to temp first, then atomic move (issue #162).
+                # When overwrite (issue #163), destination = same as input file.
+                if self.overwrite:
+                    output_path = video_path
+                else:
+                    output_path = (
+                        self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
+                    )
+                temp_output_path = Path(str(output_path) + _TEMP_SUFFIX)
 
-                # Embed metadata using ffmpeg
+                # Embed metadata using ffmpeg into temp file
                 if self.embed_metadata_ffmpeg(
-                    video_path, srt_path, telemetry, output_path
+                    video_path, srt_path, telemetry, temp_output_path
                 ):
-                    success_count += 1
+                    if _validate_embedded_output(video_path, temp_output_path):
+                        try:
+                            os.replace(temp_output_path, output_path)
+                        except OSError as e:
+                            logger.error(
+                                "Failed to move temp output to %s: %s",
+                                output_path,
+                                e,
+                            )
+                            if temp_output_path.exists():
+                                try:
+                                    temp_output_path.unlink()
+                                except OSError:
+                                    pass
+                            progress.advance(task)
+                            continue
+                        success_count += 1
 
-                    # Optionally use exiftool for additional metadata
-                    if use_exiftool:
-                        self.embed_metadata_exiftool(output_path, telemetry)
+                        # Optionally use exiftool for additional metadata
+                        if use_exiftool:
+                            self.embed_metadata_exiftool(output_path, telemetry)
 
-                    # Save telemetry summary as JSON
-                    json_path = self.output_dir / f"{video_path.stem}_telemetry.json"
-                    json_data = {
-                        "filename": video_path.name,
-                        "first_gps": telemetry["first_gps"],
-                        "average_gps": telemetry["avg_gps"],
-                        "max_altitude": telemetry["max_altitude"],
-                        "max_relative_altitude": telemetry.get("max_rel_altitude"),
-                        "flight_duration": telemetry["flight_duration"],
-                        "num_gps_points": len(telemetry["gps_coords"]),
-                        "camera_settings": telemetry.get("camera_settings", {}),
-                        "dat_records": len(telemetry.get("dat_records", [])),
-                    }
-
-                    with open(json_path, "w") as f:
-                        json.dump(json_data, f, indent=2)
-
+                        # Save telemetry summary as JSON (atomic write)
+                        json_path = output_path.parent / f"{video_path.stem}_telemetry.json"
+                        json_tmp_path = Path(str(json_path) + _TEMP_SUFFIX)
+                        json_data = {
+                            "filename": video_path.name,
+                            "first_gps": telemetry["first_gps"],
+                            "average_gps": telemetry["avg_gps"],
+                            "max_altitude": telemetry["max_altitude"],
+                            "max_relative_altitude": telemetry.get("max_rel_altitude"),
+                            "flight_duration": telemetry["flight_duration"],
+                            "num_gps_points": len(telemetry["gps_coords"]),
+                            "camera_settings": telemetry.get("camera_settings", {}),
+                            "dat_records": len(telemetry.get("dat_records", [])),
+                        }
+                        try:
+                            with open(json_tmp_path, "w") as f:
+                                json.dump(json_data, f, indent=2)
+                            os.replace(json_tmp_path, json_path)
+                        except OSError as e:
+                            logger.warning("Failed to write telemetry JSON: %s", e)
+                            if json_tmp_path.exists():
+                                try:
+                                    json_tmp_path.unlink()
+                                except OSError:
+                                    pass
+                    else:
+                        logger.error(
+                            "Validation failed for %s; output not saved.",
+                            video_path.name,
+                        )
+                        if temp_output_path.exists():
+                            try:
+                                temp_output_path.unlink()
+                            except OSError:
+                                pass
                     progress.advance(task)
                 else:
+                    if temp_output_path.exists():
+                        try:
+                            temp_output_path.unlink()
+                        except OSError:
+                            pass
                     progress.advance(task)
 
         result["processed"] = success_count
@@ -507,7 +619,12 @@ def main():
         help="Directory containing MP4 and SRT files",
     )
     parser.add_argument(
-        "-o", "--output", help="Output directory (default: ./processed)"
+        "-o", "--output", help="Output directory (default: ./processed); ignored if --overwrite"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite original video files in place (destination = input folder)",
     )
     parser.add_argument(
         "--exiftool", action="store_true", help="Also use exiftool for GPS metadata"
@@ -564,6 +681,7 @@ def main():
     embedder = DJIMetadataEmbedder(
         args.directory,
         args.output,
+        overwrite=args.overwrite,
         dat_path=args.dat,
         dat_autoscan=args.dat_auto,
         redact=args.redact,

@@ -76,7 +76,12 @@ def main(ctx: click.Context, log_json: bool) -> None:
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "-o", "--output", type=click.Path(file_okay=False), help="Output directory"
+    "-o", "--output", type=click.Path(file_okay=False), help="Output directory (ignored if --overwrite)"
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite original video files in place (destination = input folder)",
 )
 @click.option("--exiftool", is_flag=True, help="Also use ExifTool for GPS metadata")
 @click.option("--dat", type=click.Path(exists=True), help="DAT flight log to merge")
@@ -93,6 +98,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
 def embed(
     directory: str,
     output: str | None,
+    overwrite: bool,
     exiftool: bool,
     dat: str | None,
     dat_auto: bool,
@@ -110,6 +116,7 @@ def embed(
     embedder = DJIMetadataEmbedder(
         directory,
         output,
+        overwrite=overwrite,
         dat_path=dat,
         dat_autoscan=dat_auto,
         redact=redact,
