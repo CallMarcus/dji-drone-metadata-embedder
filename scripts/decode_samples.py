@@ -86,12 +86,14 @@ def main():
         if has_mp4 and has_srt:
             complete_sets += 1
             status = "✅"
-            files = f"MP4 + SRT" + (" + DAT" if has_dat else "")
+            files = "MP4 + SRT" + (" + DAT" if has_dat else "")
         else:
             status = "⚠️"
             missing = []
-            if not has_mp4: missing.append("MP4")
-            if not has_srt: missing.append("SRT")
+            if not has_mp4:
+                missing.append("MP4")
+            if not has_srt:
+                missing.append("SRT")
             files = f"Missing: {', '.join(missing)}"
         
         print(f"{status} {model}: {files}")

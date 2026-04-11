@@ -427,7 +427,7 @@ class DJIMetadataEmbedder:
         )
 
         # Initialize result structure
-        result = {
+        result: Dict[str, Any] = {
             "processed": 0,
             "total_files": len(video_files),
             "warnings": [],

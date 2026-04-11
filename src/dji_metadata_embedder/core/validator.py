@@ -66,7 +66,7 @@ def get_video_duration(mp4_path: Path) -> float:
 
 def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> Dict[str, Any]:
     """Analyze timing drift between SRT and MP4 files."""
-    analysis = {
+    analysis: Dict[str, Any] = {
         "srt_file": str(srt_path),
         "mp4_file": str(mp4_path),
         "valid": True,
@@ -105,7 +105,7 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> Dic
                 )
         
         # Check timestamp continuity
-        prev_timestamp = 0
+        prev_timestamp: float = 0.0
         gaps = []
         for ts, _ in srt_timestamps:
             if ts < prev_timestamp:
@@ -152,7 +152,7 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> Dic
 
 def validate_directory(directory: Path, drift_threshold: float = 1.0) -> Dict[str, Any]:
     """Validate all SRT/MP4 pairs in a directory."""
-    result = {
+    result: Dict[str, Any] = {
         "directory": str(directory),
         "timestamp": datetime.now().isoformat(),
         "total_files": 0,
@@ -206,7 +206,7 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> Dict[str, Any]:
     
     This implements the lenient parser mode for M3 milestone.
     """
-    validation = {
+    validation: Dict[str, Any] = {
         "file": str(srt_path),
         "valid": True,
         "format_detected": "unknown",
@@ -268,7 +268,7 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> Dict[str, Any]:
         
         # Determine primary format
         if format_votes:
-            validation["format_detected"] = max(format_votes, key=format_votes.get)
+            validation["format_detected"] = max(format_votes, key=lambda k: format_votes[k])
             validation["statistics"]["format_confidence"] = format_votes
         
         validation["telemetry_points"] = len(telemetry_points)
@@ -300,7 +300,7 @@ def normalize_telemetry_units(telemetry_data: List[Tuple[float, float, float, st
     
     This implements unit normalization and sanity checks for M3 milestone (#139).
     """
-    result = {
+    result: Dict[str, Any] = {
         "original_count": len(telemetry_data),
         "normalized_count": 0,
         "issues": [],

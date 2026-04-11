@@ -8,15 +8,14 @@ and processed correctly by the DJI metadata embedder.
 
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 # Add project root to path so we can import modules
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    from dji_metadata_embedder.srt_parser import parse_srt_file
-    from dji_metadata_embedder.mp4_utils import get_video_info
+    from dji_metadata_embedder.srt_parser import parse_srt_file  # noqa: F401
 except ImportError as e:
     print(f"❌ Could not import modules: {e}")
     print("Make sure you're running from the project root")
@@ -132,7 +131,7 @@ def main():
             else:
                 print(f"  ❌ MP4: {mp4_result['error']}")
         else:
-            print(f"  ❌ MP4: Missing")
+            print("  ❌ MP4: Missing")
         
         # SRT results  
         if result["srt_test"]:
@@ -143,13 +142,13 @@ def main():
                 if srt_result["first_point"]:
                     point = srt_result["first_point"]
                     lat = getattr(point, 'latitude', 'N/A')
-                    lon = getattr(point, 'longitude', 'N/A') 
+                    lon = getattr(point, 'longitude', 'N/A')
                     alt = getattr(point, 'altitude', 'N/A')
                     print(f"       First point: {lat}, {lon}, {alt}m")
             else:
                 print(f"  ❌ SRT: {srt_result['error']}")
         else:
-            print(f"  ❌ SRT: Missing")
+            print("  ❌ SRT: Missing")
         
         # DAT
         dat_status = "✅" if result["has_dat"] else "⚠️"

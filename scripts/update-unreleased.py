@@ -6,7 +6,6 @@ This is a developer convenience script to update the changelog during developmen
 before creating an official release.
 """
 
-import subprocess
 import sys
 from pathlib import Path
 

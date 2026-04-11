@@ -163,7 +163,10 @@ INVALID_TIMESTAMP
 [latitude: 59.0001] [longitude: 18.0001] [rel_alt: 2.0 abs_alt: 101.0]
 """,
         "expected_warnings": ["Invalid timestamp format", "Incomplete block"],
-        "lenient_should_pass": True,
+        # Lenient mode tolerates malformed blocks by emitting warnings and
+        # skipping them, but a file that yields zero parseable telemetry
+        # points is still reported as invalid — lenient ≠ "accept empty".
+        "lenient_should_pass": False,
         "strict_should_pass": False
     },
     
