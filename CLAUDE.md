@@ -15,7 +15,7 @@ This file provides context and guidelines for Claude Code when contributing to t
 - **Status:** Production-ready (All M1-M4 milestones completed)
 - **CI/CD:** GitHub Actions
 - **Testing:** `pytest` for unit tests, `validation_tests/` for E2E tests
-- **Package management:** `pip` with `pyproject.toml` and `requirements.lock`
+- **Package management:** [`uv`](https://docs.astral.sh/uv/) with `pyproject.toml` and `uv.lock`
 - **CLI entry point:** `dji-embed`
 
 ---
@@ -64,7 +64,7 @@ src/dji_metadata_embedder/
 - **Use golden fixtures** in `samples/` for integration tests
 - **Cross-platform validation** on Windows & Linux (Python 3.10-3.12)
 - **CLI smoke tests** for new commands/options
-- **Run locally before committing:** `pytest -q`
+- **Run locally before committing:** `uv run pytest -q`
 
 ### Commit Message Format
 Use [Conventional Commits](https://www.conventionalcommits.org/) for automatic changelog generation:
@@ -110,7 +110,7 @@ When implementing GitHub issues:
 2. **Create a feature branch** following naming convention above
 3. **Make minimal changes** to satisfy requirements
 4. **Add/update tests** and documentation
-5. **Run tests locally:** `pytest -q`
+5. **Run tests locally:** `uv run pytest -q`
 6. **Open a PR** with conventional commit format in title
 7. **Reference the issue** in PR description: `Closes #123`
 
@@ -132,58 +132,54 @@ When implementing GitHub issues:
 git clone https://github.com/CallMarcus/dji-drone-metadata-embedder.git
 cd dji-drone-metadata-embedder
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh   # macOS/Linux
+# Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-# Install dependencies
-pip install -U pip
-pip install -e ".[dev]"
+# Install the project + dev tools into a managed .venv
+uv sync --extra dev
 
 # Verify setup
-pytest -q
-dji-embed --help
-dji-embed doctor
+uv run pytest -q
+uv run dji-embed --help
+uv run dji-embed doctor
 ```
 
 ### Running Tests
 ```bash
 # Unit tests (fast)
-pytest -q
+uv run pytest -q
 
 # Specific test file
-pytest tests/test_parsing.py -v
+uv run pytest tests/test_parsing.py -v
 
 # Integration tests with samples
-pytest tests/test_golden_fixtures.py -v
+uv run pytest tests/test_golden_fixtures.py -v
 
 # E2E validation tests
-python validation_tests/run_all_tests.py
+uv run python validation_tests/run_all_tests.py
 ```
 
 ### Testing with Sample Fixtures
 ```bash
 # Check sample files
-dji-embed check samples/
+uv run dji-embed check samples/
 
 # Test embedding with Air 3 samples
-dji-embed embed samples/air3/ --verbose
+uv run dji-embed embed samples/air3/ --verbose
 
 # Validate SRT/MP4 sync
-dji-embed validate samples/
+uv run dji-embed validate samples/
 ```
 
 ### Building and Testing Package
 ```bash
-# Build wheel
-python -m build
+# Build wheel + sdist
+uv sync --extra build
+uv run python -m build
 
-# Install locally
-pip install dist/*.whl
-
-# Test CLI
-dji-embed --version
-dji-embed doctor
+# Install the built wheel into a throwaway env
+uv run --no-project --with dist/*.whl dji-embed --version
 ```
 
 ---
@@ -275,10 +271,8 @@ See `docs/RELEASE.md` for detailed release procedures (maintainers only).
 ## 10. Key Files & Their Purpose
 
 ### Configuration Files
-- `pyproject.toml` - Package metadata, dependencies, build config
-- `requirements.txt` - User dependencies (runtime)
-- `requirements.lock` - Locked dependency versions (CI)
-- `requirements-build.txt` - Build-time dependencies
+- `pyproject.toml` - Package metadata, dependencies, optional-dependency groups (`dev`, `build`, `docs`), build config
+- `uv.lock` - Fully resolved, hash-verified dependency lockfile (managed by `uv lock`)
 - `pytest.ini` - pytest configuration
 - `.pre-commit-config.yaml` - Pre-commit hooks (ruff, etc.)
 - `dji-embed.spec` - PyInstaller spec for Windows EXE
@@ -367,22 +361,23 @@ See `docs/RELEASE.md` for detailed release procedures (maintainers only).
 ### Most Common Commands
 ```bash
 # Development
-pytest -q                           # Run tests
-dji-embed doctor                    # System diagnostics
-dji-embed check samples/            # Verify samples
+uv sync --extra dev                 # Install dev env
+uv run pytest -q                    # Run tests
+uv run dji-embed doctor             # System diagnostics
+uv run dji-embed check samples/     # Verify samples
 
 # User operations
-dji-embed embed /path/to/footage    # Process videos
-dji-embed convert gpx file.SRT      # Export to GPX
-dji-embed validate /path/to/files   # Check sync
+uv run dji-embed embed /path/to/footage   # Process videos
+uv run dji-embed convert gpx file.SRT     # Export to GPX
+uv run dji-embed validate /path/to/files  # Check sync
 
 # Building
-python -m build                     # Build package
-pip install dist/*.whl              # Install locally
+uv sync --extra build               # Install build tools
+uv run python -m build              # Build sdist + wheel
 ```
 
 ### Important Reminders
-- ✅ Always run `pytest -q` before committing
+- ✅ Always run `uv run pytest -q` before committing
 - ✅ Use conventional commits for automatic changelog
 - ✅ Test on sample fixtures in `samples/` directory
 - ✅ Update documentation for user-facing changes

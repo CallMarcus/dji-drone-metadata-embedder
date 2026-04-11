@@ -39,26 +39,37 @@ The project supports major DJI models (Mini 3/4 Pro, Air 3, Avata 2, Mavic 3 Ent
    cd dji-drone-metadata-embedder
    ```
 
-2. **Set up development environment**:
+2. **Install [uv](https://docs.astral.sh/uv/)** (one-time):
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
-   pip install -U pip
-   pip install -e ".[dev]"
+   # macOS/Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   # Windows
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
 
-3. **Verify setup**:
+3. **Set up development environment**:
+   ```bash
+   uv sync --extra dev
+   ```
+   This creates a managed `.venv` and installs the project plus all dev
+   tools (pytest, ruff, mypy, etc.) from the pinned `uv.lock`.
+
+4. **Verify setup**:
    ```bash
    # Run tests
-   pytest -q
-   
+   uv run pytest -q
+
    # Test CLI
-   dji-embed --help
-   dji-embed doctor
-   
+   uv run dji-embed --help
+   uv run dji-embed doctor
+
    # Test with sample fixtures
-   dji-embed check samples/air3/
+   uv run dji-embed check samples/air3/
    ```
+
+   Tip: `uv run <cmd>` transparently activates the managed venv. If you
+   prefer an activated shell, run `source .venv/bin/activate` after the
+   first `uv sync`.
 
 ## 📝 **Code Style & Standards**
 
@@ -115,20 +126,20 @@ def parse_new_model_format(telemetry_line: str) -> Dict[str, Any]:
 2. **Test with real footage**: Verify with multiple SRT/MP4 files from your specific drone model
 3. **Validate output**: Check that GPS metadata is correctly embedded and JSON output is accurate
 4. **Cross-format compatibility**: Ensure existing formats still work correctly
-5. **Run full test suite**: Execute `pytest` to ensure no regressions
+5. **Run full test suite**: Execute `uv run pytest` to ensure no regressions
 
 ### Testing Commands
 ```bash
 # Test your changes with sample fixtures
-dji-embed embed samples/air3/ --verbose
+uv run dji-embed embed samples/air3/ --verbose
 
-# Test validation and drift analysis  
-dji-embed validate samples/ --format json
+# Test validation and drift analysis
+uv run dji-embed validate samples/ --format json
 
 # Check that CLI works as expected
-dji-embed doctor
-dji-embed --help
-dji-embed check samples/mini4pro/
+uv run dji-embed doctor
+uv run dji-embed --help
+uv run dji-embed check samples/mini4pro/
 ```
 
 ## 📚 **Documentation Updates**

@@ -1,90 +1,90 @@
-# Requirements Lock Policy
+# Dependency Lock Policy
 
-This project uses `requirements.lock` to ensure reproducible builds across different environments and CI runs.
+This project uses [`uv`](https://docs.astral.sh/uv/) with a checked-in
+`uv.lock` file to ensure reproducible builds across different environments
+and CI runs.
 
 ## Overview
 
-- **`requirements.lock`** - Contains exact pinned versions of all dependencies
-- **`pyproject.toml`** - Contains flexible version ranges for end users
-- **CI builds** use exact locked versions for consistency
-- **End users** get flexible ranges for compatibility
+- **`pyproject.toml`** — declares runtime dependencies and optional groups
+  (`dev`, `build`, `docs`) with flexible version ranges for end users.
+- **`uv.lock`** — contains the fully resolved, hash-verified versions of
+  every direct and transitive dependency. Checked into the repository.
+- **CI builds** consume `uv.lock` via `uv sync` for byte-identical installs.
+- **End users** installing with plain `pip install dji-drone-metadata-embedder`
+  still get the flexible ranges from `pyproject.toml`.
 
 ## Updating the Lock File
 
 ### When to Update
 
-Update `requirements.lock` when:
-- Adding new dependencies to `pyproject.toml`
-- Security vulnerabilities in pinned versions
-- Bug fixes in dependencies that affect our functionality
-- Monthly maintenance updates
+Regenerate `uv.lock` when:
+
+- Adding or removing dependencies in `pyproject.toml`
+- Security advisories affecting a pinned version
+- Bug fixes in a dependency we need
+- Routine maintenance (e.g. monthly dependency bumps)
 
 ### How to Update
 
-1. **Install current dependencies:**
+1. **Edit `pyproject.toml`** if you're adding or changing a dependency.
+
+2. **Regenerate the lock file:**
+
    ```bash
-   pip install -e .[dev]
+   uv lock
    ```
 
-2. **Generate new lock file:**
+   To bump everything to the latest compatible versions without touching
+   `pyproject.toml`:
+
    ```bash
-   pip freeze > requirements.lock.tmp
+   uv lock --upgrade
    ```
 
-3. **Clean up the lock file:**
-   - Remove `-e .` lines (our package)
-   - Remove unnecessary transitive dependencies
-   - Keep only production + dev dependencies
-   - Sort alphabetically by package name
+   To bump just one package:
 
-4. **Test the new lock:**
    ```bash
-   pip install -r requirements.lock.tmp
-   pytest
+   uv lock --upgrade-package ruff
    ```
 
-5. **Replace the old lock:**
+3. **Sync and run the tests** to make sure nothing broke:
+
    ```bash
-   mv requirements.lock.tmp requirements.lock
+   uv sync --extra dev
+   uv run pytest
+   uv run ruff check .
+   uv run mypy
    ```
 
-### Lock File Format
-
-```
-# Production dependencies
-click==8.1.6
-rich==13.7.1
-
-# Development dependencies  
-pytest==8.3.2
-black==24.4.2
-ruff==0.4.6
-mypy==1.8.0
-
-# Build dependencies
-build==1.2.1
-hatchling==1.25.0
-```
+4. **Commit the updated `uv.lock`** alongside any `pyproject.toml` changes
+   in the same commit so CI and local installs stay in sync.
 
 ## CI Integration
 
-The CI pipeline uses locked versions to ensure:
-- ✅ Consistent behavior across all builds
-- ✅ Early detection of dependency-related regressions  
-- ✅ Reproducible release artifacts
+The CI pipeline uses `uv sync` with the checked-in `uv.lock` so every job
+installs byte-identical dependencies. This gives us:
 
-Cache keys include `requirements.lock` hash to invalidate when dependencies change.
+- Consistent behaviour across all builds
+- Early detection of dependency-related regressions
+- Reproducible release artefacts
+- Hash-verified downloads (uv enforces this automatically)
+
+The GitHub Actions `astral-sh/setup-uv` action caches `~/.cache/uv` keyed
+on `uv.lock`, so lock-file changes automatically invalidate the cache.
 
 ## Troubleshooting
 
-### Lock file conflicts
-If `requirements.lock` causes installation issues:
-1. Check if your Python version is supported (3.10+)
-2. Try updating pip: `pip install --upgrade pip`
-3. Check for platform-specific dependency issues
+### `uv sync` fails locally
 
-### Outdated dependencies
-If dependencies become severely outdated:
-1. Follow the update process above
-2. Test thoroughly with the new versions
-3. Update any compatibility code if needed
+1. Make sure your Python version is supported (3.10+). `uv` can install a
+   matching interpreter for you with `uv python install 3.12`.
+2. Upgrade `uv` itself: `uv self update` (or reinstall from
+   <https://docs.astral.sh/uv/>).
+3. If the resolver reports a conflict, re-run `uv lock` to see the
+   constraint that's failing and adjust `pyproject.toml` accordingly.
+
+### Lock file drift
+
+If `uv.lock` is out of sync with `pyproject.toml`, `uv sync` will fail with
+a clear error. Run `uv lock` to regenerate, review the diff, then commit.

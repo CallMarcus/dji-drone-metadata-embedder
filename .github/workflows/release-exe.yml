@@ -28,9 +28,13 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.x'
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+      - name: Set up Python
+        run: uv python install 3.12
       - name: Sync and verify project version
         shell: pwsh
         run: |
@@ -40,17 +44,14 @@ jobs:
             $tag = '${{ github.event.workflow_run.head_branch }}'
             $tag = $tag.TrimStart('v')
           }
-          python tools/sync_version.py $tag
-          python tools/sync_version.py $tag --check
+          uv run python tools/sync_version.py $tag
+          uv run python tools/sync_version.py $tag --check
       - name: Install dependencies
         shell: pwsh
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install -r requirements-build.txt
+        run: uv sync --extra build
       - name: Build EXE
         shell: pwsh
-        run: python tools/build_exe.py
+        run: uv run python tools/build_exe.py
       - name: Download wheel from PyPI
         shell: pwsh
         run: |
@@ -61,7 +62,7 @@ jobs:
             $tag = '${{ github.event.workflow_run.head_branch }}'
             $ver = $tag.TrimStart('v')
           }
-          pip download dji-drone-metadata-embedder==$ver --no-deps -d dist
+          uv run pip download dji-drone-metadata-embedder==$ver --no-deps -d dist
       - name: Generate SHA256SUMS.txt
         shell: pwsh
         run: |
