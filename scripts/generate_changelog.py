@@ -18,7 +18,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
 
 # Conventional commit type mappings to changelog sections
@@ -111,7 +111,7 @@ def get_commits_since_tag(since_tag: Optional[str] = None) -> List[Dict]:
     
     try:
         output = run_git_command(["log", "--oneline", "--no-merges", commit_range])
-    except:
+    except Exception:
         # If no commits found, try getting recent commits
         output = run_git_command(["log", "--oneline", "--no-merges", "-10"])
     
@@ -140,8 +140,8 @@ def get_latest_release_tag() -> Optional[str]:
         for tag in tags:
             if re.match(version_pattern, tag.strip()):
                 return tag.strip()
-                
-    except:
+
+    except Exception:
         pass
     
     return None
@@ -196,7 +196,7 @@ def generate_changelog_section(commits: List[Dict], version: str = "Unreleased")
     
     # Build section
     if version == "Unreleased":
-        section = f"## [Unreleased]\n\n"
+        section = "## [Unreleased]\n\n"
     else:
         date = datetime.now().strftime("%Y-%m-%d")
         section = f"## [{version}] - {date}\n\n"

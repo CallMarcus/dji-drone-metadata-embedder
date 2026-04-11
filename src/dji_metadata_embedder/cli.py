@@ -61,12 +61,12 @@ def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> N
 @click.pass_context
 def main(ctx: click.Context, log_json: bool) -> None:
     """DJI Metadata Embedder - Embed drone telemetry into videos.
-    
+
     Available commands:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4 pairs and report drift
-      export    Export telemetry to GPX or CSV formats
-      probe     Analyze video files for embedded metadata
+      convert   Convert SRT telemetry to GPX or CSV formats
+      check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
     """
     ctx.ensure_object(dict)
@@ -185,9 +185,9 @@ def doctor(ctx: click.Context, verbose: bool, quiet: bool) -> None:
     setup_logging(verbose, quiet, log_json)
     
     try:
-        result = run_doctor()
+        run_doctor()
         if log_json:
-            click.echo(json.dumps({"status": "success", "doctor_result": result}))
+            click.echo(json.dumps({"status": "success"}))
         sys.exit(ExitCode.SUCCESS)
     except Exception as e:
         error_msg = f"Doctor check failed: {e}"
@@ -196,30 +196,6 @@ def doctor(ctx: click.Context, verbose: bool, quiet: bool) -> None:
         else:
             click.echo(f"Error: {error_msg}", err=True)
         sys.exit(ExitCode.GENERAL_ERROR)
-
-
-# Legacy command aliases for backward compatibility
-@main.command(hidden=True)
-@click.argument("paths", nargs=-1, type=click.Path())
-@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
-@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
-@click.pass_context
-def check_legacy(ctx: click.Context, paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
-    """Legacy alias for 'probe' command."""
-    ctx.invoke(probe, paths=paths, verbose=verbose, quiet=quiet)
-
-
-@main.command(hidden=True)
-@click.argument("command", type=click.Choice(["gpx", "csv"], case_sensitive=False))
-@click.argument("input", type=click.Path(exists=True))
-@click.option("-o", "--output", type=click.Path())
-@click.option("-b", "--batch", is_flag=True, help="Batch process directory")
-@click.option("-v", "--verbose", is_flag=True)
-@click.option("-q", "--quiet", is_flag=True)
-@click.pass_context
-def convert_legacy(ctx: click.Context, command: str, input: str, output: str | None, batch: bool, verbose: bool, quiet: bool) -> None:
-    """Legacy alias for 'export' command."""
-    ctx.invoke(export, format=command, input=input, output=output, batch=batch, verbose=verbose, quiet=quiet)
 
 
 # New validate command for M3 milestone

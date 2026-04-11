@@ -7,7 +7,7 @@ import dji_metadata_embedder.utilities as utils
 
 
 def test_version_shows_tool_versions(monkeypatch):
-    def fake_run(cmd, capture_output, text, check, shell=False):
+    def fake_run(cmd, *args, **kwargs):
         if cmd[0] == "ffmpeg":
             return subprocess.CompletedProcess(
                 cmd, 0, stdout="ffmpeg version 6.1\n", stderr=""
@@ -23,5 +23,5 @@ def test_version_shows_tool_versions(monkeypatch):
     assert result.exit_code == 0
     output = result.output.strip().splitlines()
     assert output[0] == f"dji-embed {__version__}"
-    assert "ffmpeg version 6.1" in output[1]
-    assert "exiftool 12.34" in output[2]
+    assert output[1] == "ffmpeg 6.1"
+    assert output[2] == "exiftool 12.34"
