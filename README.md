@@ -56,7 +56,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 <details>
 <summary>Advanced</summary>
 
-- Build from source with `pip install -r requirements.txt`
+- Build from source with `uv sync --extra dev` (or `pip install -e .`)
 - Use the provided `Dockerfile` for custom images
 - Review CI scripts under `.github/workflows`
 

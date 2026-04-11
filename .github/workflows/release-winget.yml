@@ -21,9 +21,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.x'
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+      - name: Set up Python
+        run: uv python install 3.12
       - name: Verify tag matches project version
         shell: pwsh
         run: |
@@ -31,9 +35,9 @@ jobs:
             $version = '${{ inputs.version }}'
           } else {
             # For workflow_run, get version from current project files since head_branch is unreliable
-            $version = (python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
+            $version = (uv run python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
           }
-          python tools/sync_version.py $version --check
+          uv run python tools/sync_version.py $version --check
       - name: Install wingetcreate
         shell: pwsh
         run: |
@@ -50,7 +54,7 @@ jobs:
             $tag = "v$version"
           } else {
             # For workflow_run, get version from current project files
-            $version = (python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
+            $version = (uv run python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
             $tag = "v$version"
           }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"

@@ -30,11 +30,29 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+# Dev tool versions are pinned to the same set the project used under pip +
+# requirements.lock prior to the uv migration (#164), so `uv sync` reproduces
+# the historical CI behaviour exactly. Bump them in a dedicated PR.
 dev = [
-    "pytest>=6.0",
-    "black",
-    "ruff",
-    "mypy",
+    "pytest==8.3.2",
+    "pytest-cov==5.0.0",
+    "coverage==7.6.0",
+    "black==24.4.2",
+    "ruff==0.4.6",
+    "mypy==1.8.0",
+    "types-click==7.1.8",
+]
+build = [
+    "build==1.2.1",
+    "hatchling==1.25.0",
+    "twine==5.1.1",
+    "pyinstaller>=6.0.0",
+    "setuptools>=65.0.0",
+    "wheel>=0.38.0",
+]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocstrings[python]>=0.24",
 ]
 
 [project.urls]

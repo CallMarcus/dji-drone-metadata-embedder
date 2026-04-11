@@ -20,13 +20,17 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.11'
-      - run: |
-          pip install -e .
-          pip install -r docs/requirements.txt
-      - run: mkdocs build --strict
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+      - name: Set up Python
+        run: uv python install 3.11
+      - name: Install dependencies
+        run: uv sync --extra docs
+      - name: Build docs
+        run: uv run mkdocs build --strict
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
