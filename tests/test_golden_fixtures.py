@@ -253,15 +253,6 @@ class TestUnitNormalization:
         result = normalize_telemetry_units(points)
         assert any("altitude changes" in str(w) for w in result["warnings"])
     
-    @pytest.mark.xfail(
-        reason=(
-            "normalize_telemetry_units hardcodes time_diff=1/30s (30fps) instead "
-            "of parsing the HH:MM:SS timestamps it already collects, so this "
-            "1-second-interval sample is treated as 33ms and speed is ~50x too "
-            "high. Fix requires real timestamp parsing — tracked separately."
-        ),
-        strict=True,
-    )
     def test_speed_calculation(self):
         """Test speed calculation and unrealistic speed detection."""
         # Realistic movement

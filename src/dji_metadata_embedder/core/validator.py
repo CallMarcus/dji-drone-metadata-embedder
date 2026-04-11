@@ -2,12 +2,35 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Optional, Tuple
 import re
 from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
+
+
+# Accepts "HH:MM:SS", "HH:MM:SS,mmm" (SRT standard) and "HH:MM:SS.mmm".
+# Hours may be 1+ digits; minutes/seconds are 1–2 digits.
+_TIMESTAMP_RE = re.compile(r"^(\d+):(\d{1,2}):(\d{1,2})(?:[.,](\d+))?$")
+
+
+def _timestamp_to_seconds(timestamp: str) -> Optional[float]:
+    """Parse an SRT-style ``HH:MM:SS[,.]mmm`` timestamp into seconds.
+
+    Returns ``None`` for empty or unparseable input so callers can skip pairs
+    rather than aborting the whole calculation.
+    """
+    if not timestamp:
+        return None
+    match = _TIMESTAMP_RE.match(timestamp.strip())
+    if not match:
+        return None
+    hours, minutes, seconds, fractional = match.groups()
+    total = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+    if fractional:
+        total += int(fractional) / (10 ** len(fractional))
+    return float(total)
 
 
 class Validator:
@@ -379,20 +402,36 @@ def normalize_telemetry_units(telemetry_data: List[Tuple[float, float, float, st
     
     # Speed calculations (if we have timestamps)
     timestamps = [point[3] for point in telemetry_data if len(point) > 3]
-    if len(timestamps) > 1 and len(latitudes) > 1:
+    if len(timestamps) == len(telemetry_data) and len(telemetry_data) > 1:
         try:
             speeds = []
+            skipped_pairs = 0
             for i in range(1, len(telemetry_data)):
-                lat1, lon1, _ = latitudes[i-1], longitudes[i-1], altitudes[i-1]
-                lat2, lon2, _ = latitudes[i], longitudes[i], altitudes[i]
-                
+                lat1, lon1 = latitudes[i-1], longitudes[i-1]
+                lat2, lon2 = latitudes[i], longitudes[i]
+
+                # Parse real SRT timestamps instead of assuming a fixed frame rate.
+                t1 = _timestamp_to_seconds(timestamps[i-1])
+                t2 = _timestamp_to_seconds(timestamps[i])
+                if t1 is None or t2 is None:
+                    skipped_pairs += 1
+                    continue
+                time_diff = t2 - t1
+                if time_diff <= 0:
+                    # Non-monotonic or duplicate timestamps — can't compute speed.
+                    skipped_pairs += 1
+                    continue
+
                 # Simple distance calculation (not geodesic, but good enough for sanity check)
                 dist = ((lat2-lat1)**2 + (lon2-lon1)**2)**0.5 * 111000  # Rough conversion to meters
-                
-                # Time difference (assuming 30fps for now)
-                time_diff = 1/30.0  # seconds
-                speed = dist / time_diff if time_diff > 0 else 0
+
+                speed = dist / time_diff
                 speeds.append(speed)
+
+            if skipped_pairs:
+                result["warnings"].append(
+                    f"Skipped {skipped_pairs} telemetry pair(s) with unparseable or non-monotonic timestamps"
+                )
             
             if speeds:
                 max_speed = max(speeds)
