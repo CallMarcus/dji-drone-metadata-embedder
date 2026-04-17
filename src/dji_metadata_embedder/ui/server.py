@@ -10,9 +10,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 try:
-    from flask import Flask, abort, g, render_template, request
+    from flask import Flask, abort, g, jsonify, render_template, request
 except ImportError:  # pragma: no cover - exercised at runtime via CLI
     Flask = None  # type: ignore[assignment]
+
+from .. import __version__
 
 
 logger = logging.getLogger(__name__)
@@ -94,6 +96,27 @@ def create_app(token: str) -> "Flask":
     @app.route("/")
     def _home():
         return render_template("index.html", token=token)
+
+    @app.route("/api/doctor")
+    def _api_doctor():
+        from ..utilities import check_dependencies, get_tool_versions
+        from ..utils import system_info
+
+        try:
+            sys_info = system_info.get_system_summary()
+        except Exception as exc:  # defensive - system_info shells out
+            sys_info = {"error": str(exc)}
+        versions = get_tool_versions()
+        deps_ok, missing = check_dependencies()
+        return jsonify(
+            {
+                "app_version": __version__,
+                "system": sys_info,
+                "tools": versions,
+                "dependencies_ok": deps_ok,
+                "missing": missing,
+            }
+        )
 
     return app
 

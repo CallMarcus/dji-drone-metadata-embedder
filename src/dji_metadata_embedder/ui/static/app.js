@@ -31,8 +31,48 @@
     };
   }
 
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+  }
+
+  function kvList(obj) {
+    return Object.entries(obj)
+      .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
+      .join("");
+  }
+
+  async function renderDoctor(root) {
+    root.innerHTML = '<section class="panel"><p class="muted">Loading…</p></section>';
+    try {
+      const d = await api("/api/doctor");
+      const status = d.dependencies_ok
+        ? '<span class="ok">All dependencies verified</span>'
+        : `<span class="err">Missing: ${d.missing.map(esc).join(", ")}</span>`;
+      const tools = Object.entries(d.tools)
+        .map(([name, ver]) => {
+          const ok = ver && ver !== "not available";
+          const cls = ok ? "ok" : "err";
+          return `<dt>${esc(name)}</dt><dd class="${cls}">${esc(ver || "not available")}</dd>`;
+        })
+        .join("");
+      root.innerHTML = `
+        <section class="panel">
+          <h2>Doctor</h2>
+          <p>dji-embed ${esc(d.app_version)} — ${status}</p>
+          <h3>External tools</h3>
+          <dl class="kv">${tools}</dl>
+          <h3>System</h3>
+          <dl class="kv">${kvList(d.system)}</dl>
+        </section>`;
+    } catch (e) {
+      root.innerHTML = `<section class="panel"><p class="err">Error: ${esc(e.message)}</p></section>`;
+    }
+  }
+
   const routes = {
-    doctor: stub("Doctor tab — wiring in a later commit."),
+    doctor: renderDoctor,
     embed: stub("Embed tab — wiring in a later commit."),
     validate: stub("Validate tab — wiring in a later commit."),
     convert: stub("Convert tab — wiring in a later commit."),
