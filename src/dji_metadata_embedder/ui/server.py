@@ -244,6 +244,7 @@ def create_app(token: str) -> "Flask":
         job = registry().get(job_id)
         if job is None:
             abort(404)
+        assert job is not None
         return jsonify(job.to_json())
 
     @app.route("/api/jobs/<job_id>/cancel", methods=["POST"])
@@ -253,6 +254,7 @@ def create_app(token: str) -> "Flask":
         job = registry().get(job_id)
         if job is None:
             abort(404)
+        assert job is not None
         job.request_cancel()
         return jsonify(job.to_json())
 
@@ -263,6 +265,7 @@ def create_app(token: str) -> "Flask":
         job = registry().get(job_id)
         if job is None:
             abort(404)
+        assert job is not None
         start = int(request.args.get("from", 0))
 
         def _stream():
