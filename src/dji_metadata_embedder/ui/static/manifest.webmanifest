@@ -1,0 +1,24 @@
+{
+  "name": "dji-embed",
+  "short_name": "dji-embed",
+  "description": "Embed DJI drone telemetry into videos",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0f1220",
+  "background_color": "#0f1220",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ]
+}

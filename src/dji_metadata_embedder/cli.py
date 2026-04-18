@@ -68,6 +68,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       convert   Convert SRT telemetry to GPX or CSV formats
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
+      ui        Launch the local web UI in your browser
     """
     ctx.ensure_object(dict)
     ctx.obj['log_json'] = log_json
@@ -261,6 +262,41 @@ def validate(
         else:
             click.echo(f"Error: {error_msg}", err=True)
         sys.exit(ExitCode.GENERAL_ERROR)
+
+
+@main.command()
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="Host to bind. Only 127.0.0.1/localhost are intended for use.",
+)
+@click.option(
+    "--port",
+    type=int,
+    default=None,
+    help="Port to bind (default: a random free port).",
+)
+@click.option(
+    "--no-browser",
+    is_flag=True,
+    help="Do not open the browser automatically.",
+)
+def ui(host: str, port: int | None, no_browser: bool) -> None:
+    """Launch the local web UI in your default browser.
+
+    Requires the ``[ui]`` extra:
+
+        pip install 'dji-drone-metadata-embedder[ui]'
+    """
+    try:
+        from .ui.server import run_server
+    except ImportError as exc:  # pragma: no cover - defensive
+        raise click.ClickException(f"UI module could not be loaded: {exc}")
+    try:
+        run_server(host=host, port=port, open_browser=not no_browser)
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc))
 
 
 if __name__ == "__main__":  # pragma: no cover

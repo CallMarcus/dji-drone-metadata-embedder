@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>dji-embed</title>
+  <meta name="djiembed-token" content="{{ token }}">
+  <meta name="theme-color" content="#0f1220">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>dji-embed</h1>
+    <p class="banner">Local use only &mdash; do not expose this server.</p>
+  </header>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#/doctor" class="tab" data-tab="doctor">Doctor</a>
+    <a href="#/embed" class="tab" data-tab="embed">Embed</a>
+    <a href="#/validate" class="tab" data-tab="validate">Validate</a>
+    <a href="#/convert" class="tab" data-tab="convert">Convert</a>
+    <a href="#/check" class="tab" data-tab="check">Check</a>
+  </nav>
+  <main id="app" class="content"></main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

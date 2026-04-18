@@ -112,9 +112,11 @@ dji-embed [OPTIONS] COMMAND [ARGS]...
 
 Commands:
   embed    Embed telemetry from SRT files into MP4 videos
-  check    Check media files for embedded metadata
+  validate Validate SRT/MP4 pairs and report drift
   convert  Convert SRT telemetry to GPX or CSV
+  check    Check media files for embedded metadata
   doctor   Show system information and verify dependencies
+  ui       Launch the local web UI in your browser
   wizard   Launch interactive setup wizard
   gui      Launch graphical interface (placeholder)
   init     Perform initial setup (placeholder)
@@ -123,6 +125,24 @@ Global Options:
   --version   Show the version and exit
   -h, --help  Show this message and exit
 ```
+
+### Web UI (optional)
+
+Prefer a browser over the terminal? Install the `[ui]` extra and launch the
+local UI — it runs entirely on `127.0.0.1` and uses your installed browser,
+so there is no separate signed app to trust.
+
+```bash
+pip install 'dji-drone-metadata-embedder[ui]'
+dji-embed ui                       # opens http://127.0.0.1:<free-port>
+dji-embed ui --no-browser          # print the URL instead of opening
+dji-embed ui --port 8765           # pin to a fixed port
+```
+
+Every tab (Doctor / Embed / Validate / Convert / Check) is a thin wrapper
+over the matching CLI command. Access is gated by a per-session token that
+is injected into the opened URL; requests without the token return `403`.
+Chromium-based browsers will offer "Install app" for a standalone window.
 
 ### Embed Command Options
 

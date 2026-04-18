@@ -54,6 +54,10 @@ docs = [
     "mkdocs>=1.5",
     "mkdocstrings[python]>=0.24",
 ]
+# Local web UI served by `dji-embed ui`. Optional so the base install stays lean.
+ui = [
+    "flask>=3.0,<4.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/CallMarcus/dji-drone-metadata-embedder"
