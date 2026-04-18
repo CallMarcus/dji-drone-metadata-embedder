@@ -100,3 +100,46 @@ pre {
 
 .panel h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
 .panel h3 { margin: 1rem 0 .5rem; font-size: .95rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+form label {
+  display: block;
+  margin: .75rem 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+form label input[type="text"],
+form label select {
+  display: block;
+  margin-top: .25rem;
+  width: 100%;
+  max-width: 520px;
+  color: var(--fg);
+}
+form label input[type="checkbox"] {
+  margin-right: .4rem;
+  vertical-align: middle;
+}
+details {
+  margin: 1rem 0;
+  padding: .5rem .75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+details summary {
+  cursor: pointer;
+  color: var(--muted);
+  list-style: revert;
+}
+details[open] > summary { color: var(--fg); margin-bottom: .25rem; }
+
+.actions { margin-top: 1rem; display: flex; gap: .5rem; }
+
+#job-status { margin: .75rem 0 .25rem; }
+#job-log {
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 2rem;
+}

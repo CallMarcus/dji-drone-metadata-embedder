@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 import socket
+import sys
 import webbrowser
 from pathlib import Path
 from typing import Any, Callable
 
 try:
-    from flask import Flask, abort, g, jsonify, render_template, request
+    from flask import Flask, Response, abort, g, jsonify, render_template, request, stream_with_context
 except ImportError:  # pragma: no cover - exercised at runtime via CLI
     Flask = None  # type: ignore[assignment]
 
@@ -116,6 +118,97 @@ def create_app(token: str) -> "Flask":
                 "dependencies_ok": deps_ok,
                 "missing": missing,
             }
+        )
+
+    @app.route("/api/recent-folders")
+    def _api_recent_folders():
+        from . import state
+
+        return jsonify({"folders": state.get_recent_folders()})
+
+    @app.route("/api/jobs/embed", methods=["POST"])
+    def _api_start_embed():
+        from . import state
+        from .jobs import registry, run_subprocess_job
+
+        body = request.get_json(silent=True) or {}
+        directory = (body.get("directory") or "").strip()
+        if not directory:
+            return jsonify({"error": "directory is required"}), 400
+        target = Path(directory).expanduser()
+        if not target.is_dir():
+            return jsonify({"error": f"Not a directory: {directory}"}), 400
+
+        cmd: list[str] = [
+            sys.executable,
+            "-m",
+            "dji_metadata_embedder",
+            "embed",
+            str(target),
+        ]
+        if body.get("overwrite"):
+            cmd.append("--overwrite")
+        elif body.get("output"):
+            cmd += ["-o", str(body["output"])]
+        if body.get("exiftool"):
+            cmd.append("--exiftool")
+        if body.get("dat_auto"):
+            cmd.append("--dat-auto")
+        dat = (body.get("dat") or "").strip()
+        if dat:
+            cmd += ["--dat", dat]
+        redact = (body.get("redact") or "none").strip().lower()
+        if redact in {"drop", "fuzz"}:
+            cmd += ["--redact", redact]
+        if body.get("verbose"):
+            cmd.append("-v")
+
+        state.add_recent_folder(str(target))
+        job = registry().create("embed")
+        run_subprocess_job(job, cmd)
+        return jsonify({"job_id": job.id})
+
+    @app.route("/api/jobs/<job_id>")
+    def _api_job_status(job_id: str):
+        from .jobs import registry
+
+        job = registry().get(job_id)
+        if job is None:
+            abort(404)
+        return jsonify(job.to_json())
+
+    @app.route("/api/jobs/<job_id>/cancel", methods=["POST"])
+    def _api_job_cancel(job_id: str):
+        from .jobs import registry
+
+        job = registry().get(job_id)
+        if job is None:
+            abort(404)
+        job.request_cancel()
+        return jsonify(job.to_json())
+
+    @app.route("/api/jobs/<job_id>/events")
+    def _api_job_events(job_id: str):
+        from .jobs import registry
+
+        job = registry().get(job_id)
+        if job is None:
+            abort(404)
+        start = int(request.args.get("from", 0))
+
+        def _stream():
+            yield "retry: 2000\n\n"
+            for event in job.subscribe(start=start):
+                yield f"data: {json.dumps(event)}\n\n"
+
+        return Response(
+            stream_with_context(_stream()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
         )
 
     return app
