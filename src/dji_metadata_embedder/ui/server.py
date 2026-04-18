@@ -126,6 +126,35 @@ def create_app(token: str) -> "Flask":
 
         return jsonify({"folders": state.get_recent_folders()})
 
+    @app.route("/api/convert", methods=["POST"])
+    def _api_convert():
+        from ..telemetry_converter import (
+            extract_telemetry_to_csv,
+            extract_telemetry_to_gpx,
+        )
+
+        body = request.get_json(silent=True) or {}
+        srt = (body.get("srt") or "").strip()
+        fmt = (body.get("format") or "").strip().lower()
+        if not srt:
+            return jsonify({"error": "srt is required"}), 400
+        if fmt not in {"gpx", "csv"}:
+            return jsonify({"error": "format must be 'gpx' or 'csv'"}), 400
+        srt_path = Path(srt).expanduser()
+        if not srt_path.is_file():
+            return jsonify({"error": f"SRT file not found: {srt}"}), 400
+
+        output = (body.get("output") or "").strip()
+        output_path = Path(output).expanduser() if output else None
+        try:
+            if fmt == "gpx":
+                result = extract_telemetry_to_gpx(srt_path, output_path)
+            else:
+                result = extract_telemetry_to_csv(srt_path, output_path)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+        return jsonify({"output": str(result), "format": fmt})
+
     @app.route("/api/validate", methods=["POST"])
     def _api_validate():
         from ..core.validator import validate_directory

@@ -256,11 +256,62 @@
     });
   }
 
+  function renderConvert(root) {
+    root.innerHTML = `
+      <section class="panel">
+        <h2>Convert</h2>
+        <form id="convert-form">
+          <label>SRT file
+            <input type="text" name="srt" required placeholder="/path/to/DJI_0001.SRT">
+          </label>
+          <label>Format
+            <select name="format">
+              <option value="gpx">GPX</option>
+              <option value="csv">CSV</option>
+            </select>
+          </label>
+          <label>Output path <span class="muted">(optional; defaults next to source)</span>
+            <input type="text" name="output" placeholder="leave blank to use default">
+          </label>
+          <div class="actions">
+            <button type="submit">Convert</button>
+          </div>
+        </form>
+        <div id="convert-result"></div>
+      </section>`;
+
+    const form = root.querySelector("#convert-form");
+    const out = root.querySelector("#convert-result");
+    const runBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      out.innerHTML = '<p class="muted">Converting…</p>';
+      runBtn.disabled = true;
+      try {
+        const r = await api("/api/convert", {
+          method: "POST",
+          body: JSON.stringify({
+            srt: fd.get("srt"),
+            format: fd.get("format"),
+            output: fd.get("output"),
+          }),
+        });
+        out.innerHTML = `<p class="ok">Wrote ${esc(r.format.toUpperCase())}: <code>${esc(r.output)}</code></p>`;
+      } catch (e) {
+        out.innerHTML = `<p class="err">Error: ${esc(e.message)}</p>`;
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  }
+
   const routes = {
     doctor: renderDoctor,
     embed: renderEmbed,
     validate: renderValidate,
-    convert: stub("Convert tab — wiring in a later commit."),
+    convert: renderConvert,
     check: stub("Check tab — wiring in a later commit."),
   };
 
