@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>dji-embed</title>
   <meta name="djiembed-token" content="{{ token }}">
+  <meta name="theme-color" content="#0f1220">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
 <body>

@@ -372,4 +372,12 @@
   window.djiEmbed = { api, routes, render };
   window.addEventListener("hashchange", render);
   window.addEventListener("DOMContentLoaded", render);
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Service worker is nice-to-have; ignore failures.
+      });
+    });
+  }
 })();

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="dji-embed">
+  <rect width="512" height="512" rx="96" fill="#0f1220"/>
+  <circle cx="256" cy="256" r="128" fill="none" stroke="#4c9aff" stroke-width="28"/>
+  <circle cx="256" cy="256" r="26" fill="#4c9aff"/>
+  <circle cx="112" cy="112" r="32" fill="#1e2538"/>
+  <circle cx="400" cy="112" r="32" fill="#1e2538"/>
+  <circle cx="112" cy="400" r="32" fill="#1e2538"/>
+  <circle cx="400" cy="400" r="32" fill="#1e2538"/>
+</svg>

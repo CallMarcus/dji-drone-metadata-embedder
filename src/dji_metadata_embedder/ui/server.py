@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 _PACKAGE_DIR = Path(__file__).resolve().parent
 _COOKIE_NAME = "djiembed_token"
 _PUBLIC_PREFIXES = ("/static/",)
-_PUBLIC_PATHS = frozenset({"/healthz"})
+_PUBLIC_PATHS = frozenset({"/healthz", "/sw.js"})
 _FLASK_INSTALL_HINT = (
     "Flask is not installed. Install the UI extra:\n"
     "    pip install 'dji-drone-metadata-embedder[ui]'"
@@ -94,6 +94,11 @@ def create_app(token: str) -> "Flask":
     @app.route("/healthz")
     def _healthz():
         return {"ok": True}
+
+    @app.route("/sw.js")
+    def _service_worker():
+        # Served from root so its scope covers the whole origin.
+        return app.send_static_file("sw.js")
 
     @app.route("/")
     def _home():
