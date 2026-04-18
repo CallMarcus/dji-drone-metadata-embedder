@@ -186,10 +186,80 @@
     });
   }
 
+  async function renderValidate(root) {
+    let recents = { folders: [] };
+    try { recents = await api("/api/recent-folders"); } catch (_) {}
+    const recentOpts = recents.folders.map((f) => `<option value="${esc(f)}">`).join("");
+
+    root.innerHTML = `
+      <section class="panel">
+        <h2>Validate</h2>
+        <form id="validate-form">
+          <label>Folder with SRT/MP4 pairs
+            <input type="text" name="directory" list="validate-recents" required placeholder="/path/to/footage">
+          </label>
+          <datalist id="validate-recents">${recentOpts}</datalist>
+          <label>Drift threshold (seconds)
+            <input type="number" name="drift_threshold" step="0.1" min="0" value="1.0">
+          </label>
+          <div class="actions">
+            <button type="submit">Run</button>
+          </div>
+        </form>
+        <div id="validate-result"></div>
+      </section>`;
+
+    const form = root.querySelector("#validate-form");
+    const out = root.querySelector("#validate-result");
+    const runBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const body = {
+        directory: fd.get("directory"),
+        drift_threshold: parseFloat(fd.get("drift_threshold") || "1.0"),
+      };
+      out.innerHTML = '<p class="muted">Scanning…</p>';
+      runBtn.disabled = true;
+      try {
+        const r = await api("/api/validate", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        const issuesHtml = (r.issues || []).length
+          ? `<h3>Issues</h3><ul>${r.issues.map((i) => `<li class="err">${esc(i)}</li>`).join("")}</ul>`
+          : "";
+        const warningsHtml = (r.warnings || []).length
+          ? `<h3>Warnings</h3><ul>${r.warnings.map((w) => `<li class="warn">${esc(w)}</li>`).join("")}</ul>`
+          : "";
+        const filesHtml = (r.file_analyses || []).length
+          ? `<h3>Files</h3>
+             <table class="table">
+               <thead><tr><th>File</th><th>Valid</th><th>SRT points</th><th>Drift (s)</th></tr></thead>
+               <tbody>${r.file_analyses.map((f) => `
+                 <tr>
+                   <td>${esc(f.srt_file ? f.srt_file.split(/[\\/]/).pop() : "—")}</td>
+                   <td class="${f.valid ? "ok" : "err"}">${f.valid ? "yes" : "no"}</td>
+                   <td>${esc(f.srt_points ?? "—")}</td>
+                   <td>${esc(f.drift_seconds ?? "—")}</td>
+                 </tr>`).join("")}</tbody>
+             </table>`
+          : "";
+        const summary = `<p>Total: <strong>${r.total_files}</strong> &middot; Valid pairs: <strong class="${r.valid_pairs === r.total_files && r.total_files > 0 ? "ok" : "warn"}">${r.valid_pairs}</strong></p>`;
+        out.innerHTML = summary + issuesHtml + warningsHtml + filesHtml;
+      } catch (e) {
+        out.innerHTML = `<p class="err">Error: ${esc(e.message)}</p>`;
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  }
+
   const routes = {
     doctor: renderDoctor,
     embed: renderEmbed,
-    validate: stub("Validate tab — wiring in a later commit."),
+    validate: renderValidate,
     convert: stub("Convert tab — wiring in a later commit."),
     check: stub("Check tab — wiring in a later commit."),
   };

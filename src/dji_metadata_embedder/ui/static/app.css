@@ -143,3 +143,16 @@ details[open] > summary { color: var(--fg); margin-bottom: .25rem; }
   word-break: break-word;
   min-height: 2rem;
 }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: .5rem 0 1rem;
+  font-size: .9rem;
+}
+.table th, .table td {
+  text-align: left;
+  padding: .4rem .5rem;
+  border-bottom: 1px solid var(--border);
+}
+.table th { color: var(--muted); font-weight: 500; }

@@ -126,6 +126,27 @@ def create_app(token: str) -> "Flask":
 
         return jsonify({"folders": state.get_recent_folders()})
 
+    @app.route("/api/validate", methods=["POST"])
+    def _api_validate():
+        from ..core.validator import validate_directory
+
+        body = request.get_json(silent=True) or {}
+        directory = (body.get("directory") or "").strip()
+        if not directory:
+            return jsonify({"error": "directory is required"}), 400
+        target = Path(directory).expanduser()
+        if not target.is_dir():
+            return jsonify({"error": f"Not a directory: {directory}"}), 400
+        try:
+            threshold = float(body.get("drift_threshold", 1.0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "drift_threshold must be a number"}), 400
+
+        from . import state
+        state.add_recent_folder(str(target))
+        result = validate_directory(target, drift_threshold=threshold)
+        return jsonify(result)
+
     @app.route("/api/jobs/embed", methods=["POST"])
     def _api_start_embed():
         from . import state
