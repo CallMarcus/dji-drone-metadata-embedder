@@ -307,12 +307,59 @@
     });
   }
 
+  function renderCheck(root) {
+    root.innerHTML = `
+      <section class="panel">
+        <h2>Check</h2>
+        <p class="muted">Inspect a single media file for embedded GPS, altitude, and creation time metadata.</p>
+        <form id="check-form">
+          <label>File path
+            <input type="text" name="path" required placeholder="/path/to/DJI_0001.MP4">
+          </label>
+          <div class="actions">
+            <button type="submit">Check</button>
+          </div>
+        </form>
+        <div id="check-result"></div>
+      </section>`;
+
+    const form = root.querySelector("#check-form");
+    const out = root.querySelector("#check-result");
+    const runBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const path = new FormData(form).get("path");
+      out.innerHTML = '<p class="muted">Checking…</p>';
+      runBtn.disabled = true;
+      try {
+        const r = await api("/api/check", {
+          method: "POST",
+          body: JSON.stringify({ path }),
+        });
+        const meta = r.metadata || {};
+        const rows = Object.entries(meta).length
+          ? Object.entries(meta).map(([k, v]) =>
+              `<dt>${esc(k)}</dt><dd class="${v ? "ok" : "err"}">${v ? "present" : "missing"}</dd>`
+            ).join("")
+          : '<dt class="muted">no data</dt><dd class="muted">(tool unavailable or unreadable file)</dd>';
+        out.innerHTML = `
+          <p class="muted"><code>${esc(r.path)}</code></p>
+          <dl class="kv">${rows}</dl>`;
+      } catch (e) {
+        out.innerHTML = `<p class="err">Error: ${esc(e.message)}</p>`;
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  }
+
   const routes = {
     doctor: renderDoctor,
     embed: renderEmbed,
     validate: renderValidate,
     convert: renderConvert,
-    check: stub("Check tab — wiring in a later commit."),
+    check: renderCheck,
   };
 
   function render() {

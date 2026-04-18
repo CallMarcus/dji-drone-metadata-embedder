@@ -126,6 +126,20 @@ def create_app(token: str) -> "Flask":
 
         return jsonify({"folders": state.get_recent_folders()})
 
+    @app.route("/api/check", methods=["POST"])
+    def _api_check():
+        from ..metadata_check import check_metadata
+
+        body = request.get_json(silent=True) or {}
+        path = (body.get("path") or "").strip()
+        if not path:
+            return jsonify({"error": "path is required"}), 400
+        target = Path(path).expanduser()
+        if not target.exists():
+            return jsonify({"error": f"Not found: {path}"}), 400
+        result = check_metadata(target)
+        return jsonify({"path": str(target), "metadata": result})
+
     @app.route("/api/convert", methods=["POST"])
     def _api_convert():
         from ..telemetry_converter import (
