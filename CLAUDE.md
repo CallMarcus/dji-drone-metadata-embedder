@@ -264,7 +264,6 @@ See `docs/RELEASE.md` for detailed release procedures (maintainers only).
 - `docs/SRT_FORMATS.md` - Technical format specifications
 - `docs/decision-table.md` - "Which command should I use?" guide
 - `docs/recipes.md` - End-to-end workflow examples
-- `docs/faq.md` - Frequently asked questions
 
 ---
 
@@ -338,7 +337,7 @@ See `docs/RELEASE.md` for detailed release procedures (maintainers only).
 ## 13. Getting Help & Resources
 
 ### Documentation
-- **User Docs:** `docs/user_guide.md`, `docs/faq.md`
+- **User Docs:** `docs/user_guide.md`, `docs/decision-table.md`, `docs/recipes.md`
 - **Developer Docs:** `CONTRIBUTING.md`, this file (`CLAUDE.md`)
 - **Troubleshooting:** `docs/troubleshooting.md` (comprehensive!)
 - **API Reference:** `docs/api.md`

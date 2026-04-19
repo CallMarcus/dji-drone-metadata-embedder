@@ -13,6 +13,7 @@ This guide helps you choose the right command and approach for your specific use
 | **Check what's already there** | `dji-embed check` | Verify if videos already have metadata |
 | **Validate file quality** | `dji-embed validate` | Check for timing drift or file issues |
 | **System diagnostics** | `dji-embed doctor` | Troubleshoot installation or dependencies |
+| **Drive it from a browser** | `dji-embed ui` | You prefer a GUI; requires the `[ui]` extra |
 
 ---
 
