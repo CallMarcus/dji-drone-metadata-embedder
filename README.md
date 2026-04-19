@@ -22,23 +22,20 @@ Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md
 
 ## Easy Windows install
 
-### Option 1: Windows Package Manager (Recommended)
-```powershell
-winget install dji-embed
-```
-
-### Option 2: Bootstrap Script (Includes FFmpeg/ExifTool)
+### Option 1: Bootstrap Script (Includes FFmpeg/ExifTool)
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
-### Option 3: Direct Download
+### Option 2: Direct Download
 Download the ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
 
-### Option 4: Python Package
+### Option 3: Python Package
 ```powershell
 pip install dji-drone-metadata-embedder
 ```
+
+> **Windows Package Manager (winget)** — planned, not yet available. The package has not been published to `winget-pkgs` yet; tracking in [#175](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/175).
 
 ## macOS / Linux quick-start
 
