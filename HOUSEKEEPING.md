@@ -1,294 +1,117 @@
 # Repository Housekeeping Recommendations
 
-**Generated:** 2025-08-15
-**Current State:** 132 remote branches, production-ready codebase
+**Last refreshed:** 2026-04-19
+**Current state:** v1.2.0, production-ready, ~13 remote branches (13 at the
+time of writing), root directory already slim
 
 ---
 
-## 🎯 Executive Summary
+## Context
 
-This repository is production-ready but has accumulated **132 stale remote branches** and several development-only scripts in the root directory. Recommended cleanup will:
+This file started life in August 2025 as a cleanup plan for what was then a
+132-branch repository with several ad-hoc release scripts at the root. Most
+of that cleanup has already happened:
 
-- **Reduce clutter** by removing 125+ merged feature branches
-- **Improve clarity** by moving development scripts to appropriate locations
-- **Maintain functionality** by preserving all user-facing scripts and both test suites
+- **Branch count** is down from 132 to ~13 remote branches (`master`, active
+  `feat/*`, `fix/*`, `chore/*`, plus Dependabot and Claude session branches).
+- **Ad-hoc root scripts** (`create_github_release.ps1`, `create_release.ps1`,
+  `create_release.sh`, `get-exe-info.ps1`, `create-issues.ps1`,
+  `test-exe.ps1`) have all been removed. The only scripts still at the root
+  are the three user-facing convenience wrappers below.
+- **Cleanup scripts** `scripts/delete-stale-branches.sh` and
+  `scripts/delete-stale-branches.ps1` are still available when branches
+  accumulate again.
 
----
-
-## 📊 Current Status Analysis
-
-### Branch Inventory
-- **Total remote branches:** 132
-- **Current working branch:** `claude/review-repo-docs-015rE98NQRiYfUYiwJuxgCpG`
-- **Stale branch patterns:**
-  - `codex/*` - 80+ branches from AI agent development
-  - `feat/*`, `fix/*`, `ci/*`, `docs/*` - Feature branches (merged)
-  - `3l1c1y-codex/*` - Additional AI agent work
-  - Various one-off development branches
-
-### File Organization
-```
-Root Directory Issues:
-✅ KEEP: process_drone_footage.bat/sh (user convenience)
-✅ KEEP: run_diagnostic.bat (user convenience)
-⚠️ MOVE/REMOVE: create-issues.ps1 (dev helper)
-⚠️ MOVE/REMOVE: create_github_release.ps1 (ad-hoc v1.0.7 release)
-⚠️ MOVE/REMOVE: create_release.ps1/sh (ad-hoc release scripts)
-⚠️ MOVE/REMOVE: get-exe-info.ps1 (dev/testing)
-⚠️ DUPLICATE: test-exe.ps1 (exists in tools/)
-```
-
-### Test Directories (Both Legitimate)
-- **tests/** - Unit tests (pytest suite) - 14 test files
-- **validation_tests/** - Integration/E2E tests - 6 comprehensive test modules
-- **scripts/** - Development utilities (sample generation, changelog, etc.)
+This document is kept as a living reference for the ongoing "keep it tidy"
+work rather than as a one-shot cleanup plan.
 
 ---
 
-## 🧹 Cleanup Plan
+## Current layout
 
-### Phase 1: Branch Cleanup (High Impact)
+### Root scripts (all user-facing – keep)
 
-#### Recommended Actions:
+| File | Purpose |
+|------|---------|
+| `process_drone_footage.bat` | Windows double-click wrapper around `dji-embed embed` |
+| `process_drone_footage.sh` | macOS/Linux shell wrapper around `dji-embed embed` |
+| `run_diagnostic.bat` | Windows shortcut for `tools/diagnostic_script.py` |
 
-**1.1 Identify Protected Branches**
-```bash
-# Keep these branches:
-- master (default)
-- Any active development branches
-- Any branches with open PRs
-```
+If you add another script, put it in `scripts/` (developer tooling) or
+`tools/` (release/packaging tooling) unless it is intended to be invoked by
+end users.
 
-**1.2 Delete Merged Feature Branches**
-Most branches with these prefixes are safe to delete:
-- `codex/*` - Merged AI agent work
-- `feat/*` - Merged features
-- `fix/*` - Merged bug fixes
-- `ci/*` - Merged CI improvements
-- `docs/*` - Merged documentation
-- `3l1c1y-codex/*` - Merged AI work
+### Test directories (both needed)
 
-**Automated Scripts Available:**
-We've created comprehensive cleanup scripts in `scripts/`:
-- `scripts/delete-stale-branches.sh` (Bash)
-- `scripts/delete-stale-branches.ps1` (PowerShell)
+- `tests/` – fast, focused pytest suite (16 files, 55 tests at last count).
+- `validation_tests/` – integration / E2E runners that need FFmpeg, ExifTool
+  and real media to exercise fully. See `docs/ci_baseline.md` for expected
+  pass/fail in minimal environments.
 
-Both scripts support dry-run mode and detailed progress reporting.
+### Tools directory
 
-**Important Note - GitHub UI Required:**
-Due to repository permissions, branch deletion must be done through GitHub's web interface:
+All of these are actively referenced by CI or documentation — do not remove
+without checking `.github/workflows/` and the relevant docs first:
 
-1. Go to: `https://github.com/CallMarcus/dji-drone-metadata-embedder/branches/stale`
-2. Review stale branches (filtered by last commit date)
-3. Delete branches matching these patterns:
-   - `codex/*` (~117 branches)
-   - `3l1c1y-codex/*` (1 branch)
-   - `ci-*`, `docs-*` (merged CI/docs branches)
-   - Other merged feature branches
-
-**Alternative - GitHub CLI:**
-```bash
-# If you have admin access
-gh api repos/CallMarcus/dji-drone-metadata-embedder/git/refs/heads/codex/add-* --method DELETE
-
-# Or use the scripts for local testing:
-bash scripts/delete-stale-branches.sh  # Dry-run
-```
+- `tools/bootstrap.ps1` – Windows one-click installer.
+- `tools/sync_version.py` – single-source version sync across package,
+  bootstrap, spec, and winget manifests.
+- `tools/build_exe.py` – PyInstaller build wrapper.
+- `tools/diagnostic_script.py` – user-facing diagnostics (`run_diagnostic.bat`).
+- `tools/test_exe.py` – post-build smoke checks for the EXE.
+- `tools/cleanup_and_restructure.ps1` – retained as a historical cleanup
+  helper; review before use.
 
 ---
 
-### Phase 2: Root Directory Cleanup (Medium Impact)
+## Ongoing housekeeping practice
 
-#### 2.1 Scripts to Remove
-These are one-off development helpers no longer needed:
+### Branch hygiene
 
-```bash
-# Remove ad-hoc release scripts (replaced by CI workflows)
-rm create_github_release.ps1
-rm create_release.ps1
-rm create_release.sh
+- Enable "Automatically delete head branches" in the GitHub repo settings so
+  merged feature branches disappear on their own.
+- When a long-lived branch goes cold, run
+  `bash scripts/delete-stale-branches.sh` (or the `.ps1` equivalent) in
+  dry-run mode first and then actually delete.
+- Keep branch names aligned with the convention in `CLAUDE.md` §4: `feat/`,
+  `fix/`, `docs/`, `ci/`, `chore/`, `claude/<session-id>`.
 
-# Remove development helpers
-rm get-exe-info.ps1
-```
+### Root directory
 
-#### 2.2 Scripts to Relocate
-Move to `scripts/` or `tools/` directory:
+- User-facing wrappers only at the root. Anything else belongs under
+  `scripts/` or `tools/`.
+- Ad-hoc release scripts are not needed — `release-pypi.yml`,
+  `release-exe.yml`, and `release-winget.yml` own those flows.
 
-```bash
-# Move to scripts/ (if keeping for reference)
-mv create-issues.ps1 scripts/create-issues.ps1
+### Documentation hygiene
 
-# Or remove if CI handles this now
-rm create-issues.ps1
-```
+- Update `docs/development_roadmap.md` whenever a milestone ships or the
+  direction of travel changes.
+- Update `docs/ci_baseline.md` when you add tests or change dependencies so
+  contributors know what "green" looks like today.
+- Update `CHANGELOG.md` via the auto-changelog workflow — see
+  `docs/CHANGELOG_AUTOMATION.md`. Avoid hand-editing historical sections.
 
-#### 2.3 Duplicate Files
-```bash
-# test-exe.ps1 exists in root AND tools/
-# Keep tools/test_exe.py (Python version)
-rm test-exe.ps1  # Remove root version
-```
+### Repeat-cleanup checklist
 
----
+When the repository drifts again, re-run this short list:
 
-### Phase 3: Documentation Updates (Low Impact)
-
-#### 3.1 Update .gitignore
-Already comprehensive! Minor addition:
-
-```gitignore
-# At end of file, add:
-# Development scripts (kept for reference but gitignored in future)
-scripts/create-issues.ps1
-scripts/adhoc-*.ps1
-```
-
-#### 3.2 Update CONTRIBUTING.md
-Add branch naming guidance:
-
-```markdown
-### Branch Naming Convention
-- Feature: `feat/issue-123-description`
-- Bug fix: `fix/issue-123-description`
-- CI: `ci/improvement-description`
-- Docs: `docs/improvement-description`
-- AI agents: `claude/session-id` or `codex/description`
-
-**Note:** Feature branches are deleted after merge to keep repository clean.
-```
+1. `git fetch --all --prune` and skim `git branch -r` for branches that are
+   merged or older than ~3 months.
+2. `ls` the repo root — anything new that is not user-facing should move
+   into `scripts/` or `tools/` or be deleted.
+3. `uv run ruff check src/ tests/` and `uv run pytest -q` to confirm the
+   baseline from `docs/ci_baseline.md` still holds.
+4. If you ran the validation suite, update the "Last verified" date on
+   `docs/ci_baseline.md`.
 
 ---
 
-## 📋 Execution Checklist
+## Historical notes
 
-### Before Starting
-- [ ] Backup current branch state
-- [ ] Verify no open PRs on branches to be deleted
-- [ ] Notify collaborators of cleanup
-
-### Branch Cleanup
-- [ ] Create and test deletion script with dry-run
-- [ ] Delete `codex/*` branches (80+ branches)
-- [ ] Delete `3l1c1y-codex/*` branches
-- [ ] Delete merged `feat/*`, `fix/*`, `ci/*`, `docs/*` branches
-- [ ] Verify protected branches remain intact
-- [ ] Run `git fetch --prune` to clean local refs
-
-### File Cleanup
-- [ ] Remove ad-hoc release scripts (3 files)
-- [ ] Remove development helpers (2 files)
-- [ ] Remove duplicate test-exe.ps1
-- [ ] Verify user convenience scripts still work
-
-### Documentation
-- [ ] Update .gitignore if needed
-- [ ] Update CONTRIBUTING.md with branch policy
-- [ ] Add note to README about clean branch policy
-- [ ] Commit and push changes
-
-### Verification
-- [ ] Run test suite: `pytest -q`
-- [ ] Run validation tests: `py validation_tests/run_all_tests.py`
-- [ ] Verify CI workflows still function
-- [ ] Check that user scripts still work
-
----
-
-## 🎯 Expected Results
-
-### Before Cleanup
-- **Remote branches:** 132
-- **Root scripts:** 9 files (.ps1, .sh, .bat)
-- **Git repo size:** 13MB
-
-### After Cleanup
-- **Remote branches:** ~5-7 (master + active work)
-- **Root scripts:** 2-3 (user-facing only)
-- **Git repo size:** 12-13MB (branches are refs, minimal space savings)
-- **Clarity:** Significantly improved
-- **Maintenance:** Easier to navigate
-
----
-
-## ⚠️ Risks & Mitigation
-
-### Risk: Deleting Active Branches
-- **Mitigation:** Check for open PRs first
-- **Recovery:** Branches can be restored from reflog within ~90 days
-
-### Risk: Breaking User Workflows
-- **Mitigation:** Only remove development scripts, keep user-facing ones
-- **Recovery:** Scripts are in git history
-
-### Risk: CI Pipeline Issues
-- **Mitigation:** Test CI after file removals
-- **Recovery:** Revert commit if issues found
-
----
-
-## 🚀 Quick Start Commands
-
-### Safe Dry-Run Analysis
-```bash
-# See what would be deleted (codex branches)
-git branch -r | grep 'origin/codex/' | wc -l
-git branch -r | grep 'origin/codex/' | head -20
-
-# Check for open PRs
-gh pr list --state open --json headRefName
-```
-
-### Conservative Cleanup (Recommended First Step)
-```bash
-# Delete only obviously stale AI agent branches
-git fetch --all --prune
-git push origin --delete $(git branch -r | grep 'origin/codex/add-' | sed 's/origin\///' | head -10)
-
-# Verify no issues, then continue with more
-```
-
----
-
-## 📝 Notes
-
-1. **Test directories are BOTH needed:**
-   - `tests/` = Unit tests (fast, focused)
-   - `validation_tests/` = Integration tests (comprehensive, E2E)
-
-2. **Tools directory is well-organized:**
-   - bootstrap.ps1 (user installer)
-   - sync_version.py (release tooling)
-   - build_exe.py (packaging)
-   - All are actively used
-
-3. **CI workflows are comprehensive:**
-   - All in `.github/workflows/`
-   - No need for root-level release scripts
-
-4. **.gitignore is already excellent:**
-   - Comprehensive coverage
-   - Only minor additions suggested
-
----
-
-## 🤝 Recommendations for Future
-
-1. **Establish branch deletion policy:**
-   - Delete feature branches within 1 week of merge
-   - Use GitHub branch protection rules
-   - Enable "Automatically delete head branches" in repo settings
-
-2. **Use branch naming conventions:**
-   - Follow conventional naming in agents.md
-   - Include issue numbers in branch names
-   - Use descriptive but concise names
-
-3. **Keep root directory clean:**
-   - User-facing scripts only in root
-   - Development scripts in `scripts/` or `tools/`
-   - Ad-hoc scripts should be temporary and removed after use
-
----
-
-**End of Report**
+The original Phase 1 / Phase 2 / Phase 3 cleanup plan (deleting 125+ merged
+branches, removing six ad-hoc PowerShell scripts, adding `.gitignore`
+entries for development helpers) was executed between August 2025 and early
+2026. It is no longer a live plan — the information has been distilled into
+the practices above. If you need the full original text, it is available in
+this file's git history.
