@@ -502,7 +502,9 @@ class DJIMetadataEmbedder:
                     output_path = (
                         self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
                     )
-                temp_output_path = Path(str(output_path) + _TEMP_SUFFIX)
+                temp_output_path = output_path.with_name(
+                    output_path.stem + _TEMP_SUFFIX + output_path.suffix
+                )
 
                 # Embed metadata using ffmpeg into temp file
                 if self.embed_metadata_ffmpeg(

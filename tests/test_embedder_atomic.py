@@ -103,7 +103,9 @@ class TestProcessDirectoryAtomicWrite:
         out_dir = tmp_path / "processed"
         out_dir.mkdir()
         final_output = out_dir / "DJI_20240101_123456_metadata.mp4"
-        temp_output = Path(str(final_output) + _TEMP_SUFFIX)
+        temp_output = final_output.with_name(
+            final_output.stem + _TEMP_SUFFIX + final_output.suffix
+        )
 
         ffmpeg_called: list = []
 
@@ -133,7 +135,11 @@ class TestProcessDirectoryAtomicWrite:
         assert final_output.read_bytes() == b"embedded content (padded for size check)"
         assert not temp_output.exists()
         assert len(ffmpeg_called) >= 1
-        assert ffmpeg_called[0][-1].endswith(_TEMP_SUFFIX)
+        ffmpeg_output_arg = ffmpeg_called[0][-1]
+        # The temp path must keep the original extension last so ffmpeg can
+        # pick the correct output muxer (issue: a trailing ".tmp" breaks it).
+        assert ffmpeg_output_arg.endswith(final_output.suffix)
+        assert _TEMP_SUFFIX in Path(ffmpeg_output_arg).name
 
     def test_final_not_created_when_validation_fails(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -147,7 +153,9 @@ class TestProcessDirectoryAtomicWrite:
         out_dir = tmp_path / "processed"
         out_dir.mkdir()
         final_output = out_dir / "DJI_20240101_123456_metadata.mp4"
-        temp_output = Path(str(final_output) + _TEMP_SUFFIX)
+        temp_output = final_output.with_name(
+            final_output.stem + _TEMP_SUFFIX + final_output.suffix
+        )
 
         def fake_run(cmd: list, *args, **kwargs):
             res = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
@@ -203,4 +211,6 @@ class TestProcessDirectoryAtomicWrite:
         assert result["output_directory"] == str(tmp_path)
         assert video.exists()
         assert video.read_bytes() == b"embedded in place (padded for validation)"
-        assert not Path(str(video) + _TEMP_SUFFIX).exists()
+        assert not video.with_name(
+            video.stem + _TEMP_SUFFIX + video.suffix
+        ).exists()
