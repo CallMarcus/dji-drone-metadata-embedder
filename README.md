@@ -19,7 +19,6 @@ application with a graphical interface.
 For detailed setup instructions and a quick-start tutorial, see
 [docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
 Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
-Answers to frequently asked questions can be found in the [FAQ](docs/faq.md).
 
 ## Easy Windows install
 
@@ -219,7 +218,9 @@ dji-embed check DJI_0001.MP4
 dji-embed check /path/to/footage
 ```
 
-See [docs/METADATA_CHECKER.md](docs/METADATA_CHECKER.md) for details.
+`check` uses `ffprobe` for QuickTime tags and `exiftool` for EXIF data
+when available. Pass `--verbose` for debug output or `--quiet` to only
+show warnings and errors.
 
 ## CLI Reference
 

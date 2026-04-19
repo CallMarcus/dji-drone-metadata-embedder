@@ -1,12 +1,13 @@
 site_name: DJI Drone Metadata Embedder
 site_description: Embed DJI drone telemetry in video files and convert tracks
-repo_url: https://github.com/example/dji-drone-metadata-embedder
+repo_url: https://github.com/CallMarcus/dji-drone-metadata-embedder
 site_dir: site
 nav:
   - Home: index.md
   - Installation: installation.md
   - User Guide: user_guide.md
-  - FAQ: faq.md
+  - Decision Table: decision-table.md
+  - Recipes: recipes.md
   - Troubleshooting: troubleshooting.md
   - Validation Tests: validation_tests.md
   - Development Roadmap: development_roadmap.md
@@ -17,7 +18,6 @@ nav:
       - Windows Quick Setup: how-to/windows-bundle.md
   - Reference:
       - API Reference: api.md
-      - Metadata Checker: METADATA_CHECKER.md
       - SRT Formats: SRT_FORMATS.md
       - Release Process: RELEASE.md
 plugins:

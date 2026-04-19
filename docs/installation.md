@@ -24,6 +24,19 @@ pip install dji-drone-metadata-embedder
 docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 ```
 
+## Optional: browser-based UI
+
+If you'd rather drive the tool from a browser than the terminal, install
+the `[ui]` extra and launch it:
+
+```bash
+pip install 'dji-drone-metadata-embedder[ui]'
+dji-embed ui
+```
+
+The UI binds to `127.0.0.1` only and opens in your default browser.
+See the [User Guide](user_guide.md#web-ui) for details.
+
 <details>
 <summary>Advanced</summary>
 
