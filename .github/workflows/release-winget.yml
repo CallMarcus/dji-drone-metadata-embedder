@@ -1,14 +1,16 @@
 ---
 name: Submit to winget
 
+# NOTE: This workflow is currently non-functional — see issue tracker.
+# The automatic trigger on "Build Windows EXE" completion has been
+# removed so it stops firing (and going red) on every release. It can
+# still be invoked manually via workflow_dispatch once the underlying
+# issues are fixed.
 on:
-  workflow_run:
-    workflows: ["Build Windows EXE"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to submit to winget (e.g., 1.1.2)'
+        description: 'Version to submit to winget (e.g., 1.2.0)'
         required: true
         type: string
 
@@ -17,7 +19,7 @@ permissions:
 
 jobs:
   submit:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
