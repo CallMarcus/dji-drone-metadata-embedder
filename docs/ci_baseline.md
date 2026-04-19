@@ -59,6 +59,32 @@ matches the PR gate. Run the validation suite before cutting a release or
 whenever you change parsing / FFmpeg command assembly; otherwise the unit
 tests and golden fixtures are sufficient for day-to-day development.
 
+## Pending: first Dependabot run (2026-04-19)
+
+Dependabot's first run opened two grouped PRs that will shift the numbers
+above once merged. Re-run the commands in this file and update the recorded
+versions when either lands:
+
+- **[#180](https://github.com/CallMarcus/dji-drone-metadata-embedder/pull/180)
+  — `actions` group (8 updates).** `actions/checkout 4→6`,
+  `actions/setup-python 5→6`, `astral-sh/setup-uv 5→7`,
+  `peter-evans/create-pull-request 6→8`, `actions/upload-pages-artifact 3→5`,
+  `actions/configure-pages 4→6`, `actions/deploy-pages 4→5`,
+  `softprops/action-gh-release 2→3`. No local effect, but the CI matrix in
+  `.github/workflows/ci.yml` needs to go green on the new versions.
+- **[#181](https://github.com/CallMarcus/dji-drone-metadata-embedder/pull/181)
+  — `development-deps` group (9 updates).** `pytest 8.3.2→9.0.3`,
+  `pytest-cov 5.0.0→7.1.0`, `coverage 7.6.0→7.13.5`, `black 24.4.2→26.3.1`,
+  **`ruff 0.4.6→0.15.11`**, `mypy 1.8.0→1.20.1`, `build 1.2.1→1.4.3`,
+  `hatchling 1.25.0→1.29.0`, `twine 5.1.1→6.2.0`. The ruff jump is the
+  biggest risk — the 0.5–0.15 series enabled several new default rules, so
+  "ruff clean" on `master` is not guaranteed to hold on this branch. Run
+  `uv sync --extra dev` + `uv run ruff check src/ tests/` on the branch
+  before merging and fix any new lint findings in the same PR.
+  _Verified locally 2026-04-19: on the Dependabot branch
+  `uv run ruff check src/ tests/` is clean and `uv run pytest -q` reports
+  55 passed (41 passed + 14 UI tests when `--extra ui` is installed)._
+
 ## Updating this baseline
 
 Bump the "Last verified" date and adjust the pass counts whenever you add

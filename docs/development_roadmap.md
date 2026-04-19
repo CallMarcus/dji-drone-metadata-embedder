@@ -74,17 +74,24 @@ from pre-existing environmental gaps.
 
 ## Future direction
 
-- **Additional DJI model coverage.** Mavic 3 Classic, Mavic 3 Pro, and
-  Inspire 3 variants as sample files become available. Follow the "Adding
-  Support for New DJI Models" checklist in `CLAUDE.md`.
+- **Additional DJI model coverage.** Tracked in
+  [#182](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/182):
+  survey Mini 5 Pro, Air 3S, Mavic 4 Pro, Neo, Avata 3, Mini 4K, Inspire 3,
+  Matrice 4 / M30 / M350 RTK, and FPV v2 for SRT documentation and sample
+  availability, then spin off per-model parser issues following the "Adding
+  Support for New DJI Models" checklist in `CLAUDE.md` §7.
 - **Richer web UI.** Incremental improvements to the Flask UI
   (`src/dji_metadata_embedder/ui/`) – nicer job progress, downloadable
   per-job artefacts, and richer previews – instead of new GUI frameworks.
 - **Performance work on large batches.** Candidates include parallel
   per-clip embedding and streaming SRT parsing for long flights.
-- **Optional winget re-enablement** once the signed EXE pipeline has a few
-  more green release cycles behind it. The manifests in `winget/` and the
-  disabled workflow in `release-winget.yml` remain in place.
+- **Winget re-enablement.** Blocked on
+  [#175](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/175):
+  `CallMarcus.DJIMetadataEmbedder` needs a manual first-publisher submission
+  to `microsoft/winget-pkgs`, after which `release-winget.yml` should be
+  rewritten on top of `winget-releaser` and the three hand-maintained
+  manifests in `winget/` retired. The workflow currently fires only on
+  manual dispatch.
 
 ## Explicitly out of scope
 
