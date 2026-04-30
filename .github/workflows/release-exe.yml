@@ -20,7 +20,7 @@ jobs:
     if: ${{ (github.event_name == 'workflow_dispatch') || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Ensure consistent line endings to avoid version check issues
           fetch-depth: 0
@@ -40,7 +40,7 @@ jobs:
           "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=v$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: 'uv.lock'
@@ -70,7 +70,7 @@ jobs:
           }
           $hashLines | Out-File -Encoding ascii dist/SHA256SUMS.txt
       - name: Create or update GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: ${{ steps.meta.outputs.tag }}
