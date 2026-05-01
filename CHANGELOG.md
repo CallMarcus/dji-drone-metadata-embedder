@@ -30,6 +30,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhance troubleshooting guide with comprehensive solutions (3af8471)
 - Update root documents to reflect production-ready status (eae30c6)
 
+## [vTEST-actions-bump] - 2026-05-01
+
+### Fixed
+
+- **docs**: Exclude archival research dir from mkdocs strict build (95a20d1)
+
+### Documentation
+
+- **readme**: Demote winget from install options until published (66414b1)
+- **research**: Archive Gemini deep-research run for #182 (3a74df0)
+- Add deep-research brief for DJI model survey (#182) (3c48f34)
+- Add model survey, raw research reports, and comparator analysis (9f172df)
+- Align roadmap and baseline with open issues and first dependabot run (11671d3)
+- Refresh roadmap, housekeeping, and record CI baseline (0697387)
+
+### CI/CD
+
+- **release**: Auto-create GitHub release from the EXE workflow (1ff1ef1)
+- **winget**: Stop firing the winget workflow automatically (c97314f)
+- Add Dependabot configuration (d23919c)
+- Bump the actions group with 8 updates (#180) (227cdba)
+
+### Maintenance
+
+- **deps**: Regenerate uv.lock for dev-deps bump (83c1340)
+- **deps-dev**: Bump the development-deps group with 9 updates (#181) (5634fc3)
+- Sync pre-commit hook pins with dev-deps group (a4a092e)
+
+
 ## [1.1.0] - 2025-01-13
 
 ### Added - M3 Parser Hardening & CLI UX
