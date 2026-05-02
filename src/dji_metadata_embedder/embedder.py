@@ -188,10 +188,13 @@ class DJIMetadataEmbedder:
                         r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line
                     )
 
-                    # Format 2: GPS(lat,lon,alt)
+                    # Format 2: GPS(lat,lon,alt) — also tolerates a unit
+                    # suffix on altitude (e.g. M300 emits ``GPS(lat,lon,0.0M)``)
+                    # and an optional space between ``GPS`` and ``(`` used by
+                    # the P4 RTK compact single-line family.
                     if not lat_match or not lon_match:
                         gps_match = re.search(
-                            r"GPS\(([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*)\)",
+                            r"GPS\s*\(([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*)[A-Za-z]*\)",
                             telemetry_line,
                         )
                         if gps_match:
@@ -227,6 +230,26 @@ class DJIMetadataEmbedder:
                     )
                     fnum_match = re.search(r"\[fnum\s*:\s*(\d+)\]", telemetry_line)
                     ev_match = re.search(r"\[ev\s*:\s*([^\]]+)\]", telemetry_line)
+                    # P4 RTK compact single-line family uses free-standing
+                    # tokens (``F/5.6, SS 400, ISO 100, EV 0``) rather than
+                    # the bracketed ``[fnum:…]`` syntax. Fall back to those
+                    # when the bracket form did not match.
+                    if not fnum_match:
+                        fnum_match = re.search(
+                            r"(?<![A-Za-z])F/(\d+\.?\d*)", telemetry_line
+                        )
+                    if not shutter_match:
+                        shutter_match = re.search(
+                            r"(?<![A-Za-z])SS\s+(\d+(?:\.\d+)?)", telemetry_line
+                        )
+                    if not iso_match:
+                        iso_match = re.search(
+                            r"(?<![A-Za-z])ISO\s+(\d+)", telemetry_line
+                        )
+                    if not ev_match:
+                        ev_match = re.search(
+                            r"(?<![A-Za-z])EV\s+([+-]?\d+\.?\d*)", telemetry_line
+                        )
                     ct_match = re.search(r"\[ct\s*:\s*([^\]]+)\]", telemetry_line)
                     color_md_match = re.search(
                         r"\[color_md\s*:\s*([^\]]+)\]", telemetry_line

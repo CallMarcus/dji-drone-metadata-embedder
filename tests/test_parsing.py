@@ -51,6 +51,35 @@ def test_parse_format3(tmp_path):
     assert t["camera_settings"]["shutter"] == "1/1000"
 
 
+def test_parse_m300_legacy_unit(tmp_path):
+    """M300 GPS regex must tolerate altitude unit suffix (``0.0M``)."""
+    srt = """1
+00:00:00,000 --> 00:00:00,033
+GPS(36.6146,-6.1120,0.0M) BAROMETER:0.3M
+
+2
+00:00:00,033 --> 00:00:00,066
+GPS(36.6147,-6.1121,0.1M) BAROMETER:0.4M
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["first_gps"] == (36.6146, -6.1120)
+    assert len(t["gps_coords"]) == 2
+
+
+def test_parse_p4rtk_compact(tmp_path):
+    """P4 RTK compact single-line: free-standing camera tokens + ``GPS (...)``."""
+    srt = """1
+00:00:00,000 --> 00:00:00,033
+F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851745, -34.237922, 15), HOME (-58.847509, -34.232707, -57.98m), D 698.70m, H 85.80m, H.S 0.00m/s, V.S 0.00m/s, F.PRY (2.7°, -7.0°, 110.1°), G.PRY (-24.4°, 0.0°, 110.4°)
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["first_gps"] == (-58.851745, -34.237922)
+    assert t["camera_settings"]["iso"] == "100"
+    assert t["camera_settings"]["shutter"] == "400"
+    assert t["camera_settings"]["fnum"] == "5.6"
+    assert t["camera_settings"]["ev"] == "0"
+
+
 def test_embed_metadata_ffmpeg_command(tmp_path, monkeypatch):
     video = Path(tmp_path / "DJI_20240101_123456.mp4")
     srt = Path(tmp_path / "test.srt")

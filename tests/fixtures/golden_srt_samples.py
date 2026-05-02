@@ -109,6 +109,59 @@ GPS(39.906220,116.391308,70.100) BAROMETER(90.9) HOME(39.906206,116.391400)
         }
     },
     
+    "m300_legacy_unit": {
+        "description": "Matrice 300 / legacy-with-unit GPS format (altitude carries a unit suffix)",
+        "format_type": "legacy_unit",
+        "srt_content": """1
+00:00:00,000 --> 00:00:00,033
+GPS(36.6146,-6.1120,0.0M) BAROMETER:0.3M
+
+2
+00:00:00,033 --> 00:00:00,066
+GPS(36.6147,-6.1121,0.1M) BAROMETER:0.4M
+
+3
+00:00:00,066 --> 00:00:00,100
+GPS(36.6148,-6.1122,0.2M) BAROMETER:0.5M
+""",
+        "expected_points": 3,
+        # Altitude inside GPS(...) is currently discarded for legacy formats;
+        # parse_telemetry_points returns 0.0 in the alt slot for this family.
+        "expected_coordinates": [
+            (36.6146, -6.1120, 0.0),
+            (36.6147, -6.1121, 0.1),
+            (36.6148, -6.1122, 0.2),
+        ],
+        "expected_metadata": {
+            "total_duration": 0.1,
+            "frame_rate": 30,
+            "has_unit_suffix": True,
+        }
+    },
+
+    "p4rtk_compact": {
+        "description": "Phantom 4 RTK / P4P compact single-line format (free-standing tokens)",
+        "format_type": "p4rtk_compact",
+        "srt_content": """1
+00:00:00,000 --> 00:00:00,033
+F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851745, -34.237922, 15), HOME (-58.847509, -34.232707, -57.98m), D 698.70m, H 85.80m, H.S 0.00m/s, V.S 0.00m/s, F.PRY (2.7°, -7.0°, 110.1°), G.PRY (-24.4°, 0.0°, 110.4°)
+
+2
+00:00:00,033 --> 00:00:00,066
+F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851746, -34.237923, 16), HOME (-58.847509, -34.232707, -57.98m), D 698.71m, H 85.81m, H.S 0.10m/s, V.S 0.05m/s, F.PRY (2.8°, -7.1°, 110.2°), G.PRY (-24.5°, 0.0°, 110.5°)
+""",
+        "expected_points": 2,
+        "expected_coordinates": [
+            (-58.851745, -34.237922, 0.0),
+            (-58.851746, -34.237923, 0.0),
+        ],
+        "expected_metadata": {
+            "total_duration": 0.066,
+            "frame_rate": 30,
+            "has_camera_settings": True,
+        }
+    },
+
     "mavic3_enterprise": {
         "description": "DJI Mavic 3 Enterprise format with RTK and extended data",
         "format_type": "mavic3_enterprise",
