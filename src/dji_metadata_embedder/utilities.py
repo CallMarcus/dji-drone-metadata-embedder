@@ -31,8 +31,10 @@ def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, st
         lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", tele_line)
         if not (lat_match and lon_match):
+            # Tolerate optional altitude unit suffix (M300 ``0.0M``) and an
+            # optional space before ``(`` used by the P4 RTK compact format.
             gps = re.search(
-                r"GPS\(([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*)\)",
+                r"GPS\s*\(([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*)[A-Za-z]*\)",
                 tele_line,
             )
             if gps:

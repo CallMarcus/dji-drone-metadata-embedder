@@ -37,6 +37,44 @@ HOME(39.906206,116.391400) D=5.2m H=1.5m
 - `D`: Distance from home point
 - `H`: Height above home point
 
+### Format 2b: Legacy-with-Unit (Matrice 300 lineage)
+
+Used by: DJI Matrice 300 RTK and adjacent enterprise models.
+
+```
+GPS(36.6146,-6.1120,0.0M) BAROMETER:0.3M
+```
+
+Identical to Format 2 except the altitude inside the GPS tuple carries a
+unit suffix (`M`) and BAROMETER uses a colon notation rather than
+parentheses. The parser tolerates the suffix via an optional
+`[A-Za-z]*` group on the altitude capture; latitude and longitude are
+extracted as for Format 2.
+
+### Format 2c: P4 RTK Compact Single-Line
+
+Used by: DJI Phantom 4 RTK, Phantom 4 Pro, and likely the Matrice
+350 RTK / Matrice 30 enterprise lineage.
+
+```
+F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851745, -34.237922, 15),
+HOME (-58.847509, -34.232707, -57.98m), D 698.70m, H 85.80m,
+H.S 0.00m/s, V.S 0.00m/s, F.PRY (2.7°, -7.0°, 110.1°),
+G.PRY (-24.4°, 0.0°, 110.4°)
+```
+
+**Fields parsed today:**
+- `GPS (lat, lon, alt)` — note the space before `(` and integer altitude
+- `F/N` → camera fnum (free-standing, not `[fnum:…]`)
+- `SS N` → camera shutter
+- `ISO N` → camera iso
+- `EV N` → camera ev
+
+**Fields recognised but not yet decoded** (open follow-up):
+`HOME (…)`, `D Nm`, `H Nm`, `H.S Nm/s`, `V.S Nm/s`, `F.PRY (p, r, y)`,
+`G.PRY (p, r, y)`. These tokens are documented for future work; the
+parser currently extracts GPS + camera and ignores the rest.
+
 ### Format 3: Comprehensive Format
 
 Used by: DJI Mavic 3, DJI Air 2S
@@ -139,6 +177,8 @@ if new_format_match:
 | DJI Air 2S | Format 3 | Comprehensive with HTML tags |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
+| DJI Matrice 300 RTK | Format 2b | Legacy-with-unit (`0.0M` altitude) |
+| DJI Phantom 4 RTK / P4P | Format 2c | P4 RTK compact single-line |
 | DJI Mavic Air 2 | Format 1 | Bracketed key-value pairs |
 | DJI FPV | Format 1 | May include additional flight data |
 

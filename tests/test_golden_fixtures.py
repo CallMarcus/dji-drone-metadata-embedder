@@ -109,6 +109,54 @@ class TestGoldenFixtures:
         finally:
             temp_path.unlink()
     
+    def test_m300_legacy_unit_format(self):
+        """Test Matrice 300 / legacy-with-unit GPS format (altitude unit suffix)."""
+        sample = GOLDEN_SAMPLES["m300_legacy_unit"]
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+            f.write(sample["srt_content"])
+            temp_path = Path(f.name)
+
+        try:
+            points = parse_telemetry_points(temp_path)
+            assert len(points) == sample["expected_points"]
+
+            for i, (exp_lat, exp_lon, _exp_alt) in enumerate(sample["expected_coordinates"]):
+                lat, lon = points[i][0], points[i][1]
+                assert abs(lat - exp_lat) < 0.0001
+                assert abs(lon - exp_lon) < 0.0001
+
+            validation = validate_srt_format(temp_path, lenient=True)
+            assert validation["valid"]
+            assert validation["format_detected"] == "legacy_unit"
+
+        finally:
+            temp_path.unlink()
+
+    def test_p4rtk_compact_format(self):
+        """Test Phantom 4 RTK / P4P compact single-line format."""
+        sample = GOLDEN_SAMPLES["p4rtk_compact"]
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+            f.write(sample["srt_content"])
+            temp_path = Path(f.name)
+
+        try:
+            points = parse_telemetry_points(temp_path)
+            assert len(points) == sample["expected_points"]
+
+            for i, (exp_lat, exp_lon, _exp_alt) in enumerate(sample["expected_coordinates"]):
+                lat, lon = points[i][0], points[i][1]
+                assert abs(lat - exp_lat) < 0.0001
+                assert abs(lon - exp_lon) < 0.0001
+
+            validation = validate_srt_format(temp_path, lenient=True)
+            assert validation["valid"]
+            assert validation["format_detected"] == "p4rtk_compact"
+
+        finally:
+            temp_path.unlink()
+
     def test_mavic3_enterprise_format(self):
         """Test Mavic 3 Enterprise format with RTK and extended data."""
         sample = GOLDEN_SAMPLES["mavic3_enterprise"]

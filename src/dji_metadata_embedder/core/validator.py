@@ -249,7 +249,13 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> Dict[str, Any]:
             return validation
         
         telemetry_points = []
-        format_votes = {"mini3_4pro": 0, "html_extended": 0, "legacy_gps": 0}
+        format_votes = {
+            "mini3_4pro": 0,
+            "html_extended": 0,
+            "legacy_gps": 0,
+            "legacy_unit": 0,
+            "p4rtk_compact": 0,
+        }
         
         for i, block in enumerate(blocks):
             lines = block.strip().split("\n")
@@ -280,8 +286,17 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> Dict[str, Any]:
                     format_votes["html_extended"] += 1
                 else:
                     format_votes["mini3_4pro"] += 1
-            elif "GPS(" in tele_line:
-                format_votes["legacy_gps"] += 1
+            elif re.search(r"GPS\s*\(", tele_line):
+                # P4 RTK compact single-line family uses ``GPS (...)`` (with
+                # space) plus free-standing ``F/N`` aperture tokens.
+                if " F/" in tele_line or tele_line.lstrip().startswith("F/"):
+                    format_votes["p4rtk_compact"] += 1
+                # Legacy-with-unit (M300 lineage) pins an altitude unit
+                # suffix inside the GPS tuple, e.g. ``GPS(lat,lon,0.0M)``.
+                elif re.search(r"GPS\s*\([^)]*[A-Za-z]\)", tele_line):
+                    format_votes["legacy_unit"] += 1
+                else:
+                    format_votes["legacy_gps"] += 1
             elif lenient:
                 validation["warnings"].append(f"Block {i+1}: Unrecognized telemetry format")
             else:

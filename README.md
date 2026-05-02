@@ -75,8 +75,10 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 **Fully Tested & Documented** (with sample fixtures):
 - **DJI Mini 3/4 Pro** - Square bracket format `[latitude: xx.xxx] [longitude: xx.xxx]`
 - **DJI Air 3** - HTML-style format with extended telemetry data
-- **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data  
+- **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data
 - **DJI Mavic 3 Enterprise** - Extended format with RTK precision data
+- **DJI Matrice 300 (legacy-with-unit)** - `GPS(lat,lon,alt M)` with `BAROMETER:` colon notation
+- **DJI Phantom 4 RTK / P4P (compact single-line)** - `F/N, SS N, ISO N, EV N, GPS (lat, lon, alt), HOME (...), D, H, H.S, V.S, F.PRY, G.PRY`
 
 **Community Supported**:
 - DJI Air 2S, Mavic 3, and other models using similar SRT formats
