@@ -4,6 +4,7 @@ repo_url: https://github.com/CallMarcus/dji-drone-metadata-embedder
 site_dir: site
 exclude_docs: |
   research/
+  outreach/
 nav:
   - Home: index.md
   - Installation: installation.md
