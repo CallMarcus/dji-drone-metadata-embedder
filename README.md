@@ -84,7 +84,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - DJI Air 2S, Mavic 3, and other models using similar SRT formats
 - See [troubleshooting guide](docs/troubleshooting.md) for model-specific issues
 
-*New model support welcomed! See [Contributing Guide](CONTRIBUTING.md).*
+**Don't see your model?** We're happy to add support in exchange for sample SRT files we can parse the telemetry format from. Open an [issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/new) and attach one or two raw `.SRT` files from your drone (a short clip is plenty), and we'll add a parser for it. See the [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## Requirements
 
@@ -423,8 +423,8 @@ See [docs/CHANGELOG_AUTOMATION.md](docs/CHANGELOG_AUTOMATION.md) for detailed gu
 
 ### Adding Support for New Models
 
-If your DJI model uses a different SRT format:
-1. Open an issue with a sample SRT file
+If your DJI model uses a different SRT format, we're happy to add support in exchange for sample SRT files we can parse the telemetry format from:
+1. Open an issue and attach one or two raw `.SRT` files from your drone (a short clip is plenty) — we'll add a parser for it
 2. Or submit a PR with regex patterns for the new format
 
 ## Release
