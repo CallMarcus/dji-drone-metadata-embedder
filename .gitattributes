@@ -1,0 +1,18 @@
+# Normalize line endings repo-wide.
+#
+# `text=auto` lets git detect text vs binary; `eol=lf` ensures every text
+# file is stored with LF in the index and checked out with LF on every
+# platform. Without this, Windows clones can introduce CRLF working-tree
+# changes that show up as spurious diffs on every modified file.
+
+* text=auto eol=lf
+
+# Windows shell scripts must keep CRLF — cmd.exe/PowerShell can misbehave
+# with LF-only line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# DJI flight log binaries — never normalize.
+*.DAT binary
+*.dat binary
