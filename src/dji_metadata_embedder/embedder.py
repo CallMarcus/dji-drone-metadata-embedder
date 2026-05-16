@@ -315,13 +315,23 @@ class DJIMetadataEmbedder:
                 if env_ffmpeg and Path(env_ffmpeg).exists():
                     ffmpeg_cmd = env_ffmpeg
 
-            # Build ffmpeg command
+            # Build ffmpeg command.
+            # -map 0 -map 1 forces all streams from the source MP4 plus the SRT
+            # to be carried through. Without explicit -map, ffmpeg picks one
+            # stream per type and silently drops the rest — which loses data
+            # tracks (gyro, GPMF, proxy/LRF) that newer DJI models emit and
+            # makes the output smaller than the original (issue surfaced in
+            # GH discussion #192, DJI Neo 2 footage).
             cmd = [
                 ffmpeg_cmd,
                 "-i",
                 str(video_path),
                 "-i",
                 str(srt_path),
+                "-map",
+                "0",
+                "-map",
+                "1",
                 "-c",
                 "copy",
                 "-c:s",
