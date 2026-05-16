@@ -141,6 +141,46 @@ class TestProcessDirectoryAtomicWrite:
         assert ffmpeg_output_arg.endswith(final_output.suffix)
         assert _TEMP_SUFFIX in Path(ffmpeg_output_arg).name
 
+    def test_ffmpeg_command_maps_all_input_streams(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ffmpeg must receive -map 0 -map 1 so extra source streams (gyro,
+        GPMF, proxy tracks emitted by newer DJI models like the Neo 2) are
+        preserved rather than silently dropped (GH discussion #192).
+        """
+        video = tmp_path / "DJI_20240101_123456.mp4"
+        srt = tmp_path / "DJI_20240101_123456.srt"
+        video.write_bytes(b"fake mp4 content here")
+        srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nGPS(1,2,3)")
+
+        out_dir = tmp_path / "processed"
+        out_dir.mkdir()
+
+        ffmpeg_called: list = []
+
+        def fake_run(cmd: list, *args, **kwargs):
+            res = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+            if cmd and "ffmpeg" in str(cmd[0]).lower():
+                ffmpeg_called.append(cmd)
+                Path(cmd[-1]).write_bytes(b"embedded content padded for size check")
+            return res
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(
+            "dji_metadata_embedder.embedder.Progress",
+            self._fake_progress_class(),
+        )
+
+        embedder = DJIMetadataEmbedder(str(tmp_path), output_dir=str(out_dir))
+        embedder.process_directory(use_exiftool=False)
+
+        assert ffmpeg_called, "ffmpeg was not invoked"
+        cmd = ffmpeg_called[0]
+        map_indices = [i for i, tok in enumerate(cmd) if tok == "-map"]
+        map_targets = [cmd[i + 1] for i in map_indices]
+        assert "0" in map_targets, f"expected -map 0 in ffmpeg cmd, got {cmd}"
+        assert "1" in map_targets, f"expected -map 1 in ffmpeg cmd, got {cmd}"
+
     def test_final_not_created_when_validation_fails(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
