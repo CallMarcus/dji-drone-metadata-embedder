@@ -19,16 +19,47 @@ logger = logging.getLogger(__name__)
 _TEMP_SUFFIX = ".tmp"
 
 
+def _ffprobe_duration(path: Path) -> Optional[float]:
+    """Return media duration in seconds via ffprobe, or None if unreadable."""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "csv=p=0",
+                str(path),
+            ],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    raw = (result.stdout or "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
 def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
     """Validate temp output before moving to final destination.
 
-    Ensures the file is not corrupted after embedding (e.g. on interruption).
-    Checks: file exists, size >= original, and ffprobe can read the container.
+    Confirms the embed completed cleanly by comparing media durations — the
+    output's duration must be within 1 second of the source's. A size check
+    used to live here, but that produced false negatives once we started
+    dropping untaggable data streams from DJI footage (issue surfaced while
+    testing v1.3.0 against real Air 3S clips): the legitimate output was a
+    few percent smaller than the source even though no video frames were
+    lost. Duration is what we actually care about — truncation manifests as
+    a short duration, which this catches; cosmetic size drops do not.
 
     Parameters
     ----------
     original_path : Path
-        Original source video path (for size comparison).
+        Original source video path.
     temp_path : Path
         Path to the temporary embedded output file.
 
@@ -40,39 +71,29 @@ def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
     if not temp_path.exists():
         logger.debug("Validation failed: temp file does not exist %s", temp_path)
         return False
-    try:
-        original_size = original_path.stat().st_size
-        temp_size = temp_path.stat().st_size
-    except OSError as e:
-        logger.warning("Validation failed: could not stat files: %s", e)
-        return False
-    if temp_size < original_size:
+
+    out_duration = _ffprobe_duration(temp_path)
+    if out_duration is None:
         logger.warning(
-            "Validation failed: output size %d < original size %d for %s",
-            temp_size,
-            original_size,
-            temp_path.name,
+            "Validation failed: ffprobe could not read output %s", temp_path.name
         )
         return False
-    # Verify the container is valid (ffprobe -v error exits 0 only if readable).
-    try:
-        result = subprocess.run(
-            ["ffprobe", "-v", "error", "-i", str(temp_path)],
-            capture_output=True,
-            text=True,
-            timeout=30,
+
+    src_duration = _ffprobe_duration(original_path)
+    if src_duration is None:
+        # If the source is unreadable we can't compare; trust that the output
+        # was at least readable above.
+        return True
+
+    # 1 second tolerance covers container rounding and the subtitle track's
+    # final-frame extension; anything more is real truncation.
+    if out_duration + 1.0 < src_duration:
+        logger.warning(
+            "Validation failed: output duration %.2fs < source %.2fs for %s",
+            out_duration, src_duration, temp_path.name,
         )
-        if result.returncode != 0:
-            err = getattr(result, "stderr", "") or getattr(result, "stdout", "")
-            logger.warning(
-                "Validation failed: ffprobe reported error for %s: %s",
-                temp_path.name,
-                err,
-            )
-            return False
-    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-        logger.warning("Validation failed: ffprobe check failed: %s", e)
         return False
+
     return True
 
 
@@ -339,12 +360,14 @@ class DJIMetadataEmbedder:
                     ffmpeg_cmd = env_ffmpeg
 
             # Build ffmpeg command.
-            # -map 0 -map 1 forces all streams from the source MP4 plus the SRT
-            # to be carried through. Without explicit -map, ffmpeg picks one
-            # stream per type and silently drops the rest — which loses data
-            # tracks (gyro, GPMF, proxy/LRF) that newer DJI models emit and
-            # makes the output smaller than the original (issue surfaced in
-            # GH discussion #192, DJI Neo 2 footage).
+            # -map 0 -map -0:d -map 1 keeps every video/audio stream from the
+            # source plus the SRT subtitle. Newer DJI models (Air 3S, Neo 2)
+            # also emit proprietary data streams (`djmd` / `dbgi`, gyro and
+            # debug metadata) whose codec the MP4 muxer cannot tag — without
+            # explicitly dropping them the entire mux fails with
+            # "Could not find tag for codec none". We lose those data tracks;
+            # the main video, proxy/LRF MJPEG, audio, and telemetry SRT are
+            # all preserved. Background: GH discussion #192, follow-up to #193.
             cmd = [
                 ffmpeg_cmd,
                 "-i",
@@ -353,6 +376,8 @@ class DJIMetadataEmbedder:
                 str(srt_path),
                 "-map",
                 "0",
+                "-map",
+                "-0:d",
                 "-map",
                 "1",
                 "-c",

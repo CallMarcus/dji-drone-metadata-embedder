@@ -110,6 +110,8 @@ def test_embed_metadata_ffmpeg_command(tmp_path, monkeypatch):
         "-map",
         "0",
         "-map",
+        "-0:d",
+        "-map",
         "1",
         "-c",
         "copy",
