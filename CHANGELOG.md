@@ -13,21 +13,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+_No changes yet._
 
-- **ci**: Implement auto-changelog from conventional commits (6e84081)
-- **winget**: Add winget manifest sync from pyproject via sync_version.py (296f3f8)
-- Add public tiny sample MP4/SRT fixtures for testing (3c1604d)
+## [1.3.1] - 2026-05-17
+
+Regression-fix release for v1.3.0.
 
 ### Fixed
 
-- Simplify build_exe output (2833e54)
+- **embed**: Skip untaggable DJI data streams and switch validator from file-size to ffprobe duration check (#198). The v1.3.0 `-map 0 -map 1` change exposed an ffmpeg limitation on real Air 3S / Neo 2 footage — the proprietary `djmd` / `dbgi` data streams have valid FOURCC tags in the source but resolve to `codec=none`, which the MP4 muxer refuses to write. v1.3.1 keeps every video/audio stream plus the SRT, drops the unwritable data tracks, and validates output by comparing media durations.
 
 ### Documentation
 
-- Add decision table for user guidance (#144) (cbd4884)
-- Add end-to-end recipes for common workflows (#145) (581fdd6)
-- Enhance troubleshooting guide with comprehensive solutions (3af8471)
+- Invite sample SRT submissions for new model support (af67846)
+
+### Acknowledgements
+
+- Thanks to **David** for contributing Air 3S sample footage that exposed the data-stream issue while testing v1.3.0 end-to-end.
+
+### Known follow-ups
+
+- [#197](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/197) — preserving the dropped `djmd` / `dbgi` streams (likely via opt-in MKV output).
+
+## [1.3.0] - 2026-05-16
+
+### Added
+
+- **parser**: M300 legacy-with-unit and P4 RTK compact SRT formats (#190)
+- **chore**: `.gitattributes` to enforce LF line endings repo-wide (#194), preventing CRLF drift on Windows clones
+
+### Fixed
+
+- **embed**: Preserve all input streams with `-map 0 -map 1` (#193). Without explicit `-map`, ffmpeg silently picks one stream per type and drops the rest — losing proxy / data tracks on newer DJI models (Neo 2, Air 3S). Surfaced via [discussion #192](https://github.com/CallMarcus/dji-drone-metadata-embedder/discussions/192).
+- **docs**: Exclude archival research dir from mkdocs strict build (#186)
+
+### Documentation
+
+- Model survey, raw research reports, and comparator analysis (#184)
+- Deep-research brief for DJI model survey (#182)
+- Roadmap and CI baseline refreshed against open issues (#183)
+- Archive Reddit / MavicPilots sample-request post drafts (#191)
+- Demote winget from install options until manifest is published (66414b1)
+
+### CI
+
+- Auto-create GitHub release from the EXE workflow, removing the manual "Draft release" step (#177)
+- Stop auto-firing the winget workflow until [#175](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/175) is resolved (c97314f)
+- Add Dependabot configuration (d23919c)
+- Group GitHub Actions bumps via Dependabot (#180)
+
+### Maintenance
+
+- Dependabot dev-deps bumps (#181, #187) and aligned pre-commit pins (#185, #189)
+
+### Acknowledgements
+
+- Thanks to **Steve** for the original Neo 2 bug report on [discussion #192](https://github.com/CallMarcus/dji-drone-metadata-embedder/discussions/192) that drove #193.
+
+## [1.2.0] - 2026-04-19
+
+### Added
+
+- **ui**: New `dji-embed ui` web UI built on Flask, with tabs for Embed, Check, Validate, Convert, and Doctor; SSE-based job progress; PWA manifest, service worker, and icons (#164 family — d9d0a7e, 59c1680, fa7c6c6, 0af4103, ce00e10, 4b58714, 517ba66)
+- **embed**: `--overwrite` flag to embed metadata in place (#163, 2975718)
+- **embed**: Atomic write + interruption-safe fallback — output is only written to the final path after validation passes (#162, 02d5dd9)
+
+### Changed
+
+- **deps**: Migrate from `pip` + `requirements.lock` to `uv` with `pyproject.toml` extras (#164)
+
+### Fixed
+
+- **embed**: Place `.tmp` before the file extension so ffmpeg picks the correct output muxer (b153202)
+- **validator**: Parse real SRT timestamps in speed calculation instead of assuming a fixed frame rate (c1d89a1)
+- **ui**: Drop unused json import and narrow job types for mypy (f97fe57)
+- **ci**: Restore green baseline for lint, types, and tests (57808c7)
+
+### Documentation
+
+- Document `dji-embed ui` and the `[ui]` extra (61b253e)
+- Fold FAQ and metadata-checker into existing docs; add UI to installation and decision table (b220007)
+- Replace `agents.md` with Claude Code-specific `CLAUDE.md` (999bc67)
+- Add PR description template for housekeeping changes (a9fb2a8)
+- Comprehensive repository housekeeping analysis + cleanup scripts (62d48ec)
+
+### Maintenance
+
+- Remove unnecessary development scripts from root directory (871d9bf)
+
+## [1.1.2] - 2025-08-14
+
+### Fixed
+
+- **build**: Remove invalid syntax line from `build_exe.py` that was blocking the Windows EXE build (1862e06)
+
+## [1.1.1] - 2025-08-14
+
+### Added
+
+- **ci**: Auto-changelog generation from conventional commits (6e84081)
+- **winget**: Manifest sync from `pyproject.toml` via `sync_version.py` (296f3f8)
+- Public tiny sample MP4 / SRT fixtures for testing (3c1604d)
+- Manual trigger to the Windows EXE build workflow (a2885dd)
+
+### Fixed
+
+- **build**: Simplify `build_exe.py` output and resolve Windows EXE encoding (2833e54, 6094088, 0465663)
+- **bootstrap**: Update ExifTool URL and replace deprecated wizard command (4f13d31)
+- **winget**: Submission-workflow chain — correct secret name, `wingetcreate` install method, manifest preparation, manual triggers, and README exclusion (30fe79d, 5597f79, d484ed1, fd2c713, 4778204)
+
+### Documentation
+
+- Decision table for user guidance (#144)
+- End-to-end recipes for common workflows (#145)
+- Enhanced troubleshooting guide with comprehensive solutions (3af8471)
 - Update root documents to reflect production-ready status (eae30c6)
 
 ## [1.1.0] - 2025-01-13
