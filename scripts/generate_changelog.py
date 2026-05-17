@@ -128,22 +128,36 @@ def get_commits_since_tag(since_tag: Optional[str] = None) -> List[Dict]:
     return commits
 
 
-def get_latest_release_tag() -> Optional[str]:
-    """Get the latest release tag."""
+def get_latest_release_tag(exclude: Optional[str] = None) -> Optional[str]:
+    """Get the latest release tag, optionally skipping a specific version.
+
+    When the workflow runs after a tag push, the tag we just published is the
+    "latest" — but for changelog generation we want commits since the *previous*
+    tag. Pass the version being published as ``exclude`` (with or without the
+    ``v`` prefix) and that tag will be skipped during the search.
+    """
     try:
         # Get all tags sorted by version
         output = run_git_command(["tag", "--list", "--sort=-version:refname"])
         tags = output.split('\n')
-        
+
         # Find first tag that looks like a version (v1.2.3 or 1.2.3)
         version_pattern = r'^v?\d+\.\d+\.\d+'
+        excluded: set = set()
+        if exclude:
+            bare = exclude.lstrip("v")
+            excluded = {bare, f"v{bare}"}
+
         for tag in tags:
-            if re.match(version_pattern, tag.strip()):
-                return tag.strip()
+            tag = tag.strip()
+            if not tag or tag in excluded:
+                continue
+            if re.match(version_pattern, tag):
+                return tag
 
     except Exception:
         pass
-    
+
     return None
 
 
@@ -303,7 +317,9 @@ def main():
     # Determine commit range
     since_tag = args.since
     if not since_tag and version != "Unreleased":
-        since_tag = get_latest_release_tag()
+        # Skip the tag we're about to publish — we want commits since the
+        # *previous* release, not zero commits since ourselves.
+        since_tag = get_latest_release_tag(exclude=version)
     
     print(f"🔍 Generating changelog for {version}...")
     if since_tag:
