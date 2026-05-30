@@ -15,6 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.4.0] - 2026-05-30
+
+### Added
+
+- **parser**: Add Avata 360 + Mini 5 Pro support (b121b76)
+
+### Fixed
+
+- **changelog**: Skip the tag being published when finding the previous one (e16d8e9)
+
+### Documentation
+
+- **changelog**: Backfill v1.1.1 through v1.3.1 release notes (5edd48a)
+- **spec**: Design for Avata 360 + Mini 5 Pro support (f79e24e)
+
+### Maintenance
+
+- **release**: Bump version to 1.4.0 (71b9ecb)
+
+
 ## [1.3.1] - 2026-05-17
 
 Regression-fix release for v1.3.0.
