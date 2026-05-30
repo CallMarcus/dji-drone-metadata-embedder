@@ -148,6 +148,19 @@ dji-embed check /drone/footage/
 - Wrong extensions: `.mov`, `.mkv` → Convert to `.mp4`
 - Spaces in names: `DJI 0001.MP4` → `DJI_0001.MP4`
 
+### Avata 360 `.OSV` / `.LRF` Files
+
+DJI Avata 360 footage is delivered as `.OSV` (the 360 video) plus a matching
+`.LRF` low-res proxy instead of `.MP4`. Both are MP4-family containers, so the
+embedder discovers and processes them like any `.mp4`, pairing each with the
+shared `DJI_..._D.SRT`.
+
+- Both the `.OSV` and the `.LRF` are processed, producing
+  `..._metadata.OSV` and `..._metadata.LRF`. If you only want the full-quality
+  360 output, keep the `_metadata.OSV` file and discard the `.LRF` outputs.
+- The 360 projection metadata inside the `.OSV` is preserved by the stream-copy
+  mux but is not parsed by this tool; only the SRT telemetry is read.
+
 ### Codec Compatibility Issues
 
 **Problem:** "Unsupported video codec" or encoding failures

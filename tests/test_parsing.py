@@ -66,6 +66,23 @@ GPS(36.6147,-6.1121,0.1M) BAROMETER:0.4M
     assert len(t["gps_coords"]) == 2
 
 
+def test_parse_bracket_decimal_fnum(tmp_path):
+    """Modern DJI bracket format reports a decimal aperture, e.g. ``[fnum: 1.9]``.
+
+    The original regex only matched integers (the legacy f-number*100 encoding,
+    ``[fnum : 170]``), so decimal apertures emitted by current models (Avata
+    360, Mini 5 Pro, and others) were silently dropped.
+    """
+    srt = """1
+00:00:00,000 --> 00:00:00,041
+<font size="28">FrameCnt: 1, DiffTime: 41ms, FrameId: 4787
+2026-05-27 13:10:00.015
+[iso: 200] [shutter: 1/6400.0] [fnum: 1.9] [ev: 0] [ct: 5845] [color_md: dlog_m] [focal_len: 28.00] [latitude: 53.365080] [longitude: 6.460739] [rel_alt: 5.400 abs_alt: -124.744]</font>
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["camera_settings"]["fnum"] == "1.9"
+
+
 def test_parse_p4rtk_compact(tmp_path):
     """P4 RTK compact single-line: free-standing camera tokens + ``GPS (...)``."""
     srt = """1
