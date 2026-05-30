@@ -158,6 +158,8 @@ Options:
   --dat PATH                 DAT flight log to merge
   --dat-auto                 Auto-detect DAT logs matching videos
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
+  --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
+                             data streams (default: mp4)
   -v, --verbose              Verbose output
   -q, --quiet                Suppress progress output
 ```
@@ -249,6 +251,8 @@ Options:
   --dat PATH                 DAT flight log to merge
   --dat-auto                 Auto-detect DAT logs matching videos
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
+  --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
+                             data streams (default: mp4)
   -v, --verbose              Verbose output
   -q, --quiet                Suppress progress output
 ```

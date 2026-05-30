@@ -95,6 +95,14 @@ def main(ctx: click.Context, log_json: bool) -> None:
     show_default=True,
     help="Redact GPS coordinates",
 )
+@click.option(
+    "--container",
+    type=click.Choice(["mp4", "mkv"], case_sensitive=False),
+    default="mp4",
+    show_default=True,
+    help="Output container. Use 'mkv' to preserve DJI djmd/dbgi data streams "
+    "(dropped by the mp4 muxer).",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress progress output")
 def embed(
@@ -105,6 +113,7 @@ def embed(
     dat: str | None,
     dat_auto: bool,
     redact: str,
+    container: str,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -122,6 +131,7 @@ def embed(
         dat_path=dat,
         dat_autoscan=dat_auto,
         redact=redact,
+        container=container.lower(),
     )
     embedder.process_directory(use_exiftool=exiftool)
 
