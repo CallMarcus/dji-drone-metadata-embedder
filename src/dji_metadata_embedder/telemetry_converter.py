@@ -8,6 +8,7 @@ provided for convenience.
 
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from typing import Any
 import re
 import logging
 
@@ -108,7 +109,7 @@ def extract_telemetry_to_gpx(
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
-    gps_points = []
+    gps_points: list[dict[str, Any]] = []
 
     with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
