@@ -64,6 +64,10 @@ output/
 *.lrf
 *.SRT
 *.srt
+# Raw SRT dumps shared by contributors (e.g. ``*.SRT.txt``) — keep large
+# originals out of the repo; only trimmed ``clip.SRT`` fixtures are committed.
+*.SRT.txt
+*.srt.txt
 *.gpx
 *.GPX
 

@@ -95,7 +95,7 @@ Used by: DJI Mavic 3, DJI Air 2S
 
 ### Format 3b: Modern HTML Bracket (FrameCnt + decimal units)
 
-Used by: DJI Mini 5 Pro, DJI Avata 360
+Used by: DJI Mini 5 Pro, DJI Avata 360, DJI Neo 2
 
 Current models keep the HTML-wrapped bracket structure of Format 3 but change
 two things: the counter is `FrameCnt` (not `SrtCnt`), and the aperture and
@@ -199,6 +199,7 @@ if new_format_match:
 | DJI Air 2S | Format 3 | Comprehensive with HTML tags |
 | DJI Mini 5 Pro | Format 3b | FrameCnt + decimal fnum/focal_len |
 | DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
+| DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
 | DJI Matrice 300 RTK | Format 2b | Legacy-with-unit (`0.0M` altitude) |

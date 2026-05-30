@@ -1,0 +1,29 @@
+1
+00:00:00,000 --> 00:00:00,033
+<font size="28">FrameCnt: 1, DiffTime: 33ms
+2026-05-15 08:24:18.623
+[iso: 400] [shutter: 1/640.0] [fnum: 2.2] [ev: 0] [ct: 5631] [color_md: default] [ae_meter_md: 0] [latitude: 45.607181] [longitude: 13.753860] [rel_alt: 0.000 abs_alt: 113.900] [vsync: 1602] [eis: normal] [shift x: 0.00, y: 0.00] [pp_vsync:1602] [pp_timestamp:0] [pp_target:0.996, -0.004, -0.053, -0.075] [pp_current:0.996, -0.004, -0.053, -0.076] [pp_limit_ratio:1.0000] [pp_over_image_border:0] [pp_warp_status:0] [pp_imu_td:0]</font>
+
+2
+00:00:00,033 --> 00:00:00,066
+<font size="28">FrameCnt: 2, DiffTime: 33ms
+2026-05-15 08:24:18.657
+[iso: 400] [shutter: 1/640.0] [fnum: 2.2] [ev: 0] [ct: 5631] [color_md: default] [ae_meter_md: 0] [latitude: 45.607181] [longitude: 13.753859] [rel_alt: 0.000 abs_alt: 113.900] [vsync: 1603] [eis: normal] [shift x: 0.00, y: 0.00] [pp_vsync:1603] [pp_timestamp:0] [pp_target:0.996, -0.004, -0.053, -0.075] [pp_current:0.996, -0.004, -0.053, -0.076] [pp_limit_ratio:1.0000] [pp_over_image_border:0] [pp_warp_status:0] [pp_imu_td:0]</font>
+
+3
+00:00:00,066 --> 00:00:00,099
+<font size="28">FrameCnt: 3, DiffTime: 33ms
+2026-05-15 08:24:18.690
+[iso: 400] [shutter: 1/640.0] [fnum: 2.2] [ev: 0] [ct: 5631] [color_md: default] [ae_meter_md: 0] [latitude: 45.607181] [longitude: 13.753859] [rel_alt: 0.000 abs_alt: 113.900] [vsync: 1604] [eis: normal] [shift x: 0.00, y: 0.00] [pp_vsync:1604] [pp_timestamp:0] [pp_target:0.996, -0.004, -0.053, -0.075] [pp_current:0.995, -0.004, -0.053, -0.079] [pp_limit_ratio:1.0000] [pp_over_image_border:0] [pp_warp_status:0] [pp_imu_td:0]</font>
+
+4
+00:00:00,099 --> 00:00:00,133
+<font size="28">FrameCnt: 4, DiffTime: 34ms
+2026-05-15 08:24:18.723
+[iso: 400] [shutter: 1/640.0] [fnum: 2.2] [ev: 0] [ct: 5631] [color_md: default] [ae_meter_md: 0] [latitude: 45.607181] [longitude: 13.753859] [rel_alt: 0.000 abs_alt: 113.900] [vsync: 1605] [eis: normal] [shift x: 0.00, y: 0.00] [pp_vsync:1605] [pp_timestamp:0] [pp_target:0.996, -0.004, -0.053, -0.075] [pp_current:0.995, -0.004, -0.053, -0.081] [pp_limit_ratio:1.0000] [pp_over_image_border:0] [pp_warp_status:0] [pp_imu_td:0]</font>
+
+5
+00:00:00,133 --> 00:00:00,166
+<font size="28">FrameCnt: 5, DiffTime: 33ms
+2026-05-15 08:24:18.757
+[iso: 400] [shutter: 1/640.0] [fnum: 2.2] [ev: 0] [ct: 5631] [color_md: default] [ae_meter_md: 0] [latitude: 45.607181] [longitude: 13.753859] [rel_alt: 0.100 abs_alt: 114.000] [vsync: 1606] [eis: normal] [shift x: 0.00, y: 0.00] [pp_vsync:1606] [pp_timestamp:0] [pp_target:0.996, -0.004, -0.053, -0.075] [pp_current:0.995, -0.004, -0.053, -0.081] [pp_limit_ratio:1.0000] [pp_over_image_border:0] [pp_warp_status:0] [pp_imu_td:0]</font>
