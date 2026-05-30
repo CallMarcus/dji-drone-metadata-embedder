@@ -15,6 +15,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.0] - 2026-05-30
+
+### Added
+
+- **embedder**: Add --container mkv to preserve djmd/dbgi data streams (6c4d512)
+- **gpx**: UTC timestamps with timezone auto-detection (11a3419)
+- **parser**: Capture FrameCnt counter and BAROMETER value (dfaf124)
+
+### Fixed
+
+- **gpx**: Annotate gps_points for mypy (482f746)
+
+### Documentation
+
+- Auto-generate changelog for v1.4.0 (d8765b2)
+
+### Maintenance
+
+- **release**: Bump version to 1.5.0 (122f813)
+
+
 ## [1.4.0] - 2026-05-30
 
 ### Added
