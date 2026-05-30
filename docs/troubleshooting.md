@@ -190,6 +190,24 @@ dji-embed embed /path/to/converted/
 - ❌ **ProRes/DNxHD**: Not supported for metadata embedding
 - ❌ **VP9/AV1**: Not supported
 
+### Preserving DJI Data Streams (`djmd` / `dbgi`)
+
+Newer DJI models (Air 3S, Neo, etc.) embed proprietary timed-metadata streams
+— `djmd` (gyro/IMU/orientation) and `dbgi` (debug info) — inside the source
+MP4. The MP4 muxer cannot tag these streams, so the default embed **drops
+them** (otherwise ffmpeg fails with `Could not find tag for codec none`). The
+video, audio, and telemetry subtitle are unaffected.
+
+To keep those streams byte-for-byte, embed into a Matroska container instead:
+
+```bash
+dji-embed embed /path/to/footage --container mkv
+```
+
+This produces `<name>_metadata.mkv` with every source stream preserved (and an
+`srt` telemetry track). Use the default `mp4` unless a downstream tool needs
+the raw `djmd`/`dbgi` data.
+
 ---
 
 ## 📊 DJI Model-Specific Issues

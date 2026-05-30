@@ -215,3 +215,40 @@ def test_embed_metadata_ffmpeg_command(tmp_path, monkeypatch):
         str(output),
     ]
     assert called["cmd"] == expected
+
+
+def test_embed_metadata_ffmpeg_mkv_preserves_data_streams(tmp_path, monkeypatch):
+    """MKV container preserves proprietary djmd/dbgi data streams (issue #197).
+
+    The MP4 muxer can't tag DJI's ``codec=none`` data streams, so the default
+    mp4 path drops them with ``-map -0:d``. MKV's codec table round-trips them,
+    so in mkv mode we keep every source stream (no ``-0:d`` exclusion) and use
+    the Matroska-native ``srt`` subtitle codec instead of ``mov_text``.
+    """
+    video = Path(tmp_path / "DJI_0001.mp4")
+    srt = Path(tmp_path / "DJI_0001.srt")
+    video.write_text("dummy")
+    srt.write_text("dummy")
+    output = Path(tmp_path / "out.mkv")
+    telemetry = {"first_gps": None, "max_altitude": None}
+    embedder = DJIMetadataEmbedder(tmp_path, container="mkv")
+    called = {}
+
+    def fake_run(cmd, capture_output=True, text=True):
+        called["cmd"] = cmd
+
+        class Res:
+            returncode = 0
+
+        return Res()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert embedder.embed_metadata_ffmpeg(video, srt, telemetry, output)
+    cmd = called["cmd"]
+    # Data streams must NOT be dropped in mkv mode.
+    assert "-0:d" not in cmd
+    # Only two -map args: source (0) and subtitle (1).
+    assert cmd.count("-map") == 2
+    assert cmd[cmd.index("-map") + 1] == "0"
+    # Matroska-native subtitle codec.
+    assert cmd[cmd.index("-c:s") + 1] == "srt"

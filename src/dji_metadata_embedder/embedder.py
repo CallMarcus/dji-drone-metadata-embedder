@@ -154,6 +154,7 @@ class DJIMetadataEmbedder:
         redact: str = "none",
         time_offset: float = 0.0,
         resample_strategy: str = "linear",
+        container: str = "mp4",
     ):
         self.directory = Path(directory)
         self.output_dir = (
@@ -167,6 +168,10 @@ class DJIMetadataEmbedder:
         self.redact = redact
         self.time_offset = time_offset
         self.resample_strategy = resample_strategy
+        # Output container. "mp4" (default) drops DJI's untaggable djmd/dbgi
+        # data streams; "mkv" preserves them — Matroska's codec table accepts
+        # the codec=none streams the MP4 muxer rejects (issue #197).
+        self.container = container
 
     def parse_dji_srt(self, srt_path: Path) -> Dict[str, Any]:
         """Parse DJI SRT file and extract telemetry data."""
@@ -411,30 +416,36 @@ class DJIMetadataEmbedder:
                     ffmpeg_cmd = env_ffmpeg
 
             # Build ffmpeg command.
-            # -map 0 -map -0:d -map 1 keeps every video/audio stream from the
-            # source plus the SRT subtitle. Newer DJI models (Air 3S, Neo 2)
-            # also emit proprietary data streams (`djmd` / `dbgi`, gyro and
-            # debug metadata) whose codec the MP4 muxer cannot tag — without
-            # explicitly dropping them the entire mux fails with
-            # "Could not find tag for codec none". We lose those data tracks;
-            # the main video, proxy/LRF MJPEG, audio, and telemetry SRT are
-            # all preserved. Background: GH discussion #192, follow-up to #193.
+            #
+            # MP4 (default): -map 0 -map -0:d -map 1 keeps every video/audio
+            # stream from the source plus the SRT subtitle, but explicitly
+            # drops DJI's proprietary data streams (`djmd` / `dbgi`, gyro and
+            # debug metadata on Air 3S / Neo 2 / etc.). The MP4 muxer cannot
+            # tag their codec, so without the drop the whole mux fails with
+            # "Could not find tag for codec none". Background: GH discussion
+            # #192, follow-up to #193.
+            #
+            # MKV (--container mkv): Matroska's codec table accepts those
+            # streams, so we keep -map 0 (no -0:d) to round-trip djmd/dbgi
+            # byte-for-byte, and use the Matroska-native `srt` subtitle codec
+            # rather than the MP4-only `mov_text` (issue #197).
+            if self.container == "mkv":
+                stream_maps = ["-map", "0", "-map", "1"]
+                subtitle_codec = "srt"
+            else:
+                stream_maps = ["-map", "0", "-map", "-0:d", "-map", "1"]
+                subtitle_codec = "mov_text"
             cmd = [
                 ffmpeg_cmd,
                 "-i",
                 str(video_path),
                 "-i",
                 str(srt_path),
-                "-map",
-                "0",
-                "-map",
-                "-0:d",
-                "-map",
-                "1",
+                *stream_maps,
                 "-c",
                 "copy",
                 "-c:s",
-                "mov_text",
+                subtitle_codec,
                 "-metadata:s:s:0",
                 "language=eng",
                 "-metadata:s:s:0",
@@ -605,8 +616,13 @@ class DJIMetadataEmbedder:
                 if self.overwrite:
                     output_path = video_path
                 else:
+                    # MKV mode rewrites the extension so the preserved
+                    # djmd/dbgi data streams land in a Matroska container.
+                    out_suffix = (
+                        ".mkv" if self.container == "mkv" else video_path.suffix
+                    )
                     output_path = (
-                        self.output_dir / f"{video_path.stem}_metadata{video_path.suffix}"
+                        self.output_dir / f"{video_path.stem}_metadata{out_suffix}"
                     )
                 temp_output_path = output_path.with_name(
                     output_path.stem + _TEMP_SUFFIX + output_path.suffix
