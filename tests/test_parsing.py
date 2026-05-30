@@ -97,6 +97,71 @@ F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851745, -34.237922, 15), HOME (-58.847509
     assert t["camera_settings"]["ev"] == "0"
 
 
+def test_parse_framecnt_counter(tmp_path):
+    """Newer firmware (Neo, Mini 5 Pro, Avata 360) emits ``FrameCnt`` rather
+    than ``SrtCnt``; the counter must still be captured (issue #204)."""
+    srt = """1
+00:00:00,000 --> 00:00:00,041
+<font size="28">FrameCnt: 1, DiffTime: 41ms
+2026-05-27 13:10:00.015
+[iso: 200] [latitude: 53.365080] [longitude: 6.460739] [rel_alt: 5.400 abs_alt: -124.744]</font>
+
+2
+00:00:00,041 --> 00:00:00,082
+<font size="28">FrameCnt: 2, DiffTime: 41ms
+2026-05-27 13:10:00.056
+[iso: 200] [latitude: 53.365080] [longitude: 6.460739] [rel_alt: 5.400 abs_alt: -124.744]</font>
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["srt_counts"] == [1, 2]
+
+
+def test_parse_srtcnt_counter_still_works(tmp_path):
+    """Regression: legacy ``SrtCnt`` spelling (Mavic 3, Air 2S) keeps working."""
+    srt = """1
+00:00:00,000 --> 00:00:00,033
+<font size='36'>SrtCnt : 1, DiffTime : 33ms
+2024-01-01 12:00:00,000
+[latitude: 59.1111] [longitude: 18.2222] [rel_alt: 5.0 abs_alt: 105.0]</font>
+
+2
+00:00:00,033 --> 00:00:00,066
+<font size='36'>SrtCnt : 2, DiffTime : 33ms
+2024-01-01 12:00:00,033
+[latitude: 59.1112] [longitude: 18.2223] [rel_alt: 5.1 abs_alt: 105.1]</font>
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["srt_counts"] == [1, 2]
+
+
+def test_parse_barometer_avata2_parenthesised(tmp_path):
+    """Avata 2 parenthesised barometer form: ``BAROMETER(91.2)`` (issue #203)."""
+    srt = """1
+00:00:00,000 --> 00:00:00,033
+GPS(39.906217,116.391305,69.800) BAROMETER(91.2) HOME(39.906206,116.391400)
+
+2
+00:00:00,033 --> 00:00:00,066
+GPS(39.906218,116.391306,69.900) BAROMETER(91.3) HOME(39.906206,116.391400)
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["barometers"] == [91.2, 91.3]
+
+
+def test_parse_barometer_m300_colon_with_unit(tmp_path):
+    """Matrice 300 colon form with trailing unit: ``BAROMETER:0.3M`` (issue #203)."""
+    srt = """1
+00:00:00,000 --> 00:00:00,033
+GPS(36.6146,-6.1120,0.0M) BAROMETER:0.3M
+
+2
+00:00:00,033 --> 00:00:00,066
+GPS(36.6147,-6.1121,0.1M) BAROMETER:0.4M
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["barometers"] == [0.3, 0.4]
+
+
 def test_embed_metadata_ffmpeg_command(tmp_path, monkeypatch):
     video = Path(tmp_path / "DJI_20240101_123456.mp4")
     srt = Path(tmp_path / "test.srt")
