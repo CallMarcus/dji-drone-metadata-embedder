@@ -6,6 +6,10 @@ Thank you for your interest in contributing! This project has matured into a pro
 
 All major milestones (M1-M4) have been completed. The project now features professional documentation, comprehensive testing, and automated release processes. Future contributions should focus on maintenance, new model support, and community enhancements.
 
+## 🧭 **Project direction**
+
+Drone telemetry is dual-use; this project deliberately leans toward the open, accountability side of that — **transparency, verification, provenance, georeferencing, and GIS/FMV interoperability** in service of journalism, human-rights and conflict documentation, search-and-rescue, and humanitarian/environmental work. Please keep contributions in that spirit; we don't build targeting or other offensive capabilities. See [Intended use & scope](README.md#intended-use--scope).
+
 ## 🤝 **Ways to Contribute**
 
 ### 1. Report Issues & Bugs
