@@ -20,6 +20,21 @@ For detailed setup instructions and a quick-start tutorial, see
 [docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
 Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
 
+## Intended use & scope
+
+This is a tool for **transparency and accountability**. Drone telemetry is
+dual-use, and this project deliberately focuses on the open side of that:
+verifying and documenting footage, georeferencing it for mapping, and making it
+interoperable with open GIS workflows. The uses we build for include
+open-source verification and journalism, human-rights and conflict
+documentation, search-and-rescue and disaster response, humanitarian damage
+assessment, environmental monitoring, agriculture, and infrastructure
+inspection.
+
+Feature and documentation decisions favor **provenance, verification,
+georeferencing, and standards interoperability**. We do not build targeting or
+other offensive capabilities.
+
 ## Easy Windows install
 
 ### Option 1: Bootstrap Script (Includes FFmpeg/ExifTool)
