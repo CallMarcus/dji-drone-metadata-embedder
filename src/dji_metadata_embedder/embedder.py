@@ -183,6 +183,7 @@ class DJIMetadataEmbedder:
             "flight_duration": None,
             "srt_counts": [],
             "diff_times": [],
+            "barometers": [],
         }
 
         try:
@@ -210,14 +211,20 @@ class DJIMetadataEmbedder:
                     if "<font" in telemetry_line:
                         telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
 
-                    # Detect comprehensive format with frame counters
-                    srt_cnt_match = re.search(r"SrtCnt\s*:\s*(\d+)", telemetry_line)
+                    # Detect comprehensive format with frame counters. Older
+                    # firmware labels this ``SrtCnt``; newer firmware (Neo,
+                    # Mini 5 Pro, Avata 360) uses ``FrameCnt``. Accept either
+                    # spelling and store under the existing ``srt_counts`` key
+                    # for backwards compatibility.
+                    counter_match = re.search(
+                        r"(?:Srt|Frame)Cnt\s*:\s*(\d+)", telemetry_line
+                    )
                     diff_time_match = re.search(
                         r"DiffTime\s*:\s*([^\s]+)", telemetry_line
                     )
-                    if srt_cnt_match or diff_time_match:
+                    if counter_match or diff_time_match:
                         telemetry_data.setdefault("srt_counts", []).append(
-                            int(srt_cnt_match.group(1)) if srt_cnt_match else None
+                            int(counter_match.group(1)) if counter_match else None
                         )
                         telemetry_data.setdefault("diff_times", []).append(
                             diff_time_match.group(1) if diff_time_match else None
@@ -266,6 +273,20 @@ class DJIMetadataEmbedder:
                         abs_alt = float(alt_match.group(2))
                         telemetry_data["rel_altitudes"].append(rel_alt)
                         telemetry_data["altitudes"].append(abs_alt)
+
+                    # Extract barometric altitude. Two delimiter variants exist:
+                    # Avata 2 parenthesised ``BAROMETER(91.2)`` and Matrice 300
+                    # colon form ``BAROMETER:0.3M`` (optional trailing unit).
+                    # Barometric height is more reliable than GPS altitude in
+                    # tight / FPV environments.
+                    baro_match = re.search(
+                        r"BAROMETER[(:]\s*([+-]?\d+\.?\d*)[A-Za-z]*\)?",
+                        telemetry_line,
+                    )
+                    if baro_match:
+                        telemetry_data["barometers"].append(
+                            float(baro_match.group(1))
+                        )
 
                     # Extract camera info including extended fields
                     iso_match = re.search(r"\[iso\s*:\s*(\d+)\]", telemetry_line)
@@ -631,6 +652,10 @@ class DJIMetadataEmbedder:
                             "camera_settings": telemetry.get("camera_settings", {}),
                             "dat_records": len(telemetry.get("dat_records", [])),
                         }
+                        # Barometric altitude is only present on some formats
+                        # (Avata 2 / Matrice 300); include it when captured.
+                        if telemetry.get("barometers"):
+                            json_data["barometers"] = telemetry["barometers"]
                         try:
                             with open(json_tmp_path, "w") as f:
                                 json.dump(json_data, f, indent=2)
