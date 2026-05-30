@@ -93,6 +93,33 @@ Used by: DJI Mavic 3, DJI Air 2S
 - `color_md`: Color mode
 - `focal_len`: Focal length × 10 (240 = 24mm)
 
+### Format 3b: Modern HTML Bracket (FrameCnt + decimal units)
+
+Used by: DJI Mini 5 Pro, DJI Avata 360
+
+Current models keep the HTML-wrapped bracket structure of Format 3 but change
+two things: the counter is `FrameCnt` (not `SrtCnt`), and the aperture and
+focal length are written as **literal decimals** rather than the legacy
+×100 / ×10 integer encodings.
+
+```
+<font size="28">FrameCnt: 1, DiffTime: 40ms
+2026-05-27 13:14:22.911
+[iso: 200] [shutter: 1/6400.0] [fnum: 1.8] [ev: -0.7] [color_md: dlog_m] [focal_len: 24.00] [latitude: 53.365108] [longitude: 6.460719] [rel_alt: 6.000 abs_alt: -122.769] [ct: 5263] </font>
+```
+
+**Notes:**
+- `fnum: 1.8` is the literal f-number (f/1.8), not `180`.
+- `focal_len: 24.00` is the literal focal length in mm, not `240`.
+- The Avata 360 variant adds a `FrameId`, a `dzoom_ratio`, gimbal
+  (`gb_yaw`/`gb_pitch`/`gb_roll`), and a block of stabilization /
+  post-processing fields (`eis`, `shift x/y`, `pp_*`). These are ignored by
+  the parser but are valid telemetry-line content.
+- Avata 360 footage is delivered as `.OSV` (360 video) plus a `.LRF` low-res
+  proxy instead of `.MP4`; both are MP4-family containers and are processed
+  like any other video. See [troubleshooting](troubleshooting.md).
+- Detected as the `html_extended` format family.
+
 ## Camera Settings Interpretation
 
 ### ISO Values
@@ -104,18 +131,13 @@ Used by: DJI Mavic 3, DJI Air 2S
 - Long exposure: `2.0` (2 seconds)
 
 ### F-Number (Aperture)
-- Stored as integer × 100
-- Examples:
-  - 170 = f/1.7
-  - 280 = f/2.8
-  - 400 = f/4.0
+- Legacy encoding: integer × 100 (`170` = f/1.7, `280` = f/2.8, `400` = f/4.0)
+- Modern encoding (Format 3b): literal decimal (`1.8` = f/1.8, `1.9` = f/1.9)
+- The parser stores the value verbatim and does not convert between the two.
 
 ### Focal Length
-- Stored as integer × 10
-- Examples:
-  - 240 = 24mm
-  - 350 = 35mm
-  - 500 = 50mm
+- Legacy encoding: integer × 10 (`240` = 24mm, `350` = 35mm, `500` = 50mm)
+- Modern encoding (Format 3b): literal decimal mm (`24.00` = 24mm)
 
 ## GPS Coordinate Formats
 
@@ -175,6 +197,8 @@ if new_format_match:
 | DJI Mini 4 Pro | Format 1 | Bracketed key-value pairs |
 | DJI Mavic 3 | Format 3 | Comprehensive with HTML tags |
 | DJI Air 2S | Format 3 | Comprehensive with HTML tags |
+| DJI Mini 5 Pro | Format 3b | FrameCnt + decimal fnum/focal_len |
+| DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
 | DJI Matrice 300 RTK | Format 2b | Legacy-with-unit (`0.0M` altitude) |

@@ -57,6 +57,11 @@ output/
 *.mov
 *.avi
 *.AVI
+# DJI 360 video (.OSV) and low-res proxy (.LRF) containers — large binaries
+*.OSV
+*.osv
+*.LRF
+*.lrf
 *.SRT
 *.srt
 *.gpx

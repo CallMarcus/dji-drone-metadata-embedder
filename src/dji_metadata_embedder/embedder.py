@@ -97,6 +97,29 @@ def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
     return True
 
 
+# Video container extensions the embedder can mux a subtitle track into.
+# ``.osv``/``.lrf`` are DJI's 360 video and low-res proxy formats (Avata 360);
+# both are ISO BMFF (MP4-family) containers ffmpeg reads like a normal ``.mp4``.
+# Matching is case-insensitive; cameras emit upper-case extensions while some
+# tools rewrite them lower-case.
+_VIDEO_EXTENSIONS = ("mp4", "osv", "lrf")
+
+
+def discover_video_files(directory: Path) -> list[Path]:
+    """Return the video files in *directory* the embedder can process.
+
+    Globs each supported extension in both cases (``*.mp4`` and ``*.MP4``) so
+    discovery works on case-sensitive file systems too, then returns a sorted,
+    de-duplicated list. On case-insensitive file systems the two globs would
+    otherwise yield the same path twice, hence the set.
+    """
+    matches: set[Path] = set()
+    for ext in _VIDEO_EXTENSIONS:
+        matches.update(directory.glob(f"*.{ext}"))
+        matches.update(directory.glob(f"*.{ext.upper()}"))
+    return sorted(matches)
+
+
 class DJIMetadataEmbedder:
     """Embed DJI telemetry data into video files.
 
@@ -249,7 +272,14 @@ class DJIMetadataEmbedder:
                     shutter_match = re.search(
                         r"\[shutter\s*:\s*([^\]]+)\]", telemetry_line
                     )
-                    fnum_match = re.search(r"\[fnum\s*:\s*(\d+)\]", telemetry_line)
+                    # Aperture is reported two ways: legacy models use an
+                    # f-number*100 integer (``[fnum : 170]`` → f/1.7) while
+                    # current models (Avata 360, Mini 5 Pro, …) emit a literal
+                    # decimal (``[fnum: 1.9]``). Capture both; the value is
+                    # stored verbatim without interpretation.
+                    fnum_match = re.search(
+                        r"\[fnum\s*:\s*([+-]?\d+\.?\d*)\]", telemetry_line
+                    )
                     ev_match = re.search(r"\[ev\s*:\s*([^\]]+)\]", telemetry_line)
                     # P4 RTK compact single-line family uses free-standing
                     # tokens (``F/5.6, SS 400, ISO 100, EV 0``) rather than
@@ -478,11 +508,8 @@ class DJIMetadataEmbedder:
         Returns:
             Dict containing processing results and statistics
         """
-        # Find all MP4 files. On case-insensitive file systems the two globs
-        # may return duplicates, so use a set to deduplicate and then sort
-        video_files = sorted(
-            {*self.directory.glob("*.mp4"), *self.directory.glob("*.MP4")}
-        )
+        # Find all supported video files (.mp4 plus DJI 360 .osv/.lrf).
+        video_files = discover_video_files(self.directory)
 
         # Initialize result structure
         result: Dict[str, Any] = {
