@@ -9,7 +9,7 @@ from dji_metadata_embedder.utilities import parse_telemetry_points
 
 SAMPLE_HASHES = {
     "mini4pro": "b5b0f199f2dd1c10a0ed42e4964e25a122cbb54288a4eeee6f8e279a3cce05b7",
-    "air3": "16befdcc4e09b4690f61748324a4a7d79d4e933b6d3aaa4e9b1cb568500cae90",
+    "air3": "4141978a30b0f956b6a22ebbafa030aaf05c3ac6a7a1cde59577d045104d03fd",
     "avata2": "44e78c14cc62527a3152350ba060bcfc7c7a3d7a458bdb6013ba0b8d55a7e7f9",
 }
 
@@ -47,15 +47,22 @@ def run_sample(name: str, tmp_path, monkeypatch):
 
     gpx_path = tmp_path / f"{name}.gpx"
 
-    class FixedDT:
-        @staticmethod
-        def now():
-            from datetime import datetime
+    # Subclass datetime so the parser can still construct instances while
+    # now() stays fixed (formats without an absolute datetime fall back to
+    # now() for the GPX metadata <time>).
+    from datetime import datetime, timedelta
 
+    class FixedDT(datetime):
+        @classmethod
+        def now(cls, *args, **kwargs):
             return datetime(2020, 1, 1)
 
     monkeypatch.setattr(telemetry_converter, "datetime", FixedDT)
-    telemetry_converter.extract_telemetry_to_gpx(srt, gpx_path)
+    # Pin the tz offset so GPX output for datetime-bearing formats (air3) is
+    # deterministic rather than dependent on the fixture file's mtime.
+    telemetry_converter.extract_telemetry_to_gpx(
+        srt, gpx_path, tz_offset=timedelta(0)
+    )
     digest = hashlib.sha256(gpx_path.read_bytes()).hexdigest()
     assert digest == SAMPLE_HASHES[name]
 

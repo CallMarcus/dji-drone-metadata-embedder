@@ -7,7 +7,7 @@ provided for convenience.
 """
 
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import re
 import logging
 
@@ -16,12 +16,94 @@ from .utilities import setup_logging
 
 logger = logging.getLogger(__name__)
 
+# Seconds in a quarter hour — the granularity real-world UTC offsets use
+# (whole hours plus the :30 and :45 zones like India and Nepal).
+_QUARTER_HOUR = 15 * 60
+
+# DJI SRT blocks carry an absolute wall-clock datetime on their own line, with
+# the milliseconds separated by either a comma (older firmware) or a dot
+# (newer firmware): "2024-01-15 14:30:22,123" / "2026-05-27 13:14:22.911".
+_ABS_DATETIME_RE = re.compile(
+    r"(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})[.,](\d{3})"
+)
+
+
+def _parse_srt_datetime(text: str) -> datetime | None:
+    """Return the absolute wall-clock datetime in *text*, or None if absent."""
+    m = _ABS_DATETIME_RE.search(text)
+    if not m:
+        return None
+    year, month, day, hour, minute, second, millis = (int(g) for g in m.groups())
+    return datetime(year, month, day, hour, minute, second, millis * 1000)
+
+
+def parse_utc_offset(value: str | None) -> timedelta | None:
+    """Parse a CLI UTC-offset string into a :class:`timedelta`.
+
+    Returns ``None`` (meaning "auto-detect") for ``None``, an empty string, or
+    ``"auto"``. Otherwise accepts a signed ``HH`` or ``HH:MM`` form such as
+    ``"+05:30"``, ``"5:45"`` or ``"-8"``. Raises :class:`ValueError` on any
+    other input.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    if value == "" or value.lower() == "auto":
+        return None
+    m = re.fullmatch(r"([+-]?)(\d{1,2})(?::(\d{2}))?", value)
+    if not m:
+        raise ValueError(f"Invalid UTC offset: {value!r}")
+    sign = -1 if m.group(1) == "-" else 1
+    hours = int(m.group(2))
+    minutes = int(m.group(3) or 0)
+    return sign * timedelta(hours=hours, minutes=minutes)
+
+
+def estimate_utc_offset(
+    first_local: datetime,
+    last_local: datetime,
+    file_mtime_utc: datetime,
+) -> timedelta:
+    """Estimate the UTC offset of naive DJI SRT timestamps.
+
+    DJI SRT wall-clock timestamps are local with no timezone, while the source
+    file's mtime is UTC. We don't know whether the mtime marks the start or the
+    end of the recording, so both hypotheses are tested: for each anchor the
+    raw offset ``anchor - file_mtime_utc`` is rounded to the nearest quarter
+    hour (covering offsets such as UTC+5:30 and UTC+5:45), and the residual
+    distance from that boundary is kept. The hypothesis with the smaller
+    residual wins, since a genuine offset lands cleanly on a quarter hour.
+
+    All three datetimes must be naive (``file_mtime_utc`` expressed in UTC).
+
+    Re-implemented from the heuristic described in GPStitch
+    (https://github.com/Romancha/GPStitch, GPLv3) — idea only, no code copied.
+    """
+    best_offset = timedelta(0)
+    best_residual: float | None = None
+    for anchor in (first_local, last_local):
+        raw = (anchor - file_mtime_utc).total_seconds()
+        rounded = round(raw / _QUARTER_HOUR) * _QUARTER_HOUR
+        residual = abs(raw - rounded)
+        if best_residual is None or residual < best_residual:
+            best_residual = residual
+            best_offset = timedelta(seconds=rounded)
+    return best_offset
+
 
 def extract_telemetry_to_gpx(
-    srt_file: Path | str, output_file: Path | str | None = None
+    srt_file: Path | str,
+    output_file: Path | str | None = None,
+    tz_offset: timedelta | None = None,
 ) -> Path:
-    """
-    Extract GPS telemetry from DJI SRT file and create GPX file.
+    """Extract GPS telemetry from a DJI SRT file and create a GPX file.
+
+    DJI SRT timestamps are local wall-clock time with no timezone. When a block
+    carries an absolute datetime, its ``<time>`` is emitted as proper UTC
+    ISO 8601. The local-to-UTC offset is taken from *tz_offset* when given,
+    otherwise auto-detected from the SRT file's mtime (see
+    :func:`estimate_utc_offset`). Formats without an absolute datetime fall back
+    to the raw subtitle cue timestamp, as before.
     """
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
@@ -55,9 +137,39 @@ def extract_telemetry_to_gpx(
                     "lat": float(lat_match.group(1)),
                     "lon": float(lon_match.group(1)),
                     "ele": float(alt_match.group(1)) if alt_match else 0,
+                    # Raw subtitle cue time (fallback for formats without an
+                    # absolute datetime).
                     "time": timestamp_match.group(1) if timestamp_match else None,
+                    # Absolute wall-clock datetime, when present.
+                    "datetime": _parse_srt_datetime(telemetry_line),
                 }
                 gps_points.append(point)
+
+    # Resolve the local→UTC offset for points that carry an absolute datetime.
+    abs_times = [p["datetime"] for p in gps_points if p["datetime"] is not None]
+    offset: timedelta | None = None
+    if abs_times:
+        if tz_offset is not None:
+            offset = tz_offset
+        else:
+            mtime_utc = datetime.fromtimestamp(
+                srt_path.stat().st_mtime, tz=timezone.utc
+            ).replace(tzinfo=None)
+            offset = estimate_utc_offset(abs_times[0], abs_times[-1], mtime_utc)
+
+    def _point_time(point: dict) -> str | None:
+        """Return the GPX <time> string for a point (UTC if datetime known)."""
+        if point["datetime"] is not None and offset is not None:
+            utc = point["datetime"] - offset
+            return utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return point["time"]
+
+    # The metadata <time> is the first point's UTC time when known, otherwise
+    # the current time (legacy behaviour for datetime-less formats).
+    if abs_times and offset is not None:
+        metadata_time = (abs_times[0] - offset).strftime("%Y-%m-%dT%H:%M:%SZ")
+    else:
+        metadata_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Write GPX file
     gpx_header = """<?xml version="1.0" encoding="UTF-8"?>
@@ -73,7 +185,7 @@ def extract_telemetry_to_gpx(
     <name>DJI Flight Path</name>
     <trkseg>
 """.format(
-        Path(srt_file).stem, datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        Path(srt_file).stem, metadata_time
     )
 
     gpx_footer = """    </trkseg>
@@ -85,8 +197,9 @@ def extract_telemetry_to_gpx(
         for point in gps_points:
             f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
             f.write(f'            <ele>{point["ele"]}</ele>\n')
-            if point["time"]:
-                f.write(f'            <time>{point["time"]}</time>\n')
+            time_str = _point_time(point)
+            if time_str:
+                f.write(f'            <time>{time_str}</time>\n')
             f.write("        </trkpt>\n")
         f.write(gpx_footer)
 

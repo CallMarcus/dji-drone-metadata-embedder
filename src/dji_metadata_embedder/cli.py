@@ -13,6 +13,7 @@ from .metadata_check import check_metadata
 from .telemetry_converter import (
     extract_telemetry_to_gpx,
     extract_telemetry_to_csv,
+    parse_utc_offset,
 )
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
@@ -146,6 +147,14 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
 @click.argument("input", type=click.Path(exists=True))
 @click.option("-o", "--output", type=click.Path())
 @click.option("-b", "--batch", is_flag=True, help="Batch process directory")
+@click.option(
+    "--tz-offset",
+    default="auto",
+    show_default=True,
+    metavar="OFFSET",
+    help="UTC offset for GPX timestamps, e.g. '+05:30' or '-8'. "
+    "'auto' detects it from the SRT file mtime.",
+)
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
 def convert(
@@ -153,11 +162,17 @@ def convert(
     input: str,
     output: str | None,
     batch: bool,
+    tz_offset: str,
     verbose: bool,
     quiet: bool,
 ) -> None:
     """Convert SRT telemetry to GPX or CSV."""
     setup_logging(verbose, quiet)
+
+    try:
+        offset = parse_utc_offset(tz_offset)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--tz-offset")
 
     src = Path(input)
     if batch and not src.is_dir():
@@ -166,12 +181,12 @@ def convert(
     if batch:
         for srt in src.glob("*.SRT"):
             if command == "gpx":
-                extract_telemetry_to_gpx(srt, None)
+                extract_telemetry_to_gpx(srt, None, tz_offset=offset)
             else:
                 extract_telemetry_to_csv(srt, None)
     else:
         if command == "gpx":
-            extract_telemetry_to_gpx(src, output)
+            extract_telemetry_to_gpx(src, output, tz_offset=offset)
         else:
             extract_telemetry_to_csv(src, output)
 
