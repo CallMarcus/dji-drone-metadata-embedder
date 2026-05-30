@@ -77,6 +77,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **DJI Mini 5 Pro** - HTML-style bracket format with decimal aperture (`[fnum: 1.8]`)
 - **DJI Air 3** - HTML-style format with extended telemetry data
 - **DJI Avata 360** - HTML-style bracket format with stabilization (`pp_*`) fields; footage ships as `.OSV` (360 video) + `.LRF` proxy
+- **DJI Neo 2** - HTML-style bracket format with stabilization (`pp_*`) fields; MP4 also carries embedded `djmd`/`dbgi` data streams
 - **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data
 - **DJI Mavic 3 Enterprise** - Extended format with RTK precision data
 - **DJI Matrice 300 (legacy-with-unit)** - `GPS(lat,lon,alt M)` with `BAROMETER:` colon notation
