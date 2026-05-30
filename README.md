@@ -194,6 +194,13 @@ Extract GPS track to GPX:
 dji-embed convert gpx DJI_0001.SRT
 ```
 
+GPX timestamps are written in UTC. DJI SRT times are local with no timezone, so
+the offset is auto-detected from the file's modification time. Override it when
+the mtime is unreliable (e.g. copied files):
+```bash
+dji-embed convert gpx DJI_0001.SRT --tz-offset +05:30
+```
+
 Export telemetry to CSV:
 ```bash
 dji-embed convert csv DJI_0001.SRT -o telemetry.csv
@@ -273,6 +280,8 @@ Arguments:
 Options:
   -o, --output PATH          Output file path
   -b, --batch                Batch process directory
+  --tz-offset OFFSET         UTC offset for GPX timestamps, e.g. '+05:30' or
+                             '-8' ('auto' detects from file mtime; default: auto)
   -v, --verbose              Verbose output
   -q, --quiet                Suppress info output
 ```
