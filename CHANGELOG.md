@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.5.1] - 2026-06-03
+
+### Added
+
+- **samples**: Formalize DJI Neo 2 support (950e303)
+
+### Fixed
+
+- **parser**: Ignore pre-GPS-lock 0,0 frames in geotagging (2469d9b)
+
+### Documentation
+
+- Auto-generate changelog for v1.5.0 (345d754)
+- State intended use & scope (transparency/verification focus) (e6b6856)
+
+### Maintenance
+
+- **deps-dev**: Bump the development-deps group with 4 updates (#219) (8fa7831)
+
+### Other
+
+- Prepare version 1.5.1 (8000cd4)
+
+
 ## [1.5.0] - 2026-05-30
 
 ### Added
