@@ -4,7 +4,8 @@ This project publishes packages to PyPI and Windows Package Manager (winget) via
 
 ## Release Workflow
 
-The release process consists of multiple automated workflows:
+The release process is mostly automated. Pushing the tag runs the PyPI, EXE,
+and changelog workflows; the winget submission is a separate manual step.
 
 ### 1. PyPI Release (`release-pypi.yml`)
 1. Build the wheel and source distribution using `python -m build`
@@ -19,11 +20,20 @@ The release process consists of multiple automated workflows:
 2. Sign the executable and upload to GitHub Releases
 3. Update release assets with the Windows executable
 
-### 3. Winget Submission (`release-winget.yml`) 
+### 3. Winget Submission (`release-winget.yml`) — manual
+This workflow is **not** triggered by the release tag. It only runs via
+`workflow_dispatch` and must be started by a maintainer once the PyPI/EXE
+release has completed:
+
+```bash
+gh workflow run release-winget.yml -f version=X.Y.Z
+```
+
+When run it will:
 1. Verify version sync using `python tools/sync_version.py --check`
 2. Install `wingetcreate` tool for manifest submission
-3. Automatically submit updated manifest to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
-4. Create pull request for community review
+3. Submit the updated manifest to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
+4. Create a pull request for community review
 
 ### 4. Auto-Changelog (`auto-changelog.yml`)
 1. Generate changelog entries from conventional commits
@@ -62,9 +72,10 @@ git push origin v1.2.0
 The following workflows will run automatically:
 
 1. ✅ **PyPI Release** - Package uploaded to PyPI
-2. ✅ **Windows EXE** - Standalone executable built and attached
-3. ✅ **Winget Submission** - Manifest submitted to winget community
-4. ✅ **Auto-Changelog** - Changelog updated from commits
+2. ✅ **Windows EXE** - Standalone executable built and attached (triggered by the PyPI workflow completing)
+3. ✅ **Auto-Changelog** - Changelog updated from commits
+
+**Winget Submission is a separate manual step** — see [Winget Integration](#winget-integration) below.
 
 ## Version Synchronization
 
@@ -82,7 +93,7 @@ The project maintains local winget manifests in the `/winget` directory:
 
 - **Package ID**: `CallMarcus.DJIMetadataEmbedder`
 - **Moniker**: `dji-embed`
-- **Auto-submission**: Triggered after successful EXE build
+- **Submission**: Manual via `gh workflow run release-winget.yml -f version=X.Y.Z` (not auto-triggered by the release tag)
 - **Community review**: PRs created in microsoft/winget-pkgs
 
 Users can install via:
