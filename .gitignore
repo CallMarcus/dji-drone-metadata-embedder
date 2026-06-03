@@ -75,6 +75,11 @@ output/
 !examples/*.SRT
 !examples/*.srt
 
+# Keep trimmed golden fixtures shipped under samples/ (e.g. clip.SRT,
+# clip_nogps.SRT) — only these small clips are committed, not full captures.
+!samples/**/clip*.SRT
+!samples/**/clip*.srt
+
 # Temporary files
 *.tmp
 *.temp

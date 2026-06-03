@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from rich.progress import Progress
 
 from .dat_parser import parse_v13 as parse_dat_v13
-from .utilities import apply_redaction, setup_logging
+from .utilities import apply_redaction, is_gps_fix, setup_logging
 from .utils import system_info
 
 logger = logging.getLogger(__name__)
@@ -362,15 +362,16 @@ class DJIMetadataEmbedder:
 
                         telemetry_data["camera_info"].append(camera_data)
 
-            # Calculate summary statistics
-            if telemetry_data["gps_coords"]:
-                telemetry_data["first_gps"] = telemetry_data["gps_coords"][0]
-                avg_lat = sum(coord[0] for coord in telemetry_data["gps_coords"]) / len(
-                    telemetry_data["gps_coords"]
-                )
-                avg_lon = sum(coord[1] for coord in telemetry_data["gps_coords"]) / len(
-                    telemetry_data["gps_coords"]
-                )
+            # Calculate summary statistics. Exclude pre-GPS-lock ``(0, 0)``
+            # no-fix frames so the clip is not geotagged at Null Island and the
+            # average is not dragged toward it (see ``is_gps_fix``).
+            valid_coords = [
+                c for c in telemetry_data["gps_coords"] if is_gps_fix(c[0], c[1])
+            ]
+            if valid_coords:
+                telemetry_data["first_gps"] = valid_coords[0]
+                avg_lat = sum(coord[0] for coord in valid_coords) / len(valid_coords)
+                avg_lon = sum(coord[1] for coord in valid_coords) / len(valid_coords)
                 telemetry_data["avg_gps"] = (avg_lat, avg_lon)
 
             if telemetry_data["altitudes"]:

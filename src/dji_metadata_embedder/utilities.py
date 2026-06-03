@@ -12,6 +12,17 @@ def iso6709(lat: float, lon: float, alt: float = 0.0) -> str:
     return f"{lat:+08.4f}{lon:+09.4f}{alt:+07.1f}/"
 
 
+def is_gps_fix(lat: float, lon: float) -> bool:
+    """Return ``True`` when ``(lat, lon)`` is a real GPS fix.
+
+    DJI firmware emits ``[latitude: 0.000000] [longitude: 0.000000]`` for every
+    frame recorded before the receiver acquires a fix. That exact ``(0, 0)``
+    sentinel (Null Island) is never a genuine drone location, so it must be
+    excluded from geotagging and exported tracks.
+    """
+    return not (lat == 0.0 and lon == 0.0)
+
+
 def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, str]]:
     """Parse an SRT file into a list of (lat, lon, alt, timestamp)."""
     content = srt_path.read_text(encoding="utf-8")
@@ -52,7 +63,10 @@ def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, st
                 if alt_match and len(alt_match.groups()) > 1
                 else (alt_match.group(1) if alt_match else 0.0)
             )
-            points.append((lat, lon, alt, timestamp))
+            # Skip pre-GPS-lock ``(0, 0)`` no-fix frames so exported tracks
+            # (GPX/CSV/per-frame) do not include Null Island points.
+            if is_gps_fix(lat, lon):
+                points.append((lat, lon, alt, timestamp))
     return points
 
 
