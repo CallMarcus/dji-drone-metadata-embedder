@@ -95,7 +95,7 @@ Used by: DJI Mavic 3, DJI Air 2S
 
 ### Format 3b: Modern HTML Bracket (FrameCnt + decimal units)
 
-Used by: DJI Mini 5 Pro, DJI Avata 360, DJI Neo 2
+Used by: DJI Mini 5 Pro, DJI Avata 360, DJI Neo 2, DJI Air 3S
 
 Current models keep the HTML-wrapped bracket structure of Format 3 but change
 two things: the counter is `FrameCnt` (not `SrtCnt`), and the aperture and
@@ -118,6 +118,10 @@ focal length are written as **literal decimals** rather than the legacy
 - Avata 360 footage is delivered as `.OSV` (360 video) plus a `.LRF` low-res
   proxy instead of `.MP4`; both are MP4-family containers and are processed
   like any other video. See [troubleshooting](troubleshooting.md).
+- The Air 3S variant omits the `pp_*` stabilization block but is the first
+  observed fixture to report `color_md: hlg` (HLG color mode, alongside the
+  usual `default`/`dlog_m`). Its MP4 also carries DJI's proprietary
+  `djmd`/`dbgi` data streams, dropped on MP4 mux and round-tripped on MKV.
 - Detected as the `html_extended` format family.
 
 ## Camera Settings Interpretation
@@ -200,6 +204,7 @@ if new_format_match:
 | DJI Mini 5 Pro | Format 3b | FrameCnt + decimal fnum/focal_len |
 | DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
 | DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams |
+| DJI Air 3S | Format 3b | FrameCnt + decimal units; `color_md: hlg`; MP4 carries `djmd`/`dbgi` streams |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
 | DJI Matrice 300 RTK | Format 2b | Legacy-with-unit (`0.0M` altitude) |
