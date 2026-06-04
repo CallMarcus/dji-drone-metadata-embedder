@@ -80,7 +80,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **GPS Metadata Embedding**: Embed GPS coordinates as standard metadata tags
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
-- **Telemetry Export**: Export flight data to JSON, GPX, or CSV formats
+- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, or KML formats (see [docs/geospatial.md](docs/geospatial.md))
 - **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Progress Bar**: See processing status while videos are being embedded

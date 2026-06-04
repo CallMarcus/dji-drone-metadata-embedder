@@ -15,6 +15,7 @@ from .telemetry_converter import (
     extract_telemetry_to_csv,
     parse_utc_offset,
 )
+from .geo import convert_to_geojson, convert_to_kml
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -153,7 +154,10 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
 
 
 @main.command()
-@click.argument("command", type=click.Choice(["gpx", "csv"], case_sensitive=False))
+@click.argument(
+    "command",
+    type=click.Choice(["gpx", "csv", "geojson", "kml"], case_sensitive=False),
+)
 @click.argument("input", type=click.Path(exists=True))
 @click.option("-o", "--output", type=click.Path())
 @click.option("-b", "--batch", is_flag=True, help="Batch process directory")
@@ -165,6 +169,14 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     help="UTC offset for GPX timestamps, e.g. '+05:30' or '-8'. "
     "'auto' detects it from the SRT file mtime.",
 )
+@click.option(
+    "--redact",
+    type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
+    default="none",
+    show_default=True,
+    help="GPS redaction for geojson/kml: drop removes the track, "
+    "fuzz coarsens to ~100 m.",
+)
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
 def convert(
@@ -173,10 +185,11 @@ def convert(
     output: str | None,
     batch: bool,
     tz_offset: str,
+    redact: str,
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Convert SRT telemetry to GPX or CSV."""
+    """Convert SRT telemetry to GPX, CSV, GeoJSON, or KML."""
     setup_logging(verbose, quiet)
 
     try:
@@ -188,17 +201,21 @@ def convert(
     if batch and not src.is_dir():
         raise click.ClickException("--batch requires a directory input")
 
+    def run_one(srt: Path, out: str | None) -> None:
+        if command == "gpx":
+            extract_telemetry_to_gpx(srt, out, tz_offset=offset)
+        elif command == "csv":
+            extract_telemetry_to_csv(srt, out)
+        elif command == "geojson":
+            convert_to_geojson(srt, out, redact=redact)
+        else:
+            convert_to_kml(srt, out, redact=redact)
+
     if batch:
         for srt in src.glob("*.SRT"):
-            if command == "gpx":
-                extract_telemetry_to_gpx(srt, None, tz_offset=offset)
-            else:
-                extract_telemetry_to_csv(srt, None)
+            run_one(srt, None)
     else:
-        if command == "gpx":
-            extract_telemetry_to_gpx(src, output, tz_offset=offset)
-        else:
-            extract_telemetry_to_csv(src, output)
+        run_one(src, output)
 
 
 @main.command()
