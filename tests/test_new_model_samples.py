@@ -1,11 +1,12 @@
 """Golden-fixture tests for recent DJI model submissions.
 
-Avata 360, Mini 5 Pro, and Neo 2 all emit the HTML-wrapped bracket telemetry
-format (FrameCnt + decimal aperture, ``html_extended`` family). These tests pin
-the parser, telemetry-point extraction, and format detection against the
-trimmed ``clip.SRT`` fixtures shipped under ``samples/``. They also lock the
+Avata 360, Mini 5 Pro, Neo 2, and Air 3S all emit the HTML-wrapped bracket
+telemetry format (FrameCnt + decimal aperture, ``html_extended`` family). These
+tests pin the parser, telemetry-point extraction, and format detection against
+the trimmed ``clip.SRT`` fixtures shipped under ``samples/``. They also lock the
 decimal-aperture and FrameCnt fixes on real data — see ``test_parsing`` for the
-focused regressions.
+focused regressions. Air 3S additionally pins ``color_md: hlg``, the first
+fixture to exercise the HLG color mode.
 """
 
 from pathlib import Path
@@ -19,7 +20,7 @@ from dji_metadata_embedder.utilities import parse_telemetry_points
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
 
 # Models with on-disk golden clip.SRT fixtures.
-MODELS = ["Avata360", "Mini5PRO", "neo2"]
+MODELS = ["Avata360", "Mini5PRO", "neo2", "air3S"]
 
 
 @pytest.mark.parametrize(
@@ -29,6 +30,8 @@ MODELS = ["Avata360", "Mini5PRO", "neo2"]
         ("Avata360", (53.365080, 6.460739), -124.744, "1.9", "28.00", "dlog_m"),
         ("Mini5PRO", (53.365108, 6.460719), -122.769, "1.8", "24.00", "dlog_m"),
         ("neo2", (45.607181, 13.753860), 114.0, "2.2", None, "default"),
+        # Air 3S: first fixture exercising the HLG color mode.
+        ("air3S", (34.270373, -84.176160), 302.208, "1.8", "24.00", "hlg"),
     ],
 )
 def test_new_model_clip_parses(

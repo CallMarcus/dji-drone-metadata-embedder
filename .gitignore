@@ -80,6 +80,13 @@ output/
 !samples/**/clip*.SRT
 !samples/**/clip*.srt
 
+# Contributor scratch dropped into samples/ alongside donated footage —
+# donor notes (following_letter.txt), ffprobe dumps, error logs. These document
+# a submission but are not test fixtures; keep them out of the repo.
+samples/**/following_letter.txt
+samples/**/ffprobe.txt
+samples/**/*error*.txt
+
 # Temporary files
 *.tmp
 *.temp
