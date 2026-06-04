@@ -2,10 +2,18 @@ import json
 from pathlib import Path
 
 from dji_metadata_embedder.geo.geojson import convert_to_geojson, track_to_geojson
-from dji_metadata_embedder.geo.track import build_track
+from dji_metadata_embedder.geo.track import Track, build_track
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
 CLIP = SAMPLES / "air3S" / "clip.SRT"
+
+
+def test_empty_track_uses_null_geometry_not_empty_linestring():
+    # RFC 7946 forbids a LineString with fewer than two positions, so an empty
+    # track must serialize to a null geometry rather than an invalid empty one.
+    fc = track_to_geojson(Track(name="empty", points=[]))
+    assert fc["features"][0]["geometry"] is None
+    assert all(f["geometry"] is None for f in fc["features"])
 
 
 def test_track_to_geojson_structure():

@@ -18,11 +18,21 @@ logger = logging.getLogger(__name__)
 
 def track_to_geojson(track: Track) -> dict:
     """Return a GeoJSON ``FeatureCollection`` dict for *track*."""
-    line_coords = [[p.lon, p.lat, p.alt] for p in track.points]
+    # RFC 7946 §3.1.4 requires a LineString to have two or more positions, so a
+    # track with fewer points (e.g. --redact drop, or a clip that never got a
+    # GPS fix) is represented with a null geometry rather than an invalid empty
+    # LineString that strict consumers reject.
+    if len(track.points) >= 2:
+        line_geometry: dict | None = {
+            "type": "LineString",
+            "coordinates": [[p.lon, p.lat, p.alt] for p in track.points],
+        }
+    else:
+        line_geometry = None
     features: list[dict] = [
         {
             "type": "Feature",
-            "geometry": {"type": "LineString", "coordinates": line_coords},
+            "geometry": line_geometry,
             "properties": {"name": track.name},
         }
     ]

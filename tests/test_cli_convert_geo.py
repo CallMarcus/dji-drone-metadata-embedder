@@ -34,6 +34,8 @@ def test_convert_geojson_redact_drop_empties_track(tmp_path):
     )
     assert result.exit_code == 0, result.output
     data = json.loads(out.read_text())
-    # Drop leaves only the (empty) LineString feature, no Point features.
-    assert data["features"][0]["geometry"]["coordinates"] == []
-    assert all(f["geometry"]["type"] != "Point" for f in data["features"])
+    # Drop leaves a single null-geometry feature (no valid LineString is
+    # possible without coordinates) and no Point features.
+    assert len(data["features"]) == 1
+    assert data["features"][0]["geometry"] is None
+    assert all(f["geometry"] is None for f in data["features"])

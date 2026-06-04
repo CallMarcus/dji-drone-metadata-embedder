@@ -46,6 +46,15 @@ def build_track(srt_file: Path | str, redact: str = "none") -> Track:
     if redact == "drop":
         points: list[TrackPoint] = []
     else:
+        # ``redact_coords`` returns coordinates 1:1 for "none"/"fuzz", so the zip
+        # below keeps each point's altitude and timestamp aligned. Guard the
+        # invariant explicitly: a future mode that filters individual points
+        # would otherwise silently truncate the track at the zip.
+        if len(coords) != len(raw):
+            raise ValueError(
+                f"redact_coords returned {len(coords)} coords for {len(raw)} "
+                f"points (mode={redact!r}); cannot preserve alt/timestamp alignment"
+            )
         points = [
             TrackPoint(lat=c[0], lon=c[1], alt=alt, timestamp=ts)
             for c, (_, _, alt, ts) in zip(coords, raw)
