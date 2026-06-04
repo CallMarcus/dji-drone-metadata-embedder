@@ -1,6 +1,6 @@
 # Development Roadmap
 
-_Last updated: 2026-04-19 · Current version: **v1.2.0** · Status: **Production Ready**_
+_Last updated: 2026-06-04 · Current version: **v1.5.1** · Status: **Production Ready**_
 
 This roadmap tracks the evolution of **DJI Drone Metadata Embedder**. The
 original Phase 1–6 plan (standalone Windows GUI, dependency bootstrap,
@@ -85,7 +85,8 @@ from pre-existing environmental gaps.
   [`docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md`](superpowers/specs/2026-06-04-flight-path-mapping-design.md):
   GeoJSON/KML **track export** as the canonical foundation
   ([#215](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/215),
-  track-only first; camera-footprint polygons as a follow-up), a **standalone
+  track-only **shipped** in #223 via `dji-embed convert geojson|kml`;
+  camera-footprint polygons remain a follow-up), a **standalone
   HTML viewer**
   ([#221](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/221),
   Leaflet/OSM, no API key), and an **interactive map panel in the web UI**

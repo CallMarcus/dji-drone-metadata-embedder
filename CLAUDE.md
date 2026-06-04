@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-_Last updated: 2025-08-15_
+_Last updated: 2026-06-04_
 
 ## Purpose
 This file provides context and guidelines for Claude Code when contributing to the **dji-drone-metadata-embedder** repository. It ensures consistent, high-quality contributions aligned with the project's production-ready status.
@@ -399,6 +399,6 @@ The previous `agents.md` was more generic for multiple AI assistants and focused
 
 ---
 
-**Last Updated:** 2025-08-15
-**Project Version:** v1.1.2
+**Last Updated:** 2026-06-04
+**Project Version:** v1.5.1
 **Status:** Production Ready ✅
