@@ -80,6 +80,17 @@ from pre-existing environmental gaps.
   Matrice 4 / M30 / M350 RTK, and FPV v2 for SRT documentation and sample
   availability, then spin off per-model parser issues following the "Adding
   Support for New DJI Models" checklist in `CLAUDE.md` §7.
+- **Geospatial / mapping.** Render the flight path on a map. Three phases,
+  designed in
+  [`docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md`](superpowers/specs/2026-06-04-flight-path-mapping-design.md):
+  GeoJSON/KML **track export** as the canonical foundation
+  ([#215](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/215),
+  track-only first; camera-footprint polygons as a follow-up), a **standalone
+  HTML viewer**
+  ([#221](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/221),
+  Leaflet/OSM, no API key), and an **interactive map panel in the web UI**
+  ([#222](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/222),
+  gated on #170). Every renderer consumes the same GeoJSON.
 - **Richer web UI.** Incremental improvements to the Flask UI
   (`src/dji_metadata_embedder/ui/`) – nicer job progress, downloadable
   per-job artefacts, and richer previews – instead of new GUI frameworks.
