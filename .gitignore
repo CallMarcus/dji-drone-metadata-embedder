@@ -104,4 +104,7 @@ test/
 
 # MkDocs build output
 site/
+
+# Windows shortcuts (e.g. "samples - Shortcut.lnk")
+*.lnk
 # Release v1.1.2 - Windows EXE build retry
