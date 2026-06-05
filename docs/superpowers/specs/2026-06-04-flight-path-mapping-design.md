@@ -8,7 +8,7 @@ DJI footage carries a per-frame GPS track that the project already parses
 (`parse_dji_srt`, `parse_telemetry_points`) and exports as GPX/CSV. Several
 drone apps render that track as an overlay on a map (Google Maps, Google
 Earth). This is squarely in the project's stated
-[use-for-good direction](../../../README.md#intended-use--scope): georeferencing
+[use-for-good direction](https://github.com/CallMarcus/dji-drone-metadata-embedder#intended-use--scope): georeferencing
 for mapping, journalism/OSINT verification, SAR, and damage assessment.
 
 Two existing issues already cover the *export-to-external-tools* half:
