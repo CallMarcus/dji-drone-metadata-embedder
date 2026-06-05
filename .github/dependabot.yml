@@ -16,7 +16,10 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: "pip"
+  # Use the "uv" ecosystem (not "pip") so Dependabot regenerates uv.lock
+  # alongside pyproject.toml. Under "pip" it edited the manifest only and left
+  # the lockfile stale (see #219).
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "monthly"
