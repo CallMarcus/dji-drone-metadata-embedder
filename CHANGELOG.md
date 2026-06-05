@@ -15,6 +15,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.6.0] - 2026-06-05
+
+### Added
+
+- **geo**: GeoJSON + KML track export (Phase 1, #215) (#223) (90bf00a)
+- **samples**: Formalize DJI Air 3S support (#220) (f23f46f)
+
+### Documentation
+
+- **release**: Correct winget submission as a manual step (347c2f2)
+- **research**: Add 2026-05-20 ChatGPT + Gemini DJI telemetry reports (#225) (bc51691)
+- Auto-generate changelog for v1.5.1 (5a42633)
+- Refresh version stamps to v1.5.1 and mark mapping Phase 1 shipped (167a368)
+
+### Maintenance
+
+- **deps**: Bump urllib3, idna, pymdown-extensions for security advisories (155068b)
+- **deps**: Regenerate uv.lock and switch Dependabot to uv ecosystem (53f8467)
+- Ignore Windows .lnk shortcuts (cf89206)
+
+### Other
+
+- Prepare version 1.6.0 (220d537)
+
+
 ## [1.5.1] - 2026-06-03
 
 ### Added
