@@ -1,8 +1,7 @@
 # Repository Housekeeping Recommendations
 
-**Last refreshed:** 2026-04-19
-**Current state:** v1.2.0, production-ready, ~13 remote branches (13 at the
-time of writing), root directory already slim
+**Last refreshed:** 2026-06-06
+**Current state:** v1.6.0, production-ready, root directory already slim
 
 ---
 
@@ -21,6 +20,12 @@ of that cleanup has already happened:
 - **Cleanup scripts** `scripts/delete-stale-branches.sh` and
   `scripts/delete-stale-branches.ps1` are still available when branches
   accumulate again.
+- **2026-06 file sweep** (commit `832bbf1`): a repo-wide pass over all
+  tracked files removed the dead `gui/` Tk skeleton (superseded by the Flask
+  UI) and the stray `PR_DESCRIPTION.md` (leftover body of an earlier
+  housekeeping PR). `docs/superpowers/plans/` was made local-only via
+  `.gitignore` + mkdocs `exclude_docs`; the design specs under
+  `docs/superpowers/specs/` and `CLAUDE.md` remain committed.
 
 This document is kept as a living reference for the ongoing "keep it tidy"
 work rather than as a one-shot cleanup plan.
