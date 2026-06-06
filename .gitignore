@@ -105,6 +105,10 @@ test/
 # MkDocs build output
 site/
 
+# Local-only working notes: implementation plans stay on the maintainer's
+# machine; design specs under docs/superpowers/specs/ remain committed.
+docs/superpowers/plans/
+
 # Windows shortcuts (e.g. "samples - Shortcut.lnk")
 *.lnk
 # Release v1.1.2 - Windows EXE build retry

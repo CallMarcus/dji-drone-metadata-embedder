@@ -5,6 +5,7 @@ site_dir: site
 exclude_docs: |
   research/
   outreach/
+  superpowers/plans/
 nav:
   - Home: index.md
   - Installation: installation.md
