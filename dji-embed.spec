@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 a = Analysis(
     ['_pyinstaller_entry.py'],
     pathex=['src'],
