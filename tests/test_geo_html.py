@@ -43,10 +43,27 @@ def test_html_is_self_contained_document():
 
 def test_html_escapes_script_close_in_data():
     # No literal "</script>" may appear inside the embedded JSON, or it would
-    # break out of the data block. The serializer escapes "<" to "<".
+    # break out of the data block. The serializer escapes "<" to "<" (a JSON
+    # Unicode escape) so JSON.parse round-trips it back to "<".
     html = track_to_html(build_track(CLIP))
     data_block = _DATA_RE.search(html).group(1)
     assert "</script>" not in data_block.lower()
+
+
+def test_html_escapes_script_close_when_present_in_data():
+    # Force a "</script>" into the embedded JSON via the track name (which
+    # track_to_geojson emits into the LineString feature's properties.name).
+    # A track with >=2 points produces a LineString.
+    base = build_track(CLIP)
+    track = Track(name="x</script>y", points=base.points)
+    html = track_to_html(track)
+    data_block = _DATA_RE.search(html).group(1)
+    # Raw block (before json.loads) carries the escaped form, never the literal.
+    assert "\\u003c/script>" in data_block
+    assert "</script>" not in data_block
+    # JSON.parse (here json.loads) round-trips it back to the original string.
+    data = json.loads(data_block)
+    assert data["features"][0]["properties"]["name"] == "x</script>y"
 
 
 def test_empty_track_still_renders_valid_document():

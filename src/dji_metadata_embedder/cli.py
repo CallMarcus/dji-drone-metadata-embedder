@@ -191,7 +191,11 @@ def convert(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Convert SRT telemetry to GPX, CSV, GeoJSON, KML, or a standalone HTML map."""
+    """Convert SRT telemetry to GPX, CSV, GeoJSON, KML, or a standalone HTML map.
+
+    The html format embeds the flight data but loads Leaflet and the map tiles
+    from the internet, so the produced file needs a connection to render.
+    """
     setup_logging(verbose, quiet)
 
     try:

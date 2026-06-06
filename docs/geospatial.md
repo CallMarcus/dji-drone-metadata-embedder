@@ -62,4 +62,5 @@ Pre-GPS-lock `(0, 0)` frames are always excluded.
 
 ```bash
 dji-embed convert geojson ./footage --batch     # all *.SRT in the folder
+dji-embed convert html ./footage --batch        # one .html map per *.SRT
 ```

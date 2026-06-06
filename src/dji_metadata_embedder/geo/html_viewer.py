@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+from html import escape
 from pathlib import Path
 
 from .geojson import track_to_geojson
@@ -128,11 +129,12 @@ for (const f of points) {
 def track_to_html(track: Track) -> str:
     """Return a complete self-contained HTML document for *track*."""
     geojson = track_to_geojson(track)
-    # Escape "<" so a value containing "</script>" cannot break out of the
-    # embedded data block. json.dumps already escapes nothing HTML-specific.
+    # Escape "<" to "<" (a JSON Unicode escape) so JSON.parse round-trips
+    # it back to "<" while no literal "</script>" can break out of the data
+    # block.
     data = json.dumps(geojson, indent=2).replace("<", "\\u003c")
     return _TEMPLATE.format(
-        title=track.name,
+        title=escape(track.name),
         leaflet=_LEAFLET_VERSION,
         css_sri=_LEAFLET_CSS_SRI,
         js_sri=_LEAFLET_JS_SRI,
