@@ -15,6 +15,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.7.0] - 2026-06-06
+
+### Added
+
+- **geo**: Standalone HTML flight-path viewer (Phase 2, #221) (#228) (1d2e17e)
+
+### Documentation
+
+- **housekeeping**: Log 2026-06 file sweep, refresh to v1.6.0 (25f6f22)
+- **roadmap**: Note gui/ Tk skeleton removed in cleanup pass (7601826)
+- Auto-generate changelog for v1.6.0 (9c45b6c)
+🚨 - Fix broken README link breaking strict mkdocs build (474976e) **[BREAKING]**
+
+### Maintenance
+
+- **repo**: Prune stale artifacts and untrack local-only plans (832bbf1)
+
+### Other
+
+- Prepare version 1.7.0 (ddac3e9)
+
+
 ## [1.6.0] - 2026-06-05
 
 ### Added
