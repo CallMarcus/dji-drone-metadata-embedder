@@ -15,7 +15,7 @@ from .telemetry_converter import (
     extract_telemetry_to_csv,
     parse_utc_offset,
 )
-from .geo import convert_to_geojson, convert_to_kml
+from .geo import convert_to_geojson, convert_to_kml, convert_to_html
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -156,7 +156,9 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
 @main.command()
 @click.argument(
     "command",
-    type=click.Choice(["gpx", "csv", "geojson", "kml"], case_sensitive=False),
+    type=click.Choice(
+        ["gpx", "csv", "geojson", "kml", "html"], case_sensitive=False
+    ),
 )
 @click.argument("input", type=click.Path(exists=True))
 @click.option("-o", "--output", type=click.Path())
@@ -174,7 +176,7 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
     default="none",
     show_default=True,
-    help="GPS redaction for geojson/kml: drop removes the track, "
+    help="GPS redaction for geojson/kml/html: drop removes the track, "
     "fuzz coarsens to ~100 m.",
 )
 @click.option("-v", "--verbose", is_flag=True)
@@ -189,7 +191,7 @@ def convert(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Convert SRT telemetry to GPX, CSV, GeoJSON, or KML."""
+    """Convert SRT telemetry to GPX, CSV, GeoJSON, KML, or a standalone HTML map."""
     setup_logging(verbose, quiet)
 
     try:
@@ -208,8 +210,10 @@ def convert(
             extract_telemetry_to_csv(srt, out)
         elif command == "geojson":
             convert_to_geojson(srt, out, redact=redact)
-        else:
+        elif command == "kml":
             convert_to_kml(srt, out, redact=redact)
+        else:  # html
+            convert_to_html(srt, out, redact=redact)
 
     if batch:
         for srt in src.glob("*.SRT"):
