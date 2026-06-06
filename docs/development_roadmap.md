@@ -40,8 +40,8 @@ from pre-existing environmental gaps.
   'dji-drone-metadata-embedder[ui]'`) and launched via `dji-embed ui`.
   Implemented in `src/dji_metadata_embedder/ui/` (Flask + templates + static
   assets + background job runner).
-- Legacy `gui/` Tk skeleton remains as a placeholder but is **not** the
-  direction of travel; the web UI is the supported interactive surface.
+- The web UI is the supported interactive surface. A legacy `gui/` Tk
+  skeleton was removed in the 2026-06 cleanup pass; no Tk work is planned.
 
 ### Testing & CI
 - Unit test suite (`tests/`, 55 tests) covering parsing, embedding, DAT,
@@ -107,9 +107,9 @@ from pre-existing environmental gaps.
 
 ## Explicitly out of scope
 
-- **Standalone Tk/Win32 GUI.** The experiment in `gui/` is superseded by the
-  packaged Flask UI; no further Tk work is planned. The folder stays until a
-  cleanup pass removes the skeleton.
+- **Standalone Tk/Win32 GUI.** The `gui/` experiment was superseded by the
+  packaged Flask UI and removed in the 2026-06 cleanup pass; no further Tk
+  work is planned.
 - **Winget-first install story.** Winget is demoted in the README until the
   manifests ship on a cadence that matches PyPI and the EXE release.
 - **Re-encoding pipelines.** The project's contract is "no re-encode"; any
