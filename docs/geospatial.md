@@ -24,9 +24,32 @@ dji-embed convert kml DJI_0001.SRT              # -> DJI_0001.kml
 A `LineString` placemark with absolute altitude — double-click to open the
 flight path in Google Earth.
 
+## Standalone HTML map
+
+```bash
+dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
+dji-embed convert html DJI_0001.SRT -o flight.html
+```
+
+Produces a single self-contained file that opens in any browser. The flight path
+is drawn as a Leaflet/OpenStreetMap map, colored by altitude (blue = low,
+red = high), with start/end markers and clickable points that show index,
+altitude, and timestamp.
+
+> **Network note:** Leaflet and the basemap tiles load from the internet; the
+> flight data itself is embedded, so the file is portable but needs a connection
+> to render the map.
+
+`--redact` works the same as for GeoJSON/KML:
+
+```bash
+dji-embed convert html DJI_0001.SRT --redact drop   # empty track, no coords
+dji-embed convert html DJI_0001.SRT --redact fuzz   # ~100 m coarsened coords
+```
+
 ## Privacy
 
-Both formats honour `--redact`:
+All three geo formats honour `--redact`:
 
 ```bash
 dji-embed convert geojson DJI_0001.SRT --redact drop   # empty track, no coords

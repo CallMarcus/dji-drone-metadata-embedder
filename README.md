@@ -80,7 +80,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **GPS Metadata Embedding**: Embed GPS coordinates as standard metadata tags
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
-- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, or KML formats (see [docs/geospatial.md](docs/geospatial.md))
+- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or a standalone HTML map (see [docs/geospatial.md](docs/geospatial.md))
 - **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Progress Bar**: See processing status while videos are being embedded
@@ -289,13 +289,13 @@ Options:
 ```
 
 #### `dji-embed convert` - Export Formats
-Convert SRT telemetry to GPX or CSV formats.
+Convert SRT telemetry to GPX, CSV, GeoJSON, KML, or a standalone HTML map.
 
 ```bash
-dji-embed convert [OPTIONS] {gpx|csv} INPUT
+dji-embed convert [OPTIONS] {gpx|csv|geojson|kml|html} INPUT
 
 Arguments:
-  {gpx|csv}                  Output format (GPX or CSV)
+  {gpx|csv|geojson|kml|html} Output format
   INPUT                      SRT file or directory to convert
 
 Options:
@@ -303,9 +303,19 @@ Options:
   -b, --batch                Batch process directory
   --tz-offset OFFSET         UTC offset for GPX timestamps, e.g. '+05:30' or
                              '-8' ('auto' detects from file mtime; default: auto)
+  --redact [none|drop|fuzz]  GPS redaction for geojson/kml/html (default: none)
   -v, --verbose              Verbose output
   -q, --quiet                Suppress info output
 ```
+
+**HTML map example** — produces a self-contained `flight.html` you can open in any browser:
+
+```bash
+dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
+dji-embed convert html DJI_0001.SRT -o flight.html
+```
+
+Leaflet and the basemap tiles load from the internet; the flight data itself is embedded, so the file is portable but needs a connection to render the map.
 
 #### `dji-embed doctor` - System Diagnostics
 Show system information and verify all dependencies.
