@@ -26,6 +26,26 @@ def test_convert_kml_cli(tmp_path):
     assert "<kml" in out.read_text()
 
 
+def test_convert_html_cli(tmp_path):
+    out = tmp_path / "clip.html"
+    runner = CliRunner()
+    result = runner.invoke(main, ["convert", "html", str(CLIP), "-o", str(out)])
+    assert result.exit_code == 0, result.output
+    text = out.read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in text
+    assert "leaflet@1.9.4" in text
+
+
+def test_convert_html_redact_drop_still_valid(tmp_path):
+    out = tmp_path / "clip.html"
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["convert", "html", str(CLIP), "-o", str(out), "--redact", "drop"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
 def test_convert_geojson_redact_drop_empties_track(tmp_path):
     out = tmp_path / "clip.geojson"
     runner = CliRunner()

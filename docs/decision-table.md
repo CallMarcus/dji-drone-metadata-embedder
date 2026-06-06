@@ -37,8 +37,12 @@ This guide helps you choose the right command and approach for your specific use
 |-----------|------------------|-------------|
 | Single SRT file | GPX track | `dji-embed convert gpx /path/to/file.SRT` |
 | Single SRT file | CSV data | `dji-embed convert csv /path/to/file.SRT` |
+| Single SRT file | GeoJSON | `dji-embed convert geojson /path/to/file.SRT` |
+| Single SRT file | KML (Google Earth) | `dji-embed convert kml /path/to/file.SRT` |
+| Single SRT file | Standalone HTML map | `dji-embed convert html /path/to/file.SRT` |
 | Directory of SRT files | Multiple GPX files | `dji-embed convert gpx /path/to/srt/dir --batch` |
 | Directory of SRT files | Multiple CSV files | `dji-embed convert csv /path/to/srt/dir --batch` |
+| Directory of SRT files | Multiple HTML maps | `dji-embed convert html /path/to/srt/dir --batch` |
 | Custom output filename | Specific output file | `dji-embed convert gpx input.SRT -o custom.gpx` |
 
 ### For Analysis and Validation

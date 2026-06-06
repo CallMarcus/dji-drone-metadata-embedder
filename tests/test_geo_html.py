@@ -1,0 +1,89 @@
+import json
+import re
+from pathlib import Path
+
+from dji_metadata_embedder.geo.html_viewer import (
+    convert_to_html,
+    track_to_html,
+)
+from dji_metadata_embedder.geo.track import Track, build_track
+
+SAMPLES = Path(__file__).resolve().parents[1] / "samples"
+CLIP = SAMPLES / "air3S" / "clip.SRT"
+
+# Pull the JSON out of <script type="application/json" id="flight-data">...</script>
+_DATA_RE = re.compile(
+    r'<script type="application/json" id="flight-data">(.*?)</script>',
+    re.DOTALL,
+)
+
+
+def _embedded_geojson(html: str) -> dict:
+    match = _DATA_RE.search(html)
+    assert match, "flight-data script block not found"
+    return json.loads(match.group(1))
+
+
+def test_html_embeds_wellformed_geojson():
+    html = track_to_html(build_track(CLIP))
+    data = _embedded_geojson(html)
+    assert data["type"] == "FeatureCollection"
+    points = [f for f in data["features"] if f["geometry"]
+              and f["geometry"]["type"] == "Point"]
+    assert len(points) == 5
+    assert points[0]["properties"]["abs_alt"] == 302.208
+
+
+def test_html_is_self_contained_document():
+    html = track_to_html(build_track(CLIP))
+    assert html.lstrip().startswith("<!DOCTYPE html>")
+    assert 'id="map"' in html
+    assert "leaflet@1.9.4" in html  # pinned CDN version
+
+
+def test_html_escapes_script_close_in_data():
+    # No literal "</script>" may appear inside the embedded JSON, or it would
+    # break out of the data block. The serializer escapes "<" to "<" (a JSON
+    # Unicode escape) so JSON.parse round-trips it back to "<".
+    html = track_to_html(build_track(CLIP))
+    data_block = _DATA_RE.search(html).group(1)
+    assert "</script>" not in data_block.lower()
+
+
+def test_html_escapes_script_close_when_present_in_data():
+    # Force a "</script>" into the embedded JSON via the track name (which
+    # track_to_geojson emits into the LineString feature's properties.name).
+    # A track with >=2 points produces a LineString.
+    base = build_track(CLIP)
+    track = Track(name="x</script>y", points=base.points)
+    html = track_to_html(track)
+    data_block = _DATA_RE.search(html).group(1)
+    # Raw block (before json.loads) carries the escaped form, never the literal.
+    assert "\\u003c/script>" in data_block
+    assert "</script>" not in data_block
+    # JSON.parse (here json.loads) round-trips it back to the original string.
+    data = json.loads(data_block)
+    assert data["features"][0]["properties"]["name"] == "x</script>y"
+
+
+def test_empty_track_still_renders_valid_document():
+    html = track_to_html(Track(name="empty", points=[]))
+    assert html.lstrip().startswith("<!DOCTYPE html>")
+    data = _embedded_geojson(html)
+    # Null-geometry line feature, no points.
+    assert data["features"][0]["geometry"] is None
+
+
+def test_convert_to_html_writes_file(tmp_path):
+    out = tmp_path / "clip.html"
+    result = convert_to_html(CLIP, out)
+    assert result == out
+    assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
+def test_convert_to_html_default_output_path(tmp_path):
+    srt = tmp_path / "flight.SRT"
+    srt.write_text(CLIP.read_text(encoding="utf-8"), encoding="utf-8")
+    result = convert_to_html(srt)
+    assert result == srt.with_suffix(".html")
+    assert result.exists()
