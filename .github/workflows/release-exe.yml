@@ -59,7 +59,30 @@ jobs:
         run: uv run python tools/build_exe.py
       - name: Download wheel from PyPI
         shell: pwsh
-        run: uv run pip download dji-drone-metadata-embedder==${{ steps.meta.outputs.version }} --no-deps -d dist
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          # PyPI's Simple index (what pip reads) is CDN-cached and can lag the
+          # Release-to-PyPI publish by a few minutes, so a single attempt often
+          # fails with "No matching distribution found" right after a tag. Retry
+          # with back-off until the new version propagates instead of failing
+          # the release (which would skip creating the GitHub release).
+          $ver = $env:VERSION
+          $max = 12
+          for ($i = 1; $i -le $max; $i++) {
+            Write-Host "Attempt $i/$max: downloading dji-drone-metadata-embedder==$ver ..."
+            uv run pip download "dji-drone-metadata-embedder==$ver" --no-deps --no-cache-dir -d dist
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Wheel downloaded."
+              exit 0
+            }
+            if ($i -lt $max) {
+              Write-Host "Not on the PyPI simple index yet; waiting 30s for propagation ..."
+              Start-Sleep -Seconds 30
+            }
+          }
+          Write-Error "Wheel for $ver not on PyPI after $max attempts (~6 min)."
+          exit 1
       - name: Generate SHA256SUMS.txt
         shell: pwsh
         run: |
