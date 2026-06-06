@@ -55,3 +55,18 @@ def test_empty_track_still_renders_valid_document():
     data = _embedded_geojson(html)
     # Null-geometry line feature, no points.
     assert data["features"][0]["geometry"] is None
+
+
+def test_convert_to_html_writes_file(tmp_path):
+    out = tmp_path / "clip.html"
+    result = convert_to_html(CLIP, out)
+    assert result == out
+    assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
+def test_convert_to_html_default_output_path(tmp_path):
+    srt = tmp_path / "flight.SRT"
+    srt.write_text(CLIP.read_text(encoding="utf-8"), encoding="utf-8")
+    result = convert_to_html(srt)
+    assert result == srt.with_suffix(".html")
+    assert result.exists()
