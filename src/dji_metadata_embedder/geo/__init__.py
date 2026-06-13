@@ -1,5 +1,6 @@
-"""Geospatial track model and exporters (GeoJSON, KML, HTML)."""
+"""Geospatial track model and exporters (GeoJSON, KML, HTML, CoT)."""
 
+from .cot import convert_to_cot, track_to_cot
 from .geojson import convert_to_geojson, track_to_geojson
 from .html_viewer import convert_to_html, track_to_html
 from .kml import convert_to_kml, track_to_kml
@@ -11,6 +12,8 @@ __all__ = [
     "TrackPoint",
     "build_track",
     "sun_position",
+    "track_to_cot",
+    "convert_to_cot",
     "track_to_geojson",
     "convert_to_geojson",
     "track_to_kml",
