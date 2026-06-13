@@ -14,104 +14,16 @@ import logging
 
 from rich.progress import Progress
 from .utilities import is_gps_fix, setup_logging
+from .utilities import _parse_srt_datetime, resolve_utc_offset
+# Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
+# import these from here:
+from .utilities import parse_utc_offset, estimate_utc_offset  # noqa: F401
 from .geo.solar import sun_position
 
 logger = logging.getLogger(__name__)
 
-# Seconds in a quarter hour — the granularity real-world UTC offsets use
-# (whole hours plus the :30 and :45 zones like India and Nepal).
-_QUARTER_HOUR = 15 * 60
-
 # Peak solar elevation (degrees) below which a clip is flagged "very low sun".
 _VERY_LOW_SUN_DEG = 5
-
-# DJI SRT blocks carry an absolute wall-clock datetime on their own line, with
-# the milliseconds separated by either a comma (older firmware) or a dot
-# (newer firmware): "2024-01-15 14:30:22,123" / "2026-05-27 13:14:22.911".
-_ABS_DATETIME_RE = re.compile(
-    r"(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})[.,](\d{3})"
-)
-
-
-def _parse_srt_datetime(text: str) -> datetime | None:
-    """Return the absolute wall-clock datetime in *text*, or None if absent."""
-    m = _ABS_DATETIME_RE.search(text)
-    if not m:
-        return None
-    year, month, day, hour, minute, second, millis = (int(g) for g in m.groups())
-    return datetime(year, month, day, hour, minute, second, millis * 1000)
-
-
-def parse_utc_offset(value: str | None) -> timedelta | None:
-    """Parse a CLI UTC-offset string into a :class:`timedelta`.
-
-    Returns ``None`` (meaning "auto-detect") for ``None``, an empty string, or
-    ``"auto"``. Otherwise accepts a signed ``HH`` or ``HH:MM`` form such as
-    ``"+05:30"``, ``"5:45"`` or ``"-8"``. Raises :class:`ValueError` on any
-    other input.
-    """
-    if value is None:
-        return None
-    value = value.strip()
-    if value == "" or value.lower() == "auto":
-        return None
-    m = re.fullmatch(r"([+-]?)(\d{1,2})(?::(\d{2}))?", value)
-    if not m:
-        raise ValueError(f"Invalid UTC offset: {value!r}")
-    sign = -1 if m.group(1) == "-" else 1
-    hours = int(m.group(2))
-    minutes = int(m.group(3) or 0)
-    return sign * timedelta(hours=hours, minutes=minutes)
-
-
-def estimate_utc_offset(
-    first_local: datetime,
-    last_local: datetime,
-    file_mtime_utc: datetime,
-) -> timedelta:
-    """Estimate the UTC offset of naive DJI SRT timestamps.
-
-    DJI SRT wall-clock timestamps are local with no timezone, while the source
-    file's mtime is UTC. We don't know whether the mtime marks the start or the
-    end of the recording, so both hypotheses are tested: for each anchor the
-    raw offset ``anchor - file_mtime_utc`` is rounded to the nearest quarter
-    hour (covering offsets such as UTC+5:30 and UTC+5:45), and the residual
-    distance from that boundary is kept. The hypothesis with the smaller
-    residual wins, since a genuine offset lands cleanly on a quarter hour.
-
-    All three datetimes must be naive (``file_mtime_utc`` expressed in UTC).
-
-    Re-implemented from the heuristic described in GPStitch
-    (https://github.com/Romancha/GPStitch, GPLv3) — idea only, no code copied.
-    """
-    best_offset = timedelta(0)
-    best_residual: float | None = None
-    for anchor in (first_local, last_local):
-        raw = (anchor - file_mtime_utc).total_seconds()
-        rounded = round(raw / _QUARTER_HOUR) * _QUARTER_HOUR
-        residual = abs(raw - rounded)
-        if best_residual is None or residual < best_residual:
-            best_residual = residual
-            best_offset = timedelta(seconds=rounded)
-    return best_offset
-
-
-def resolve_utc_offset(
-    abs_datetimes: list[datetime],
-    tz_offset: timedelta | None,
-    file_mtime_utc: datetime,
-) -> timedelta | None:
-    """Resolve the single local->UTC offset for an SRT file.
-
-    Returns ``None`` when the file carries no absolute datetime (callers then
-    fall back to the raw cue time). An explicit *tz_offset* wins; otherwise the
-    offset is auto-detected from the file mtime via :func:`estimate_utc_offset`.
-    """
-    if not abs_datetimes:
-        return None
-    if tz_offset is not None:
-        return tz_offset
-    return estimate_utc_offset(abs_datetimes[0], abs_datetimes[-1], file_mtime_utc)
 
 
 def _parse_gps_points(content: str) -> list[dict[str, Any]]:
