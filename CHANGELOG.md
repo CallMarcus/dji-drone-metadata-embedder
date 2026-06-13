@@ -15,6 +15,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.8.0] - 2026-06-13
+
+### Added
+
+- **geo**: CoT (Cursor-on-Target) export (#217) (#232) (68c2182)
+- **geo**: Sun-position (shadow) check for footage verification (#231) (98ad849)
+
+### Documentation
+
+- Auto-generate changelog for v1.7.0 (53d46aa)
+
+### CI/CD
+
+- **release**: Retry PyPI wheel download to ride out simple-index lag (e768b4f)
+
+### Maintenance
+
+- **deps**: Bump the production-deps group across 1 directory with 5 updates (#226) (d7d5138)
+- **deps**: Sync uv.lock with hatchling 1.30.1 (41469da)
+- **deps-dev**: Bump hatchling from 1.29.0 to 1.30.1 in the development-deps group (#227) (4513f8c)
+
+
 ## [1.7.0] - 2026-06-06
 
 ### Added
