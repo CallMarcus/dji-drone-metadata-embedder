@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -28,6 +28,20 @@ _CE_LE_UNKNOWN = "9999999.0"
 _COT_TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 # Mean Earth radius (m, IUGG) for the haversine helpers.
 _EARTH_R = 6371008.8
+
+
+def _utc(p: TrackPoint) -> datetime:
+    """Return *p*'s resolved UTC, enforcing the CoT precondition.
+
+    ``build_track`` always populates ``TrackPoint.utc``; this guard turns a
+    hand-built track that skipped it into a clear error instead of a cryptic
+    ``NoneType`` failure (and narrows the type for the serializer)."""
+    if p.utc is None:
+        raise ValueError(
+            "TrackPoint.utc is None; CoT export requires build_track to "
+            "populate it (got a Track built another way)"
+        )
+    return p.utc
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -54,11 +68,11 @@ def _downsample(points: list[TrackPoint], interval: float) -> list[TrackPoint]:
     if not points:
         return []
     kept = [points[0]]
-    last = points[0].utc
+    last = _utc(points[0])
     for p in points[1:-1]:
-        if (p.utc - last).total_seconds() >= interval:
+        if (_utc(p) - last).total_seconds() >= interval:
             kept.append(p)
-            last = p.utc
+            last = _utc(p)
     if len(points) > 1:
         kept.append(points[-1])
     return kept
@@ -87,8 +101,9 @@ def _append_pli_event(
     cot_type: str,
     stale_seconds: float,
 ) -> None:
-    t = p.utc.strftime(_COT_TIME_FMT)
-    stale = (p.utc + timedelta(seconds=stale_seconds)).strftime(_COT_TIME_FMT)
+    p_utc = _utc(p)
+    t = p_utc.strftime(_COT_TIME_FMT)
+    stale = (p_utc + timedelta(seconds=stale_seconds)).strftime(_COT_TIME_FMT)
     ev = ET.SubElement(
         root,
         "event",
@@ -107,7 +122,7 @@ def _append_pli_event(
     ET.SubElement(detail, "contact", {"callsign": name})
     ET.SubElement(detail, "precisionlocation", {"altsrc": "GPS"})
     if nxt is not None:
-        dt = (nxt.utc - p.utc).total_seconds()
+        dt = (_utc(nxt) - p_utc).total_seconds()
         if dt > 0:
             dist = _haversine_m(p.lat, p.lon, nxt.lat, nxt.lon)
             ET.SubElement(
@@ -123,8 +138,8 @@ def _append_pli_event(
 
 def _append_route_event(root: ET.Element, name: str, sampled: list[TrackPoint]) -> None:
     first, last = sampled[0], sampled[-1]
-    t = first.utc.strftime(_COT_TIME_FMT)
-    stale = (last.utc + timedelta(hours=1)).strftime(_COT_TIME_FMT)
+    t = _utc(first).strftime(_COT_TIME_FMT)
+    stale = (_utc(last) + timedelta(hours=1)).strftime(_COT_TIME_FMT)
     ev = ET.SubElement(
         root,
         "event",

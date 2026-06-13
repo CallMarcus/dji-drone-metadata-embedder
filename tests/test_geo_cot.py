@@ -1,6 +1,8 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 
+import pytest
+
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 from dji_metadata_embedder.geo.cot import track_to_cot
 
@@ -94,3 +96,11 @@ def test_single_point_has_no_route():
     root = _parse(track_to_cot(track))
     assert len(_pli_events(root)) == 1
     assert _route_events(root) == []
+
+
+def test_track_to_cot_requires_utc():
+    # build_track always sets utc; a hand-built point without it must raise a
+    # clear error rather than fail cryptically deep in serialization.
+    track = Track(name="t", points=[TrackPoint(lat=0.0, lon=0.0, alt=0.0, timestamp="")])
+    with pytest.raises(ValueError, match="utc"):
+        track_to_cot(track)
