@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -59,3 +60,36 @@ def test_convert_geojson_redact_drop_empties_track(tmp_path):
     assert len(data["features"]) == 1
     assert data["features"][0]["geometry"] is None
     assert all(f["geometry"] is None for f in data["features"])
+
+
+def test_convert_cot_cli(tmp_path):
+    out = tmp_path / "clip.cot.xml"
+    runner = CliRunner()
+    result = runner.invoke(main, ["convert", "cot", str(CLIP), "-o", str(out)])
+    assert result.exit_code == 0, result.output
+    root = ET.fromstring(out.read_text(encoding="utf-8"))
+    assert root.tag == "events"
+    assert any(e.get("type") == "a-n-A" for e in root)
+
+
+def test_convert_cot_type_override_cli(tmp_path):
+    out = tmp_path / "clip.cot.xml"
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["convert", "cot", str(CLIP), "-o", str(out), "--cot-type", "a-f-A-M-H-Q"],
+    )
+    assert result.exit_code == 0, result.output
+    root = ET.fromstring(out.read_text(encoding="utf-8"))
+    assert any(e.get("type") == "a-f-A-M-H-Q" for e in root)
+
+
+def test_convert_cot_redact_drop_empties_events(tmp_path):
+    out = tmp_path / "clip.cot.xml"
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["convert", "cot", str(CLIP), "-o", str(out), "--redact", "drop"]
+    )
+    assert result.exit_code == 0, result.output
+    root = ET.fromstring(out.read_text(encoding="utf-8"))
+    assert len(root) == 0

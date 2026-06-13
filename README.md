@@ -1,18 +1,12 @@
 # DJI Drone Metadata Embedder
 
 [![GitHub Release]][release]
-[![Version](https://img.shields.io/badge/version-1.7.0-blue)][release]
+[![Version](https://img.shields.io/badge/version-1.8.0-blue)][release]
 [![PyPI]][pypi]
 
 A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files.
 This tool extracts GPS coordinates, altitude, camera settings and other telemetry data from SRT files and embeds
 them as metadata in the corresponding video files.
-
-> **Production Ready** ✅
-> 
-> All major milestones (M1-M4) completed! The tool features comprehensive documentation, 
-> professional CLI, automated testing, and supports major DJI drone models.
-> Future releases focus on new model support and community enhancements.
 
 See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows
 application with a graphical interface.
@@ -81,6 +75,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
 - **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or a standalone HTML map (see [docs/geospatial.md](docs/geospatial.md))
+- **CoT Export**: `dji-embed convert cot FLIGHT.SRT` writes Cursor-on-Target XML for ATAK/TAK (route + timed track). See [docs/fmv-interop.md](docs/fmv-interop.md).
 - **Footage verification:** `dji-embed verify-sun clip.SRT` reports the sun's azimuth/elevation over a clip for shadow cross-checking; CSV export gains `datetime_utc` / `sun_azimuth` / `sun_elevation` columns.
 - **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
 - **Cross-Platform**: Works on Windows, macOS, and Linux
@@ -131,7 +126,7 @@ dji-embed [OPTIONS] COMMAND [ARGS]...
 Commands:
   embed    Embed telemetry from SRT files into MP4 videos
   validate Validate SRT/MP4 pairs and report drift
-  convert  Convert SRT telemetry to GPX or CSV
+  convert  Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
   check    Check media files for embedded metadata
   doctor   Show system information and verify dependencies
   ui       Launch the local web UI in your browser
@@ -290,21 +285,23 @@ Options:
 ```
 
 #### `dji-embed convert` - Export Formats
-Convert SRT telemetry to GPX, CSV, GeoJSON, KML, or a standalone HTML map.
+Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML map.
 
 ```bash
-dji-embed convert [OPTIONS] {gpx|csv|geojson|kml|html} INPUT
+dji-embed convert [OPTIONS] {gpx|csv|geojson|kml|html|cot} INPUT
 
 Arguments:
-  {gpx|csv|geojson|kml|html} Output format
+  {gpx|csv|geojson|kml|html|cot} Output format
   INPUT                      SRT file or directory to convert
 
 Options:
   -o, --output PATH          Output file path
   -b, --batch                Batch process directory
-  --tz-offset OFFSET         UTC offset for GPX timestamps, e.g. '+05:30' or
+  --tz-offset OFFSET         UTC offset for GPX/CoT timestamps, e.g. '+05:30' or
                              '-8' ('auto' detects from file mtime; default: auto)
-  --redact [none|drop|fuzz]  GPS redaction for geojson/kml/html (default: none)
+  --redact [none|drop|fuzz]  GPS redaction for geojson/kml/html/cot (default: none)
+  --interval FLOAT           cot only: seconds between sampled points (default: 1.0)
+  --cot-type CODE            cot only: CoT type/affiliation code (default: a-n-A)
   -v, --verbose              Verbose output
   -q, --quiet                Suppress info output
 ```
@@ -314,6 +311,13 @@ Options:
 ```bash
 dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
 dji-embed convert html DJI_0001.SRT -o flight.html
+```
+
+**CoT (Cursor-on-Target) example** — for ATAK/TAK; see [docs/fmv-interop.md](docs/fmv-interop.md):
+
+```bash
+dji-embed convert cot DJI_0001.SRT                       # -> DJI_0001.cot.xml
+dji-embed convert cot DJI_0001.SRT --interval 2 --cot-type a-u-A
 ```
 
 Leaflet and the basemap tiles load from the internet; the flight data itself is embedded, so the file is portable but needs a connection to render the map.

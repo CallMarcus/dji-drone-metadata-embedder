@@ -16,7 +16,7 @@ from .telemetry_converter import (
     parse_utc_offset,
     summarize_sun,
 )
-from .geo import convert_to_geojson, convert_to_kml, convert_to_html
+from .geo import convert_to_geojson, convert_to_kml, convert_to_html, convert_to_cot
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -158,7 +158,7 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
 @click.argument(
     "command",
     type=click.Choice(
-        ["gpx", "csv", "geojson", "kml", "html"], case_sensitive=False
+        ["gpx", "csv", "geojson", "kml", "html", "cot"], case_sensitive=False
     ),
 )
 @click.argument("input", type=click.Path(exists=True))
@@ -169,7 +169,7 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     default="auto",
     show_default=True,
     metavar="OFFSET",
-    help="UTC offset for GPX timestamps, e.g. '+05:30' or '-8'. "
+    help="UTC offset for GPX/CoT timestamps, e.g. '+05:30' or '-8'. "
     "'auto' detects it from the SRT file mtime.",
 )
 @click.option(
@@ -177,8 +177,22 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
     default="none",
     show_default=True,
-    help="GPS redaction for geojson/kml/html: drop removes the track, "
+    help="GPS redaction for geojson/kml/html/cot: drop removes the track, "
     "fuzz coarsens to ~100 m.",
+)
+@click.option(
+    "--interval",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="cot only: seconds between sampled track points.",
+)
+@click.option(
+    "--cot-type",
+    default="a-n-A",
+    show_default=True,
+    metavar="CODE",
+    help="cot only: CoT event type/affiliation code (default neutral air).",
 )
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
@@ -189,10 +203,12 @@ def convert(
     batch: bool,
     tz_offset: str,
     redact: str,
+    interval: float,
+    cot_type: str,
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Convert SRT telemetry to GPX, CSV, GeoJSON, KML, or a standalone HTML map.
+    """Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML map.
 
     The html format embeds the flight data but loads Leaflet and the map tiles
     from the internet, so the produced file needs a connection to render.
@@ -217,6 +233,11 @@ def convert(
             convert_to_geojson(srt, out, redact=redact)
         elif command == "kml":
             convert_to_kml(srt, out, redact=redact)
+        elif command == "cot":
+            convert_to_cot(
+                srt, out, redact=redact, tz_offset=offset,
+                interval=interval, cot_type=cot_type,
+            )
         else:  # html
             convert_to_html(srt, out, redact=redact)
 

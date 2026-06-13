@@ -1,10 +1,116 @@
 import logging
 import re
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Tuple
 import subprocess
 
 from rich.logging import RichHandler
+
+
+# Seconds in a quarter hour — the granularity real-world UTC offsets use
+# (whole hours plus the :30 and :45 zones like India and Nepal).
+_QUARTER_HOUR = 15 * 60
+
+# DJI SRT blocks carry an absolute wall-clock datetime on their own line, with
+# the milliseconds separated by either a comma (older firmware) or a dot
+# (newer firmware): "2024-01-15 14:30:22,123" / "2026-05-27 13:14:22.911".
+_ABS_DATETIME_RE = re.compile(
+    r"(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})[.,](\d{3})"
+)
+
+
+def _parse_srt_datetime(text: str) -> datetime | None:
+    """Return the absolute wall-clock datetime in *text*, or None if absent."""
+    m = _ABS_DATETIME_RE.search(text)
+    if not m:
+        return None
+    year, month, day, hour, minute, second, millis = (int(g) for g in m.groups())
+    return datetime(year, month, day, hour, minute, second, millis * 1000)
+
+
+def parse_utc_offset(value: str | None) -> timedelta | None:
+    """Parse a CLI UTC-offset string into a :class:`timedelta`.
+
+    Returns ``None`` (meaning "auto-detect") for ``None``, an empty string, or
+    ``"auto"``. Otherwise accepts a signed ``HH`` or ``HH:MM`` form such as
+    ``"+05:30"``, ``"5:45"`` or ``"-8"``. Raises :class:`ValueError` on any
+    other input.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    if value == "" or value.lower() == "auto":
+        return None
+    m = re.fullmatch(r"([+-]?)(\d{1,2})(?::(\d{2}))?", value)
+    if not m:
+        raise ValueError(f"Invalid UTC offset: {value!r}")
+    sign = -1 if m.group(1) == "-" else 1
+    hours = int(m.group(2))
+    minutes = int(m.group(3) or 0)
+    return sign * timedelta(hours=hours, minutes=minutes)
+
+
+def estimate_utc_offset(
+    first_local: datetime,
+    last_local: datetime,
+    file_mtime_utc: datetime,
+) -> timedelta:
+    """Estimate the UTC offset of naive DJI SRT timestamps.
+
+    DJI SRT wall-clock timestamps are local with no timezone, while the source
+    file's mtime is UTC. We don't know whether the mtime marks the start or the
+    end of the recording, so both hypotheses are tested: for each anchor the
+    raw offset ``anchor - file_mtime_utc`` is rounded to the nearest quarter
+    hour (covering offsets such as UTC+5:30 and UTC+5:45), and the residual
+    distance from that boundary is kept. The hypothesis with the smaller
+    residual wins, since a genuine offset lands cleanly on a quarter hour.
+
+    All three datetimes must be naive (``file_mtime_utc`` expressed in UTC).
+
+    Re-implemented from the heuristic described in GPStitch
+    (https://github.com/Romancha/GPStitch, GPLv3) — idea only, no code copied.
+    """
+    best_offset = timedelta(0)
+    best_residual: float | None = None
+    for anchor in (first_local, last_local):
+        raw = (anchor - file_mtime_utc).total_seconds()
+        rounded = round(raw / _QUARTER_HOUR) * _QUARTER_HOUR
+        residual = abs(raw - rounded)
+        if best_residual is None or residual < best_residual:
+            best_residual = residual
+            best_offset = timedelta(seconds=rounded)
+    return best_offset
+
+
+def resolve_utc_offset(
+    abs_datetimes: list[datetime],
+    tz_offset: timedelta | None,
+    file_mtime_utc: datetime,
+) -> timedelta | None:
+    """Resolve the single local->UTC offset for an SRT file.
+
+    Returns ``None`` when the file carries no absolute datetime (callers then
+    fall back to the raw cue time). An explicit *tz_offset* wins; otherwise the
+    offset is auto-detected from the file mtime via :func:`estimate_utc_offset`.
+    """
+    if not abs_datetimes:
+        return None
+    if tz_offset is not None:
+        return tz_offset
+    return estimate_utc_offset(abs_datetimes[0], abs_datetimes[-1], file_mtime_utc)
+
+
+@dataclass
+class TelemetrySample:
+    """One GPS-fixed SRT block: position, raw cue time, and absolute datetime."""
+
+    lat: float
+    lon: float
+    alt: float
+    cue: str
+    dt: datetime | None
 
 
 def iso6709(lat: float, lon: float, alt: float = 0.0) -> str:
@@ -23,11 +129,16 @@ def is_gps_fix(lat: float, lon: float) -> bool:
     return not (lat == 0.0 and lon == 0.0)
 
 
-def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, str]]:
-    """Parse an SRT file into a list of (lat, lon, alt, timestamp)."""
+def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
+    """Parse an SRT file into :class:`TelemetrySample` records.
+
+    Same GPS extraction as the legacy 4-tuple parser (bracket format, ``GPS(...)``
+    compact form, M300 altitude unit suffix, ``(0,0)`` no-fix filtering) plus the
+    block's absolute wall-clock datetime when present.
+    """
     content = srt_path.read_text(encoding="utf-8")
     blocks = content.strip().split("\n\n")
-    points: List[Tuple[float, float, float, str]] = []
+    samples: List[TelemetrySample] = []
     for block in blocks:
         lines = block.strip().split("\n")
         if len(lines) < 3:
@@ -38,6 +149,7 @@ def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, st
         tele_line = " ".join(lines[2:])
         if "<font" in tele_line:
             tele_line = re.sub(r"<[^>]+>", "", tele_line)
+        dt = _parse_srt_datetime(tele_line)
         lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", tele_line)
@@ -63,11 +175,19 @@ def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, st
                 if alt_match and len(alt_match.groups()) > 1
                 else (alt_match.group(1) if alt_match else 0.0)
             )
-            # Skip pre-GPS-lock ``(0, 0)`` no-fix frames so exported tracks
-            # (GPX/CSV/per-frame) do not include Null Island points.
+            # Skip pre-GPS-lock ``(0, 0)`` no-fix frames so exported tracks do
+            # not include Null Island points.
             if is_gps_fix(lat, lon):
-                points.append((lat, lon, alt, timestamp))
-    return points
+                samples.append(TelemetrySample(lat, lon, alt, timestamp, dt))
+    return samples
+
+
+def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, str]]:
+    """Parse an SRT file into a list of (lat, lon, alt, timestamp).
+
+    Backwards-compatible 4-tuple view over :func:`parse_telemetry_samples`.
+    """
+    return [(s.lat, s.lon, s.alt, s.cue) for s in parse_telemetry_samples(srt_path)]
 
 
 def redact_coords(
