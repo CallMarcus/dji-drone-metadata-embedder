@@ -81,6 +81,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
 - **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or a standalone HTML map (see [docs/geospatial.md](docs/geospatial.md))
+- **Footage verification:** `dji-embed verify-sun clip.SRT` reports the sun's azimuth/elevation over a clip for shadow cross-checking; CSV export gains `datetime_utc` / `sun_azimuth` / `sun_elevation` columns.
 - **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Progress Bar**: See processing status while videos are being embedded

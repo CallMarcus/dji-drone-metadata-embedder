@@ -13,13 +13,17 @@ import re
 import logging
 
 from rich.progress import Progress
-from .utilities import setup_logging
+from .utilities import is_gps_fix, setup_logging
+from .geo.solar import sun_position
 
 logger = logging.getLogger(__name__)
 
 # Seconds in a quarter hour — the granularity real-world UTC offsets use
 # (whole hours plus the :30 and :45 zones like India and Nepal).
 _QUARTER_HOUR = 15 * 60
+
+# Peak solar elevation (degrees) below which a clip is flagged "very low sun".
+_VERY_LOW_SUN_DEG = 5
 
 # DJI SRT blocks carry an absolute wall-clock datetime on their own line, with
 # the milliseconds separated by either a comma (older firmware) or a dot
@@ -92,6 +96,55 @@ def estimate_utc_offset(
     return best_offset
 
 
+def resolve_utc_offset(
+    abs_datetimes: list[datetime],
+    tz_offset: timedelta | None,
+    file_mtime_utc: datetime,
+) -> timedelta | None:
+    """Resolve the single local->UTC offset for an SRT file.
+
+    Returns ``None`` when the file carries no absolute datetime (callers then
+    fall back to the raw cue time). An explicit *tz_offset* wins; otherwise the
+    offset is auto-detected from the file mtime via :func:`estimate_utc_offset`.
+    """
+    if not abs_datetimes:
+        return None
+    if tz_offset is not None:
+        return tz_offset
+    return estimate_utc_offset(abs_datetimes[0], abs_datetimes[-1], file_mtime_utc)
+
+
+def _parse_gps_points(content: str) -> list[dict[str, Any]]:
+    """Parse SRT text into GPS points: lat, lon, ele, cue time, abs datetime.
+
+    Shared by :func:`extract_telemetry_to_gpx` and :func:`summarize_sun` so the
+    GPS/datetime extraction lives in one place.
+    """
+    gps_points: list[dict[str, Any]] = []
+    for block in content.strip().split("\n\n"):
+        lines = block.strip().split("\n")
+        if len(lines) < 3:
+            continue
+        timestamp_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})", lines[1])
+        telemetry_line = " ".join(lines[2:])
+        if "<font" in telemetry_line:
+            telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
+        lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+        lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+        alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+        if lat_match and lon_match:
+            gps_points.append(
+                {
+                    "lat": float(lat_match.group(1)),
+                    "lon": float(lon_match.group(1)),
+                    "ele": float(alt_match.group(1)) if alt_match else 0,
+                    "time": timestamp_match.group(1) if timestamp_match else None,
+                    "datetime": _parse_srt_datetime(telemetry_line),
+                }
+            )
+    return gps_points
+
+
 def extract_telemetry_to_gpx(
     srt_file: Path | str,
     output_file: Path | str | None = None,
@@ -109,54 +162,17 @@ def extract_telemetry_to_gpx(
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
-    gps_points: list[dict[str, Any]] = []
-
     with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    blocks = content.strip().split("\n\n")
+    gps_points = _parse_gps_points(content)
 
-    for block in blocks:
-        lines = block.strip().split("\n")
-        if len(lines) >= 3:
-            # Parse timestamp
-            timestamp_line = lines[1]
-            timestamp_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})", timestamp_line)
-
-            # Parse telemetry data
-            telemetry_line = " ".join(lines[2:])
-            if "<font" in telemetry_line:
-                telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
-
-            # Extract GPS coordinates
-            lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
-            lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
-            alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
-
-            if lat_match and lon_match:
-                point = {
-                    "lat": float(lat_match.group(1)),
-                    "lon": float(lon_match.group(1)),
-                    "ele": float(alt_match.group(1)) if alt_match else 0,
-                    # Raw subtitle cue time (fallback for formats without an
-                    # absolute datetime).
-                    "time": timestamp_match.group(1) if timestamp_match else None,
-                    # Absolute wall-clock datetime, when present.
-                    "datetime": _parse_srt_datetime(telemetry_line),
-                }
-                gps_points.append(point)
-
-    # Resolve the local→UTC offset for points that carry an absolute datetime.
+    # Resolve the local->UTC offset for points that carry an absolute datetime.
     abs_times = [p["datetime"] for p in gps_points if p["datetime"] is not None]
-    offset: timedelta | None = None
-    if abs_times:
-        if tz_offset is not None:
-            offset = tz_offset
-        else:
-            mtime_utc = datetime.fromtimestamp(
-                srt_path.stat().st_mtime, tz=timezone.utc
-            ).replace(tzinfo=None)
-            offset = estimate_utc_offset(abs_times[0], abs_times[-1], mtime_utc)
+    mtime_utc = datetime.fromtimestamp(
+        srt_path.stat().st_mtime, tz=timezone.utc
+    ).replace(tzinfo=None)
+    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     def _point_time(point: dict) -> str | None:
         """Return the GPX <time> string for a point (UTC if datetime known)."""
@@ -206,6 +222,66 @@ def extract_telemetry_to_gpx(
 
     logger.info("GPX file created: %s", output_path)
     return output_path
+
+
+def summarize_sun(
+    srt_file: Path | str, tz_offset: timedelta | None = None
+) -> dict[str, Any]:
+    """Summarise the sun's track over a clip for footage verification.
+
+    Resolves each GPS point's UTC time (via *tz_offset* or mtime auto-detect),
+    computes solar azimuth/elevation, and returns aggregate stats plus flags:
+    ``night`` (peak elevation below the horizon), ``very_low_sun`` (peak under
+    5 degrees), or ``sun_not_computable`` (no resolvable UTC time). Angular stats
+    are ``None`` when nothing could be computed.
+    """
+    srt_path = Path(srt_file)
+    content = srt_path.read_text(encoding="utf-8")
+    points = _parse_gps_points(content)
+
+    abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
+    mtime_utc = datetime.fromtimestamp(
+        srt_path.stat().st_mtime, tz=timezone.utc
+    ).replace(tzinfo=None)
+    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+
+    track: list[tuple[datetime, float, float]] = []  # (utc, azimuth, elevation)
+    if offset is not None:
+        for p in points:
+            if p["datetime"] is None or not is_gps_fix(p["lat"], p["lon"]):
+                continue
+            utc = p["datetime"] - offset
+            az, el = sun_position(p["lat"], p["lon"], utc)
+            track.append((utc, az, el))
+
+    summary: dict[str, Any] = {
+        "file": srt_path.name,
+        "points": len(points),
+        "sun_computed": len(track),
+        "utc_start": None,
+        "utc_end": None,
+        "elevation_min": None,
+        "elevation_max": None,
+        "azimuth_start": None,
+        "azimuth_end": None,
+        "flags": [],
+    }
+    if not track:
+        summary["flags"] = ["sun_not_computable"]
+        return summary
+
+    elevations = [el for _, _, el in track]
+    summary["utc_start"] = track[0][0].strftime("%Y-%m-%dT%H:%M:%SZ")
+    summary["utc_end"] = track[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")
+    summary["elevation_min"] = round(min(elevations), 3)
+    summary["elevation_max"] = round(max(elevations), 3)
+    summary["azimuth_start"] = round(track[0][1], 3)
+    summary["azimuth_end"] = round(track[-1][1], 3)
+    if summary["elevation_max"] < 0:
+        summary["flags"] = ["night"]
+    elif summary["elevation_max"] < _VERY_LOW_SUN_DEG:
+        summary["flags"] = ["very_low_sun"]
+    return summary
 
 
 def batch_convert_to_gpx(directory: Path | str) -> None:
@@ -265,15 +341,24 @@ def batch_convert_to_csv(directory: Path | str) -> None:
 
 
 def extract_telemetry_to_csv(
-    srt_file: Path | str, output_file: Path | str | None = None
+    srt_file: Path | str,
+    output_file: Path | str | None = None,
+    tz_offset: timedelta | None = None,
 ) -> Path:
-    """
-    Extract all telemetry data from DJI SRT file to CSV.
+    """Extract all telemetry data from a DJI SRT file to CSV.
+
+    When blocks carry an absolute wall-clock datetime, three extra columns are
+    filled: ``datetime_utc`` (ISO 8601; local->UTC via *tz_offset* or mtime
+    auto-detect) and the solar ``sun_azimuth`` / ``sun_elevation`` for that
+    instant and position. Formats without an absolute datetime leave those three
+    columns blank.
     """
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".csv")
 
     rows = []
+    # Per-row solar inputs, index-aligned with ``rows``: (abs_dt, lat, lon).
+    solar_inputs: list[tuple[datetime | None, float | None, float | None]] = []
 
     with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -283,16 +368,13 @@ def extract_telemetry_to_csv(
     for block in blocks:
         lines = block.strip().split("\n")
         if len(lines) >= 3:
-            # Parse timestamp
             timestamp_line = lines[1]
             timestamp_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})", timestamp_line)
 
-            # Parse telemetry data
             telemetry_line = " ".join(lines[2:])
             if "<font" in telemetry_line:
                 telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
 
-            # Extract all data
             row = {
                 "timestamp": timestamp_match.group(1) if timestamp_match else "",
                 "latitude": "",
@@ -306,14 +388,21 @@ def extract_telemetry_to_csv(
                 "ct": "",
                 "color_md": "",
                 "focal_len": "",
+                "datetime_utc": "",
+                "sun_azimuth": "",
+                "sun_elevation": "",
             }
 
             # GPS coordinates
             lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
             lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+            lat_val: float | None = None
+            lon_val: float | None = None
             if lat_match and lon_match:
                 row["latitude"] = lat_match.group(1)
                 row["longitude"] = lon_match.group(1)
+                lat_val = float(lat_match.group(1))
+                lon_val = float(lon_match.group(1))
 
             # Altitude
             alt_match = re.search(
@@ -349,6 +438,27 @@ def extract_telemetry_to_csv(
                 row["focal_len"] = focal_len_match.group(1)
 
             rows.append(row)
+            solar_inputs.append(
+                (_parse_srt_datetime(telemetry_line), lat_val, lon_val)
+            )
+
+    # Resolve the single local->UTC offset, then fill UTC + solar columns.
+    abs_times = [dt for dt, _, _ in solar_inputs if dt is not None]
+    mtime_utc = datetime.fromtimestamp(
+        srt_path.stat().st_mtime, tz=timezone.utc
+    ).replace(tzinfo=None)
+    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    if offset is not None:
+        for row, (abs_dt, lat_val, lon_val) in zip(rows, solar_inputs):
+            if abs_dt is None or lat_val is None or lon_val is None:
+                continue
+            utc = abs_dt - offset
+            row["datetime_utc"] = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if not is_gps_fix(lat_val, lon_val):
+                continue
+            az, el = sun_position(lat_val, lon_val, utc)
+            row["sun_azimuth"] = f"{az:.3f}"
+            row["sun_elevation"] = f"{el:.3f}"
 
     # Write CSV
     import csv

@@ -14,6 +14,7 @@ from .telemetry_converter import (
     extract_telemetry_to_gpx,
     extract_telemetry_to_csv,
     parse_utc_offset,
+    summarize_sun,
 )
 from .geo import convert_to_geojson, convert_to_kml, convert_to_html
 from .utilities import check_dependencies, setup_logging, get_tool_versions
@@ -211,7 +212,7 @@ def convert(
         if command == "gpx":
             extract_telemetry_to_gpx(srt, out, tz_offset=offset)
         elif command == "csv":
-            extract_telemetry_to_csv(srt, out)
+            extract_telemetry_to_csv(srt, out, tz_offset=offset)
         elif command == "geojson":
             convert_to_geojson(srt, out, redact=redact)
         elif command == "kml":
@@ -312,6 +313,82 @@ def validate(
         else:
             click.echo(f"Error: {error_msg}", err=True)
         sys.exit(ExitCode.GENERAL_ERROR)
+
+
+@main.command(name="verify-sun")
+@click.argument("srt", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--tz-offset",
+    default="auto",
+    show_default=True,
+    metavar="OFFSET",
+    help="UTC offset for the SRT timestamps, e.g. '+05:30' or '-8'. "
+    "'auto' detects it from the SRT file mtime.",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+@click.pass_context
+def verify_sun(
+    ctx: click.Context,
+    srt: str,
+    tz_offset: str,
+    fmt: str,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Summarise the sun's position over a clip for shadow cross-checking.
+
+    Computes solar azimuth/elevation for each GPS point so analysts can compare
+    shadow direction/length in the footage against the astronomical sun.
+    """
+    log_json = ctx.obj.get("log_json", False)
+    setup_logging(verbose, quiet, log_json)
+
+    try:
+        offset = parse_utc_offset(tz_offset)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--tz-offset")
+
+    try:
+        summary = summarize_sun(Path(srt), tz_offset=offset)
+    except Exception as e:
+        msg = f"verify-sun failed: {e}"
+        if log_json:
+            click.echo(json.dumps({"error": "verify_sun_failed", "message": msg}))
+        else:
+            click.echo(f"Error: {msg}", err=True)
+        sys.exit(ExitCode.GENERAL_ERROR)
+
+    if fmt == "json" or log_json:
+        click.echo(json.dumps(summary))
+    else:
+        click.echo(f"Sun verification for: {summary['file']}")
+        click.echo(
+            f"GPS points: {summary['points']}  "
+            f"(sun computed: {summary['sun_computed']})"
+        )
+        if summary["sun_computed"]:
+            click.echo(f"UTC span: {summary['utc_start']} -> {summary['utc_end']}")
+            click.echo(
+                f"Sun elevation: {summary['elevation_min']} -> "
+                f"{summary['elevation_max']} deg (min/max)"
+            )
+            click.echo(
+                f"Sun azimuth: {summary['azimuth_start']} -> "
+                f"{summary['azimuth_end']} deg (start/end)"
+            )
+        for flag in summary["flags"]:
+            click.echo(f"  WARNING: {flag}")
+
+    sys.exit(ExitCode.SUCCESS)
 
 
 @main.command()
