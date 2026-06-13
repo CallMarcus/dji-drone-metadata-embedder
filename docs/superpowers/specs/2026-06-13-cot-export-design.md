@@ -10,7 +10,7 @@ half of #217 — **export only, file output only**. The Large/fiddly **MISB 0601
 KLV** half and any **network push** to a TAK server are explicitly out of scope
 and remain follow-ups.
 
-CoT slots into the project's [use-for-good direction](../../../README.md#intended-use--scope):
+CoT slots into the project's use-for-good direction (`README.md` → "Intended use & scope"):
 SAR, disaster response, and verification tooling (ATAK/TAK, ArcGIS FMV, QGIS) is
 exactly where open conversion helps the good side. The default CoT affiliation is
 **neutral** to match that civilian/verification framing.
