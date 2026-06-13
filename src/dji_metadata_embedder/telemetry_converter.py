@@ -13,7 +13,7 @@ import re
 import logging
 
 from rich.progress import Progress
-from .utilities import setup_logging
+from .utilities import is_gps_fix, setup_logging
 from .geo.solar import sun_position
 
 logger = logging.getLogger(__name__)
@@ -248,7 +248,7 @@ def summarize_sun(
     track: list[tuple[datetime, float, float]] = []  # (utc, azimuth, elevation)
     if offset is not None:
         for p in points:
-            if p["datetime"] is None:
+            if p["datetime"] is None or not is_gps_fix(p["lat"], p["lon"]):
                 continue
             utc = p["datetime"] - offset
             az, el = sun_position(p["lat"], p["lon"], utc)
@@ -454,6 +454,8 @@ def extract_telemetry_to_csv(
                 continue
             utc = abs_dt - offset
             row["datetime_utc"] = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if not is_gps_fix(lat_val, lon_val):
+                continue
             az, el = sun_position(lat_val, lon_val, utc)
             row["sun_azimuth"] = f"{az:.3f}"
             row["sun_elevation"] = f"{el:.3f}"

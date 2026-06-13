@@ -44,3 +44,26 @@ def test_csv_sun_blank_without_datetime(tmp_path):
     assert rows[0]["sun_azimuth"] == ""
     assert rows[0]["sun_elevation"] == ""
     assert rows[0]["latitude"] == "59.0"
+
+
+def test_csv_sun_blank_for_no_fix_frame(tmp_path):
+    # A (0,0) pre-lock frame keeps datetime_utc (time is valid) but no sun angles.
+    srt = tmp_path / "withnofix.SRT"
+    srt.write_text(
+        "1\n00:00:00,000 --> 00:00:00,033\n"
+        "<font size='36'>SrtCnt : 1\n2024-01-01 12:00:00,000\n"
+        "[latitude: 0.0] [longitude: 0.0] [rel_alt: 0.0 abs_alt: 0.0]</font>\n\n"
+        "2\n00:00:00,033 --> 00:00:00,066\n"
+        "<font size='36'>SrtCnt : 2\n2024-01-01 12:00:33,000\n"
+        "[latitude: 59.0] [longitude: 18.0] [rel_alt: 1.0 abs_alt: 100.0]</font>\n"
+    )
+    out = tmp_path / "withnofix.csv"
+    extract_telemetry_to_csv(srt, out, tz_offset=timedelta(hours=2))
+    rows = _read(out)
+    # Row 0 = (0,0) no-fix: datetime resolved, but sun blank.
+    assert rows[0]["datetime_utc"] == "2024-01-01T10:00:00Z"
+    assert rows[0]["sun_azimuth"] == ""
+    assert rows[0]["sun_elevation"] == ""
+    # Row 1 = real fix: sun computed.
+    assert rows[1]["sun_azimuth"] != ""
+    assert rows[1]["sun_elevation"] != ""

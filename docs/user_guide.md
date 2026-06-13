@@ -57,6 +57,7 @@ Notes:
 - Accuracy is within ~0.5 deg, ample for shadow direction/length checks.
 - The tool gives the *expected* sun geometry; comparing it to the footage is the analyst's step.
 - SRT formats without an absolute wall-clock datetime can't be resolved to UTC, so the sun columns stay blank and `verify-sun` reports `sun_not_computable`.
+- UTC auto-detection relies on the file's modification time still reflecting the recording; if the file was copied or edited, pass `--tz-offset` explicitly for reliable results.
 
 ## Web UI
 
