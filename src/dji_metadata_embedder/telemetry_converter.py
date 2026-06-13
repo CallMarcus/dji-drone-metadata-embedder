@@ -341,15 +341,24 @@ def batch_convert_to_csv(directory: Path | str) -> None:
 
 
 def extract_telemetry_to_csv(
-    srt_file: Path | str, output_file: Path | str | None = None
+    srt_file: Path | str,
+    output_file: Path | str | None = None,
+    tz_offset: timedelta | None = None,
 ) -> Path:
-    """
-    Extract all telemetry data from DJI SRT file to CSV.
+    """Extract all telemetry data from a DJI SRT file to CSV.
+
+    When blocks carry an absolute wall-clock datetime, three extra columns are
+    filled: ``datetime_utc`` (ISO 8601; local->UTC via *tz_offset* or mtime
+    auto-detect) and the solar ``sun_azimuth`` / ``sun_elevation`` for that
+    instant and position. Formats without an absolute datetime leave those three
+    columns blank.
     """
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".csv")
 
     rows = []
+    # Per-row solar inputs, index-aligned with ``rows``: (abs_dt, lat, lon).
+    solar_inputs: list[tuple[datetime | None, float | None, float | None]] = []
 
     with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -359,16 +368,13 @@ def extract_telemetry_to_csv(
     for block in blocks:
         lines = block.strip().split("\n")
         if len(lines) >= 3:
-            # Parse timestamp
             timestamp_line = lines[1]
             timestamp_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})", timestamp_line)
 
-            # Parse telemetry data
             telemetry_line = " ".join(lines[2:])
             if "<font" in telemetry_line:
                 telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
 
-            # Extract all data
             row = {
                 "timestamp": timestamp_match.group(1) if timestamp_match else "",
                 "latitude": "",
@@ -382,14 +388,21 @@ def extract_telemetry_to_csv(
                 "ct": "",
                 "color_md": "",
                 "focal_len": "",
+                "datetime_utc": "",
+                "sun_azimuth": "",
+                "sun_elevation": "",
             }
 
             # GPS coordinates
             lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
             lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+            lat_val: float | None = None
+            lon_val: float | None = None
             if lat_match and lon_match:
                 row["latitude"] = lat_match.group(1)
                 row["longitude"] = lon_match.group(1)
+                lat_val = float(lat_match.group(1))
+                lon_val = float(lon_match.group(1))
 
             # Altitude
             alt_match = re.search(
@@ -425,6 +438,25 @@ def extract_telemetry_to_csv(
                 row["focal_len"] = focal_len_match.group(1)
 
             rows.append(row)
+            solar_inputs.append(
+                (_parse_srt_datetime(telemetry_line), lat_val, lon_val)
+            )
+
+    # Resolve the single local->UTC offset, then fill UTC + solar columns.
+    abs_times = [dt for dt, _, _ in solar_inputs if dt is not None]
+    mtime_utc = datetime.fromtimestamp(
+        srt_path.stat().st_mtime, tz=timezone.utc
+    ).replace(tzinfo=None)
+    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    if offset is not None:
+        for row, (abs_dt, lat_val, lon_val) in zip(rows, solar_inputs):
+            if abs_dt is None or lat_val is None or lon_val is None:
+                continue
+            utc = abs_dt - offset
+            row["datetime_utc"] = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            az, el = sun_position(lat_val, lon_val, utc)
+            row["sun_azimuth"] = f"{az:.3f}"
+            row["sun_elevation"] = f"{el:.3f}"
 
     # Write CSV
     import csv
