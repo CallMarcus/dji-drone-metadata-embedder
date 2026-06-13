@@ -92,6 +92,55 @@ def estimate_utc_offset(
     return best_offset
 
 
+def resolve_utc_offset(
+    abs_datetimes: list[datetime],
+    tz_offset: timedelta | None,
+    file_mtime_utc: datetime,
+) -> timedelta | None:
+    """Resolve the single local->UTC offset for an SRT file.
+
+    Returns ``None`` when the file carries no absolute datetime (callers then
+    fall back to the raw cue time). An explicit *tz_offset* wins; otherwise the
+    offset is auto-detected from the file mtime via :func:`estimate_utc_offset`.
+    """
+    if not abs_datetimes:
+        return None
+    if tz_offset is not None:
+        return tz_offset
+    return estimate_utc_offset(abs_datetimes[0], abs_datetimes[-1], file_mtime_utc)
+
+
+def _parse_gps_points(content: str) -> list[dict[str, Any]]:
+    """Parse SRT text into GPS points: lat, lon, ele, cue time, abs datetime.
+
+    Shared by :func:`extract_telemetry_to_gpx` and :func:`summarize_sun` so the
+    GPS/datetime extraction lives in one place.
+    """
+    gps_points: list[dict[str, Any]] = []
+    for block in content.strip().split("\n\n"):
+        lines = block.strip().split("\n")
+        if len(lines) < 3:
+            continue
+        timestamp_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})", lines[1])
+        telemetry_line = " ".join(lines[2:])
+        if "<font" in telemetry_line:
+            telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
+        lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+        lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+        alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
+        if lat_match and lon_match:
+            gps_points.append(
+                {
+                    "lat": float(lat_match.group(1)),
+                    "lon": float(lon_match.group(1)),
+                    "ele": float(alt_match.group(1)) if alt_match else 0,
+                    "time": timestamp_match.group(1) if timestamp_match else None,
+                    "datetime": _parse_srt_datetime(telemetry_line),
+                }
+            )
+    return gps_points
+
+
 def extract_telemetry_to_gpx(
     srt_file: Path | str,
     output_file: Path | str | None = None,
@@ -109,54 +158,17 @@ def extract_telemetry_to_gpx(
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
-    gps_points: list[dict[str, Any]] = []
-
     with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    blocks = content.strip().split("\n\n")
+    gps_points = _parse_gps_points(content)
 
-    for block in blocks:
-        lines = block.strip().split("\n")
-        if len(lines) >= 3:
-            # Parse timestamp
-            timestamp_line = lines[1]
-            timestamp_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})", timestamp_line)
-
-            # Parse telemetry data
-            telemetry_line = " ".join(lines[2:])
-            if "<font" in telemetry_line:
-                telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
-
-            # Extract GPS coordinates
-            lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
-            lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
-            alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
-
-            if lat_match and lon_match:
-                point = {
-                    "lat": float(lat_match.group(1)),
-                    "lon": float(lon_match.group(1)),
-                    "ele": float(alt_match.group(1)) if alt_match else 0,
-                    # Raw subtitle cue time (fallback for formats without an
-                    # absolute datetime).
-                    "time": timestamp_match.group(1) if timestamp_match else None,
-                    # Absolute wall-clock datetime, when present.
-                    "datetime": _parse_srt_datetime(telemetry_line),
-                }
-                gps_points.append(point)
-
-    # Resolve the local→UTC offset for points that carry an absolute datetime.
+    # Resolve the local->UTC offset for points that carry an absolute datetime.
     abs_times = [p["datetime"] for p in gps_points if p["datetime"] is not None]
-    offset: timedelta | None = None
-    if abs_times:
-        if tz_offset is not None:
-            offset = tz_offset
-        else:
-            mtime_utc = datetime.fromtimestamp(
-                srt_path.stat().st_mtime, tz=timezone.utc
-            ).replace(tzinfo=None)
-            offset = estimate_utc_offset(abs_times[0], abs_times[-1], mtime_utc)
+    mtime_utc = datetime.fromtimestamp(
+        srt_path.stat().st_mtime, tz=timezone.utc
+    ).replace(tzinfo=None)
+    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     def _point_time(point: dict) -> str | None:
         """Return the GPX <time> string for a point (UTC if datetime known)."""

@@ -130,3 +130,32 @@ def test_gpx_falls_back_when_no_absolute_datetime(tmp_path):
     text = out.read_text()
     assert "<trkpt" in text
     assert "00:00:00,000" in text
+
+
+def test_resolve_utc_offset_explicit_wins():
+    from dji_metadata_embedder.telemetry_converter import resolve_utc_offset
+
+    off = resolve_utc_offset(
+        [datetime(2024, 1, 1, 12, 0, 0)],
+        timedelta(hours=2),
+        datetime(2024, 1, 1, 9, 0, 0),
+    )
+    assert off == timedelta(hours=2)
+
+
+def test_resolve_utc_offset_none_without_abs_times():
+    from dji_metadata_embedder.telemetry_converter import resolve_utc_offset
+
+    assert resolve_utc_offset([], None, datetime(2024, 1, 1, 9, 0, 0)) is None
+
+
+def test_resolve_utc_offset_autodetects_from_mtime():
+    from dji_metadata_embedder.telemetry_converter import resolve_utc_offset
+
+    # mtime = recording end in UTC for a UTC+2 local clock.
+    off = resolve_utc_offset(
+        [datetime(2024, 1, 1, 12, 0, 0), datetime(2024, 1, 1, 12, 0, 30)],
+        None,
+        datetime(2024, 1, 1, 10, 0, 30),
+    )
+    assert off == timedelta(hours=2)
