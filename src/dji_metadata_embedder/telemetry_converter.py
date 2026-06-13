@@ -14,12 +14,16 @@ import logging
 
 from rich.progress import Progress
 from .utilities import setup_logging
+from .geo.solar import sun_position
 
 logger = logging.getLogger(__name__)
 
 # Seconds in a quarter hour — the granularity real-world UTC offsets use
 # (whole hours plus the :30 and :45 zones like India and Nepal).
 _QUARTER_HOUR = 15 * 60
+
+# Peak solar elevation (degrees) below which a clip is flagged "very low sun".
+_VERY_LOW_SUN_DEG = 5
 
 # DJI SRT blocks carry an absolute wall-clock datetime on their own line, with
 # the milliseconds separated by either a comma (older firmware) or a dot
@@ -218,6 +222,66 @@ def extract_telemetry_to_gpx(
 
     logger.info("GPX file created: %s", output_path)
     return output_path
+
+
+def summarize_sun(
+    srt_file: Path | str, tz_offset: timedelta | None = None
+) -> dict[str, Any]:
+    """Summarise the sun's track over a clip for footage verification.
+
+    Resolves each GPS point's UTC time (via *tz_offset* or mtime auto-detect),
+    computes solar azimuth/elevation, and returns aggregate stats plus flags:
+    ``night`` (peak elevation below the horizon), ``very_low_sun`` (peak under
+    5 degrees), or ``sun_not_computable`` (no resolvable UTC time). Angular stats
+    are ``None`` when nothing could be computed.
+    """
+    srt_path = Path(srt_file)
+    content = srt_path.read_text(encoding="utf-8")
+    points = _parse_gps_points(content)
+
+    abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
+    mtime_utc = datetime.fromtimestamp(
+        srt_path.stat().st_mtime, tz=timezone.utc
+    ).replace(tzinfo=None)
+    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+
+    track: list[tuple[datetime, float, float]] = []  # (utc, azimuth, elevation)
+    if offset is not None:
+        for p in points:
+            if p["datetime"] is None:
+                continue
+            utc = p["datetime"] - offset
+            az, el = sun_position(p["lat"], p["lon"], utc)
+            track.append((utc, az, el))
+
+    summary: dict[str, Any] = {
+        "file": srt_path.name,
+        "points": len(points),
+        "sun_computed": len(track),
+        "utc_start": None,
+        "utc_end": None,
+        "elevation_min": None,
+        "elevation_max": None,
+        "azimuth_start": None,
+        "azimuth_end": None,
+        "flags": [],
+    }
+    if not track:
+        summary["flags"] = ["sun_not_computable"]
+        return summary
+
+    elevations = [el for _, _, el in track]
+    summary["utc_start"] = track[0][0].strftime("%Y-%m-%dT%H:%M:%SZ")
+    summary["utc_end"] = track[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")
+    summary["elevation_min"] = round(min(elevations), 3)
+    summary["elevation_max"] = round(max(elevations), 3)
+    summary["azimuth_start"] = round(track[0][1], 3)
+    summary["azimuth_end"] = round(track[-1][1], 3)
+    if summary["elevation_max"] < 0:
+        summary["flags"] = ["night"]
+    elif summary["elevation_max"] < _VERY_LOW_SUN_DEG:
+        summary["flags"] = ["very_low_sun"]
+    return summary
 
 
 def batch_convert_to_gpx(directory: Path | str) -> None:
