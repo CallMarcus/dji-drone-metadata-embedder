@@ -70,7 +70,7 @@ jobs:
           $ver = $env:VERSION
           $max = 12
           for ($i = 1; $i -le $max; $i++) {
-            Write-Host "Attempt $i/$max: downloading dji-drone-metadata-embedder==$ver ..."
+            Write-Host "Attempt $i/${max}: downloading dji-drone-metadata-embedder==$ver ..."
             uv run pip download "dji-drone-metadata-embedder==$ver" --no-deps --no-cache-dir -d dist
             if ($LASTEXITCODE -eq 0) {
               Write-Host "Wheel downloaded."
