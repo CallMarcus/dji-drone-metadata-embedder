@@ -169,7 +169,7 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     default="auto",
     show_default=True,
     metavar="OFFSET",
-    help="UTC offset for GPX timestamps, e.g. '+05:30' or '-8'. "
+    help="UTC offset for GPX/CoT timestamps, e.g. '+05:30' or '-8'. "
     "'auto' detects it from the SRT file mtime.",
 )
 @click.option(
