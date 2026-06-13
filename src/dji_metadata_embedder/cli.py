@@ -177,7 +177,7 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
     default="none",
     show_default=True,
-    help="GPS redaction for geojson/kml/html: drop removes the track, "
+    help="GPS redaction for geojson/kml/html/cot: drop removes the track, "
     "fuzz coarsens to ~100 m.",
 )
 @click.option(
