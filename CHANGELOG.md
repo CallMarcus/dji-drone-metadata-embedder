@@ -15,6 +15,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.9.0] - 2026-06-20
+
+### Added
+
+- **geo**: Camera-footprint polygons for GeoJSON/KML export (#215) (#233) (29cb2c4)
+- **ui**: Interactive flight-path map panel in the web UI (#222) (#234) (18280b6)
+
+### Documentation
+
+🚨 - **geo**: Fix spec README link breaking mkdocs --strict (6b5c363) **[BREAKING]**
+- Auto-generate changelog for v1.8.0 (ff15bdd)
+
+### CI/CD
+
+- **release**: Fix PowerShell parser error in EXE wheel-download retry (1d8a548)
+
+### Other
+
+- Prepare version 1.9.0 (ef75aa8)
+
+
 ## [1.8.0] - 2026-06-13
 
 ### Added
