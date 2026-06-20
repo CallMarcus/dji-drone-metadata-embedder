@@ -14,7 +14,7 @@ from typing import Any, Callable
 try:
     from flask import Flask, Response, abort, g, jsonify, render_template, request, stream_with_context
 except ImportError:  # pragma: no cover - exercised at runtime via CLI
-    Flask = None  # type: ignore[assignment]
+    Flask = None  # type: ignore[misc, assignment]  # 'misc' fires only when flask is installed
 
 from .. import __version__
 
