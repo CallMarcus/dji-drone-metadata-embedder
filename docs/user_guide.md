@@ -82,3 +82,41 @@ Useful flags:
 Access is gated by a per-session token that is injected into the URL that
 opens. If you bookmark a page, that link will stop working when the server
 restarts — relaunch `dji-embed ui` to get a fresh token.
+
+### Map tab
+
+The **Map** tab lets you visualise a flight path from an SRT file without
+leaving the browser.
+
+**Steps:**
+
+1. Open the Map tab (appears alongside Doctor, Embed, etc.).
+2. Type or paste the path to an SRT file in the file-path field.
+3. Optionally select a GPS redaction mode:
+   - **None** — coordinates are passed to the browser as-is.
+   - **Drop** — all GPS data is removed server-side; the map shows an empty
+     state (no coordinates ever reach the browser).
+   - **Fuzz** — coordinates are coarsened to approximately 100 m accuracy
+     server-side before being sent to the browser.
+4. Click **Load**.
+
+**What you see after loading:**
+
+- The flight path drawn on an OpenStreetMap basemap (powered by Leaflet).
+  Map tiles are fetched from `*.tile.openstreetmap.org`; Leaflet itself and
+  all other UI assets are served locally.
+- The path is colour-coded by altitude, with a green marker at the start and
+  a red marker at the end. Click any point on the path to see its telemetry.
+- An altitude-profile chart below the map.
+- A **Play / Pause** button and a scrubber that animate a marker moving along
+  the path while a cursor tracks the altitude chart.
+
+**Notes:**
+
+- Redaction is enforced on the server — when `drop` or `fuzz` is selected the
+  browser receives only the already-redacted GeoJSON, so exact coordinates are
+  never transmitted to the client.
+- The GeoJSON produced here is identical to what `dji-embed convert geojson`
+  generates on the command line (one shared code path).
+- **Video-synced scrubbing is not yet supported.** The scrubber animates the
+  flight track only; it does not control or synchronise with a video file.
