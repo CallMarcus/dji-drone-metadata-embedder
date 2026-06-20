@@ -143,6 +143,21 @@ focal length are written as **literal decimals** rather than the legacy
 - Legacy encoding: integer × 10 (`240` = 24mm, `350` = 35mm, `500` = 50mm)
 - Modern encoding (Format 3b): literal decimal mm (`24.00` = 24mm)
 
+## Camera Footprint Export — Relevant Fields
+
+The `convert geojson/kml --footprint` command uses three SRT fields to project
+ground-footprint polygons. Not all formats carry all three:
+
+| Field | Formats that carry it | Role in footprint export |
+|-------|-----------------------|--------------------------|
+| `rel_alt` | Format 1, Format 3, Format 3b | Height above ground (AGL). Preferred over `abs_alt` subtraction. |
+| `focal_len` | Format 3, Format 3b | 35mm-equivalent focal length. Determines field of view. Written as integer × 10 in Format 3 (`240` = 24 mm) or literal decimal in Format 3b (`24.00` = 24 mm). Overrides the `--model` table when present. |
+| `gb_yaw`, `gb_pitch` | Format 3b — **Avata 360 variant only** | Gimbal yaw rotates the footprint rectangle to match where the lens points; gimbal pitch gates out strongly oblique frames (>~30° off nadir). Other Format 3b models and all earlier formats do not carry these fields — nadir is assumed and heading falls back to course over ground. |
+
+When none of these fields are present (e.g., Format 2 / Format 2b / Format 2c),
+footprints are still generated using `abs_alt` for AGL estimation, the `--model`
+FOV table (or the generic wide fallback), and course-over-ground for orientation.
+
 ## GPS Coordinate Formats
 
 ### Decimal Degrees

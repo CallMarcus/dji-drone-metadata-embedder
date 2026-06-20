@@ -24,6 +24,97 @@ dji-embed convert kml DJI_0001.SRT              # -> DJI_0001.kml
 A `LineString` placemark with absolute altitude — double-click to open the
 flight path in Google Earth.
 
+## Camera footprints
+
+Add `--footprint` to a `geojson` or `kml` conversion to include camera
+ground-footprint polygons in the output — one rectangle per sampled frame
+showing the area imaged by the lens at that moment.
+
+```bash
+dji-embed convert geojson DJI_0001.SRT --footprint --model air3
+dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
+```
+
+### Sampling interval
+
+`--footprint-interval SECONDS` (default `2.0`) controls how often a footprint
+is sampled. One polygon is emitted per interval, not per frame. Increase the
+interval to keep file sizes manageable on long flights.
+
+### Model and field of view
+
+FOV is derived from the SRT's `focal_len` field (a 35mm-equivalent, present on
+Format 3/3b models) when available. When `focal_len` is absent, a per-model
+native focal length is used instead. Pass `--model <name>` to select the
+correct table entry:
+
+| `--model` value | Equiv. focal length | Typical drone |
+|-----------------|--------------------:|---------------|
+| `air3`          | 24 mm               | DJI Air 3 |
+| `mini4pro`      | 24 mm               | DJI Mini 4 Pro |
+| `avata360`      | 24 mm               | DJI Avata 360 |
+| `avata2`        | 12.7 mm             | DJI Avata 2 |
+
+Omitting `--model` (or using an unrecognised name) falls back to a generic wide
+lens (~84° HFOV). To add a new model, extend `FOV_TABLE` in
+`src/dji_metadata_embedder/geo/footprint.py`.
+
+### Gimbal-aware rotation
+
+The footprint rectangle is oriented to the drone's course over ground by
+default. On the **Avata 360** format, which carries `gb_yaw` in the SRT, the
+real gimbal yaw is used instead, so the footprint follows where the lens
+actually points.
+
+### Oblique frames are skipped
+
+If the SRT carries gimbal pitch (`gb_pitch`) and the camera is more than ~30°
+off nadir, no footprint is drawn for that frame. Full oblique projection is
+deferred future work. When gimbal pitch is absent (most formats), nadir is
+assumed for every frame.
+
+### Privacy — footprints suppressed under `--redact`
+
+Footprint polygons are only emitted when `--redact none` (the default). Under
+`--redact fuzz` or `--redact drop`, no footprints are written — a precise
+polygon would re-sharpen a deliberately coarsened position.
+
+### Output format details
+
+**GeoJSON** — footprints are `Polygon` features alongside the existing track
+`LineString` and `Point` features. Each footprint feature carries:
+
+```json
+{
+  "type": "Feature",
+  "geometry": { "type": "Polygon", "coordinates": [[[lon, lat], ...]] },
+  "properties": {
+    "kind": "footprint",
+    "index": 12,
+    "timestamp": "00:00:24,000",
+    "agl": 28.5,
+    "hfov": 73.7,
+    "vfov": 58.0
+  }
+}
+```
+
+**KML** — footprints are collected in a `<Folder>` named "Camera footprints",
+each as a `clampToGround` polygon.
+
+### Limitations
+
+- **Flat-earth projection.** Footprint size is computed with a plane-earth
+  approximation (equirectangular). Errors grow with altitude and latitude but
+  are negligible at the scales typical drone flights cover.
+- **Nadir assumed when no gimbal data.** Most DJI formats do not carry gimbal
+  attitude in the SRT. When `gb_pitch` is absent the camera is assumed to be
+  pointing straight down. Strongly oblique or FPV flights will produce
+  inaccurate footprints in that case.
+- **No terrain / DEM.** AGL is taken from `rel_alt` in the SRT when present,
+  otherwise estimated as `abs_alt − first-fix abs_alt`. Neither accounts for
+  terrain relief below the drone.
+
 ## Standalone HTML map
 
 ```bash
