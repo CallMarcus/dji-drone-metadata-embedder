@@ -2,6 +2,7 @@ import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from dji_metadata_embedder.cli import main
@@ -122,14 +123,21 @@ def test_convert_kml_footprint_cli(tmp_path):
     assert "Camera footprints" in out.read_text()
 
 
-def test_convert_geojson_footprint_suppressed_by_redaction(tmp_path):
-    out = tmp_path / "clip.geojson"
+@pytest.mark.parametrize("fmt", ["geojson", "kml"])
+@pytest.mark.parametrize("redact", ["fuzz", "drop"])
+def test_convert_footprint_suppressed_by_redaction(tmp_path, fmt, redact):
+    out = tmp_path / f"clip.{fmt}"
     runner = CliRunner()
     result = runner.invoke(
-        main, ["convert", "geojson", str(AIR3), "-o", str(out),
-                "--footprint", "--redact", "fuzz"]
+        main,
+        ["convert", fmt, str(AIR3), "-o", str(out), "--footprint", "--redact", redact],
     )
     assert result.exit_code == 0, result.output
-    data = json.loads(out.read_text())
-    assert not [f for f in data["features"]
-                if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    text = out.read_text()
+    if fmt == "geojson":
+        data = json.loads(text)
+        assert not [f for f in data["features"]
+                    if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    else:
+        assert "Camera footprints" not in text
+        assert "<Polygon>" not in text

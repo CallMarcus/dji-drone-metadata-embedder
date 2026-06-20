@@ -73,6 +73,11 @@ off nadir, no footprint is drawn for that frame. Full oblique projection is
 deferred future work. When gimbal pitch is absent (most formats), nadir is
 assumed for every frame.
 
+The bundled `samples/Avata360/clip.SRT` is a horizon-pointing (gimbal pitch ≈ 0°)
+360 capture — the nadir model intentionally skips every frame and produces no
+footprints. Gimbal yaw is used for footprint rotation only when the camera is
+near-nadir (pitch below the ~30° threshold).
+
 ### Privacy — footprints suppressed under `--redact`
 
 Footprint polygons are only emitted when `--redact none` (the default). Under

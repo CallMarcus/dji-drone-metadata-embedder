@@ -25,9 +25,16 @@ def test_avata2_gps_format_has_no_rel_alt():
     assert s.rel_alt is None
 
 
-def test_legacy_focal_len_times_ten_is_normalized():
-    srt = SAMPLES / "air3S" / "DJI_20260516195553_0001_D.SRT"
-    samples = parse_telemetry_samples(srt)
-    for s in samples:
-        if s.focal_len is not None:
-            assert s.focal_len < 100.0
+def test_legacy_focal_len_times_ten_is_normalized(tmp_path):
+    # Legacy bracket format writes focal_len as x10 (350 -> 35.0 mm-equivalent).
+    srt = tmp_path / "legacy.SRT"
+    srt.write_text(
+        "1\n00:00:00,000 --> 00:00:00,033\n"
+        "<font size='36'>SrtCnt : 1, DiffTime : 33ms\n"
+        "2024-01-01 12:00:00,000\n"
+        "[iso : 100] [shutter : 1/1000] [fnum : 280] [focal_len : 350] "
+        "[latitude: 59.30] [longitude: 18.20] [rel_alt: 10.0 abs_alt: 142.0]</font>\n",
+        encoding="utf-8",
+    )
+    s = parse_telemetry_samples(srt)[0]
+    assert s.focal_len == 35.0

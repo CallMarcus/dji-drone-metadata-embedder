@@ -81,7 +81,12 @@ def test_build_footprints_skips_oblique_gimbal():
 
 
 def test_build_footprints_uses_gimbal_yaw_when_present():
-    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=-90.0, gimbal_yaw=90.0),
-           _pt(0.0, 0.0001, 1, rel_alt=50.0, gimbal_pitch=-90.0, gimbal_yaw=90.0)]
-    fps = build_footprints(Track("t", pts), interval=0.0)
-    assert fps  # nadir gimbal -> drawn; yaw 90 rotates the ring
+    # Single-point tracks so heading comes purely from gimbal_yaw.
+    p0 = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=-90.0, gimbal_yaw=0.0)]
+    p90 = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=-90.0, gimbal_yaw=90.0)]
+    fp0 = build_footprints(Track("t", p0), interval=0.0)[0]
+    fp90 = build_footprints(Track("t", p90), interval=0.0)[0]
+    lat_extent_0 = max(lat for _, lat in fp0.ring) - min(lat for _, lat in fp0.ring)
+    lat_extent_90 = max(lat for _, lat in fp90.ring) - min(lat for _, lat in fp90.ring)
+    # Default lens HFOV != VFOV, so a 90 deg yaw changes the N-S extent.
+    assert abs(lat_extent_0 - lat_extent_90) > 1e-7
