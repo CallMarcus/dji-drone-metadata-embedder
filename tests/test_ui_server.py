@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 flask = pytest.importorskip("flask")
@@ -127,3 +129,61 @@ def test_job_not_found(client):
     assert resp.status_code == 404
     resp = client.post("/api/jobs/nonexistent/cancel")
     assert resp.status_code == 404
+
+
+SAMPLES = Path(__file__).resolve().parents[1] / "samples"
+AIR3 = SAMPLES / "air3" / "clip.SRT"
+
+
+def test_api_geojson_returns_feature_collection(client):
+    _auth(client)
+    resp = client.post("/api/geojson", json={"srt": str(AIR3)})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["type"] == "FeatureCollection"
+    assert any(
+        f["geometry"] and f["geometry"]["type"] == "LineString" for f in body["features"]
+    )
+
+
+def test_api_geojson_requires_srt(client):
+    _auth(client)
+    resp = client.post("/api/geojson", json={})
+    assert resp.status_code == 400
+
+
+def test_api_geojson_rejects_missing_file(client):
+    _auth(client)
+    resp = client.post("/api/geojson", json={"srt": "/definitely/not/here.SRT"})
+    assert resp.status_code == 400
+
+
+def test_api_geojson_redact_drop_null_geometry(client):
+    _auth(client)
+    resp = client.post("/api/geojson", json={"srt": str(AIR3), "redact": "drop"})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert len(body["features"]) == 1
+    assert body["features"][0]["geometry"] is None
+
+
+def test_api_geojson_redact_fuzz_coarsens(client):
+    _auth(client)
+    resp = client.post("/api/geojson", json={"srt": str(AIR3), "redact": "fuzz"})
+    body = resp.get_json()
+    line = next(
+        f for f in body["features"]
+        if f["geometry"] and f["geometry"]["type"] == "LineString"
+    )
+    lon, lat = line["geometry"]["coordinates"][0][:2]
+    assert lat == round(lat, 3) and lon == round(lon, 3)
+
+
+def test_api_geojson_rejects_unauth(client):
+    resp = client.post("/api/geojson", json={"srt": str(AIR3)})
+    assert resp.status_code == 403
+
+
+def test_csp_allows_osm_tiles(client):
+    resp = _auth(client)
+    assert "tile.openstreetmap.org" in resp.headers["Content-Security-Policy"]
