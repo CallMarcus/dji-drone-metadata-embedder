@@ -1,8 +1,16 @@
+import json
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
 from dji_metadata_embedder import mp4_telemetry as mt
+
+FIXTURES = Path(__file__).parent / "fixtures" / "mp4_telemetry"
+
+
+def _load(name):
+    return json.loads((FIXTURES / name).read_text())
 
 
 @pytest.mark.parametrize(
@@ -27,3 +35,35 @@ def test_parse_gps_datetime_utc_naive():
 def test_parse_gps_datetime_none_on_garbage():
     assert mt._parse_gps_datetime("") is None
     assert mt._parse_gps_datetime("not-a-date") is None
+
+
+def test_samples_from_exiftool_maps_air3s():
+    samples, saw = mt._samples_from_exiftool(_load("air3s_g3j.json"))
+    assert saw is True
+    assert len(samples) == 4
+    first, last = samples[0], samples[-1]
+    assert (round(first.lat, 4), round(first.lon, 4)) == (51.4778, -0.0014)
+    assert first.alt == 325.591
+    assert first.cue == "00:00:00,000"
+    assert first.dt == datetime(2026, 5, 16, 23, 55, 53, 0)
+    assert first.gimbal_yaw == -7.1
+    # sparse early sample: optional fields absent
+    assert first.rel_alt is None and first.gimbal_pitch is None
+    # rich mid-flight sample: optional fields present
+    assert last.rel_alt == 5.4
+    assert last.gimbal_pitch == -90
+    assert last.focal_len is None  # stream carries no focal length
+
+
+def test_samples_from_exiftool_undecoded_sets_saw_false():
+    samples, saw = mt._samples_from_exiftool(_load("neo2_undecoded_g3j.json"))
+    assert samples == []
+    assert saw is False  # only SampleTime present -> nothing decoded
+
+
+def test_samples_from_exiftool_filters_null_island():
+    data = [{"Doc1": {"SampleTime": 0, "GPSLatitude": 0.0, "GPSLongitude": 0.0,
+                      "AbsoluteAltitude": 10.0}}]
+    samples, saw = mt._samples_from_exiftool(data)
+    assert samples == []      # (0,0) no-fix dropped
+    assert saw is True        # but telemetry WAS decoded (AbsoluteAltitude)
