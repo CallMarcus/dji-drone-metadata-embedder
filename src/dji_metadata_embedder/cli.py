@@ -17,6 +17,7 @@ from .telemetry_converter import (
     summarize_sun,
 )
 from .geo import convert_to_geojson, convert_to_kml, convert_to_html, convert_to_cot
+from .mp4_telemetry import Mp4TelemetryError
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -170,7 +171,8 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     show_default=True,
     metavar="OFFSET",
     help="UTC offset for GPX/CoT timestamps, e.g. '+05:30' or '-8'. "
-    "'auto' detects it from the SRT file mtime.",
+    "'auto' detects it from the SRT file mtime. Ignored for MP4 input "
+    "(its GPSDateTime is already UTC).",
 )
 @click.option(
     "--redact",
@@ -260,10 +262,22 @@ def convert(
             convert_to_html(srt, out, redact=redact)
 
     if batch:
-        for srt in src.glob("*.SRT"):
-            run_one(srt, None)
+        patterns = ("*.SRT", "*.srt", "*.MP4", "*.mp4", "*.MOV", "*.mov")
+        seen: set[Path] = set()
+        for pattern in patterns:
+            for path in src.glob(pattern):
+                if path in seen:
+                    continue
+                seen.add(path)
+                try:
+                    run_one(path, None)
+                except Mp4TelemetryError as e:
+                    click.echo(f"Skipping {path.name}: {e}", err=True)
     else:
-        run_one(src, output)
+        try:
+            run_one(src, output)
+        except Mp4TelemetryError as e:
+            raise click.ClickException(str(e))
 
 
 @main.command()

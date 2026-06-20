@@ -1,0 +1,41 @@
+[
+  {
+    "SourceFile": "scrubbed.mp4",
+    "Doc1": {
+      "SampleTime": 0,
+      "GPSLatitude": 51.4778,
+      "GPSLongitude": -0.0014,
+      "AbsoluteAltitude": 325.591,
+      "GPSDateTime": "2026:05:16 23:55:53.000Z",
+      "GimbalYaw": -7.1
+    },
+    "Doc2": {
+      "SampleTime": 0.0166833333333333,
+      "GPSLatitude": 51.4778,
+      "GPSLongitude": -0.0014,
+      "AbsoluteAltitude": 325.591,
+      "GPSDateTime": "2026:05:16 23:55:53.017Z",
+      "GimbalYaw": -7.1
+    },
+    "Doc3": {
+      "SampleTime": 41.5248166666667,
+      "GPSLatitude": 51.47779733,
+      "GPSLongitude": -0.00142546,
+      "AbsoluteAltitude": 330.993,
+      "RelativeAltitude": 5.4,
+      "GPSDateTime": "2026:05:16 23:56:34.525Z",
+      "GimbalYaw": -9.3,
+      "GimbalPitch": -90
+    },
+    "Doc4": {
+      "SampleTime": 41.5415,
+      "GPSLatitude": 51.47779733,
+      "GPSLongitude": -0.00142546,
+      "AbsoluteAltitude": 330.993,
+      "RelativeAltitude": 5.4,
+      "GPSDateTime": "2026:05:16 23:56:34.542Z",
+      "GimbalYaw": -9.3,
+      "GimbalPitch": -90
+    }
+  }
+]

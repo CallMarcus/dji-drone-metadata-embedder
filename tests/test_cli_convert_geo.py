@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from dji_metadata_embedder import mp4_telemetry as mt
 from dji_metadata_embedder.cli import main
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
@@ -141,3 +142,43 @@ def test_convert_footprint_suppressed_by_redaction(tmp_path, fmt, redact):
     else:
         assert "Camera footprints" not in text
         assert "<Polygon>" not in text
+
+
+_FIX = Path(__file__).parent / "fixtures" / "mp4_telemetry" / "air3s_g3j.json"
+
+
+def test_convert_geojson_single_mp4(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    mp4 = tmp_path / "clip.mp4"
+    mp4.write_bytes(b"\x00")
+    out = tmp_path / "clip.geojson"
+    res = CliRunner().invoke(main, ["convert", "geojson", str(mp4), "-o", str(out)])
+    assert res.exit_code == 0, res.output
+    data = json.loads(out.read_text())
+    assert data["type"] == "FeatureCollection"
+
+
+def test_convert_batch_includes_mp4(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    (tmp_path / "a.mp4").write_bytes(b"\x00")
+    res = CliRunner().invoke(main, ["convert", "geojson", str(tmp_path), "--batch"])
+    assert res.exit_code == 0, res.output
+    assert (tmp_path / "a.geojson").exists()
+
+
+def test_convert_mp4_too_old_exiftool_clean_error(monkeypatch, tmp_path):
+    # Stream present but nothing decoded (Neo-2 style) -> extract_samples raises.
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json",
+        lambda p: [{"Doc1": {"SampleTime": 0}}],
+    )
+    monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto")
+    monkeypatch.setattr(mt, "_exiftool_version", lambda: "12.76")
+    mp4 = tmp_path / "neo2.mp4"
+    mp4.write_bytes(b"\x00")
+    res = CliRunner().invoke(main, ["convert", "geojson", str(mp4)])
+    assert res.exit_code != 0
+    # Clean ClickException, NOT an uncaught traceback:
+    from dji_metadata_embedder.mp4_telemetry import Mp4TelemetryError
+    assert not isinstance(res.exception, Mp4TelemetryError)
+    assert "ExifTool" in res.output

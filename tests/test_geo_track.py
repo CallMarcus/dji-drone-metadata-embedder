@@ -1,6 +1,8 @@
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dji_metadata_embedder import mp4_telemetry as mt
 from dji_metadata_embedder.geo.track import build_track
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
@@ -73,3 +75,26 @@ def test_build_track_footprint_fields_default_none():
     assert track.points[0].rel_alt == 5.0
     assert track.points[0].focal_len is None
     assert track.points[0].gimbal_yaw is None
+
+
+_FIX = Path(__file__).parent / "fixtures" / "mp4_telemetry" / "air3s_g3j.json"
+
+
+def test_build_track_from_video_uses_true_utc(monkeypatch, tmp_path):
+    f = tmp_path / "clip.mp4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    track = build_track(f)
+    assert track.name == "clip"
+    assert len(track.points) == 4
+    # GPSDateTime is true UTC and must NOT be offset-shifted
+    assert track.points[0].utc == datetime(2026, 5, 16, 23, 55, 53, 0)
+    assert track.points[-1].gimbal_pitch == -90
+
+
+def test_build_track_video_drop_redaction_empty(monkeypatch, tmp_path):
+    f = tmp_path / "clip.mp4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    track = build_track(f, redact="drop")
+    assert track.points == []

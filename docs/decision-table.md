@@ -44,6 +44,8 @@ This guide helps you choose the right command and approach for your specific use
 | Directory of SRT files | Multiple CSV files | `dji-embed convert csv /path/to/srt/dir --batch` |
 | Directory of SRT files | Multiple HTML maps | `dji-embed convert html /path/to/srt/dir --batch` |
 | Custom output filename | Specific output file | `dji-embed convert gpx input.SRT -o custom.gpx` |
+| MP4 with no sidecar SRT (Air 3S, Mini 5 Pro) | GPX/CSV/GeoJSON/KML track | `dji-embed convert <fmt> FILE.MP4` (ExifTool-backed; needs recent ExifTool — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md)) |
+| MP4 with no sidecar SRT (Air 3S, Mini 5 Pro) | Sun/shadow verification | `dji-embed verify-sun FILE.MP4` (ExifTool-backed; needs recent ExifTool — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md)) |
 
 ### For Analysis and Validation
 
@@ -126,6 +128,7 @@ dji-embed --version
 |---------------|----------------|-------------------|-----------|
 | **Mini 3/4 Pro** | `[latitude: X] [longitude: Y]` | ✅ Fully supported | Most common format |
 | **Air 3** | HTML-style with extended data | ✅ Fully supported | Rich telemetry data |
+| **Air 3S / Mini 5 Pro** | MP4 `djmd`/`dbgi` embedded track | ✅ Fully supported | Sidecar-less; ExifTool ≥ 13.39/13.52; see [MP4 Timed Metadata](MP4_TIMED_METADATA.md) |
 | **Avata 2** | `GPS(lat,lon,alt)` legacy format | ✅ Fully supported | BAROMETER data included |
 | **Mavic 3 Enterprise** | Extended format with RTK | ✅ Fully supported | Professional features |
 | **Other models** | Various formats | ⚠️ May work | Use `validate` command first |

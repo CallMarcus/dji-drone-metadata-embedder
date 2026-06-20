@@ -13,7 +13,7 @@ import re
 import logging
 
 from rich.progress import Progress
-from .utilities import is_gps_fix, setup_logging
+from .utilities import TelemetrySample, is_gps_fix, setup_logging
 from .utilities import _parse_srt_datetime, resolve_utc_offset
 # Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
 # import these from here:
@@ -57,6 +57,25 @@ def _parse_gps_points(content: str) -> list[dict[str, Any]]:
     return gps_points
 
 
+def load_gps_points(path: Path) -> tuple[list[dict[str, Any]], bool]:
+    """Return GPS points (``_parse_gps_points`` shape) and whether they are UTC.
+
+    SRT: parse the text (datetimes are local wall-clock) -> ``is_utc=False``.
+    Video: read via ``load_samples`` (ExifTool ``GPSDateTime`` is absolute UTC)
+    -> ``is_utc=True``, so callers apply a zero local->UTC offset.
+    """
+    from .mp4_telemetry import is_video
+    from .utilities import load_samples
+
+    if is_video(path):
+        points = [
+            {"lat": s.lat, "lon": s.lon, "ele": s.alt, "time": s.cue, "datetime": s.dt}
+            for s in load_samples(path)
+        ]
+        return points, True
+    return _parse_gps_points(path.read_text(encoding="utf-8")), False
+
+
 def extract_telemetry_to_gpx(
     srt_file: Path | str,
     output_file: Path | str | None = None,
@@ -74,17 +93,20 @@ def extract_telemetry_to_gpx(
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
-    with open(srt_path, "r", encoding="utf-8") as f:
-        content = f.read()
+    gps_points, is_utc = load_gps_points(srt_path)
 
-    gps_points = _parse_gps_points(content)
-
-    # Resolve the local->UTC offset for points that carry an absolute datetime.
+    # Needed by the metadata <time> block below regardless of source.
     abs_times = [p["datetime"] for p in gps_points if p["datetime"] is not None]
-    mtime_utc = datetime.fromtimestamp(
-        srt_path.stat().st_mtime, tz=timezone.utc
-    ).replace(tzinfo=None)
-    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    offset: timedelta | None
+    if is_utc:
+        # Video GPSDateTime is already UTC -> zero offset.
+        offset = timedelta(0)
+    else:
+        # Resolve the local->UTC offset for points that carry an absolute datetime.
+        mtime_utc = datetime.fromtimestamp(
+            srt_path.stat().st_mtime, tz=timezone.utc
+        ).replace(tzinfo=None)
+        offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     def _point_time(point: dict) -> str | None:
         """Return the GPX <time> string for a point (UTC if datetime known)."""
@@ -148,14 +170,17 @@ def summarize_sun(
     are ``None`` when nothing could be computed.
     """
     srt_path = Path(srt_file)
-    content = srt_path.read_text(encoding="utf-8")
-    points = _parse_gps_points(content)
+    points, is_utc = load_gps_points(srt_path)
 
-    abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
-    mtime_utc = datetime.fromtimestamp(
-        srt_path.stat().st_mtime, tz=timezone.utc
-    ).replace(tzinfo=None)
-    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    offset: timedelta | None
+    if is_utc:
+        offset = timedelta(0)
+    else:
+        abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
+        mtime_utc = datetime.fromtimestamp(
+            srt_path.stat().st_mtime, tz=timezone.utc
+        ).replace(tzinfo=None)
+        offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     track: list[tuple[datetime, float, float]] = []  # (utc, azimuth, elevation)
     if offset is not None:
@@ -252,6 +277,49 @@ def batch_convert_to_csv(directory: Path | str) -> None:
     logger.info("CSV files saved to: %s", csv_dir)
 
 
+# CSV columns, in output order. Shared by the SRT and video paths so the header
+# is identical regardless of source.
+_CSV_COLUMNS = (
+    "timestamp", "latitude", "longitude", "rel_altitude", "abs_altitude",
+    "iso", "shutter", "fnum", "ev", "ct", "color_md", "focal_len",
+    "datetime_utc", "sun_azimuth", "sun_elevation",
+)
+
+
+def _csv_from_samples(samples: list[TelemetrySample], output_path: Path) -> Path:
+    """Write CSV rows from video-sourced samples (UTC is intrinsic).
+
+    Fills geo, altitude, ``datetime_utc`` and solar columns; camera columns that
+    only the SRT text carries (iso/shutter/fnum/ev/ct/color_md/focal_len) stay
+    blank.
+    """
+    import csv
+
+    rows = []
+    for s in samples:
+        row = {c: "" for c in _CSV_COLUMNS}
+        row["timestamp"] = s.cue
+        row["latitude"] = f"{s.lat}"
+        row["longitude"] = f"{s.lon}"
+        if s.rel_alt is not None:
+            row["rel_altitude"] = f"{s.rel_alt}"
+        row["abs_altitude"] = f"{s.alt}"
+        if s.dt is not None:
+            row["datetime_utc"] = s.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if is_gps_fix(s.lat, s.lon):
+                az, el = sun_position(s.lat, s.lon, s.dt)
+                row["sun_azimuth"] = f"{az:.3f}"
+                row["sun_elevation"] = f"{el:.3f}"
+        rows.append(row)
+
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
+        writer.writeheader()
+        writer.writerows(rows)
+    logger.info("CSV file created: %s", output_path)
+    return output_path
+
+
 def extract_telemetry_to_csv(
     srt_file: Path | str,
     output_file: Path | str | None = None,
@@ -267,6 +335,12 @@ def extract_telemetry_to_csv(
     """
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".csv")
+
+    from .mp4_telemetry import is_video
+    from .utilities import load_samples
+
+    if is_video(srt_path):
+        return _csv_from_samples(load_samples(srt_path), output_path)
 
     rows = []
     # Per-row solar inputs, index-aligned with ``rows``: (abs_dt, lat, lon).
@@ -287,23 +361,8 @@ def extract_telemetry_to_csv(
             if "<font" in telemetry_line:
                 telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
 
-            row = {
-                "timestamp": timestamp_match.group(1) if timestamp_match else "",
-                "latitude": "",
-                "longitude": "",
-                "rel_altitude": "",
-                "abs_altitude": "",
-                "iso": "",
-                "shutter": "",
-                "fnum": "",
-                "ev": "",
-                "ct": "",
-                "color_md": "",
-                "focal_len": "",
-                "datetime_utc": "",
-                "sun_azimuth": "",
-                "sun_elevation": "",
-            }
+            row = {c: "" for c in _CSV_COLUMNS}
+            row["timestamp"] = timestamp_match.group(1) if timestamp_match else ""
 
             # GPS coordinates
             lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
@@ -377,7 +436,7 @@ def extract_telemetry_to_csv(
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         if rows:
-            writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+            writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
             writer.writeheader()
             writer.writerows(rows)
 
