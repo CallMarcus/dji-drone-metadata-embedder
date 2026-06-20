@@ -93,3 +93,43 @@ def test_convert_cot_redact_drop_empties_events(tmp_path):
     assert result.exit_code == 0, result.output
     root = ET.fromstring(out.read_text(encoding="utf-8"))
     assert len(root) == 0
+
+
+AIR3 = SAMPLES / "air3" / "clip.SRT"
+
+
+def test_convert_geojson_footprint_cli(tmp_path):
+    out = tmp_path / "clip.geojson"
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["convert", "geojson", str(AIR3), "-o", str(out), "--footprint",
+                "--footprint-interval", "0"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(out.read_text())
+    polys = [f for f in data["features"]
+             if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    assert polys and polys[0]["properties"]["kind"] == "footprint"
+
+
+def test_convert_kml_footprint_cli(tmp_path):
+    out = tmp_path / "clip.kml"
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["convert", "kml", str(AIR3), "-o", str(out), "--footprint"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "Camera footprints" in out.read_text()
+
+
+def test_convert_geojson_footprint_suppressed_by_redaction(tmp_path):
+    out = tmp_path / "clip.geojson"
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["convert", "geojson", str(AIR3), "-o", str(out),
+                "--footprint", "--redact", "fuzz"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(out.read_text())
+    assert not [f for f in data["features"]
+                if f["geometry"] and f["geometry"]["type"] == "Polygon"]

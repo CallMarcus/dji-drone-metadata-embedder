@@ -194,6 +194,15 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     metavar="CODE",
     help="cot only: CoT event type/affiliation code (default neutral air).",
 )
+@click.option("--footprint", is_flag=True, help="Add camera footprint polygons (geojson/kml, redact=none only)")
+@click.option(
+    "--footprint-interval",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Seconds between footprint samples",
+)
+@click.option("--model", default=None, help="Drone model for the footprint FOV table (e.g. air3, mini4pro)")
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
 def convert(
@@ -205,6 +214,9 @@ def convert(
     redact: str,
     interval: float,
     cot_type: str,
+    footprint: bool,
+    footprint_interval: float,
+    model: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -230,9 +242,15 @@ def convert(
         elif command == "csv":
             extract_telemetry_to_csv(srt, out, tz_offset=offset)
         elif command == "geojson":
-            convert_to_geojson(srt, out, redact=redact)
+            convert_to_geojson(
+                srt, out, redact=redact,
+                footprint=footprint, footprint_interval=footprint_interval, model=model,
+            )
         elif command == "kml":
-            convert_to_kml(srt, out, redact=redact)
+            convert_to_kml(
+                srt, out, redact=redact,
+                footprint=footprint, footprint_interval=footprint_interval, model=model,
+            )
         elif command == "cot":
             convert_to_cot(
                 srt, out, redact=redact, tz_offset=offset,
