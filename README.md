@@ -154,9 +154,14 @@ dji-embed ui --port 8765           # pin to a fixed port
 ```
 
 Every tab (Doctor / Embed / Validate / Convert / Check) is a thin wrapper
-over the matching CLI command. Access is gated by a per-session token that
-is injected into the opened URL; requests without the token return `403`.
-Chromium-based browsers will offer "Install app" for a standalone window.
+over the matching CLI command. The **Map** tab renders a processed clip's
+flight path on an interactive map (Leaflet + OpenStreetMap) with an altitude
+profile and a play-the-flight scrubber — only the basemap tiles load from the
+network; the flight data and all other assets stay local, and redaction is
+applied server-side so exact coordinates never reach the browser when set.
+Access is gated by a per-session token that is injected into the opened URL;
+requests without the token return `403`. Chromium-based browsers will offer
+"Install app" for a standalone window.
 
 ### Embed Command Options
 
@@ -303,6 +308,10 @@ Options:
   --redact [none|drop|fuzz]  GPS redaction for geojson/kml/html/cot (default: none)
   --interval FLOAT           cot only: seconds between sampled points (default: 1.0)
   --cot-type CODE            cot only: CoT type/affiliation code (default: a-n-A)
+  --footprint                geojson/kml only: add camera footprint polygons
+                             (requires --redact none)
+  --footprint-interval FLOAT geojson/kml only: seconds between footprints (default: 2.0)
+  --model NAME               footprint FOV-table entry, e.g. air3, mini4pro
   -v, --verbose              Verbose output
   -q, --quiet                Suppress info output
 ```
@@ -322,6 +331,13 @@ dji-embed convert cot DJI_0001.SRT --interval 2 --cot-type a-u-A
 ```
 
 Leaflet and the basemap tiles load from the internet; the flight data itself is embedded, so the file is portable but needs a connection to render the map.
+
+**Camera footprint example** — overlay per-interval ground-coverage polygons in GeoJSON/KML for down-looking footage (suppressed under `--redact`; see [docs/geospatial.md](docs/geospatial.md)):
+
+```bash
+dji-embed convert geojson DJI_0001.SRT --footprint --model air3
+dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
+```
 
 #### `dji-embed doctor` - System Diagnostics
 Show system information and verify all dependencies.
