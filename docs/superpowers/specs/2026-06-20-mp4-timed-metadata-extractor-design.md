@@ -73,6 +73,16 @@ Two findings shape the design:
   the input's extension; the flag was an embed-batch concern (both files present
   side-by-side), out of scope here.
 - **ffprobe dependency.** ExifTool itself is the detector.
+- **ExifTool auto-provisioning / version-check.** This spec relies on the user's
+  installed ExifTool and fails with a clear, actionable message when it is
+  missing or too old (see Error handling). Cross-platform on-demand download of a
+  pinned recent ExifTool — and bumping the stale `dependency_manager`
+  `exiftool-13.32_64.zip` pin (already too old for Air 3S, which needs ≥13.39) —
+  is a deliberate **follow-up (#235)**, not part of this work. Rationale: writing
+  our own decoder forfeits the "new models for free via ExifTool upgrade"
+  property, and vendoring the full binary bloats the wheel and entangles
+  licensing; on-demand provisioning is the right answer but is independently
+  scoped.
 
 ## Architecture
 
@@ -296,3 +306,5 @@ Fixture strategy: **no media or real GPS committed.**
 - Aligns with the project's verification/provenance/mapping direction:
   sidecar-less footage gains GPX/GeoJSON/KML/CoT/CSV export and sun-based
   footage verification.
+- **Follow-up #235** (cross-platform, version-aware ExifTool provisioning) makes
+  the dependency painless without bundling or reimplementing ExifTool.
