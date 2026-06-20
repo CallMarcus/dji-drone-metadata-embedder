@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from dji_metadata_embedder import mp4_telemetry as mt
 from dji_metadata_embedder.cli import main
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
@@ -141,3 +142,25 @@ def test_convert_footprint_suppressed_by_redaction(tmp_path, fmt, redact):
     else:
         assert "Camera footprints" not in text
         assert "<Polygon>" not in text
+
+
+_FIX = Path(__file__).parent / "fixtures" / "mp4_telemetry" / "air3s_g3j.json"
+
+
+def test_convert_geojson_single_mp4(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    mp4 = tmp_path / "clip.mp4"
+    mp4.write_bytes(b"\x00")
+    out = tmp_path / "clip.geojson"
+    res = CliRunner().invoke(main, ["convert", "geojson", str(mp4), "-o", str(out)])
+    assert res.exit_code == 0, res.output
+    data = json.loads(out.read_text())
+    assert data["type"] == "FeatureCollection"
+
+
+def test_convert_batch_includes_mp4(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    (tmp_path / "a.mp4").write_bytes(b"\x00")
+    res = CliRunner().invoke(main, ["convert", "geojson", str(tmp_path), "--batch"])
+    assert res.exit_code == 0, res.output
+    assert (tmp_path / "a.geojson").exists()

@@ -170,7 +170,8 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     show_default=True,
     metavar="OFFSET",
     help="UTC offset for GPX/CoT timestamps, e.g. '+05:30' or '-8'. "
-    "'auto' detects it from the SRT file mtime.",
+    "'auto' detects it from the SRT file mtime. Ignored for MP4 input "
+    "(its GPSDateTime is already UTC).",
 )
 @click.option(
     "--redact",
@@ -260,8 +261,13 @@ def convert(
             convert_to_html(srt, out, redact=redact)
 
     if batch:
-        for srt in src.glob("*.SRT"):
-            run_one(srt, None)
+        patterns = ("*.SRT", "*.srt", "*.MP4", "*.mp4", "*.MOV", "*.mov")
+        seen: set[Path] = set()
+        for pattern in patterns:
+            for path in src.glob(pattern):
+                if path not in seen:
+                    seen.add(path)
+                    run_one(path, None)
     else:
         run_one(src, output)
 
