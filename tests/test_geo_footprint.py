@@ -1,12 +1,15 @@
-import math
+from datetime import datetime, timedelta
 
 from dji_metadata_embedder.geo.footprint import (
     DEFAULT_LENS,
     FOV_TABLE,
+    Footprint,
     LensSpec,
+    build_footprints,
     fov_degrees,
     ground_footprint,
 )
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 M_PER_DEG = 111320.0
 
@@ -47,12 +50,6 @@ def test_ground_footprint_rotates_with_bearing():
 def test_default_lens_and_table_present():
     assert isinstance(DEFAULT_LENS, LensSpec)
     assert "air3" in FOV_TABLE
-
-
-from datetime import datetime, timedelta
-
-from dji_metadata_embedder.geo.footprint import Footprint, build_footprints
-from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 
 def _pt(lat, lon, secs, **kw):

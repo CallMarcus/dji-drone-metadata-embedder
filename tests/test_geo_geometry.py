@@ -1,4 +1,3 @@
-import math
 from datetime import datetime, timedelta
 
 from dji_metadata_embedder.geo.geometry import (
