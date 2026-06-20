@@ -109,7 +109,9 @@ A self-contained IIFE exposing `render(root)`:
 - **On load**: `POST /api/geojson` via the shared token-aware fetch (reuse
   `window.djiEmbed.api`), then:
   - **Map**: init Leaflet, OSM tile layer, draw the altitude-colored polyline,
-    start/end markers, and clickable per-point markers; `fitBounds` to the
+    clickable start/end markers (per-frame telemetry is surfaced via the
+    playback scrubber rather than per-point markers, which scale poorly on long
+    tracks); `fitBounds` to the
     track. Ported from `html_viewer.py`'s `_APP_JS`.
   - **Altitude profile**: an inline **SVG** path of `abs_alt` across the track
     (no charting dependency), with a vertical cursor line.

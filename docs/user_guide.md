@@ -105,8 +105,9 @@ leaving the browser.
 - The flight path drawn on an OpenStreetMap basemap (powered by Leaflet).
   Map tiles are fetched from `*.tile.openstreetmap.org`; Leaflet itself and
   all other UI assets are served locally.
-- The path is colour-coded by altitude, with a green marker at the start and
-  a red marker at the end. Click any point on the path to see its telemetry.
+- The path is colour-coded by altitude, with a clickable green marker at the
+  start and a red marker at the end. Per-frame telemetry (timestamp) is shown
+  via the playback scrubber below.
 - An altitude-profile chart below the map.
 - A **Play / Pause** button and a scrubber that animate a marker moving along
   the path while a cursor tracks the altitude chart.
