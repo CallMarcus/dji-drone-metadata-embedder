@@ -55,3 +55,21 @@ def test_build_track_synthesizes_utc_without_datetime(tmp_path):
     # Cue times are 1s apart -> synthesized UTC preserves that spacing.
     delta = track.points[1].utc - track.points[0].utc
     assert delta.total_seconds() == 1.0
+
+
+def test_build_track_carries_footprint_fields():
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    track = build_track(samples / "Avata360" / "clip.SRT")
+    p = track.points[0]
+    assert p.rel_alt == 5.4
+    assert p.focal_len == 28.0
+    assert p.gimbal_yaw == -162.8
+    assert p.gimbal_pitch == 0.0
+
+
+def test_build_track_footprint_fields_default_none():
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    track = build_track(samples / "air3" / "clip.SRT")
+    assert track.points[0].rel_alt == 5.0
+    assert track.points[0].focal_len is None
+    assert track.points[0].gimbal_yaw is None

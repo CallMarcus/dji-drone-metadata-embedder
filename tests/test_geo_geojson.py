@@ -45,3 +45,32 @@ def test_convert_to_geojson_default_output_path(tmp_path):
     result = convert_to_geojson(srt)
     assert result == srt.with_suffix(".geojson")
     assert result.exists()
+
+
+def test_geojson_includes_footprint_polygons():
+    from pathlib import Path
+    from dji_metadata_embedder.geo.track import build_track
+    from dji_metadata_embedder.geo.footprint import build_footprints
+    from dji_metadata_embedder.geo.geojson import track_to_geojson
+
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    track = build_track(samples / "air3" / "clip.SRT")
+    fps = build_footprints(track, interval=0.0)
+    gj = track_to_geojson(track, footprints=fps)
+    polys = [f for f in gj["features"]
+             if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    assert polys, "expected at least one footprint polygon"
+    assert polys[0]["properties"]["kind"] == "footprint"
+    assert "agl" in polys[0]["properties"]
+
+
+def test_geojson_without_footprints_unchanged():
+    from pathlib import Path
+    from dji_metadata_embedder.geo.track import build_track
+    from dji_metadata_embedder.geo.geojson import track_to_geojson
+
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    track = build_track(samples / "air3" / "clip.SRT")
+    gj = track_to_geojson(track)
+    assert not [f for f in gj["features"]
+                if f["geometry"] and f["geometry"]["type"] == "Polygon"]

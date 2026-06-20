@@ -11,12 +11,31 @@ import json
 import logging
 from pathlib import Path
 
+from .footprint import Footprint, build_footprints, lens_for
 from .track import Track, build_track
 
 logger = logging.getLogger(__name__)
 
 
-def track_to_geojson(track: Track) -> dict:
+def _footprint_feature(fp: Footprint) -> dict:
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[[lon, lat] for lon, lat in fp.ring]],
+        },
+        "properties": {
+            "kind": "footprint",
+            "index": fp.index,
+            "timestamp": fp.timestamp,
+            "agl": round(fp.agl, 3),
+            "hfov": round(fp.hfov, 1),
+            "vfov": round(fp.vfov, 1),
+        },
+    }
+
+
+def track_to_geojson(track: Track, footprints: list[Footprint] | None = None) -> dict:
     """Return a GeoJSON ``FeatureCollection`` dict for *track*."""
     # RFC 7946 §3.1.4 requires a LineString to have two or more positions, so a
     # track with fewer points (e.g. --redact drop, or a clip that never got a
@@ -48,22 +67,38 @@ def track_to_geojson(track: Track) -> dict:
                 },
             }
         )
+    for fp in footprints or []:
+        features.append(_footprint_feature(fp))
     return {"type": "FeatureCollection", "features": features}
 
 
-def write_geojson(track: Track, output_path: Path) -> Path:
+def write_geojson(track: Track, output_path: Path, footprints: list[Footprint] | None = None) -> Path:
     """Write *track* as GeoJSON to *output_path* and return it."""
     output_path.write_text(
-        json.dumps(track_to_geojson(track), indent=2), encoding="utf-8"
+        json.dumps(track_to_geojson(track, footprints), indent=2), encoding="utf-8"
     )
     logger.info("GeoJSON file created: %s", output_path)
     return output_path
 
 
 def convert_to_geojson(
-    srt_file: Path | str, output_file: Path | str | None = None, redact: str = "none"
+    srt_file: Path | str,
+    output_file: Path | str | None = None,
+    redact: str = "none",
+    *,
+    footprint: bool = False,
+    footprint_interval: float = 2.0,
+    model: str | None = None,
 ) -> Path:
-    """Convert a DJI SRT file to GeoJSON. Defaults output to ``<srt>.geojson``."""
+    """Convert a DJI SRT file to GeoJSON. Defaults output to ``<srt>.geojson``.
+
+    When ``footprint`` is set and ``redact == "none"``, per-interval camera
+    ground-footprint polygons are added. Footprints are suppressed under any
+    redaction (a precise polygon would re-sharpen a fuzzed centre)."""
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".geojson")
-    return write_geojson(build_track(srt_path, redact=redact), output_path)
+    track = build_track(srt_path, redact=redact)
+    footprints = None
+    if footprint and redact == "none":
+        footprints = build_footprints(track, lens=lens_for(model), interval=footprint_interval)
+    return write_geojson(track, output_path, footprints)

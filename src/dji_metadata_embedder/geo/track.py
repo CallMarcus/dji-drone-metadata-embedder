@@ -18,13 +18,18 @@ from ..utilities import parse_telemetry_samples, redact_coords, resolve_utc_offs
 @dataclass
 class TrackPoint:
     """One GPS-fixed sample: WGS84 lat/lon, absolute altitude (m), raw cue time,
-    and best-effort UTC datetime."""
+    best-effort UTC datetime, and optional footprint inputs (AGL via rel_alt,
+    35mm-equivalent focal length, gimbal yaw/pitch) when the format carries them."""
 
     lat: float
     lon: float
     alt: float
     timestamp: str
     utc: datetime | None = None
+    rel_alt: float | None = None
+    focal_len: float | None = None
+    gimbal_yaw: float | None = None
+    gimbal_pitch: float | None = None
 
 
 @dataclass
@@ -89,7 +94,17 @@ def build_track(
             else:
                 utc = mtime_utc + timedelta(seconds=_cue_seconds(s.cue) - base_cue)
             points.append(
-                TrackPoint(lat=c[0], lon=c[1], alt=s.alt, timestamp=s.cue, utc=utc)
+                TrackPoint(
+                    lat=c[0],
+                    lon=c[1],
+                    alt=s.alt,
+                    timestamp=s.cue,
+                    utc=utc,
+                    rel_alt=s.rel_alt,
+                    focal_len=s.focal_len,
+                    gimbal_yaw=s.gimbal_yaw,
+                    gimbal_pitch=s.gimbal_pitch,
+                )
             )
 
     return Track(name=srt_path.stem, points=points)

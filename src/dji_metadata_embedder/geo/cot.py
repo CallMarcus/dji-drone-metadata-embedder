@@ -14,11 +14,16 @@ against are not applicable here.
 from __future__ import annotations
 
 import logging
-import math
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from .geometry import (
+    downsample_by_time,
+    haversine_m,
+    initial_bearing_deg,
+    point_utc,
+)
 from .track import Track, TrackPoint, build_track
 
 logger = logging.getLogger(__name__)
@@ -26,56 +31,6 @@ logger = logging.getLogger(__name__)
 # CoT sentinel for unknown circular/linear error (90% containment, metres).
 _CE_LE_UNKNOWN = "9999999.0"
 _COT_TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
-# Mean Earth radius (m, IUGG) for the haversine helpers.
-_EARTH_R = 6371008.8
-
-
-def _utc(p: TrackPoint) -> datetime:
-    """Return *p*'s resolved UTC, enforcing the CoT precondition.
-
-    ``build_track`` always populates ``TrackPoint.utc``; this guard turns a
-    hand-built track that skipped it into a clear error instead of a cryptic
-    ``NoneType`` failure (and narrows the type for the serializer)."""
-    if p.utc is None:
-        raise ValueError(
-            "TrackPoint.utc is None; CoT export requires build_track to "
-            "populate it (got a Track built another way)"
-        )
-    return p.utc
-
-
-def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Great-circle distance in metres between two WGS84 points."""
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlmb = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
-    return 2 * _EARTH_R * math.asin(math.sqrt(a))
-
-
-def _initial_bearing_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Initial great-circle bearing (degrees, 0..360) from point 1 to point 2."""
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dl = math.radians(lon2 - lon1)
-    y = math.sin(dl) * math.cos(p2)
-    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
-    return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
-
-
-def _downsample(points: list[TrackPoint], interval: float) -> list[TrackPoint]:
-    """Keep the first point, then each point at least ``interval`` s after the
-    last kept one (by ``utc``), always keeping the final point."""
-    if not points:
-        return []
-    kept = [points[0]]
-    last = _utc(points[0])
-    for p in points[1:-1]:
-        if (_utc(p) - last).total_seconds() >= interval:
-            kept.append(p)
-            last = _utc(p)
-    if len(points) > 1:
-        kept.append(points[-1])
-    return kept
 
 
 def _add_point(ev: ET.Element, p: TrackPoint) -> None:
@@ -101,7 +56,7 @@ def _append_pli_event(
     cot_type: str,
     stale_seconds: float,
 ) -> None:
-    p_utc = _utc(p)
+    p_utc = point_utc(p)
     t = p_utc.strftime(_COT_TIME_FMT)
     stale = (p_utc + timedelta(seconds=stale_seconds)).strftime(_COT_TIME_FMT)
     ev = ET.SubElement(
@@ -122,14 +77,14 @@ def _append_pli_event(
     ET.SubElement(detail, "contact", {"callsign": name})
     ET.SubElement(detail, "precisionlocation", {"altsrc": "GPS"})
     if nxt is not None:
-        dt = (_utc(nxt) - p_utc).total_seconds()
+        dt = (point_utc(nxt) - p_utc).total_seconds()
         if dt > 0:
-            dist = _haversine_m(p.lat, p.lon, nxt.lat, nxt.lon)
+            dist = haversine_m(p.lat, p.lon, nxt.lat, nxt.lon)
             ET.SubElement(
                 detail,
                 "track",
                 {
-                    "course": f"{_initial_bearing_deg(p.lat, p.lon, nxt.lat, nxt.lon):.1f}",
+                    "course": f"{initial_bearing_deg(p.lat, p.lon, nxt.lat, nxt.lon):.1f}",
                     "speed": f"{dist / dt:.2f}",
                 },
             )
@@ -138,8 +93,8 @@ def _append_pli_event(
 
 def _append_route_event(root: ET.Element, name: str, sampled: list[TrackPoint]) -> None:
     first, last = sampled[0], sampled[-1]
-    t = _utc(first).strftime(_COT_TIME_FMT)
-    stale = (_utc(last) + timedelta(hours=1)).strftime(_COT_TIME_FMT)
+    t = point_utc(first).strftime(_COT_TIME_FMT)
+    stale = (point_utc(last) + timedelta(hours=1)).strftime(_COT_TIME_FMT)
     ev = ET.SubElement(
         root,
         "event",
@@ -183,7 +138,7 @@ def track_to_cot(
     (default neutral air). Requires each kept point to carry ``utc`` (always set
     by :func:`build_track`).
     """
-    sampled = _downsample(track.points, interval)
+    sampled = downsample_by_time(track.points, interval)
     root = ET.Element("events")
     for i, p in enumerate(sampled):
         nxt = sampled[i + 1] if i + 1 < len(sampled) else None

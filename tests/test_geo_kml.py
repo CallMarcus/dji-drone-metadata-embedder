@@ -25,3 +25,28 @@ def test_convert_to_kml_writes_file(tmp_path):
     result = convert_to_kml(CLIP, out)
     assert result == out
     assert "<kml" in out.read_text()
+
+
+def test_kml_includes_footprint_folder():
+    from pathlib import Path
+    from dji_metadata_embedder.geo.track import build_track
+    from dji_metadata_embedder.geo.footprint import build_footprints
+    from dji_metadata_embedder.geo.kml import track_to_kml
+
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    track = build_track(samples / "air3" / "clip.SRT")
+    fps = build_footprints(track, interval=0.0)
+    kml = track_to_kml(track, footprints=fps)
+    assert "<Folder>" in kml
+    assert "Camera footprints" in kml
+    assert "clampToGround" in kml
+
+
+def test_kml_without_footprints_has_no_folder():
+    from pathlib import Path
+    from dji_metadata_embedder.geo.track import build_track
+    from dji_metadata_embedder.geo.kml import track_to_kml
+
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    track = build_track(samples / "air3" / "clip.SRT")
+    assert "<Folder>" not in track_to_kml(track)
