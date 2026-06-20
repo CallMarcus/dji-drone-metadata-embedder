@@ -1,4 +1,5 @@
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -129,3 +130,30 @@ def test_load_samples_dispatches_srt(tmp_path):
     samples = load_samples(srt)
     assert len(samples) == 1
     assert round(samples[0].lat, 4) == 51.4778
+
+
+def test_probe_parses_schema_from_category(monkeypatch, tmp_path):
+    out = (
+        "MetaFormat                      : dbgi\n"
+        "Category                        : pb_file:dvtm_Air3s.proto;"
+        "model_name:FC9113;pb_version:02.00.02;\n"
+    )
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    schema = mt.probe(f)
+    assert schema is not None
+    assert schema.startswith("dvtm_Air3s.proto")
+
+
+def test_probe_none_when_no_track(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mt,
+        "_run",
+        lambda args: subprocess.CompletedProcess([], 0, "MajorBrand : MP4\n", ""),
+    )
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    assert mt.probe(f) is None
