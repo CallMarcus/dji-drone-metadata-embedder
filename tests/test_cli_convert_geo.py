@@ -164,3 +164,21 @@ def test_convert_batch_includes_mp4(monkeypatch, tmp_path):
     res = CliRunner().invoke(main, ["convert", "geojson", str(tmp_path), "--batch"])
     assert res.exit_code == 0, res.output
     assert (tmp_path / "a.geojson").exists()
+
+
+def test_convert_mp4_too_old_exiftool_clean_error(monkeypatch, tmp_path):
+    # Stream present but nothing decoded (Neo-2 style) -> extract_samples raises.
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json",
+        lambda p: [{"Doc1": {"SampleTime": 0}}],
+    )
+    monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto")
+    monkeypatch.setattr(mt, "_exiftool_version", lambda: "12.76")
+    mp4 = tmp_path / "neo2.mp4"
+    mp4.write_bytes(b"\x00")
+    res = CliRunner().invoke(main, ["convert", "geojson", str(mp4)])
+    assert res.exit_code != 0
+    # Clean ClickException, NOT an uncaught traceback:
+    from dji_metadata_embedder.mp4_telemetry import Mp4TelemetryError
+    assert not isinstance(res.exception, Mp4TelemetryError)
+    assert "ExifTool" in res.output

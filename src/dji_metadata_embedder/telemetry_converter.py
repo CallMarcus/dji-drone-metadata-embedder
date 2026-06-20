@@ -361,23 +361,8 @@ def extract_telemetry_to_csv(
             if "<font" in telemetry_line:
                 telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
 
-            row = {
-                "timestamp": timestamp_match.group(1) if timestamp_match else "",
-                "latitude": "",
-                "longitude": "",
-                "rel_altitude": "",
-                "abs_altitude": "",
-                "iso": "",
-                "shutter": "",
-                "fnum": "",
-                "ev": "",
-                "ct": "",
-                "color_md": "",
-                "focal_len": "",
-                "datetime_utc": "",
-                "sun_azimuth": "",
-                "sun_elevation": "",
-            }
+            row = {c: "" for c in _CSV_COLUMNS}
+            row["timestamp"] = timestamp_match.group(1) if timestamp_match else ""
 
             # GPS coordinates
             lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
@@ -451,7 +436,7 @@ def extract_telemetry_to_csv(
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         if rows:
-            writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+            writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
             writer.writeheader()
             writer.writerows(rows)
 

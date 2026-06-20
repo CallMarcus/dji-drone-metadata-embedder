@@ -94,8 +94,8 @@ def build_track_from_samples(
         offset: timedelta | None = timedelta(0)
     else:
         abs_times = [s.dt for s in samples if s.dt is not None]
-        _mtime = mtime_utc if mtime_utc is not None else datetime.min
-        offset = resolve_utc_offset(abs_times, tz_offset, _mtime)
+        assert mtime_utc is not None, "mtime_utc is required when assume_utc is False"
+        offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
     base_cue = _cue_seconds(samples[0].cue) if samples else 0.0
 
     coords = redact_coords([(s.lat, s.lon) for s in samples], redact)
