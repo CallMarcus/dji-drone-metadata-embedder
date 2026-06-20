@@ -1,0 +1,8 @@
+[
+  {
+    "SourceFile": "scrubbed.mp4",
+    "Doc1": {"SampleTime": 0},
+    "Doc2": {"SampleTime": 0.0333666666666667},
+    "Doc3": {"SampleTime": 0.0667333333333333}
+  }
+]
