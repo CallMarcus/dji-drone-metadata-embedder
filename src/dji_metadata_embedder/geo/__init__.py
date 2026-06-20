@@ -1,6 +1,7 @@
 """Geospatial track model and exporters (GeoJSON, KML, HTML, CoT)."""
 
 from .cot import convert_to_cot, track_to_cot
+from .footprint import FOV_TABLE, Footprint, build_footprints, lens_for
 from .geojson import convert_to_geojson, track_to_geojson
 from .html_viewer import convert_to_html, track_to_html
 from .kml import convert_to_kml, track_to_kml
@@ -20,4 +21,8 @@ __all__ = [
     "convert_to_kml",
     "track_to_html",
     "convert_to_html",
+    "Footprint",
+    "build_footprints",
+    "lens_for",
+    "FOV_TABLE",
 ]
