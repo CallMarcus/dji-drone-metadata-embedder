@@ -223,6 +223,21 @@ def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
     return samples
 
 
+def load_samples(path: Path) -> List[TelemetrySample]:
+    """Load telemetry samples from a DJI ``.SRT`` or a video (MP4/MOV) source.
+
+    SRT files are parsed directly; videos are read via the ExifTool-backed
+    :mod:`dji_metadata_embedder.mp4_telemetry` extractor. Imported lazily to
+    avoid a module-load cycle (``mp4_telemetry`` imports from this module).
+    """
+    from .mp4_telemetry import extract_samples, is_video
+
+    path = Path(path)
+    if is_video(path):
+        return extract_samples(path)
+    return parse_telemetry_samples(path)
+
+
 def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, str]]:
     """Parse an SRT file into a list of (lat, lon, alt, timestamp).
 

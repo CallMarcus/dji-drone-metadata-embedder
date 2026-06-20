@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from dji_metadata_embedder import mp4_telemetry as mt
+from dji_metadata_embedder.utilities import load_samples
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mp4_telemetry"
 
@@ -108,3 +109,23 @@ def test_extract_samples_decoded_but_no_fix_returns_empty(monkeypatch, tmp_path)
     monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: data)
     monkeypatch.setattr(mt, "probe", lambda p: "dvtm_Air3s.proto")
     assert mt.extract_samples(f) == []  # decoded, just no fix -> not an error
+
+
+def test_load_samples_dispatches_video(monkeypatch, tmp_path):
+    f = tmp_path / "clip.MP4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _load("air3s_g3j.json"))
+    samples = load_samples(f)
+    assert len(samples) == 4
+
+
+def test_load_samples_dispatches_srt(tmp_path):
+    srt = tmp_path / "clip.SRT"
+    srt.write_text(
+        "1\n00:00:00,000 --> 00:00:00,033\n"
+        "[latitude: 51.4778] [longitude: -0.0014] [rel_alt: 0.0 abs_alt: 10.0]\n",
+        encoding="utf-8",
+    )
+    samples = load_samples(srt)
+    assert len(samples) == 1
+    assert round(samples[0].lat, 4) == 51.4778
