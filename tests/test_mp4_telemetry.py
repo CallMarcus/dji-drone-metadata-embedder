@@ -67,3 +67,44 @@ def test_samples_from_exiftool_filters_null_island():
     samples, saw = mt._samples_from_exiftool(data)
     assert samples == []      # (0,0) no-fix dropped
     assert saw is True        # but telemetry WAS decoded (AbsoluteAltitude)
+
+
+def test_extract_samples_happy(monkeypatch, tmp_path):
+    f = tmp_path / "clip.mp4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _load("air3s_g3j.json"))
+    samples = mt.extract_samples(f)
+    assert len(samples) == 4
+    assert samples[0].dt == datetime(2026, 5, 16, 23, 55, 53, 0)
+
+
+def test_extract_samples_undecoded_raises(monkeypatch, tmp_path):
+    f = tmp_path / "neo2.mp4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _load("neo2_undecoded_g3j.json"))
+    monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto;model_name:FC9470")
+    monkeypatch.setattr(mt, "_exiftool_version", lambda: "13.55")
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    assert "dvtm_NEO2.proto" in str(exc.value)
+    assert "13.55" in str(exc.value)
+
+
+def test_extract_samples_no_stream_raises(monkeypatch, tmp_path):
+    f = tmp_path / "plain.mp4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: [{"SourceFile": str(f)}])
+    monkeypatch.setattr(mt, "probe", lambda p: None)
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    assert "sidecar" in str(exc.value).lower()
+
+
+def test_extract_samples_decoded_but_no_fix_returns_empty(monkeypatch, tmp_path):
+    f = tmp_path / "nofix.mp4"
+    f.write_bytes(b"\x00")
+    data = [{"Doc1": {"SampleTime": 0, "AbsoluteAltitude": 5.0,
+                      "GPSLatitude": 0.0, "GPSLongitude": 0.0}}]
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: data)
+    monkeypatch.setattr(mt, "probe", lambda p: "dvtm_Air3s.proto")
+    assert mt.extract_samples(f) == []  # decoded, just no fix -> not an error

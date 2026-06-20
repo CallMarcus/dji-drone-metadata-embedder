@@ -7,7 +7,10 @@ model, so the convert exporters and verify-sun work on sidecar-less footage.
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -114,3 +117,89 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
             )
         )
     return samples, saw_telemetry
+
+
+_EXIFTOOL_INSTALL_HINT = (
+    "ExifTool not found. Install it (https://exiftool.org) or set "
+    "DJIEMBED_EXIFTOOL_PATH to the executable. Reading MP4 timed metadata "
+    "needs ExifTool >= 13.39 for Air 3S, >= 13.52 for Mini 5 Pro."
+)
+
+
+def _exiftool_exe() -> str:
+    """Resolve the ExifTool executable (env override, else PATH ``exiftool``)."""
+    env = os.environ.get("DJIEMBED_EXIFTOOL_PATH")
+    if env and Path(env).exists():
+        return env
+    return "exiftool"
+
+
+def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            [_exiftool_exe(), *args], capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        raise Mp4TelemetryError(_EXIFTOOL_INSTALL_HINT) from None
+
+
+def _exiftool_version() -> str | None:
+    proc = _run(["-ver"])
+    return proc.stdout.strip() or None
+
+
+def _run_exiftool_json(path: Path) -> list:
+    """Run the embedded-metadata extraction and return parsed JSON (one element)."""
+    proc = _run(
+        ["-ee", "-j", "-g3", "-n", "-api", "LargeFileSupport=1", str(path)]
+    )
+    if proc.returncode != 0:
+        raise Mp4TelemetryError(
+            f"ExifTool failed on {path.name}: {proc.stderr.strip()[-300:]}"
+        )
+    try:
+        return json.loads(proc.stdout) if proc.stdout.strip() else []
+    except json.JSONDecodeError as exc:
+        raise Mp4TelemetryError(f"Could not parse ExifTool JSON for {path.name}: {exc}") from exc
+
+
+def probe(path: Path) -> str | None:
+    """Cheaply detect an embedded telemetry track without extracting samples.
+
+    Returns the schema descriptor (e.g. ``dvtm_Air3s.proto;model_name:FC9113;…``)
+    when the MP4 carries a ``djmd``/``dbgi`` metadata track, else ``None``.
+    """
+    proc = _run(
+        ["-s", "-api", "LargeFileSupport=1", "-MetaFormat", "-Category", str(path)]
+    )
+    out = proc.stdout
+    if "djmd" not in out and "dbgi" not in out:
+        return None
+    m = re.search(r"pb_file:\s*([^\s;]+\.proto[^\n]*)", out)
+    return m.group(1).strip() if m else "djmd"
+
+
+def extract_samples(path: Path) -> list[TelemetrySample]:
+    """Extract GPS-fixed telemetry samples from an MP4/MOV via ExifTool.
+
+    Raises :class:`Mp4TelemetryError` when there is no telemetry track, or a
+    track is present but this ExifTool cannot decode the model. A clip that
+    decodes but never acquired a GPS fix yields an empty list (not an error).
+    """
+    path = Path(path)
+    samples, saw_telemetry = _samples_from_exiftool(_run_exiftool_json(path))
+    if samples:
+        return samples
+    schema = probe(path)
+    if schema is None:
+        raise Mp4TelemetryError(
+            f"No embedded telemetry found in {path.name}; is there a sidecar "
+            f".SRT for this clip?"
+        )
+    if not saw_telemetry:
+        raise Mp4TelemetryError(
+            f"Telemetry stream present ({schema}) in {path.name} but ExifTool "
+            f"{_exiftool_version()} decoded no GPS for this model. Upgrade "
+            f"ExifTool (see docs/MP4_TIMED_METADATA.md)."
+        )
+    return []  # decoded, but no GPS fix in this clip
