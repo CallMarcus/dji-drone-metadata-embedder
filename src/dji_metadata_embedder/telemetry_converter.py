@@ -13,7 +13,7 @@ import re
 import logging
 
 from rich.progress import Progress
-from .utilities import is_gps_fix, setup_logging
+from .utilities import TelemetrySample, is_gps_fix, setup_logging
 from .utilities import _parse_srt_datetime, resolve_utc_offset
 # Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
 # import these from here:
@@ -277,6 +277,49 @@ def batch_convert_to_csv(directory: Path | str) -> None:
     logger.info("CSV files saved to: %s", csv_dir)
 
 
+# CSV columns, in output order. Shared by the SRT and video paths so the header
+# is identical regardless of source.
+_CSV_COLUMNS = (
+    "timestamp", "latitude", "longitude", "rel_altitude", "abs_altitude",
+    "iso", "shutter", "fnum", "ev", "ct", "color_md", "focal_len",
+    "datetime_utc", "sun_azimuth", "sun_elevation",
+)
+
+
+def _csv_from_samples(samples: list[TelemetrySample], output_path: Path) -> Path:
+    """Write CSV rows from video-sourced samples (UTC is intrinsic).
+
+    Fills geo, altitude, ``datetime_utc`` and solar columns; camera columns that
+    only the SRT text carries (iso/shutter/fnum/ev/ct/color_md/focal_len) stay
+    blank.
+    """
+    import csv
+
+    rows = []
+    for s in samples:
+        row = {c: "" for c in _CSV_COLUMNS}
+        row["timestamp"] = s.cue
+        row["latitude"] = f"{s.lat}"
+        row["longitude"] = f"{s.lon}"
+        if s.rel_alt is not None:
+            row["rel_altitude"] = f"{s.rel_alt}"
+        row["abs_altitude"] = f"{s.alt}"
+        if s.dt is not None:
+            row["datetime_utc"] = s.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if is_gps_fix(s.lat, s.lon):
+                az, el = sun_position(s.lat, s.lon, s.dt)
+                row["sun_azimuth"] = f"{az:.3f}"
+                row["sun_elevation"] = f"{el:.3f}"
+        rows.append(row)
+
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
+        writer.writeheader()
+        writer.writerows(rows)
+    logger.info("CSV file created: %s", output_path)
+    return output_path
+
+
 def extract_telemetry_to_csv(
     srt_file: Path | str,
     output_file: Path | str | None = None,
@@ -292,6 +335,12 @@ def extract_telemetry_to_csv(
     """
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".csv")
+
+    from .mp4_telemetry import is_video
+    from .utilities import load_samples
+
+    if is_video(srt_path):
+        return _csv_from_samples(load_samples(srt_path), output_path)
 
     rows = []
     # Per-row solar inputs, index-aligned with ``rows``: (abs_dt, lat, lon).
