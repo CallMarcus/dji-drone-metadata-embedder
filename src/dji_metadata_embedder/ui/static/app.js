@@ -360,6 +360,7 @@
     validate: renderValidate,
     convert: renderConvert,
     check: renderCheck,
+    map: (root) => window.djiMap.render(root),
   };
 
   function render() {

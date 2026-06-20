@@ -187,3 +187,19 @@ def test_api_geojson_rejects_unauth(client):
 def test_csp_allows_osm_tiles(client):
     resp = _auth(client)
     assert "tile.openstreetmap.org" in resp.headers["Content-Security-Policy"]
+
+
+def test_home_has_map_tab(client):
+    resp = _auth(client)
+    assert b'data-tab="map"' in resp.data
+
+
+def test_map_js_served(client):
+    resp = client.get("/static/map.js")
+    assert resp.status_code == 200
+    assert b"djiMap" in resp.data
+
+
+def test_leaflet_vendored_and_served(client):
+    resp = client.get("/static/vendor/leaflet/leaflet.js")
+    assert resp.status_code == 200
