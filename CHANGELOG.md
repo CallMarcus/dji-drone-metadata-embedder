@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.10.0] - 2026-06-20
+
+### Added
+
+- ExifTool-backed MP4 timed-metadata extractor for sidecar-less footage (#206) (#236) (4e5bd00)
+
+### Documentation
+
+- **readme**: Document v1.9.0 Map tab and footprint flags (e40e27c)
+- Auto-generate changelog for v1.9.0 (1215392)
+
+### Other
+
+- Prepare version 1.10.0 (17da414)
+
+
 ## [1.9.0] - 2026-06-20
 
 ### Added
