@@ -9,6 +9,7 @@
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -21,8 +22,11 @@
     <a href="#/validate" class="tab" data-tab="validate">Validate</a>
     <a href="#/convert" class="tab" data-tab="convert">Convert</a>
     <a href="#/check" class="tab" data-tab="check">Check</a>
+    <a href="#/map" class="tab" data-tab="map">Map</a>
   </nav>
   <main id="app" class="content"></main>
+  <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  <script src="{{ url_for('static', filename='map.js') }}"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

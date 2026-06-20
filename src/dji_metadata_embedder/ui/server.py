@@ -14,7 +14,7 @@ from typing import Any, Callable
 try:
     from flask import Flask, Response, abort, g, jsonify, render_template, request, stream_with_context
 except ImportError:  # pragma: no cover - exercised at runtime via CLI
-    Flask = None  # type: ignore[assignment]
+    Flask = None  # type: ignore[misc, assignment]  # 'misc' fires only when flask is installed
 
 from .. import __version__
 
@@ -82,7 +82,7 @@ def create_app(token: str) -> "Flask":
             "default-src 'self'; "
             "script-src 'self'; "
             "style-src 'self'; "
-            "img-src 'self' data:; "
+            "img-src 'self' data: https://*.tile.openstreetmap.org; "
             "connect-src 'self'; "
             "frame-ancestors 'none'; "
             "base-uri 'none'",
@@ -173,6 +173,26 @@ def create_app(token: str) -> "Flask":
         except Exception as exc:
             return jsonify({"error": str(exc)}), 500
         return jsonify({"output": str(result), "format": fmt})
+
+    @app.route("/api/geojson", methods=["POST"])
+    def _api_geojson():
+        from ..geo import build_track, track_to_geojson
+
+        body = request.get_json(silent=True) or {}
+        srt = (body.get("srt") or "").strip()
+        if not srt:
+            return jsonify({"error": "srt is required"}), 400
+        srt_path = Path(srt).expanduser()
+        if not srt_path.is_file():
+            return jsonify({"error": f"SRT file not found: {srt}"}), 400
+        redact = (body.get("redact") or "none").strip().lower()
+        if redact not in {"none", "drop", "fuzz"}:
+            return jsonify({"error": "redact must be none, drop, or fuzz"}), 400
+        try:
+            track = build_track(srt_path, redact=redact)
+            return jsonify(track_to_geojson(track))
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
 
     @app.route("/api/validate", methods=["POST"])
     def _api_validate():
