@@ -32,6 +32,17 @@ Use `csv` instead of `gpx` to create a CSV file.
 
 For detailed how-to guides such as creating Windows bundles or redacting location data, see the files in `docs/how-to`.
 
+### Sidecar-less footage (MP4 with embedded telemetry)
+
+Newer DJI models record telemetry inside the MP4 instead of a `.SRT`. Pass the
+video directly — `convert` and `verify-sun` auto-detect it:
+
+    dji-embed convert gpx DJI_0001.MP4
+    dji-embed verify-sun  DJI_0001.MP4
+
+This needs a recent ExifTool (see `docs/MP4_TIMED_METADATA.md`). `--tz-offset`
+is ignored for MP4 input because its embedded time is already UTC.
+
 ## Footage verification (sun / shadow check)
 
 For chronolocation and footage verification you can cross-check the **shadows** in a clip against where the sun actually was. Given each GPS point's position and UTC time, `dji-embed` computes the sun's **azimuth** (compass bearing) and **elevation** (height above the horizon).

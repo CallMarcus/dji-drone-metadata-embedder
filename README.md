@@ -102,6 +102,12 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 
 **Don't see your model?** We're happy to add support in exchange for sample SRT files we can parse the telemetry format from. Open an [issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/new) and attach one or two raw `.SRT` files from your drone (a short clip is plenty), and we'll add a parser for it. See the [Contributing Guide](CONTRIBUTING.md) for details.
 
+**Sidecar-less models (Air 3S, Mini 5 Pro, …):** telemetry is read straight from
+the MP4's embedded `djmd`/`dbgi` track via ExifTool — no `.SRT` needed —
+for `dji-embed convert <fmt> FILE.MP4` and `dji-embed verify-sun FILE.MP4`.
+Requires a recent ExifTool (Air 3S ≥ 13.39, Mini 5 Pro ≥ 13.52); see
+[docs/MP4_TIMED_METADATA.md](docs/MP4_TIMED_METADATA.md).
+
 ## Requirements
 
  - Python 3.10 or higher
