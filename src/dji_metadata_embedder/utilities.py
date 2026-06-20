@@ -104,13 +104,19 @@ def resolve_utc_offset(
 
 @dataclass
 class TelemetrySample:
-    """One GPS-fixed SRT block: position, raw cue time, and absolute datetime."""
+    """One GPS-fixed SRT block: position, raw cue time, absolute datetime, and
+    optional footprint inputs (relative altitude, 35mm-equivalent focal length,
+    gimbal yaw/pitch) when the format carries them."""
 
     lat: float
     lon: float
     alt: float
     cue: str
     dt: datetime | None
+    rel_alt: float | None = None
+    focal_len: float | None = None
+    gimbal_yaw: float | None = None
+    gimbal_pitch: float | None = None
 
 
 def iso6709(lat: float, lon: float, alt: float = 0.0) -> str:
@@ -127,6 +133,21 @@ def is_gps_fix(lat: float, lon: float) -> bool:
     excluded from geotagging and exported tracks.
     """
     return not (lat == 0.0 and lon == 0.0)
+
+
+def _normalize_focal_len(raw: str) -> float | None:
+    """Normalize a DJI ``focal_len`` token to a 35mm-equivalent in mm.
+
+    DJI writes it two ways: legacy ``240`` (== 24 mm, x10) and newer literal
+    ``24.00``. Values >= 100 are treated as the x10 form. The one ambiguous
+    case (a real >= 100 mm-equivalent literal, i.e. a long tele) is rare on the
+    supported models; documented in docs/SRT_FORMATS.md.
+    """
+    try:
+        value = float(raw)
+    except ValueError:
+        return None
+    return value / 10.0 if value >= 100.0 else value
 
 
 def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
@@ -150,6 +171,14 @@ def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
         if "<font" in tele_line:
             tele_line = re.sub(r"<[^>]+>", "", tele_line)
         dt = _parse_srt_datetime(tele_line)
+        rel_match = re.search(r"rel_alt:\s*([+-]?\d+\.?\d*)", tele_line)
+        focal_match = re.search(r"\[focal_len\s*:\s*([+-]?\d+\.?\d*)", tele_line)
+        gb_yaw_match = re.search(r"gb_yaw:\s*([+-]?\d+\.?\d*)", tele_line)
+        gb_pitch_match = re.search(r"gb_pitch:\s*([+-]?\d+\.?\d*)", tele_line)
+        rel_alt = float(rel_match.group(1)) if rel_match else None
+        focal_len = _normalize_focal_len(focal_match.group(1)) if focal_match else None
+        gimbal_yaw = float(gb_yaw_match.group(1)) if gb_yaw_match else None
+        gimbal_pitch = float(gb_pitch_match.group(1)) if gb_pitch_match else None
         lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", tele_line)
@@ -178,7 +207,19 @@ def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
             # Skip pre-GPS-lock ``(0, 0)`` no-fix frames so exported tracks do
             # not include Null Island points.
             if is_gps_fix(lat, lon):
-                samples.append(TelemetrySample(lat, lon, alt, timestamp, dt))
+                samples.append(
+                    TelemetrySample(
+                        lat,
+                        lon,
+                        alt,
+                        timestamp,
+                        dt,
+                        rel_alt=rel_alt,
+                        focal_len=focal_len,
+                        gimbal_yaw=gimbal_yaw,
+                        gimbal_pitch=gimbal_pitch,
+                    )
+                )
     return samples
 
 
