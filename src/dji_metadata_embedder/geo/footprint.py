@@ -13,6 +13,9 @@ import logging
 import math
 from dataclasses import dataclass
 
+from .geometry import downsample_by_time, initial_bearing_deg
+from .track import Track, TrackPoint
+
 logger = logging.getLogger(__name__)
 
 # DJI gimbal pitch: 0 deg = forward/horizon, -90 deg = straight down (nadir).
@@ -108,3 +111,68 @@ def ground_footprint(
         ring.append((lon + east / m_per_deg_lon, lat + north / _M_PER_DEG_LAT))
     ring.append(ring[0])
     return ring
+
+
+@dataclass(frozen=True)
+class Footprint:
+    """A camera ground footprint: a closed ``[(lon, lat), ...]`` ring plus the
+    properties that describe how it was projected."""
+
+    ring: list[tuple[float, float]]
+    index: int
+    timestamp: str
+    agl: float
+    hfov: float
+    vfov: float
+
+
+def _agl(point: TrackPoint, ground_ref: float) -> float | None:
+    """Height above ground for *point*: ``rel_alt`` when present, else
+    ``abs_alt - ground_ref``."""
+    if point.rel_alt is not None:
+        return point.rel_alt
+    return point.alt - ground_ref
+
+
+def _bearing(points: list[TrackPoint], i: int) -> float:
+    """Course over ground at sampled index *i* (gimbal yaw overrides it)."""
+    p = points[i]
+    if p.gimbal_yaw is not None:
+        return p.gimbal_yaw % 360.0
+    if i + 1 < len(points):
+        nxt = points[i + 1]
+        if (nxt.lat, nxt.lon) != (p.lat, p.lon):
+            return initial_bearing_deg(p.lat, p.lon, nxt.lat, nxt.lon)
+    if i > 0:
+        prv = points[i - 1]
+        if (prv.lat, prv.lon) != (p.lat, p.lon):
+            return initial_bearing_deg(prv.lat, prv.lon, p.lat, p.lon)
+    return 0.0
+
+
+def build_footprints(
+    track: Track, *, lens: LensSpec = DEFAULT_LENS, interval: float = 2.0
+) -> list[Footprint]:
+    """Project per-interval ground footprints for *track*.
+
+    Points are downsampled to roughly one per ``interval`` seconds. A point is
+    skipped when its AGL is non-positive/unknown, or when gimbal pitch shows the
+    camera is strongly oblique. Heading comes from course over ground, or gimbal
+    yaw when present. Redaction is the caller's responsibility (footprints should
+    only be built for ``redact == "none"``).
+    """
+    sampled = downsample_by_time(track.points, interval)
+    if not sampled:
+        return []
+    ground_ref = track.points[0].alt
+    out: list[Footprint] = []
+    for i, p in enumerate(sampled):
+        if p.gimbal_pitch is not None and abs(p.gimbal_pitch - NADIR_PITCH_DEG) > OBLIQUE_GATE_DEG:
+            continue
+        agl = _agl(p, ground_ref)
+        if agl is None or agl <= 0:
+            continue
+        hfov, vfov = fov_degrees(lens, p.focal_len)
+        ring = ground_footprint(p.lat, p.lon, agl, hfov, vfov, _bearing(sampled, i))
+        out.append(Footprint(ring, i, p.timestamp, agl, hfov, vfov))
+    return out

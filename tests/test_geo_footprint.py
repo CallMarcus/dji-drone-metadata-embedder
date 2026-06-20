@@ -47,3 +47,44 @@ def test_ground_footprint_rotates_with_bearing():
 def test_default_lens_and_table_present():
     assert isinstance(DEFAULT_LENS, LensSpec)
     assert "air3" in FOV_TABLE
+
+
+from datetime import datetime, timedelta
+
+from dji_metadata_embedder.geo.footprint import Footprint, build_footprints
+from dji_metadata_embedder.geo.track import Track, TrackPoint
+
+
+def _pt(lat, lon, secs, **kw):
+    base = datetime(2026, 1, 1)
+    return TrackPoint(lat=lat, lon=lon, alt=kw.pop("alt", 100.0), timestamp=f"{secs}",
+                      utc=base + timedelta(seconds=secs), **kw)
+
+
+def test_build_footprints_uses_rel_alt():
+    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0), _pt(0.0001, 0.0, 1, rel_alt=50.0)]
+    fps = build_footprints(Track("t", pts), interval=0.0)
+    assert len(fps) == 2
+    assert all(isinstance(f, Footprint) for f in fps)
+    assert fps[0].agl == 50.0
+
+
+def test_build_footprints_agl_fallback_to_abs_minus_ground():
+    # No rel_alt -> AGL = abs_alt - first abs_alt. Ground ref 100 -> AGL 20.
+    pts = [_pt(0.0, 0.0, 0, alt=100.0), _pt(0.0001, 0.0, 1, alt=120.0)]
+    fps = build_footprints(Track("t", pts), interval=0.0)
+    # First point AGL is 0 -> skipped; second is 20.
+    assert [f.agl for f in fps] == [20.0]
+
+
+def test_build_footprints_skips_oblique_gimbal():
+    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=0.0),
+           _pt(0.0001, 0.0, 1, rel_alt=50.0, gimbal_pitch=0.0)]
+    assert build_footprints(Track("t", pts), interval=0.0) == []
+
+
+def test_build_footprints_uses_gimbal_yaw_when_present():
+    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=-90.0, gimbal_yaw=90.0),
+           _pt(0.0, 0.0001, 1, rel_alt=50.0, gimbal_pitch=-90.0, gimbal_yaw=90.0)]
+    fps = build_footprints(Track("t", pts), interval=0.0)
+    assert fps  # nadir gimbal -> drawn; yaw 90 rotates the ring
