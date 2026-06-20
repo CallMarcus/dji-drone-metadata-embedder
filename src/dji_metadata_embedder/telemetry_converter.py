@@ -57,6 +57,25 @@ def _parse_gps_points(content: str) -> list[dict[str, Any]]:
     return gps_points
 
 
+def load_gps_points(path: Path) -> tuple[list[dict[str, Any]], bool]:
+    """Return GPS points (``_parse_gps_points`` shape) and whether they are UTC.
+
+    SRT: parse the text (datetimes are local wall-clock) -> ``is_utc=False``.
+    Video: read via ``load_samples`` (ExifTool ``GPSDateTime`` is absolute UTC)
+    -> ``is_utc=True``, so callers apply a zero local->UTC offset.
+    """
+    from .mp4_telemetry import is_video
+    from .utilities import load_samples
+
+    if is_video(path):
+        points = [
+            {"lat": s.lat, "lon": s.lon, "ele": s.alt, "time": s.cue, "datetime": s.dt}
+            for s in load_samples(path)
+        ]
+        return points, True
+    return _parse_gps_points(path.read_text(encoding="utf-8")), False
+
+
 def extract_telemetry_to_gpx(
     srt_file: Path | str,
     output_file: Path | str | None = None,
@@ -74,17 +93,20 @@ def extract_telemetry_to_gpx(
     srt_path = Path(srt_file)
     output_path = Path(output_file) if output_file else srt_path.with_suffix(".gpx")
 
-    with open(srt_path, "r", encoding="utf-8") as f:
-        content = f.read()
+    gps_points, is_utc = load_gps_points(srt_path)
 
-    gps_points = _parse_gps_points(content)
-
-    # Resolve the local->UTC offset for points that carry an absolute datetime.
+    # Needed by the metadata <time> block below regardless of source.
     abs_times = [p["datetime"] for p in gps_points if p["datetime"] is not None]
-    mtime_utc = datetime.fromtimestamp(
-        srt_path.stat().st_mtime, tz=timezone.utc
-    ).replace(tzinfo=None)
-    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    offset: timedelta | None
+    if is_utc:
+        # Video GPSDateTime is already UTC -> zero offset.
+        offset = timedelta(0)
+    else:
+        # Resolve the local->UTC offset for points that carry an absolute datetime.
+        mtime_utc = datetime.fromtimestamp(
+            srt_path.stat().st_mtime, tz=timezone.utc
+        ).replace(tzinfo=None)
+        offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     def _point_time(point: dict) -> str | None:
         """Return the GPX <time> string for a point (UTC if datetime known)."""
@@ -148,14 +170,17 @@ def summarize_sun(
     are ``None`` when nothing could be computed.
     """
     srt_path = Path(srt_file)
-    content = srt_path.read_text(encoding="utf-8")
-    points = _parse_gps_points(content)
+    points, is_utc = load_gps_points(srt_path)
 
-    abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
-    mtime_utc = datetime.fromtimestamp(
-        srt_path.stat().st_mtime, tz=timezone.utc
-    ).replace(tzinfo=None)
-    offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    offset: timedelta | None
+    if is_utc:
+        offset = timedelta(0)
+    else:
+        abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
+        mtime_utc = datetime.fromtimestamp(
+            srt_path.stat().st_mtime, tz=timezone.utc
+        ).replace(tzinfo=None)
+        offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     track: list[tuple[datetime, float, float]] = []  # (utc, azimuth, elevation)
     if offset is not None:
