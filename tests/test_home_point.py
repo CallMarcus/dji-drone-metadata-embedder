@@ -112,13 +112,15 @@ GPX_SRT = (
 
 
 def test_gpx_no_home_when_flag_off(tmp_path):
-    srt = tmp_path / "f.SRT"; srt.write_text(GPX_SRT, encoding="utf-8")
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
     out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx")
     assert "<wpt" not in out.read_text(encoding="utf-8")
 
 
 def test_gpx_home_waypoint_when_flag_on(tmp_path):
-    srt = tmp_path / "f.SRT"; srt.write_text(GPX_SRT, encoding="utf-8")
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
     out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True)
     text = out.read_text(encoding="utf-8")
     assert '<wpt lat="39.906206" lon="116.3914">' in text
@@ -126,6 +128,7 @@ def test_gpx_home_waypoint_when_flag_on(tmp_path):
 
 
 def test_gpx_home_dropped_under_redact(tmp_path):
-    srt = tmp_path / "f.SRT"; srt.write_text(GPX_SRT, encoding="utf-8")
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
     out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True, redact="drop")
     assert "<wpt" not in out.read_text(encoding="utf-8")
