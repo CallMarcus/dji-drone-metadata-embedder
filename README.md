@@ -185,6 +185,11 @@ Options:
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
   --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
                              data streams (default: mp4)
+  --extract-home             Extract the drone's HOME / launch point into the
+                             JSON sidecar. **The HOME point is the operator's
+                             launch location** — it is off by default, never
+                             written to the MP4, and always honours `--redact`
+                             (`drop` removes it, `fuzz` coarsens to ~100 m).
   -v, --verbose              Verbose output
   -q, --quiet                Suppress progress output
 ```
@@ -311,13 +316,19 @@ Options:
   -b, --batch                Batch process directory
   --tz-offset OFFSET         UTC offset for GPX/CoT timestamps, e.g. '+05:30' or
                              '-8' ('auto' detects from file mtime; default: auto)
-  --redact [none|drop|fuzz]  GPS redaction for geojson/kml/html/cot (default: none)
+  --redact [none|drop|fuzz]  GPS redaction (default: none). drop/fuzz cover the
+                             track for geojson/kml/html/cot and the HOME marker
+                             in all formats; for gpx/csv only the HOME marker is
+                             redacted (the track there is unredacted)
   --interval FLOAT           cot only: seconds between sampled points (default: 1.0)
   --cot-type CODE            cot only: CoT type/affiliation code (default: a-n-A)
   --footprint                geojson/kml only: add camera footprint polygons
                              (requires --redact none)
   --footprint-interval FLOAT geojson/kml only: seconds between footprints (default: 2.0)
   --model NAME               footprint FOV-table entry, e.g. air3, mini4pro
+  --extract-home             Opt-in: extract the HOME / launch point (operator
+                             location) into gpx/csv/geojson output. Off by
+                             default; subject to --redact
   -v, --verbose              Verbose output
   -q, --quiet                Suppress info output
 ```

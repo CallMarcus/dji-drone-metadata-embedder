@@ -37,6 +37,9 @@ HOME(39.906206,116.391400) D=5.2m H=1.5m
 - `D`: Distance from home point
 - `H`: Height above home point
 
+> The HOME point is parsed only when `--extract-home` is passed (it is the
+> operator's launch location). When extracted it is subject to `--redact`.
+
 ### Format 2b: Legacy-with-Unit (Matrice 300 lineage)
 
 Used by: DJI Matrice 300 RTK and adjacent enterprise models.

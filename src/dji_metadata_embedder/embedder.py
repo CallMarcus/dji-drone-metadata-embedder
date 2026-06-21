@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from rich.progress import Progress
 
 from .dat_parser import parse_v13 as parse_dat_v13
-from .utilities import apply_redaction, is_gps_fix, setup_logging
+from .utilities import apply_redaction, is_gps_fix, parse_home, setup_logging
 from .utils import system_info
 
 logger = logging.getLogger(__name__)
@@ -155,6 +155,7 @@ class DJIMetadataEmbedder:
         time_offset: float = 0.0,
         resample_strategy: str = "linear",
         container: str = "mp4",
+        extract_home: bool = False,
     ):
         self.directory = Path(directory)
         self.output_dir = (
@@ -172,6 +173,9 @@ class DJIMetadataEmbedder:
         # data streams; "mkv" preserves them — Matroska's codec table accepts
         # the codec=none streams the MP4 muxer rejects (issue #197).
         self.container = container
+        # Opt-in only: the HOME/launch point is the operator's location, so it
+        # is parsed solely when explicitly requested and never written to MP4.
+        self.extract_home = extract_home
 
     def parse_dji_srt(self, srt_path: Path) -> Dict[str, Any]:
         """Parse DJI SRT file and extract telemetry data."""
@@ -391,6 +395,9 @@ class DJIMetadataEmbedder:
             # Get camera settings from first frame
             if telemetry_data["camera_info"]:
                 telemetry_data["camera_settings"] = telemetry_data["camera_info"][0]
+
+            if self.extract_home:
+                telemetry_data["home"] = parse_home(content)
 
         except Exception as e:
             logger.error("Error parsing SRT file %s: %s", srt_path, e)
@@ -673,6 +680,14 @@ class DJIMetadataEmbedder:
                         # (Avata 2 / Matrice 300); include it when captured.
                         if telemetry.get("barometers"):
                             json_data["barometers"] = telemetry["barometers"]
+                        # HOME is opt-in; emit the key only when extracted. It is
+                        # null when requested but absent/dropped, present as a
+                        # marker otherwise. Never affects the MP4 itself.
+                        if "home" in telemetry:
+                            h = telemetry["home"]
+                            json_data["home"] = (
+                                {"lat": h.lat, "lon": h.lon, "alt": h.alt} if h else None
+                            )
                         try:
                             with open(json_tmp_path, "w") as f:
                                 json.dump(json_data, f, indent=2)

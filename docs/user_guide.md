@@ -70,6 +70,16 @@ Notes:
 - SRT formats without an absolute wall-clock datetime can't be resolved to UTC, so the sun columns stay blank and `verify-sun` reports `sun_not_computable`.
 - UTC auto-detection relies on the file's modification time still reflecting the recording; if the file was copied or edited, pass `--tz-offset` explicitly for reliable results.
 
+## Extracting the HOME (launch) point
+
+`--extract-home` is opt-in because the HOME point reveals the operator's launch location. It never touches the MP4 and always respects `--redact`:
+
+```bash
+dji-embed embed FOOTAGE/ --extract-home              # HOME in the .json sidecar
+dji-embed convert gpx flight.SRT --extract-home      # HOME waypoint in the GPX
+dji-embed convert geojson flight.SRT --extract-home --redact fuzz   # HOME coarsened ~100 m
+```
+
 ## Web UI
 
 If you'd rather click buttons than type commands, install the `[ui]` extra

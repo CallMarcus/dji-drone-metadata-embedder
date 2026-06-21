@@ -257,9 +257,60 @@ def redact_coords(
     return coords
 
 
+@dataclass
+class Home:
+    """The drone's recorded HOME (launch) point — the operator's location.
+
+    Extracted only on explicit opt-in (``--extract-home``) and always passed
+    through :func:`redact_home`. Never written into the embedded MP4.
+    """
+
+    lat: float
+    lon: float
+    alt: float | None = None
+
+
+# Two documented SRT variants (docs/SRT_FORMATS.md):
+#   HOME(39.906206,116.391400) D=5.2m H=1.5m            -> no space, no altitude
+#   HOME (-58.847509, -34.232707, -57.98m), D 698.70m,  -> space, altitude with trailing m
+_HOME_RE = re.compile(
+    r"HOME\s*\(\s*([+-]?\d+\.?\d*)\s*,\s*([+-]?\d+\.?\d*)"
+    r"(?:\s*,\s*([+-]?\d+\.?\d*)\s*m?)?\s*\)"
+)
+
+
+def parse_home(text: str) -> "Home | None":
+    """Return the first HOME point in SRT *text*, or ``None``.
+
+    The caller is responsible for gating on the opt-in flag; this function does
+    not check it. HOME is constant within a file, so the first match is used.
+    """
+    m = _HOME_RE.search(text)
+    if not m:
+        return None
+    alt = float(m.group(3)) if m.group(3) is not None else None
+    return Home(lat=float(m.group(1)), lon=float(m.group(2)), alt=alt)
+
+
+def redact_home(home: "Home | None", mode: str) -> "Home | None":
+    """Apply GPS redaction to a HOME point: ``drop`` -> ``None``; ``fuzz`` ->
+    coordinates rounded to 3 decimals (~100 m); ``none`` -> unchanged."""
+    if home is None or mode == "drop":
+        return None
+    if mode == "fuzz":
+        return Home(
+            lat=round(home.lat, 3),
+            lon=round(home.lon, 3),
+            alt=round(home.alt, 3) if home.alt is not None else None,
+        )
+    return home
+
+
 def apply_redaction(telemetry: dict, mode: str) -> None:
     """Modify ``telemetry`` in place according to the redaction ``mode``."""
     telemetry["gps_coords"] = redact_coords(telemetry.get("gps_coords", []), mode)
+    if "home" in telemetry:
+        telemetry["home"] = redact_home(telemetry["home"], mode)
 
     if mode == "drop":
         telemetry["first_gps"] = None
