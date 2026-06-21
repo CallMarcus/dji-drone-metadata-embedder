@@ -187,8 +187,9 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
     default="none",
     show_default=True,
-    help="GPS redaction for geojson/kml/html/cot: drop removes the track, "
-    "fuzz coarsens to ~100 m.",
+    help="GPS redaction: drop removes the track (geojson/kml/html/cot) and the "
+    "HOME marker; fuzz coarsens to ~100 m. For gpx/csv only the HOME marker is "
+    "redacted (the track is unredacted there).",
 )
 @click.option(
     "--interval",
@@ -213,6 +214,12 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     help="Seconds between footprint samples",
 )
 @click.option("--model", default=None, help="Drone model for the footprint FOV table (e.g. air3, mini4pro)")
+@click.option(
+    "--extract-home",
+    is_flag=True,
+    help="Opt-in: extract the HOME/launch point (operator location) into "
+    "gpx/csv/geojson output. Subject to --redact.",
+)
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
 def convert(
@@ -227,6 +234,7 @@ def convert(
     footprint: bool,
     footprint_interval: float,
     model: str | None,
+    extract_home: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -248,13 +256,16 @@ def convert(
 
     def run_one(srt: Path, out: str | None) -> None:
         if command == "gpx":
-            extract_telemetry_to_gpx(srt, out, tz_offset=offset)
+            extract_telemetry_to_gpx(srt, out, tz_offset=offset,
+                                     extract_home=extract_home, redact=redact)
         elif command == "csv":
-            extract_telemetry_to_csv(srt, out, tz_offset=offset)
+            extract_telemetry_to_csv(srt, out, tz_offset=offset,
+                                     extract_home=extract_home, redact=redact)
         elif command == "geojson":
             convert_to_geojson(
                 srt, out, redact=redact,
                 footprint=footprint, footprint_interval=footprint_interval, model=model,
+                extract_home=extract_home,
             )
         elif command == "kml":
             convert_to_kml(

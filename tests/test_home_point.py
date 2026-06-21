@@ -201,3 +201,18 @@ def test_geojson_home_dropped_under_redact(tmp_path):
     srt.write_text(GEO_SRT, encoding="utf-8")
     out = convert_to_geojson(srt, tmp_path / "f.geojson", extract_home=True, redact="drop")
     assert _home_features(out) == []
+
+
+def test_convert_help_lists_extract_home():
+    res = CliRunner().invoke(main, ["convert", "--help"])
+    assert res.exit_code == 0
+    assert "--extract-home" in res.output
+
+
+def test_convert_gpx_home_end_to_end(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = tmp_path / "f.gpx"
+    res = CliRunner().invoke(main, ["convert", "gpx", str(srt), "-o", str(out), "--extract-home"])
+    assert res.exit_code == 0
+    assert "<name>HOME</name>" in out.read_text(encoding="utf-8")
