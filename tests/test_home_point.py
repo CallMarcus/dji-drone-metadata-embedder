@@ -1,4 +1,4 @@
-from dji_metadata_embedder.utilities import Home, parse_home, redact_home
+from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
 
 # Variant 1: HOME(lat,lon) no space, no altitude
 SRT_V1 = "HOME(39.906206,116.391400) D=5.2m H=1.5m"
@@ -35,3 +35,23 @@ def test_redact_home_none_passthrough():
 
 def test_redact_home_handles_none_input():
     assert redact_home(None, "fuzz") is None
+
+
+def test_apply_redaction_drops_home():
+    tel = {"gps_coords": [(1.0, 2.0)], "first_gps": (1.0, 2.0), "avg_gps": (1.0, 2.0),
+           "home": Home(1.23456, 2.34567, 10.0)}
+    apply_redaction(tel, "drop")
+    assert tel["home"] is None
+
+
+def test_apply_redaction_fuzzes_home():
+    tel = {"gps_coords": [(1.0, 2.0)], "first_gps": (1.0, 2.0), "avg_gps": (1.0, 2.0),
+           "home": Home(1.23456, 2.34567, 10.0)}
+    apply_redaction(tel, "fuzz")
+    assert tel["home"] == Home(1.235, 2.346, 10.0)
+
+
+def test_apply_redaction_no_home_key_is_noop():
+    tel = {"gps_coords": [(1.0, 2.0)], "first_gps": (1.0, 2.0), "avg_gps": (1.0, 2.0)}
+    apply_redaction(tel, "drop")  # must not raise
+    assert "home" not in tel

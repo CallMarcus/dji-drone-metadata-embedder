@@ -309,6 +309,8 @@ def redact_home(home: "Home | None", mode: str) -> "Home | None":
 def apply_redaction(telemetry: dict, mode: str) -> None:
     """Modify ``telemetry`` in place according to the redaction ``mode``."""
     telemetry["gps_coords"] = redact_coords(telemetry.get("gps_coords", []), mode)
+    if "home" in telemetry:
+        telemetry["home"] = redact_home(telemetry["home"], mode)
 
     if mode == "drop":
         telemetry["first_gps"] = None
