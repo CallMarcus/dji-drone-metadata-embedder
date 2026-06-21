@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 
 PackageIdentifier: CallMarcus.DJIMetadataEmbedder
 PackageVersion: 1.11.0
@@ -7,8 +7,6 @@ Platform:
 MinimumOSVersion: 10.0.0.0
 InstallerType: portable
 Scope: user
-InstallModes:
-- portable
 UpgradeBehavior: install
 Commands:
 - dji-embed
@@ -21,4 +19,4 @@ Installers:
   InstallerUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/download/v1.11.0/dji-embed.exe
   InstallerSha256: PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE
 ManifestType: installer
-ManifestVersion: 1.6.0
+ManifestVersion: 1.12.0
