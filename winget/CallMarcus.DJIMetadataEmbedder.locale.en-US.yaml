@@ -37,15 +37,7 @@ Tags:
 - srt
 - ffmpeg
 - cli
-ReleaseNotes: |
-  M4 Milestone - Documentation & Release Hygiene:
-  - Added comprehensive documentation with decision tables and troubleshooting guides
-  - Created public sample MP4/SRT fixtures for testing across 3 DJI model families
-  - Implemented auto-changelog generation from conventional commits
-  - Enhanced CLI with professional subcommand structure and JSON logging
-  - Added lenient parser mode with structured warnings for malformed files
-  - Complete golden test fixtures and drift analysis validation
-ReleaseNotesUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/tag/v1.1.0
+ReleaseNotesUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/tag/v1.11.0
 PurchaseUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder
 InstallationNotes: |
   After installation, run 'dji-embed doctor' to verify dependencies are installed.

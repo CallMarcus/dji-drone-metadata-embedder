@@ -20,8 +20,5 @@ Installers:
 - Architecture: x64
   InstallerUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/download/v1.11.0/dji-embed.exe
   InstallerSha256: PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE
-  InstallerSwitches:
-    Silent: ""
-    SilentWithProgress: ""
 ManifestType: installer
 ManifestVersion: 1.6.0
