@@ -15,6 +15,7 @@ import logging
 from rich.progress import Progress
 from .utilities import TelemetrySample, is_gps_fix, setup_logging
 from .utilities import _parse_srt_datetime, resolve_utc_offset
+from .utilities import parse_home, redact_home
 # Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
 # import these from here:
 from .utilities import parse_utc_offset, estimate_utc_offset  # noqa: F401
@@ -80,6 +81,8 @@ def extract_telemetry_to_gpx(
     srt_file: Path | str,
     output_file: Path | str | None = None,
     tz_offset: timedelta | None = None,
+    extract_home: bool = False,
+    redact: str = "none",
 ) -> Path:
     """Extract GPS telemetry from a DJI SRT file and create a GPX file.
 
@@ -132,19 +135,33 @@ def extract_telemetry_to_gpx(
     <name>{}</name>
     <time>{}</time>
 </metadata>
-<trk>
+""".format(Path(srt_file).stem, metadata_time)
+
+    trk_open = """<trk>
     <name>DJI Flight Path</name>
     <trkseg>
-""".format(
-        Path(srt_file).stem, metadata_time
-    )
+"""
 
     gpx_footer = """    </trkseg>
 </trk>
 </gpx>"""
 
+    home_wpt = ""
+    if extract_home:
+        home = redact_home(parse_home(srt_path.read_text(encoding="utf-8")), redact)
+        if home is not None:
+            ele = f"        <ele>{home.alt}</ele>\n" if home.alt is not None else ""
+            home_wpt = (
+                f'    <wpt lat="{home.lat}" lon="{home.lon}">\n'
+                f"{ele}"
+                f"        <name>HOME</name>\n"
+                f"    </wpt>\n"
+            )
+
     with open(output_path, "w") as f:
         f.write(gpx_header)
+        f.write(home_wpt)
+        f.write(trk_open)
         for point in gps_points:
             f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
             f.write(f'            <ele>{point["ele"]}</ele>\n')

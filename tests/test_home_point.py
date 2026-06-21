@@ -4,6 +4,7 @@ from click.testing import CliRunner
 from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 from dji_metadata_embedder.cli import main
 from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
+from dji_metadata_embedder.telemetry_converter import extract_telemetry_to_gpx
 
 # Variant 1: HOME(lat,lon) no space, no altitude
 SRT_V1 = "HOME(39.906206,116.391400) D=5.2m H=1.5m"
@@ -101,3 +102,30 @@ def test_embed_help_lists_extract_home():
     res = CliRunner().invoke(main, ["embed", "--help"])
     assert res.exit_code == 0
     assert "--extract-home" in res.output
+
+
+GPX_SRT = (
+    "1\n00:00:00,000 --> 00:00:00,033\n"
+    "HOME(39.906206,116.391400) [latitude: 39.900000] [longitude: 116.400000] "
+    "[rel_alt: 1.5 abs_alt: 100.0]\n"
+)
+
+
+def test_gpx_no_home_when_flag_off(tmp_path):
+    srt = tmp_path / "f.SRT"; srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx")
+    assert "<wpt" not in out.read_text(encoding="utf-8")
+
+
+def test_gpx_home_waypoint_when_flag_on(tmp_path):
+    srt = tmp_path / "f.SRT"; srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True)
+    text = out.read_text(encoding="utf-8")
+    assert '<wpt lat="39.906206" lon="116.3914">' in text
+    assert "<name>HOME</name>" in text
+
+
+def test_gpx_home_dropped_under_redact(tmp_path):
+    srt = tmp_path / "f.SRT"; srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True, redact="drop")
+    assert "<wpt" not in out.read_text(encoding="utf-8")
