@@ -216,3 +216,63 @@ def test_convert_gpx_home_end_to_end(tmp_path):
     res = CliRunner().invoke(main, ["convert", "gpx", str(srt), "-o", str(out), "--extract-home"])
     assert res.exit_code == 0
     assert "<name>HOME</name>" in out.read_text(encoding="utf-8")
+
+
+# HOME with the 3-value altitude form: HOME(lat,lon,altm)
+HOME_ALT_SRT = (
+    "1\n00:00:00,000 --> 00:00:00,033\n"
+    "HOME(39.906206,116.391400,57.98m) [latitude: 39.900000] [longitude: 116.400000] "
+    "[rel_alt: 1.5 abs_alt: 100.0]\n"
+)
+
+
+def test_flag_off_no_home_anywhere(tmp_path):
+    """Core privacy guarantee: with the flag off, no HOME marker appears in any
+    format even though the SRT contains a HOME line."""
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GEO_SRT, encoding="utf-8")
+    gpx = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx")
+    csv_out = extract_telemetry_to_csv(srt, tmp_path / "f.csv")
+    geo = convert_to_geojson(srt, tmp_path / "f.geojson")
+    assert "HOME" not in gpx.read_text(encoding="utf-8")
+    assert "home_lat" not in csv_out.read_text(encoding="utf-8")
+    assert '"home"' not in geo.read_text(encoding="utf-8")
+
+
+def test_gpx_home_fuzz_rounds_coords(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True, redact="fuzz")
+    assert '<wpt lat="39.906" lon="116.391">' in out.read_text(encoding="utf-8")
+
+
+def test_csv_home_fuzz_rounds_coords(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True, redact="fuzz")
+    rows = _read_csv(out)
+    assert rows[0]["home_lat"] == "39.906"
+    assert rows[0]["home_lon"] == "116.391"
+
+
+def test_geojson_home_fuzz_rounds_coords(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = convert_to_geojson(srt, tmp_path / "f.geojson", extract_home=True, redact="fuzz")
+    assert _home_features(out)[0]["geometry"]["coordinates"] == [116.391, 39.906]
+
+
+def test_gpx_home_includes_ele_when_alt_present(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(HOME_ALT_SRT, encoding="utf-8")
+    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True)
+    text = out.read_text(encoding="utf-8")
+    assert "<name>HOME</name>" in text
+    assert "<ele>57.98</ele>" in text
+
+
+def test_csv_home_alt_filled_when_alt_present(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(HOME_ALT_SRT, encoding="utf-8")
+    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True)
+    assert _read_csv(out)[0]["home_alt"] == "57.98"
