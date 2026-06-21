@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.11.0] - 2026-06-21
+
+### Added
+
+- Opt-in HOME-point (launch location) extraction (#237) (2fea995)
+
+### Documentation
+
+- Auto-generate changelog for v1.10.0 (7797746)
+
+### Other
+
+- Prepare version 1.11.0 (c0ce4bb)
+
+
 ## [1.10.0] - 2026-06-20
 
 ### Added
