@@ -341,6 +341,8 @@ def extract_telemetry_to_csv(
     srt_file: Path | str,
     output_file: Path | str | None = None,
     tz_offset: timedelta | None = None,
+    extract_home: bool = False,
+    redact: str = "none",
 ) -> Path:
     """Extract all telemetry data from a DJI SRT file to CSV.
 
@@ -358,6 +360,13 @@ def extract_telemetry_to_csv(
 
     if is_video(srt_path):
         return _csv_from_samples(load_samples(srt_path), output_path)
+
+    home_cols: list[str] = []
+    home = None
+    if extract_home:
+        home = redact_home(parse_home(srt_path.read_text(encoding="utf-8")), redact)
+        home_cols = ["home_lat", "home_lon", "home_alt"]
+    columns = list(_CSV_COLUMNS) + home_cols
 
     rows = []
     # Per-row solar inputs, index-aligned with ``rows``: (abs_dt, lat, lon).
@@ -378,7 +387,11 @@ def extract_telemetry_to_csv(
             if "<font" in telemetry_line:
                 telemetry_line = re.sub(r"<[^>]+>", "", telemetry_line)
 
-            row = {c: "" for c in _CSV_COLUMNS}
+            row = {c: "" for c in columns}
+            if home is not None:
+                row["home_lat"] = f"{home.lat}"
+                row["home_lon"] = f"{home.lon}"
+                row["home_alt"] = "" if home.alt is None else f"{home.alt}"
             row["timestamp"] = timestamp_match.group(1) if timestamp_match else ""
 
             # GPS coordinates
@@ -453,7 +466,7 @@ def extract_telemetry_to_csv(
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         if rows:
-            writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
+            writer = csv.DictWriter(f, fieldnames=columns)
             writer.writeheader()
             writer.writerows(rows)
 

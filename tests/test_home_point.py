@@ -1,10 +1,11 @@
+import csv as _csv
 from pathlib import Path
 
 from click.testing import CliRunner
 from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 from dji_metadata_embedder.cli import main
 from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
-from dji_metadata_embedder.telemetry_converter import extract_telemetry_to_gpx
+from dji_metadata_embedder.telemetry_converter import extract_telemetry_to_gpx, extract_telemetry_to_csv
 
 # Variant 1: HOME(lat,lon) no space, no altitude
 SRT_V1 = "HOME(39.906206,116.391400) D=5.2m H=1.5m"
@@ -132,3 +133,33 @@ def test_gpx_home_dropped_under_redact(tmp_path):
     srt.write_text(GPX_SRT, encoding="utf-8")
     out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True, redact="drop")
     assert "<wpt" not in out.read_text(encoding="utf-8")
+
+
+def _read_csv(path):
+    with open(path, newline="", encoding="utf-8") as f:
+        return list(_csv.DictReader(f))
+
+
+def test_csv_no_home_columns_when_flag_off(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv")
+    rows = _read_csv(out)
+    assert "home_lat" not in rows[0]
+
+
+def test_csv_home_columns_when_flag_on(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True)
+    rows = _read_csv(out)
+    assert rows[0]["home_lat"] == "39.906206"
+    assert rows[0]["home_lon"] == "116.3914"
+
+
+def test_csv_home_dropped_under_redact(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GPX_SRT, encoding="utf-8")
+    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True, redact="drop")
+    rows = _read_csv(out)
+    assert rows[0]["home_lat"] == ""
