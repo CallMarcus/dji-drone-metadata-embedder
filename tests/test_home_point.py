@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
 
 # Variant 1: HOME(lat,lon) no space, no altitude
@@ -55,3 +58,38 @@ def test_apply_redaction_no_home_key_is_noop():
     tel = {"gps_coords": [(1.0, 2.0)], "first_gps": (1.0, 2.0), "avg_gps": (1.0, 2.0)}
     apply_redaction(tel, "drop")  # must not raise
     assert "home" not in tel
+
+
+SRT_BLOCK = (
+    "1\n"
+    "00:00:00,000 --> 00:00:00,033\n"
+    "HOME(39.906206,116.391400) D=5.2m H=1.5m [latitude: 39.900000] "
+    "[longitude: 116.400000] [rel_alt: 1.500 abs_alt: 100.000]\n"
+)
+
+
+def _embedder(tmp_path: Path, **kw) -> DJIMetadataEmbedder:
+    (tmp_path / "out").mkdir(exist_ok=True)
+    return DJIMetadataEmbedder(str(tmp_path), output_dir=str(tmp_path / "out"), **kw)
+
+
+def test_parse_omits_home_when_flag_off(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(SRT_BLOCK, encoding="utf-8")
+    tel = _embedder(tmp_path).parse_dji_srt(srt)
+    assert "home" not in tel
+
+
+def test_parse_extracts_home_when_flag_on(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(SRT_BLOCK, encoding="utf-8")
+    tel = _embedder(tmp_path, extract_home=True).parse_dji_srt(srt)
+    assert tel["home"] == Home(lat=39.906206, lon=116.391400, alt=None)
+
+
+def test_parse_home_none_when_flag_on_but_absent(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(SRT_BLOCK.replace("HOME(39.906206,116.391400) D=5.2m H=1.5m ", ""),
+                   encoding="utf-8")
+    tel = _embedder(tmp_path, extract_home=True).parse_dji_srt(srt)
+    assert tel["home"] is None
