@@ -1,7 +1,7 @@
 # Repository Housekeeping Recommendations
 
-**Last refreshed:** 2026-06-06
-**Current state:** v1.6.0, production-ready, root directory already slim
+**Last refreshed:** 2026-06-21
+**Current state:** v1.11.0, production-ready, root directory already slim
 
 ---
 

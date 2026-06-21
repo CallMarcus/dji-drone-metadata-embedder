@@ -24,6 +24,22 @@ Each directory contains a complete set of test files:
 - **Duration**: ~100ms (3 frames at 30fps)  
 - **GPS**: Stockholm, Sweden area (redacted coordinates)
 
+### `air3S/` - DJI Air 3S Format
+- **Format**: HTML-style SRT (`FrameCnt`/`DiffTime`) with decimal `focal_len` and HLG color mode (`color_md: hlg`)
+- **Features**: GPS, altitude, rich camera metadata; the MP4 also carries embedded `djmd`/`dbgi` data streams (sidecar-less telemetry)
+
+### `Mini5PRO/` - DJI Mini 5 Pro Format
+- **Format**: HTML-style SRT with decimal aperture (`fnum: 1.8`)
+- **Features**: GPS, altitude, camera settings
+
+### `neo2/` - DJI Neo 2 Format
+- **Format**: HTML-style SRT with stabilization (`pp_*`) fields
+- **Features**: GPS, altitude, camera metadata; MP4 also carries embedded `djmd`/`dbgi` data streams. Includes a `clip_nogps.SRT` variant for no-GPS handling.
+
+### `Avata360/` - DJI Avata 360 Format
+- **Format**: HTML-style SRT (`FrameCnt`/`FrameId`) with stabilization (`pp_*`) fields
+- **Features**: Footage ships as `.OSV` (360 video) + `.LRF` proxy alongside the SRT
+
 ## 🧪 Testing Commands
 
 ### Basic Processing

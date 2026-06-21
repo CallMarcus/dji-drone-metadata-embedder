@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-_Last updated: 2026-06-04_
+_Last updated: 2026-06-21_
 
 ## Purpose
 This file provides context and guidelines for Claude Code when contributing to the **dji-drone-metadata-embedder** repository. It ensures consistent, high-quality contributions aligned with the project's production-ready status.
@@ -43,7 +43,7 @@ src/dji_metadata_embedder/
 ### Key Features
 - **Batch processing** of DJI drone footage (MP4 + SRT pairs)
 - **GPS metadata embedding** via FFmpeg (no re-encoding)
-- **Multiple DJI formats**: Mini 3/4 Pro, Air 3, Avata 2, Mavic 3 Enterprise
+- **Multiple DJI formats**: Mini 3/4/5 Pro, Air 3/3S, Avata 2/360, Neo 2, Mavic 3 Enterprise, Matrice 300, Phantom 4 RTK/P4P
 - **Export formats**: JSON, GPX, CSV
 - **Privacy controls**: GPS redaction (drop/fuzz)
 - **Cross-platform**: Windows, macOS, Linux
@@ -399,6 +399,6 @@ The previous `agents.md` was more generic for multiple AI assistants and focused
 
 ---
 
-**Last Updated:** 2026-06-04
-**Project Version:** v1.5.1
+**Last Updated:** 2026-06-21
+**Project Version:** v1.11.0
 **Status:** Production Ready ✅

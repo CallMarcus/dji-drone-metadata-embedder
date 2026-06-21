@@ -134,12 +134,10 @@ Commands:
   embed    Embed telemetry from SRT files into MP4 videos
   validate Validate SRT/MP4 pairs and report drift
   convert  Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
-  check    Check media files for embedded metadata
-  doctor   Show system information and verify dependencies
-  ui       Launch the local web UI in your browser
-  wizard   Launch interactive setup wizard
-  gui      Launch graphical interface (placeholder)
-  init     Perform initial setup (placeholder)
+  check      Check media files for embedded metadata
+  doctor     Show system information and verify dependencies
+  ui         Launch the local web UI in your browser
+  verify-sun Summarise the sun's position over a clip for shadow cross-checking
 
 Global Options:
   --version   Show the version and exit
@@ -178,7 +176,9 @@ Arguments:
   DIRECTORY          Directory containing MP4 and SRT files
 
 Options:
-  -o, --output DIRECTORY     Output directory
+  -o, --output DIRECTORY     Output directory (ignored if --overwrite)
+  --overwrite                Overwrite original video files in place
+                             (destination = input folder)
   --exiftool                 Also use ExifTool for GPS metadata
   --dat PATH                 DAT flight log to merge
   --dat-auto                 Auto-detect DAT logs matching videos
@@ -276,13 +276,18 @@ Arguments:
   DIRECTORY                  Directory containing MP4 and SRT files
 
 Options:
-  -o, --output DIRECTORY     Output directory
-  --exiftool                 Also use ExifTool for GPS metadata  
+  -o, --output DIRECTORY     Output directory (ignored if --overwrite)
+  --overwrite                Overwrite original video files in place
+                             (destination = input folder)
+  --exiftool                 Also use ExifTool for GPS metadata
   --dat PATH                 DAT flight log to merge
   --dat-auto                 Auto-detect DAT logs matching videos
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
   --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
                              data streams (default: mp4)
+  --extract-home             Extract the HOME / launch point into the JSON
+                             sidecar; off by default, never written to the
+                             MP4, always honours --redact
   -v, --verbose              Verbose output
   -q, --quiet                Suppress progress output
 ```

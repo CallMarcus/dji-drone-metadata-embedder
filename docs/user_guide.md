@@ -22,13 +22,14 @@ Run `dji-embed --help` to see all available options.
 
 ## Converting telemetry
 
-The package also includes a converter for GPX or CSV output:
+Use `dji-embed convert` to export telemetry to GPX, CSV, GeoJSON, KML, HTML,
+or CoT:
 
 ```bash
-python -m dji_metadata_embedder.telemetry_converter gpx DJI_0001.SRT
+dji-embed convert gpx DJI_0001.SRT
 ```
 
-Use `csv` instead of `gpx` to create a CSV file.
+Swap `gpx` for `csv`, `geojson`, `kml`, `html`, or `cot` to pick the format.
 
 For detailed how-to guides such as creating Windows bundles or redacting location data, see the files in `docs/how-to`.
 
