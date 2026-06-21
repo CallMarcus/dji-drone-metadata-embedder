@@ -185,6 +185,11 @@ Options:
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
   --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
                              data streams (default: mp4)
+  --extract-home             Extract the drone's HOME / launch point into the
+                             JSON sidecar. **The HOME point is the operator's
+                             launch location** — it is off by default, never
+                             written to the MP4, and always honours `--redact`
+                             (`drop` removes it, `fuzz` coarsens to ~100 m).
   -v, --verbose              Verbose output
   -q, --quiet                Suppress progress output
 ```
