@@ -163,3 +163,42 @@ def test_csv_home_dropped_under_redact(tmp_path):
     out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True, redact="drop")
     rows = _read_csv(out)
     assert rows[0]["home_lat"] == ""
+
+
+import json as _json
+from dji_metadata_embedder.geo.geojson import convert_to_geojson
+
+GEO_SRT = (
+    "1\n00:00:00,000 --> 00:00:00,033\n"
+    "HOME(39.906206,116.391400) [latitude: 39.900000] [longitude: 116.400000] [rel_alt: 1.5 abs_alt: 100.0]\n\n"
+    "2\n00:00:00,033 --> 00:00:00,066\n"
+    "HOME(39.906206,116.391400) [latitude: 39.900100] [longitude: 116.400100] [rel_alt: 1.6 abs_alt: 101.0]\n"
+)
+
+
+def _home_features(path):
+    fc = _json.loads(path.read_text(encoding="utf-8"))
+    return [f for f in fc["features"] if f["properties"].get("type") == "home"]
+
+
+def test_geojson_no_home_feature_when_flag_off(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GEO_SRT, encoding="utf-8")
+    out = convert_to_geojson(srt, tmp_path / "f.geojson")
+    assert _home_features(out) == []
+
+
+def test_geojson_home_feature_when_flag_on(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GEO_SRT, encoding="utf-8")
+    out = convert_to_geojson(srt, tmp_path / "f.geojson", extract_home=True)
+    feats = _home_features(out)
+    assert len(feats) == 1
+    assert feats[0]["geometry"]["coordinates"] == [116.3914, 39.906206]
+
+
+def test_geojson_home_dropped_under_redact(tmp_path):
+    srt = tmp_path / "f.SRT"
+    srt.write_text(GEO_SRT, encoding="utf-8")
+    out = convert_to_geojson(srt, tmp_path / "f.geojson", extract_home=True, redact="drop")
+    assert _home_features(out) == []
