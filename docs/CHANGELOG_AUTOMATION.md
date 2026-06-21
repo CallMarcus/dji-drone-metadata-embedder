@@ -170,7 +170,8 @@ Use consistent scopes across the project:
    # Review unreleased changes
    git diff CHANGELOG.md
    
-   # Update version in pyproject.toml
+   # Set the version (writes __init__.py, the hatch source of truth, and
+   # syncs the README badge, bootstrap.ps1, dji-embed.spec, and winget manifests)
    python3 tools/sync_version.py 1.2.0
    ```
 

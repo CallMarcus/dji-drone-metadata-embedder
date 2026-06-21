@@ -17,6 +17,7 @@ def _write_project(root: Path, version: str) -> None:
     (root / "src/pkg").mkdir(parents=True)
     (root / "tools").mkdir()
     (root / "winget").mkdir()
+    (root / "docs").mkdir()
 
     (root / "pyproject.toml").write_text(
         """
@@ -38,6 +39,26 @@ path = "src/pkg/__init__.py"
         f"ReleaseNotesUrl: https://example.com/owner/repo/releases/tag/v{version}\n"
     )
 
+    # Doc "current version" stamps that sync_version.py keeps fresh.
+    (root / "CLAUDE.md").write_text(f"**Project Version:** v{version}\n")
+    (root / "HOUSEKEEPING.md").write_text(
+        f"**Current state:** v{version}, production-ready\n"
+    )
+    (root / "docs/development_roadmap.md").write_text(
+        f"_Last updated: 2026-06-21 · Current version: **v{version}** · Status: x_\n"
+    )
+    # Two matrix rows (first column) + the `dji-embed X.Y.Z` example line; the
+    # FFmpeg column must stay untouched.
+    (root / "docs/external-tool-versions.md").write_text(
+        "| dji-embed | FFmpeg |\n"
+        "|-----------|--------|\n"
+        f"| {version}    | 6.1.1   |\n"
+        f"| {version}    | 6.0.x   |\n"
+        "\n"
+        f"dji-embed {version}\n"
+        "  ffmpeg: 6.1.1\n"
+    )
+
 
 def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     sync_version = _load_module()
@@ -52,8 +73,20 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
         "tools/bootstrap.ps1",
         "dji-embed.spec",
         "winget/manifest.yaml",
+        "CLAUDE.md",
+        "HOUSEKEEPING.md",
+        "docs/development_roadmap.md",
+        "docs/external-tool-versions.md",
     ]:
         assert "1.2.3" in (tmp_path / rel).read_text()
+
+    # external-tool-versions.md has the version in multiple spots (both matrix
+    # rows + the example line); re.subn must bump them all while leaving the
+    # FFmpeg tool version alone.
+    ext = (tmp_path / "docs/external-tool-versions.md").read_text()
+    assert ext.count("1.2.3") == 3
+    assert "0.1.0" not in ext
+    assert "6.1.1" in ext
 
     # Release-tag links (ReleaseNotesUrl) should be bumped too, so the winget
     # manifest never ships stale release notes.
@@ -93,4 +126,22 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     err = capsys.readouterr().err
     assert "expected 1.2.3" in err
     assert "README.md" in err
+
+
+def test_doc_version_stamp_drift_is_caught(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    """A stale 'current version' stamp in a doc must fail --check."""
+    sync_version = _load_module()
+    _write_project(tmp_path, "1.2.3")
+
+    # Everything is in sync to start with.
+    sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
+
+    # Let a doc stamp rot, exactly the failure mode this wiring guards against.
+    (tmp_path / "CLAUDE.md").write_text("**Project Version:** v0.0.1\n")
+    with pytest.raises(SystemExit):
+        sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
+    err = capsys.readouterr().err
+    assert "CLAUDE.md" in err
 

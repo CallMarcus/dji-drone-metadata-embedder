@@ -14,14 +14,25 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 ```powershell
 pip install dji-drone-metadata-embedder
 ```
+
+### macOS
+
 ```bash
 brew install ffmpeg exiftool
+pip install dji-drone-metadata-embedder
+```
+
+### Linux
+
+```bash
 sudo apt update && sudo apt install ffmpeg exiftool
 pip install dji-drone-metadata-embedder
 ```
 
+### Docker
+
 ```bash
-docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
+docker run --rm -v "$PWD":/data callmarcus/dji-embed embed /data
 ```
 
 ## Optional: browser-based UI

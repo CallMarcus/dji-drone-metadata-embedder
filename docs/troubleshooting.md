@@ -308,10 +308,8 @@ dji-embed validate /footage
 # Check video frame rate pattern
 ffprobe -v quiet -show_streams video.mp4 | grep -E "(r_frame_rate|avg_frame_rate)"
 
-# For severe drift, try manual time offset
-dji-embed embed /footage --time-offset 0.5  # Adjust timing by 0.5s
-
-# Alternative: Use ffmpeg to fix frame rate first
+# There is no built-in timing offset. For severe drift, normalise the
+# frame rate with ffmpeg first, then re-run the embed:
 ffmpeg -i input.mp4 -r 30 -c:v libx264 -crf 18 output.mp4
 ```
 
@@ -347,11 +345,11 @@ ffmpeg -i input.mp4 -r 30 -c:v libx264 -preset medium -crf 20 output.mp4
    # Process each part separately
    ```
 
-2. **Use time offset compensation:**
+2. **Process each segment separately:**
    ```bash
-   # For each segment, adjust timing
-   dji-embed embed part1/ --time-offset 0.0
-   dji-embed embed part2/ --time-offset -0.5
+   # Embed each split part on its own; shorter clips accumulate less drift
+   dji-embed embed part1/
+   dji-embed embed part2/
    ```
 
 ---

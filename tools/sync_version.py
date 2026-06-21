@@ -2,8 +2,11 @@
 
 This helper keeps the version defined in ``pyproject.toml`` (via
 ``[tool.hatch.version]``) in sync with other project files such as the
-README badge, bootstrap script, PyInstaller spec and optional winget
-manifests.
+README badge, bootstrap script, PyInstaller spec, optional winget
+manifests, and the "current version" stamps in a handful of docs
+(``CLAUDE.md``, ``HOUSEKEEPING.md``, ``docs/development_roadmap.md`` and the
+``docs/external-tool-versions.md`` compatibility table) so they stop rotting
+between releases.
 
 Usage::
 
@@ -46,6 +49,30 @@ TARGET_PATTERNS: dict[Path, tuple[str, str]] = {
     Path("dji-embed.spec"): (
         r"__version__\s*=\s*\"(?P<ver>\d+\.\d+\.\d+)\"",
         "__version__ = \"{version}\"",
+    ),
+    # "Current version" stamps in docs. These are prose/markdown version
+    # claims that previously drifted every release because nothing updated
+    # them. Each pattern carries a (?P<ver>...) group so --check can validate
+    # it, matching the rest of the targets above.
+    Path("CLAUDE.md"): (
+        r"\*\*Project Version:\*\* v(?P<ver>\d+\.\d+\.\d+)",
+        "**Project Version:** v{version}",
+    ),
+    Path("HOUSEKEEPING.md"): (
+        r"\*\*Current state:\*\* v(?P<ver>\d+\.\d+\.\d+)",
+        "**Current state:** v{version}",
+    ),
+    Path("docs/development_roadmap.md"): (
+        r"Current version: \*\*v(?P<ver>\d+\.\d+\.\d+)\*\*",
+        "Current version: **v{version}**",
+    ),
+    # external-tool-versions.md mentions the version in two places: every row
+    # of the compatibility matrix (first column, line-start "| X.Y.Z") and the
+    # `dji-embed X.Y.Z` --version example. The (?m) alternation matches both;
+    # re.subn updates all occurrences while --check validates the first.
+    Path("docs/external-tool-versions.md"): (
+        r"(?m)(?P<lead>^\| |^dji-embed )(?P<ver>\d+\.\d+\.\d+)",
+        r"\g<lead>{version}",
     ),
 }
 

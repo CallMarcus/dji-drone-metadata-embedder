@@ -1,18 +1,19 @@
 # Generate GPX
 
-The package can convert DJI SRT telemetry files into GPX tracks using the
-`telemetry_converter` module.
+The `dji-embed convert` command turns DJI SRT telemetry files into GPX tracks
+(it can also emit CSV, GeoJSON, KML, HTML, or CoT).
 
 Convert a single file:
 
 ```bash
-python -m dji_metadata_embedder.telemetry_converter gpx DJI_0001.SRT
+dji-embed convert gpx DJI_0001.SRT
 ```
 
 Process an entire directory:
 
 ```bash
-python -m dji_metadata_embedder.telemetry_converter gpx /path/to/srt --batch
+dji-embed convert gpx /path/to/srt --batch
 ```
 
-GPX files are saved to a `gpx_tracks` directory in the input folder.
+By default the `.gpx` file is written next to the input SRT (e.g.
+`DJI_0001.gpx`). Pass `-o/--output` to choose a different location.

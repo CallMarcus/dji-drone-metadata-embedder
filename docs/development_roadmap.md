@@ -1,6 +1,6 @@
 # Development Roadmap
 
-_Last updated: 2026-06-04 · Current version: **v1.5.1** · Status: **Production Ready**_
+_Last updated: 2026-06-21 · Current version: **v1.11.0** · Status: **Production Ready**_
 
 This roadmap tracks the evolution of **DJI Drone Metadata Embedder**. The
 original Phase 1–6 plan (standalone Windows GUI, dependency bootstrap,
@@ -44,7 +44,7 @@ from pre-existing environmental gaps.
   skeleton was removed in the 2026-06 cleanup pass; no Tk work is planned.
 
 ### Testing & CI
-- Unit test suite (`tests/`, 55 tests) covering parsing, embedding, DAT,
+- Unit test suite (`tests/`, 264 tests) covering parsing, embedding, DAT,
   redaction, sync, UI server, and CLI smoke.
 - End-to-end validation suite (`validation_tests/`) for release verification
   when FFmpeg/ExifTool and real media are available.
@@ -80,30 +80,27 @@ from pre-existing environmental gaps.
   Matrice 4 / M30 / M350 RTK, and FPV v2 for SRT documentation and sample
   availability, then spin off per-model parser issues following the "Adding
   Support for New DJI Models" checklist in `CLAUDE.md` §7.
-- **Geospatial / mapping.** Render the flight path on a map. Three phases,
-  designed in
-  [`docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md`](superpowers/specs/2026-06-04-flight-path-mapping-design.md):
-  GeoJSON/KML **track export** as the canonical foundation
-  ([#215](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/215),
-  track-only **shipped** in #223 via `dji-embed convert geojson|kml`;
-  camera-footprint polygons remain a follow-up), a **standalone
-  HTML viewer**
-  ([#221](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/221),
-  Leaflet/OSM, no API key), and an **interactive map panel in the web UI**
-  ([#222](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/222),
-  gated on #170). Every renderer consumes the same GeoJSON.
+- **Geospatial / mapping — SHIPPED.** The three-phase plan in
+  [`docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md`](superpowers/specs/2026-06-04-flight-path-mapping-design.md)
+  is complete: GeoJSON/KML **track export** (#215/#223, `dji-embed convert
+  geojson|kml`), the **standalone HTML viewer** (#221, `convert html`,
+  Leaflet/OSM, no API key, v1.7.0), the **interactive map panel in the web UI**
+  (#222, v1.9.0), and **camera-footprint polygons** (#215, `--footprint`,
+  v1.9.0). Every renderer consumes the same GeoJSON. Remaining follow-ups are
+  oblique-trapezoid / view-frustum footprints (needs DAT attitude) and
+  terrain/DEM draping.
 - **Richer web UI.** Incremental improvements to the Flask UI
   (`src/dji_metadata_embedder/ui/`) – nicer job progress, downloadable
   per-job artefacts, and richer previews – instead of new GUI frameworks.
 - **Performance work on large batches.** Candidates include parallel
   per-clip embedding and streaming SRT parsing for long flights.
-- **Winget re-enablement.** Blocked on
-  [#175](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/175):
-  `CallMarcus.DJIMetadataEmbedder` needs a manual first-publisher submission
-  to `microsoft/winget-pkgs`, after which `release-winget.yml` should be
-  rewritten on top of `winget-releaser` and the three hand-maintained
-  manifests in `winget/` retired. The workflow currently fires only on
-  manual dispatch.
+- **Winget catalog publish — in Microsoft's queue.** #175 is closed (the
+  `release-winget.yml` workflow was fixed, not rewritten). The first-publisher
+  submission for `CallMarcus.DJIMetadataEmbedder` is open as
+  [microsoft/winget-pkgs#391183](https://github.com/microsoft/winget-pkgs/pull/391183),
+  awaiting moderator approval. The workflow stays `workflow_dispatch`-only and
+  the three hand-maintained manifests in `winget/` remain in use; a future
+  `winget-releaser` rewrite is optional, not required.
 
 ## Explicitly out of scope
 

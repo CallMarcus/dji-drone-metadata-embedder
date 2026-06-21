@@ -52,20 +52,29 @@ winget uninstall CallMarcus.DJIMetadataEmbedder
 
 ## 🚀 Release Process
 
-### Automatic Submission
+Winget submission is **manual**. The `release-winget.yml` workflow is
+`workflow_dispatch`-only — it does **not** fire automatically on a release tag
+(the auto-trigger was removed because it kept failing). Once the GitHub release
+with `dji-embed.exe` exists, trigger it by hand:
 
-The project uses GitHub Actions for automatic winget submissions:
+```bash
+gh workflow run release-winget.yml -f version=1.11.0
+```
 
-1. **Release Creation**: When a new release tag (e.g., `v1.2.0`) is pushed
-2. **EXE Build**: The `release-exe.yml` workflow builds `dji-embed.exe`  
-3. **Winget Submission**: The `release-winget.yml` workflow automatically:
-   - Validates version sync using `sync_version.py --check`
-   - Submits to the winget community repository using `wingetcreate`
-   - Creates a pull request to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
+When run, the workflow:
 
-### Manual Submission
+1. Validates version sync using `sync_version.py --check`
+2. Injects the real `dji-embed.exe` SHA256 into the installer manifest
+3. Submits the `winget/` manifest set to the winget community repository using
+   `wingetcreate`, opening a pull request to
+   [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
 
-If needed, you can manually submit to winget:
+A brand-new package version still requires a winget moderator to approve the PR
+before it appears in the catalog.
+
+### Manual Submission (run wingetcreate locally)
+
+If needed, you can submit from your own machine instead of the workflow:
 
 ```powershell
 # Set GitHub token for winget submissions
