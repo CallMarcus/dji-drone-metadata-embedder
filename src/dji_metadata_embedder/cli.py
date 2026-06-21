@@ -106,6 +106,12 @@ def main(ctx: click.Context, log_json: bool) -> None:
     help="Output container. Use 'mkv' to preserve DJI djmd/dbgi data streams "
     "(dropped by the mp4 muxer).",
 )
+@click.option(
+    "--extract-home",
+    is_flag=True,
+    help="Opt-in: extract the HOME/launch point (operator location) into the "
+    "JSON sidecar. Never written to the MP4. Subject to --redact.",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress progress output")
 def embed(
@@ -117,6 +123,7 @@ def embed(
     dat_auto: bool,
     redact: str,
     container: str,
+    extract_home: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -135,6 +142,7 @@ def embed(
         dat_autoscan=dat_auto,
         redact=redact,
         container=container.lower(),
+        extract_home=extract_home,
     )
     embedder.process_directory(use_exiftool=exiftool)
 

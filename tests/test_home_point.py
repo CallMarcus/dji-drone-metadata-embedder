@@ -1,6 +1,8 @@
 from pathlib import Path
 
+from click.testing import CliRunner
 from dji_metadata_embedder.embedder import DJIMetadataEmbedder
+from dji_metadata_embedder.cli import main
 from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
 
 # Variant 1: HOME(lat,lon) no space, no altitude
@@ -93,3 +95,9 @@ def test_parse_home_none_when_flag_on_but_absent(tmp_path):
                    encoding="utf-8")
     tel = _embedder(tmp_path, extract_home=True).parse_dji_srt(srt)
     assert tel["home"] is None
+
+
+def test_embed_help_lists_extract_home():
+    res = CliRunner().invoke(main, ["embed", "--help"])
+    assert res.exit_code == 0
+    assert "--extract-home" in res.output
