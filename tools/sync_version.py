@@ -106,7 +106,10 @@ def _update_targets(version: str, root: Path) -> None:
         yaml_files = list(winget_dir.rglob("*.yaml"))
         for manifest in yml_files + yaml_files:
             _replace_in_file(manifest, r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", f"PackageVersion: {version}")
-            
+            # Keep release-tag links (e.g. ReleaseNotesUrl) pointing at the
+            # current version so the manifest never ships stale release notes.
+            _replace_in_file(manifest, r"(releases/tag/v)(?P<ver>\d+\.\d+\.\d+)", rf"\g<1>{version}")
+
         # Update installer URL version references in installer manifest
         installer_files = list(winget_dir.glob("*.installer.yaml")) + list(winget_dir.glob("*.installer.yml"))
         for installer_file in installer_files:
@@ -150,7 +153,12 @@ def _check_targets(version: str, root: Path) -> bool:
             match = re.search(r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", text)
             if not match or match.group("ver") != version:
                 mismatches.append(manifest)
-            
+
+            # Check release-tag links (e.g. ReleaseNotesUrl) stay current
+            tag_match = re.search(r"releases/tag/v(?P<ver>\d+\.\d+\.\d+)", text)
+            if tag_match and tag_match.group("ver") != version:
+                mismatches.append(manifest)
+
             # For installer manifests, also check download URL versions
             if ".installer." in manifest.name:
                 url_match = re.search(r"https://github\.com/[^/]+/[^/]+/releases/download/v(?P<ver>\d+\.\d+\.\d+)/", text)

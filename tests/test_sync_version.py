@@ -33,7 +33,10 @@ path = "src/pkg/__init__.py"
         f'$fallbackVersion = "{version}"\n'
     )
     (root / "dji-embed.spec").write_text(f'__version__ = "{version}"\n')
-    (root / "winget/manifest.yaml").write_text(f'PackageVersion: {version}\n')
+    (root / "winget/manifest.yaml").write_text(
+        f"PackageVersion: {version}\n"
+        f"ReleaseNotesUrl: https://example.com/owner/repo/releases/tag/v{version}\n"
+    )
 
 
 def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -52,8 +55,27 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     ]:
         assert "1.2.3" in (tmp_path / rel).read_text()
 
+    # Release-tag links (ReleaseNotesUrl) should be bumped too, so the winget
+    # manifest never ships stale release notes.
+    assert "releases/tag/v1.2.3" in (tmp_path / "winget/manifest.yaml").read_text()
+
     # Explicit check with matching version should pass
     sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
+
+    # A stale ReleaseNotesUrl tag (right PackageVersion, wrong tag) is caught
+    (tmp_path / "winget/manifest.yaml").write_text(
+        "PackageVersion: 1.2.3\n"
+        "ReleaseNotesUrl: https://example.com/owner/repo/releases/tag/v0.0.1\n"
+    )
+    with pytest.raises(SystemExit):
+        sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
+    err = capsys.readouterr().err
+    assert "winget/manifest.yaml" in err
+    # restore so later assertions in this test see an otherwise-synced tree
+    (tmp_path / "winget/manifest.yaml").write_text(
+        "PackageVersion: 1.2.3\n"
+        "ReleaseNotesUrl: https://example.com/owner/repo/releases/tag/v1.2.3\n"
+    )
 
     # Providing a mismatched version should fail with a helpful message
     with pytest.raises(SystemExit):

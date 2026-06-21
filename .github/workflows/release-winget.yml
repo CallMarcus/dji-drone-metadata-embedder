@@ -81,10 +81,10 @@ jobs:
           $actualHash = Get-FileHash "temp-dji-embed.exe" -Algorithm SHA256
           Write-Host "Actual EXE hash: $($actualHash.Hash)"
           
-          # Update installer manifest with correct hash and URLs
+          # Inject the real installer hash. The InstallerUrl version is already
+          # kept current by tools/sync_version.py at release-prep time.
           $installerManifest = Get-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" -Raw
           $installerManifest = $installerManifest -replace "PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE", $actualHash.Hash
-          $installerManifest = $installerManifest -replace "v1\.1\.2", $tag  # Update URL to actual tag
           Set-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $installerManifest
           
           # Submit using prepared manifests (exclude README.md)
