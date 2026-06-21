@@ -86,10 +86,19 @@ jobs:
           $installerManifest = Get-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" -Raw
           $installerManifest = $installerManifest -replace "PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE", $actualHash.Hash
           Set-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $installerManifest
-          
-          # Submit using prepared manifests (exclude README.md)
+
+          # wingetcreate submit takes a SINGLE directory containing exactly the
+          # manifest set. winget/ also holds README.md, so stage the three
+          # manifests in a clean directory and submit that.
+          $manifestDir = Join-Path $env:RUNNER_TEMP "winget-manifests"
+          New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
+          Copy-Item "winget/CallMarcus.DJIMetadataEmbedder.yaml" $manifestDir
+          Copy-Item "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $manifestDir
+          Copy-Item "winget/CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml" $manifestDir
+
+          # Submit the prepared manifest directory
           try {
-            $output = .\wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN winget/CallMarcus.DJIMetadataEmbedder.yaml winget/CallMarcus.DJIMetadataEmbedder.installer.yaml winget/CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml 2>&1
+            $output = .\wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN $manifestDir 2>&1
             Write-Host "Wingetcreate output:"
             Write-Host $output
             $pr = ($output | Select-String 'https://github.com/[^ ]+').Matches.Value
