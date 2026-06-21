@@ -1,11 +1,13 @@
 import csv as _csv
+import json as _json
 from pathlib import Path
 
 from click.testing import CliRunner
-from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 from dji_metadata_embedder.cli import main
-from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
+from dji_metadata_embedder.embedder import DJIMetadataEmbedder
+from dji_metadata_embedder.geo.geojson import convert_to_geojson
 from dji_metadata_embedder.telemetry_converter import extract_telemetry_to_gpx, extract_telemetry_to_csv
+from dji_metadata_embedder.utilities import Home, apply_redaction, parse_home, redact_home
 
 # Variant 1: HOME(lat,lon) no space, no altitude
 SRT_V1 = "HOME(39.906206,116.391400) D=5.2m H=1.5m"
@@ -164,9 +166,6 @@ def test_csv_home_dropped_under_redact(tmp_path):
     rows = _read_csv(out)
     assert rows[0]["home_lat"] == ""
 
-
-import json as _json
-from dji_metadata_embedder.geo.geojson import convert_to_geojson
 
 GEO_SRT = (
     "1\n00:00:00,000 --> 00:00:00,033\n"
