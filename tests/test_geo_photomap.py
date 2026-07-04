@@ -1,3 +1,4 @@
+import json as jsonlib
 import subprocess
 
 import pytest
@@ -7,8 +8,10 @@ from dji_metadata_embedder.geo.photomap import (
     PhotomapError,
     camera_summary,
     format_exposure,
+    photos_to_geojson,
     points_from_exiftool_json,
     scan_photos,
+    write_photos_geojson,
 )
 
 # Shape verified against a real `exiftool -json -n -b` run.
@@ -193,3 +196,37 @@ def test_scan_photos_non_list_json_raises(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout="{}"))
     with pytest.raises(PhotomapError, match="shape"):
         scan_photos(tmp_path)
+
+
+def _two_points() -> list[PhotoPoint]:
+    points, _ = points_from_exiftool_json(CANNED)
+    return points
+
+
+def test_geojson_structure_and_no_thumbnails_by_default():
+    data = photos_to_geojson(_two_points())
+    assert data["type"] == "FeatureCollection"
+    assert len(data["features"]) == 2
+    f = data["features"][0]
+    assert f["geometry"]["type"] == "Point"
+    assert f["geometry"]["coordinates"] == [24.952222, 60.170278, 95.3]  # lon,lat,alt
+    assert f["properties"]["name"] == "church1.jpg"
+    assert f["properties"]["timestamp"] == "2026-06-15 12:30:45"
+    assert f["properties"]["camera"] == "FC8482 · ISO 100 · 1/1000 s · f/1.7"
+    assert "thumb" not in f["properties"]
+    assert "thumb" not in data["features"][1]["properties"]
+
+
+def test_geojson_include_thumbnails_opt_in():
+    data = photos_to_geojson(_two_points(), include_thumbnails=True)
+    by_name = {f["properties"]["name"]: f for f in data["features"]}
+    assert by_name["church2.jpg"]["properties"]["thumb"] == "/9j/THUMB2"
+    assert "thumb" not in by_name["church1.jpg"]["properties"]  # none available
+
+
+def test_write_photos_geojson(tmp_path):
+    out = tmp_path / "photomap.geojson"
+    result = write_photos_geojson(_two_points(), out)
+    assert result == out
+    data = jsonlib.loads(out.read_text(encoding="utf-8"))
+    assert data["type"] == "FeatureCollection"

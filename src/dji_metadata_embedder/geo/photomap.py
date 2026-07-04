@@ -197,3 +197,41 @@ def scan_photos(
 ) -> tuple[list[PhotoPoint], list[str]]:
     """Scan *directory* for photos and return ``(gps_points, skipped_names)``."""
     return points_from_exiftool_json(_run_exiftool_scan(Path(directory), recursive))
+
+
+def photos_to_geojson(
+    points: list[PhotoPoint], include_thumbnails: bool = False
+) -> dict:
+    """Return a GeoJSON ``FeatureCollection`` of photo ``Point`` features.
+
+    Thumbnails are excluded by default — base64 blobs do not belong in the GIS
+    interchange file. The HTML viewer opts in for its embedded copy.
+    """
+    features: list[dict] = []
+    for p in points:
+        props: dict = {"name": p.name}
+        if p.timestamp:
+            props["timestamp"] = p.timestamp
+        props["alt"] = p.alt
+        camera = camera_summary(p)
+        if camera:
+            props["camera"] = camera
+        if include_thumbnails and p.thumbnail_b64:
+            props["thumb"] = p.thumbnail_b64
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [p.lon, p.lat, p.alt]},
+                "properties": props,
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def write_photos_geojson(points: list[PhotoPoint], output_path: Path) -> Path:
+    """Write *points* as GeoJSON to *output_path* and return it."""
+    output_path.write_text(
+        json.dumps(photos_to_geojson(points), indent=2), encoding="utf-8"
+    )
+    logger.info("GeoJSON file created: %s", output_path)
+    return output_path
