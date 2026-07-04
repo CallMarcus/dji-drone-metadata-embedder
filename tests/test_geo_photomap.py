@@ -80,6 +80,14 @@ def test_format_exposure():
     assert format_exposure(2.5) == "2.5 s"
     assert format_exposure(None) is None
     assert format_exposure(0) is None
+    assert format_exposure(0.7) == "0.7 s"
+    assert format_exposure(0.5) == "1/2 s"
+    assert format_exposure(0.6) == "0.6 s"
+
+
+def test_missing_sourcefile_falls_back_to_question_mark():
+    points, _ = points_from_exiftool_json([{"GPSLatitude": 1.0, "GPSLongitude": 2.0}])
+    assert points[0].name == "?"
 
 
 def test_camera_summary_joins_available_parts():

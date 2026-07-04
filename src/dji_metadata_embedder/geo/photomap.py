@@ -55,12 +55,18 @@ def _maybe_float(value: object) -> float | None:
         return None
 
 
+def _maybe_str(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
 def format_exposure(exposure: float | None) -> str | None:
     """Format ExposureTime seconds for display: ``0.001`` -> ``1/1000 s``."""
     if not exposure or exposure <= 0:
         return None
     if exposure < 1:
-        return f"1/{round(1 / exposure)} s"
+        denom = round(1 / exposure)
+        if denom >= 2 and abs(1 / denom - exposure) / exposure < 0.05:
+            return f"1/{denom} s"
     return f"{exposure:g} s"
 
 
@@ -106,7 +112,7 @@ def points_from_exiftool_json(data: list[dict]) -> tuple[list[PhotoPoint], list[
                 alt=_maybe_float(entry.get("GPSAltitude")) or 0.0,
                 name=name,
                 timestamp=_display_datetime(entry.get("DateTimeOriginal")),
-                model=entry.get("Model"),
+                model=_maybe_str(entry.get("Model")),
                 iso=_maybe_int(entry.get("ISO")),
                 exposure=_maybe_float(entry.get("ExposureTime")),
                 fnum=_maybe_float(entry.get("FNumber")),
