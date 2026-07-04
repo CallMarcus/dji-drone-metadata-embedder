@@ -34,11 +34,11 @@ dynamic = ["version"]
 # requirements.lock prior to the uv migration (#164), so `uv sync` reproduces
 # the historical CI behaviour exactly. Bump them in a dedicated PR.
 dev = [
-    "pytest==9.0.3",
+    "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "coverage==7.14.1",
+    "coverage==7.14.3",
     "black==26.5.1",
-    "ruff==0.15.16",
+    "ruff==0.15.20",
     "mypy==2.1.0",
     "types-click==7.1.8",
 ]
