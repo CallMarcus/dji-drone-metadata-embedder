@@ -224,6 +224,10 @@ def test_geojson_include_thumbnails_opt_in():
     assert "thumb" not in by_name["church1.jpg"]["properties"]  # none available
 
 
+def test_geojson_empty_points():
+    assert photos_to_geojson([]) == {"type": "FeatureCollection", "features": []}
+
+
 def test_write_photos_geojson(tmp_path):
     out = tmp_path / "photomap.geojson"
     result = write_photos_geojson(_two_points(), out)

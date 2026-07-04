@@ -200,7 +200,7 @@ def scan_photos(
 
 
 def photos_to_geojson(
-    points: list[PhotoPoint], include_thumbnails: bool = False
+    points: list[PhotoPoint], *, include_thumbnails: bool = False
 ) -> dict:
     """Return a GeoJSON ``FeatureCollection`` of photo ``Point`` features.
 
