@@ -169,21 +169,27 @@ def _run_exiftool_scan(directory: Path, recursive: bool) -> list[dict]:
         args += ["-ext", ext]
     args.append(str(directory))
     try:
-        proc = subprocess.run(args, capture_output=True, text=True)
+        proc = subprocess.run(
+            args, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
     except FileNotFoundError:
         raise PhotomapError(_EXIFTOOL_INSTALL_HINT) from None
     out = proc.stdout.strip()
     if not out:
         if proc.returncode != 0:
+            stderr = proc.stderr.strip()[-300:]
             raise PhotomapError(
-                f"ExifTool failed: {proc.stderr.strip()[-300:]}"
+                f"ExifTool scan of {directory} failed (exit {proc.returncode}): "
+                f"{stderr or 'no error output'}"
             )
         return []
     try:
         data = json.loads(out)
     except json.JSONDecodeError as exc:
         raise PhotomapError(f"Could not parse ExifTool JSON: {exc}") from exc
-    return data if isinstance(data, list) else []
+    if not isinstance(data, list):
+        raise PhotomapError("Unexpected ExifTool JSON shape (expected a list)")
+    return data
 
 
 def scan_photos(

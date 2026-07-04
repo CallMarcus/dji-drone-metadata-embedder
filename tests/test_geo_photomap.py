@@ -114,7 +114,7 @@ class _Proc:
 def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
     seen: dict = {}
 
-    def fake_run(args, capture_output, text):
+    def fake_run(args, **kwargs):
         seen["args"] = args
         import json as _json
         return _Proc(stdout=_json.dumps(CANNED))
@@ -129,14 +129,15 @@ def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
     assert "-Composite:GPSLatitude" in args
     assert "-EXIF:ThumbnailImage" in args
     for ext in ("jpg", "jpeg", "dng"):
-        assert ext in args  # each preceded by -ext
+        i = args.index(ext)
+        assert args[i - 1] == "-ext"
     assert args[-1] == str(tmp_path)
 
 
 def test_scan_photos_recursive_adds_r(monkeypatch, tmp_path):
     seen: dict = {}
 
-    def fake_run(args, capture_output, text):
+    def fake_run(args, **kwargs):
         seen["args"] = args
         return _Proc(stdout="[]")
 
@@ -171,4 +172,22 @@ def test_scan_photos_hard_failure_raises_stderr(monkeypatch, tmp_path):
 def test_scan_photos_bad_json_raises(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout="{nope"))
     with pytest.raises(PhotomapError, match="JSON"):
+        scan_photos(tmp_path)
+
+
+def test_scan_photos_partial_failure_still_parses(monkeypatch, tmp_path):
+    import json as _json
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: _Proc(
+            stdout=_json.dumps(CANNED), stderr="Error: bad.jpg", returncode=1
+        ),
+    )
+    points, skipped = scan_photos(tmp_path)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+
+
+def test_scan_photos_non_list_json_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout="{}"))
+    with pytest.raises(PhotomapError, match="shape"):
         scan_photos(tmp_path)
