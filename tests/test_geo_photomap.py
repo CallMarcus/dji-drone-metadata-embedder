@@ -116,6 +116,7 @@ def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
 
     def fake_run(args, **kwargs):
         seen["args"] = args
+        seen["kwargs"] = kwargs
         import json as _json
         return _Proc(stdout=_json.dumps(CANNED))
 
@@ -132,6 +133,7 @@ def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
         i = args.index(ext)
         assert args[i - 1] == "-ext"
     assert args[-1] == str(tmp_path)
+    assert seen["kwargs"].get("encoding") == "utf-8"
 
 
 def test_scan_photos_recursive_adds_r(monkeypatch, tmp_path):
