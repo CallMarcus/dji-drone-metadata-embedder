@@ -7,13 +7,43 @@ GeoJSON and KML here, the clustered HTML map in :mod:`.photomap_html`.
 
 from __future__ import annotations
 
+import json
 import logging
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..mp4_telemetry import _exiftool_exe
 from ..utilities import is_gps_fix
 
 logger = logging.getLogger(__name__)
+
+
+class PhotomapError(RuntimeError):
+    """Raised when a photo directory cannot be scanned."""
+
+
+_EXIFTOOL_INSTALL_HINT = (
+    "ExifTool not found. Install it (https://exiftool.org) or set "
+    "DJIEMBED_EXIFTOOL_PATH to the executable, then run 'dji-embed doctor' "
+    "to verify."
+)
+
+# One batch call reads GPS, capture metadata, and the EXIF-embedded thumbnail
+# for every photo in a single subprocess. -n makes the Composite GPS tags
+# signed decimal degrees; -b returns ThumbnailImage as "base64:..." in JSON.
+_SCAN_TAGS = [
+    "-Composite:GPSLatitude",
+    "-Composite:GPSLongitude",
+    "-Composite:GPSAltitude",
+    "-EXIF:DateTimeOriginal",
+    "-EXIF:Model",
+    "-EXIF:ISO",
+    "-EXIF:ExposureTime",
+    "-EXIF:FNumber",
+    "-EXIF:ThumbnailImage",
+]
+_PHOTO_EXTS = ("jpg", "jpeg", "dng")
 
 
 @dataclass
@@ -122,3 +152,42 @@ def points_from_exiftool_json(data: list[dict]) -> tuple[list[PhotoPoint], list[
     points.sort(key=lambda p: p.name)
     skipped.sort()
     return points, skipped
+
+
+def _run_exiftool_scan(directory: Path, recursive: bool) -> list[dict]:
+    """Run one batch ExifTool scan over *directory* and return its JSON.
+
+    ExifTool exits 0 with empty stdout when no photo matches ``-ext``; that is
+    "no photos", not an error. A non-zero exit with no JSON at all is a real
+    failure (unreadable directory, broken install) and raises.
+    """
+    args = [_exiftool_exe(), "-json", "-n", "-b"]
+    if recursive:
+        args.append("-r")
+    args += _SCAN_TAGS
+    for ext in _PHOTO_EXTS:
+        args += ["-ext", ext]
+    args.append(str(directory))
+    try:
+        proc = subprocess.run(args, capture_output=True, text=True)
+    except FileNotFoundError:
+        raise PhotomapError(_EXIFTOOL_INSTALL_HINT) from None
+    out = proc.stdout.strip()
+    if not out:
+        if proc.returncode != 0:
+            raise PhotomapError(
+                f"ExifTool failed: {proc.stderr.strip()[-300:]}"
+            )
+        return []
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise PhotomapError(f"Could not parse ExifTool JSON: {exc}") from exc
+    return data if isinstance(data, list) else []
+
+
+def scan_photos(
+    directory: Path | str, recursive: bool = False
+) -> tuple[list[PhotoPoint], list[str]]:
+    """Scan *directory* for photos and return ``(gps_points, skipped_names)``."""
+    return points_from_exiftool_json(_run_exiftool_scan(Path(directory), recursive))

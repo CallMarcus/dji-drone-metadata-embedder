@@ -1,8 +1,14 @@
+import subprocess
+
+import pytest
+
 from dji_metadata_embedder.geo.photomap import (
     PhotoPoint,
+    PhotomapError,
     camera_summary,
     format_exposure,
     points_from_exiftool_json,
+    scan_photos,
 )
 
 # Shape verified against a real `exiftool -json -n -b` run.
@@ -96,3 +102,73 @@ def test_camera_summary_joins_available_parts():
     assert camera_summary(p) == "FC8482 · ISO 100 · 1/1000 s · f/1.7"
     bare = PhotoPoint(lat=0, lon=0, alt=0, name="a.jpg")
     assert camera_summary(bare) == ""
+
+
+class _Proc:
+    def __init__(self, stdout: str = "", stderr: str = "", returncode: int = 0):
+        self.stdout = stdout
+        self.stderr = stderr
+        self.returncode = returncode
+
+
+def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, capture_output, text):
+        seen["args"] = args
+        import json as _json
+        return _Proc(stdout=_json.dumps(CANNED))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    points, skipped = scan_photos(tmp_path)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+    assert skipped == ["no_gps.jpg", "zero_fix.jpg"]
+    args = seen["args"]
+    assert args[1:4] == ["-json", "-n", "-b"]
+    assert "-r" not in args
+    assert "-Composite:GPSLatitude" in args
+    assert "-EXIF:ThumbnailImage" in args
+    for ext in ("jpg", "jpeg", "dng"):
+        assert ext in args  # each preceded by -ext
+    assert args[-1] == str(tmp_path)
+
+
+def test_scan_photos_recursive_adds_r(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, capture_output, text):
+        seen["args"] = args
+        return _Proc(stdout="[]")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    scan_photos(tmp_path, recursive=True)
+    assert "-r" in seen["args"]
+
+
+def test_scan_photos_empty_stdout_means_no_photos(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout=""))
+    assert scan_photos(tmp_path) == ([], [])
+
+
+def test_scan_photos_missing_exiftool_raises_hint(monkeypatch, tmp_path):
+    def raise_fnf(*a, **k):
+        raise FileNotFoundError()
+
+    monkeypatch.setattr(subprocess, "run", raise_fnf)
+    with pytest.raises(PhotomapError, match="doctor"):
+        scan_photos(tmp_path)
+
+
+def test_scan_photos_hard_failure_raises_stderr(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: _Proc(stdout="", stderr="boom", returncode=1),
+    )
+    with pytest.raises(PhotomapError, match="boom"):
+        scan_photos(tmp_path)
+
+
+def test_scan_photos_bad_json_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout="{nope"))
+    with pytest.raises(PhotomapError, match="JSON"):
+        scan_photos(tmp_path)
