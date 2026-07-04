@@ -66,6 +66,16 @@ def test_thumbnail_base64_prefix_is_stripped():
     assert by_name["church1.jpg"].thumbnail_b64 is None
 
 
+def test_non_base64_thumbnail_is_dropped():
+    points, _ = points_from_exiftool_json(
+        [{
+            "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+            "ThumbnailImage": 'base64:]]><img src="x">',
+        }]
+    )
+    assert points[0].thumbnail_b64 is None
+
+
 def test_missing_altitude_defaults_to_zero():
     points, _ = points_from_exiftool_json(
         [{"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0}]
@@ -266,6 +276,11 @@ def test_kml_description_embeds_thumbnail_data_uri():
     # church1 has no thumbnail: metadata only, no img tag
     assert "<img" not in descs[0] and "2026-06-15 12:30:45" in descs[0]
     assert "<img" in descs[1]
+
+
+def test_kml_empty_points():
+    root = ET.fromstring(photos_to_kml([], title="empty"))
+    assert not list(root.iter(f"{_KML_NS}Placemark"))
 
 
 def test_write_photos_kml(tmp_path):

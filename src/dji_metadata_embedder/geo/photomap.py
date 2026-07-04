@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,10 @@ _SCAN_TAGS = [
     "-EXIF:ThumbnailImage",
 ]
 _PHOTO_EXTS = ("jpg", "jpeg", "dng")
+
+# Ingestion-enforced invariant: thumbnail_b64 only ever holds base64 text, so
+# writers may embed it in CDATA/data URIs without further escaping.
+_BASE64_RE = re.compile(r"[A-Za-z0-9+/=\s]+")
 
 
 @dataclass
@@ -131,11 +136,11 @@ def points_from_exiftool_json(data: list[dict]) -> tuple[list[PhotoPoint], list[
             skipped.append(name)
             continue
         thumb = entry.get("ThumbnailImage")
-        thumb_b64 = (
-            thumb[len("base64:"):]
-            if isinstance(thumb, str) and thumb.startswith("base64:")
-            else None
-        )
+        thumb_b64: str | None = None
+        if isinstance(thumb, str) and thumb.startswith("base64:"):
+            candidate = thumb[len("base64:"):]
+            if _BASE64_RE.fullmatch(candidate):
+                thumb_b64 = candidate
         points.append(
             PhotoPoint(
                 lat=lat,
