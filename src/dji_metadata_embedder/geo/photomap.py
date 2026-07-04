@@ -12,6 +12,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from ..mp4_telemetry import _exiftool_exe
 from ..utilities import is_gps_fix
@@ -234,4 +235,53 @@ def write_photos_geojson(points: list[PhotoPoint], output_path: Path) -> Path:
         json.dumps(photos_to_geojson(points), indent=2), encoding="utf-8"
     )
     logger.info("GeoJSON file created: %s", output_path)
+    return output_path
+
+
+_KML_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>{name}</name>{placemarks}
+  </Document>
+</kml>
+"""
+
+
+def photos_to_kml(points: list[PhotoPoint], title: str) -> str:
+    """Return a KML document with one placemark per photo.
+
+    The balloon description carries the EXIF thumbnail as a data URI (shown by
+    Google Earth Pro; Google My Maps import may strip images but keeps the
+    placemark). CDATA is safe here: base64 and the escaped text parts cannot
+    contain the ``]]>`` terminator.
+    """
+    placemarks = []
+    for p in points:
+        desc: list[str] = []
+        if p.thumbnail_b64:
+            desc.append(
+                f'<img src="data:image/jpeg;base64,{p.thumbnail_b64}" '
+                'style="max-width:320px" />'
+            )
+        if p.timestamp:
+            desc.append(escape(p.timestamp))
+        camera = camera_summary(p)
+        if camera:
+            desc.append(escape(camera))
+        desc.append(f"altitude: {p.alt:g} m")
+        placemarks.append(
+            "\n    <Placemark>"
+            f"<name>{escape(p.name)}</name>"
+            f"<description><![CDATA[{'<br/>'.join(desc)}]]></description>"
+            "<Point><altitudeMode>absolute</altitudeMode>"
+            f"<coordinates>{p.lon},{p.lat},{p.alt}</coordinates></Point>"
+            "</Placemark>"
+        )
+    return _KML_TEMPLATE.format(name=escape(title), placemarks="".join(placemarks))
+
+
+def write_photos_kml(points: list[PhotoPoint], output_path: Path, title: str) -> Path:
+    """Write *points* as KML to *output_path* and return it."""
+    output_path.write_text(photos_to_kml(points, title), encoding="utf-8")
+    logger.info("KML file created: %s", output_path)
     return output_path

@@ -1,5 +1,6 @@
 import json as jsonlib
 import subprocess
+import xml.etree.ElementTree as ET
 
 import pytest
 
@@ -9,9 +10,11 @@ from dji_metadata_embedder.geo.photomap import (
     camera_summary,
     format_exposure,
     photos_to_geojson,
+    photos_to_kml,
     points_from_exiftool_json,
     scan_photos,
     write_photos_geojson,
+    write_photos_kml,
 )
 
 # Shape verified against a real `exiftool -json -n -b` run.
@@ -234,3 +237,39 @@ def test_write_photos_geojson(tmp_path):
     assert result == out
     data = jsonlib.loads(out.read_text(encoding="utf-8"))
     assert data["type"] == "FeatureCollection"
+
+
+_KML_NS = "{http://www.opengis.net/kml/2.2}"
+
+
+def test_kml_is_wellformed_with_placemark_per_photo():
+    kml = photos_to_kml(_two_points(), title="Churches & chapels")
+    root = ET.fromstring(kml)  # raises on malformed XML
+    doc = root.find(f"{_KML_NS}Document")
+    assert doc.find(f"{_KML_NS}name").text == "Churches & chapels"
+    placemarks = doc.findall(f"{_KML_NS}Placemark")
+    assert [pm.find(f"{_KML_NS}name").text for pm in placemarks] == [
+        "church1.jpg", "church2.jpg",
+    ]
+    coords = placemarks[0].find(f"{_KML_NS}Point/{_KML_NS}coordinates").text
+    assert coords == "24.952222,60.170278,95.3"
+
+
+def test_kml_description_embeds_thumbnail_data_uri():
+    kml = photos_to_kml(_two_points(), title="t")
+    assert 'data:image/jpeg;base64,/9j/THUMB2' in kml
+    root = ET.fromstring(kml)
+    descs = [
+        pm.find(f"{_KML_NS}description").text
+        for pm in root.iter(f"{_KML_NS}Placemark")
+    ]
+    # church1 has no thumbnail: metadata only, no img tag
+    assert "<img" not in descs[0] and "2026-06-15 12:30:45" in descs[0]
+    assert "<img" in descs[1]
+
+
+def test_write_photos_kml(tmp_path):
+    out = tmp_path / "photomap.kml"
+    result = write_photos_kml(_two_points(), out, title="t")
+    assert result == out
+    assert "<kml" in out.read_text(encoding="utf-8")
