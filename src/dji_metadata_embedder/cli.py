@@ -16,7 +16,17 @@ from .telemetry_converter import (
     parse_utc_offset,
     summarize_sun,
 )
-from .geo import convert_to_geojson, convert_to_kml, convert_to_html, convert_to_cot
+from .geo import (
+    convert_to_geojson,
+    convert_to_kml,
+    convert_to_html,
+    convert_to_cot,
+    PhotomapError,
+    scan_photos,
+    write_photos_geojson,
+    write_photos_html,
+    write_photos_kml,
+)
 from .mp4_telemetry import Mp4TelemetryError
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
@@ -70,6 +80,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4 pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
+      photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
       ui        Launch the local web UI in your browser
@@ -297,6 +308,86 @@ def convert(
             run_one(src, output)
         except Mp4TelemetryError as e:
             raise click.ClickException(str(e))
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "-o", "--output", type=click.Path(dir_okay=False),
+    help="Output file; used as the base name when --format all",
+)
+@click.option(
+    "-f", "--format", "fmt",
+    type=click.Choice(["html", "kml", "geojson", "all"], case_sensitive=False),
+    default="html", show_default=True, help="Map output format",
+)
+@click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
+@click.option("--title", default=None, help="Map title (default: directory name)")
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+def photomap(
+    directory: str,
+    output: str | None,
+    fmt: str,
+    recursive: bool,
+    title: str | None,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Map GPS-tagged still photos (JPG/JPEG/DNG) as HTML, KML, or GeoJSON.
+
+    Scans DIRECTORY with ExifTool, drops a pin per geotagged photo, and embeds
+    each photo's EXIF thumbnail in the html/kml popups. The html map clusters
+    nearby pins and loads Leaflet and OpenStreetMap tiles from the internet.
+    Requires ExifTool (see 'dji-embed doctor').
+    """
+    setup_logging(verbose, quiet)
+    src = Path(directory)
+    try:
+        points, skipped = scan_photos(src, recursive=recursive)
+    except PhotomapError as e:
+        raise click.ClickException(str(e))
+    total = len(points) + len(skipped)
+    if total == 0:
+        raise click.ClickException(
+            f"No photos (JPG/JPEG/DNG) found in {src}"
+            + ("" if recursive else " (use -r to scan subdirectories)")
+        )
+    if not points:
+        raise click.ClickException(
+            f"None of the {total} photos in {src} carry GPS coordinates"
+        )
+    if verbose:
+        for name in skipped:
+            click.echo(f"Skipped (no GPS): {name}", err=True)
+    if not quiet:
+        if skipped:
+            click.echo(
+                f"Mapped {len(points)} of {total} photos; "
+                f"{len(skipped)} had no GPS data (use -v to list them)"
+            )
+        else:
+            click.echo(
+                f"Mapped {len(points)} photo{'s' if len(points) != 1 else ''}"
+            )
+    map_title = title or src.resolve().name
+    if fmt.lower() == "all":
+        base = Path(output) if output else src / "photomap.html"
+        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
+    else:
+        f = fmt.lower()
+        out = Path(output) if output else src / f"photomap.{f}"
+        targets = [(f, out)]
+    for f, out in targets:
+        try:
+            if f == "html":
+                write_photos_html(points, out, map_title)
+            elif f == "kml":
+                write_photos_kml(points, out, map_title)
+            else:
+                write_photos_geojson(points, out)
+        except OSError as e:
+            raise click.ClickException(f"Could not write {out}: {e}")
 
 
 @main.command()

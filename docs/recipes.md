@@ -8,6 +8,7 @@ This guide provides complete, step-by-step workflows for the most common use cas
 2. [**Privacy-Safe Sharing**](#recipe-2-privacy-safe-sharing) - Remove location data for public sharing  
 3. [**GPS Track Analysis**](#recipe-3-gps-track-analysis) - Extract flight paths for mapping
 4. [**Professional Workflow**](#recipe-4-professional-workflow) - Advanced processing with DAT logs
+5. [**Map a Photo Archive**](#recipe-5-map-a-photo-archive) - Plot geotagged photos on a shareable map
 
 ---
 
@@ -257,6 +258,52 @@ cat /processed/professional/DJI_0001_telemetry.json
 - **Film Production**: Professional metadata workflow
 - **Flight Training**: Detailed performance analysis
 - **Compliance**: Complete audit trail with timing validation
+
+---
+
+## Recipe 5: Map a Photo Archive
+**Goal**: Turn a folder of geotagged photos (e.g. every church you photographed across Finland) into one shareable map
+
+### What You Need
+- A folder of JPG/JPEG/DNG photos with GPS EXIF data
+- ExifTool installed (`dji-embed doctor` checks it)
+
+### Step-by-Step
+
+#### 1. Check Your Files
+```bash
+dji-embed doctor
+
+# Should show:
+# ✅ ExifTool: FOUND
+```
+
+#### 2. Build the Map
+```bash
+# Recurse into subfolders and give the map a title
+dji-embed photomap /photos/finland-churches -r --title "Churches of Finland"
+
+# Creates: /photos/finland-churches/photomap.html
+# Should show:
+# Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)
+```
+
+#### 3. Export for Google Earth Too
+```bash
+# Write HTML + KML + GeoJSON in one pass
+dji-embed photomap /photos/finland-churches -r --title "Churches of Finland" -f all
+
+# Creates: photomap.html, photomap.kml, photomap.geojson
+```
+
+### Expected Results
+- Only photos carrying GPS EXIF data appear on the map; the rest are counted in the summary (`-v` lists them by filename)
+- The HTML file is self-contained (photo thumbnails are embedded) but still needs an internet connection to load Leaflet and the OpenStreetMap basemap tiles
+- KML opens in Google Earth Pro with thumbnails intact; Google My Maps import may drop the images but keeps the placemarks
+- GeoJSON carries `name`/`timestamp`/`alt`/`camera` properties with no thumbnails, for use in GIS tools
+
+### A Note on Privacy
+Publishing a photo map publishes your shooting locations — share it deliberately, the same way you would a flight path.
 
 ---
 

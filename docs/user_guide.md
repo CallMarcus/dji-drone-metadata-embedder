@@ -44,6 +44,39 @@ video directly — `convert` and `verify-sun` auto-detect it:
 This needs a recent ExifTool (see `docs/MP4_TIMED_METADATA.md`). `--tz-offset`
 is ignored for MP4 input because its embedded time is already UTC.
 
+## Mapping still photos
+
+`dji-embed photomap` plots GPS-tagged still photos (JPG/JPEG/DNG) on a map —
+useful when you've been shooting stills rather than (or alongside) video and
+want to see where each shot was taken.
+
+```bash
+dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
+dji-embed photomap /path/to/photos -f kml                             # -> photos/photomap.kml
+dji-embed photomap /path/to/photos -f geojson                         # -> photos/photomap.geojson
+dji-embed photomap /path/to/photos -f all -o archive/photomap         # -> archive/photomap.{html,kml,geojson}
+dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # scan subdirectories too
+```
+
+The command scans the whole directory in one pass, so even large archives
+scan quickly (ExifTool must be installed — `dji-embed doctor` checks this).
+The HTML map clusters nearby shots into an expandable numbered marker so a
+dense session doesn't turn into a wall of overlapping pins; clicking a photo
+shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings.
+KML opens the same thumbnails in Google Earth Pro (Google My Maps import may
+drop the images but keeps the placemarks). GeoJSON is interchange-only — no
+thumbnails, just `name`/`timestamp`/`alt`/`camera` properties — for use in
+GIS tools.
+
+Photos without GPS coordinates are skipped and counted in a summary, e.g.
+`Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)`; add
+`-v` to list the skipped filenames.
+
+Like the other HTML maps, Leaflet and the OpenStreetMap basemap tiles load
+from the internet; the photo thumbnails themselves are embedded in the file.
+
+A photo map publishes your shooting locations — share it deliberately.
+
 ## Footage verification (sun / shadow check)
 
 For chronolocation and footage verification you can cross-check the **shadows** in a clip against where the sun actually was. Given each GPS point's position and UTC time, `dji-embed` computes the sun's **azimuth** (compass bearing) and **elevation** (height above the horizon).

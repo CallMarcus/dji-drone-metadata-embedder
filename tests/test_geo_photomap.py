@@ -1,0 +1,290 @@
+import json as jsonlib
+import subprocess
+import xml.etree.ElementTree as ET
+
+import pytest
+
+from dji_metadata_embedder.geo.photomap import (
+    PhotoPoint,
+    PhotomapError,
+    camera_summary,
+    format_exposure,
+    photos_to_geojson,
+    photos_to_kml,
+    points_from_exiftool_json,
+    scan_photos,
+    write_photos_geojson,
+    write_photos_kml,
+)
+
+# Shape verified against a real `exiftool -json -n -b` run.
+CANNED = [
+    {
+        "SourceFile": "photos/church2.jpg",
+        "GPSLatitude": 60.173047,
+        "GPSLongitude": 24.92515,
+        "GPSAltitude": 88.1,
+        "DateTimeOriginal": "2026:06:15 13:05:10",
+        "Model": "FC8482",
+        "ISO": 100,
+        "ExposureTime": 0.0005,
+        "FNumber": 1.7,
+        "ThumbnailImage": "base64:/9j/THUMB2",
+    },
+    {
+        "SourceFile": "photos/church1.jpg",
+        "GPSLatitude": 60.170278,
+        "GPSLongitude": 24.952222,
+        "GPSAltitude": 95.3,
+        "DateTimeOriginal": "2026:06:15 12:30:45",
+        "Model": "FC8482",
+        "ISO": 100,
+        "ExposureTime": 0.001,
+        "FNumber": 1.7,
+        # no ThumbnailImage -> pin without preview
+    },
+    {"SourceFile": "photos/no_gps.jpg", "DateTimeOriginal": "2026:06:15 12:31:00"},
+    {"SourceFile": "photos/zero_fix.jpg", "GPSLatitude": 0.0, "GPSLongitude": 0.0},
+]
+
+
+def test_parses_gps_photos_and_skips_the_rest():
+    points, skipped = points_from_exiftool_json(CANNED)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]  # sorted
+    assert skipped == ["no_gps.jpg", "zero_fix.jpg"]  # sorted
+    p = points[0]
+    assert p.lat == 60.170278 and p.lon == 24.952222 and p.alt == 95.3
+    assert p.timestamp == "2026-06-15 12:30:45"  # EXIF colons -> display dashes
+    assert p.model == "FC8482" and p.iso == 100
+    assert p.exposure == 0.001 and p.fnum == 1.7
+
+
+def test_thumbnail_base64_prefix_is_stripped():
+    points, _ = points_from_exiftool_json(CANNED)
+    by_name = {p.name: p for p in points}
+    assert by_name["church2.jpg"].thumbnail_b64 == "/9j/THUMB2"
+    assert by_name["church1.jpg"].thumbnail_b64 is None
+
+
+def test_non_base64_thumbnail_is_dropped():
+    points, _ = points_from_exiftool_json(
+        [{
+            "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+            "ThumbnailImage": 'base64:]]><img src="x">',
+        }]
+    )
+    assert points[0].thumbnail_b64 is None
+
+
+def test_missing_altitude_defaults_to_zero():
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0}]
+    )
+    assert points[0].alt == 0.0
+    assert points[0].timestamp is None
+
+
+def test_unparseable_numeric_fields_become_none():
+    points, _ = points_from_exiftool_json(
+        [{
+            "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+            "ISO": "100, 100", "ExposureTime": "n/a", "FNumber": None,
+        }]
+    )
+    assert points[0].iso is None
+    assert points[0].exposure is None
+    assert points[0].fnum is None
+
+
+def test_format_exposure():
+    assert format_exposure(0.001) == "1/1000 s"
+    assert format_exposure(0.0005) == "1/2000 s"
+    assert format_exposure(2.5) == "2.5 s"
+    assert format_exposure(None) is None
+    assert format_exposure(0) is None
+    assert format_exposure(0.7) == "0.7 s"
+    assert format_exposure(0.5) == "1/2 s"
+    assert format_exposure(0.6) == "0.6 s"
+
+
+def test_missing_sourcefile_falls_back_to_question_mark():
+    points, _ = points_from_exiftool_json([{"GPSLatitude": 1.0, "GPSLongitude": 2.0}])
+    assert points[0].name == "?"
+
+
+def test_camera_summary_joins_available_parts():
+    p = PhotoPoint(lat=0, lon=0, alt=0, name="a.jpg", model="FC8482",
+                   iso=100, exposure=0.001, fnum=1.7)
+    assert camera_summary(p) == "FC8482 · ISO 100 · 1/1000 s · f/1.7"
+    bare = PhotoPoint(lat=0, lon=0, alt=0, name="a.jpg")
+    assert camera_summary(bare) == ""
+
+
+class _Proc:
+    def __init__(self, stdout: str = "", stderr: str = "", returncode: int = 0):
+        self.stdout = stdout
+        self.stderr = stderr
+        self.returncode = returncode
+
+
+def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        seen["kwargs"] = kwargs
+        import json as _json
+        return _Proc(stdout=_json.dumps(CANNED))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    points, skipped = scan_photos(tmp_path)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+    assert skipped == ["no_gps.jpg", "zero_fix.jpg"]
+    args = seen["args"]
+    assert args[1:4] == ["-json", "-n", "-b"]
+    assert "-r" not in args
+    assert "-Composite:GPSLatitude" in args
+    assert "-EXIF:ThumbnailImage" in args
+    for ext in ("jpg", "jpeg", "dng"):
+        i = args.index(ext)
+        assert args[i - 1] == "-ext"
+    assert args[-1] == str(tmp_path)
+    assert seen["kwargs"].get("encoding") == "utf-8"
+
+
+def test_scan_photos_recursive_adds_r(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        return _Proc(stdout="[]")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    scan_photos(tmp_path, recursive=True)
+    assert "-r" in seen["args"]
+
+
+def test_scan_photos_empty_stdout_means_no_photos(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout=""))
+    assert scan_photos(tmp_path) == ([], [])
+
+
+def test_scan_photos_missing_exiftool_raises_hint(monkeypatch, tmp_path):
+    def raise_fnf(*a, **k):
+        raise FileNotFoundError()
+
+    monkeypatch.setattr(subprocess, "run", raise_fnf)
+    with pytest.raises(PhotomapError, match="doctor"):
+        scan_photos(tmp_path)
+
+
+def test_scan_photos_hard_failure_raises_stderr(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: _Proc(stdout="", stderr="boom", returncode=1),
+    )
+    with pytest.raises(PhotomapError, match="boom"):
+        scan_photos(tmp_path)
+
+
+def test_scan_photos_bad_json_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout="{nope"))
+    with pytest.raises(PhotomapError, match="JSON"):
+        scan_photos(tmp_path)
+
+
+def test_scan_photos_partial_failure_still_parses(monkeypatch, tmp_path):
+    import json as _json
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: _Proc(
+            stdout=_json.dumps(CANNED), stderr="Error: bad.jpg", returncode=1
+        ),
+    )
+    points, skipped = scan_photos(tmp_path)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+
+
+def test_scan_photos_non_list_json_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc(stdout="{}"))
+    with pytest.raises(PhotomapError, match="shape"):
+        scan_photos(tmp_path)
+
+
+def _two_points() -> list[PhotoPoint]:
+    points, _ = points_from_exiftool_json(CANNED)
+    return points
+
+
+def test_geojson_structure_and_no_thumbnails_by_default():
+    data = photos_to_geojson(_two_points())
+    assert data["type"] == "FeatureCollection"
+    assert len(data["features"]) == 2
+    f = data["features"][0]
+    assert f["geometry"]["type"] == "Point"
+    assert f["geometry"]["coordinates"] == [24.952222, 60.170278, 95.3]  # lon,lat,alt
+    assert f["properties"]["name"] == "church1.jpg"
+    assert f["properties"]["timestamp"] == "2026-06-15 12:30:45"
+    assert f["properties"]["camera"] == "FC8482 · ISO 100 · 1/1000 s · f/1.7"
+    assert "thumb" not in f["properties"]
+    assert "thumb" not in data["features"][1]["properties"]
+
+
+def test_geojson_include_thumbnails_opt_in():
+    data = photos_to_geojson(_two_points(), include_thumbnails=True)
+    by_name = {f["properties"]["name"]: f for f in data["features"]}
+    assert by_name["church2.jpg"]["properties"]["thumb"] == "/9j/THUMB2"
+    assert "thumb" not in by_name["church1.jpg"]["properties"]  # none available
+
+
+def test_geojson_empty_points():
+    assert photos_to_geojson([]) == {"type": "FeatureCollection", "features": []}
+
+
+def test_write_photos_geojson(tmp_path):
+    out = tmp_path / "photomap.geojson"
+    result = write_photos_geojson(_two_points(), out)
+    assert result == out
+    data = jsonlib.loads(out.read_text(encoding="utf-8"))
+    assert data["type"] == "FeatureCollection"
+
+
+_KML_NS = "{http://www.opengis.net/kml/2.2}"
+
+
+def test_kml_is_wellformed_with_placemark_per_photo():
+    kml = photos_to_kml(_two_points(), title="Churches & chapels")
+    root = ET.fromstring(kml)  # raises on malformed XML
+    doc = root.find(f"{_KML_NS}Document")
+    assert doc.find(f"{_KML_NS}name").text == "Churches & chapels"
+    placemarks = doc.findall(f"{_KML_NS}Placemark")
+    assert [pm.find(f"{_KML_NS}name").text for pm in placemarks] == [
+        "church1.jpg", "church2.jpg",
+    ]
+    coords = placemarks[0].find(f"{_KML_NS}Point/{_KML_NS}coordinates").text
+    assert coords == "24.952222,60.170278,95.3"
+
+
+def test_kml_description_embeds_thumbnail_data_uri():
+    kml = photos_to_kml(_two_points(), title="t")
+    assert 'data:image/jpeg;base64,/9j/THUMB2' in kml
+    root = ET.fromstring(kml)
+    descs = [
+        pm.find(f"{_KML_NS}description").text
+        for pm in root.iter(f"{_KML_NS}Placemark")
+    ]
+    # church1 has no thumbnail: metadata only, no img tag
+    assert "<img" not in descs[0] and "2026-06-15 12:30:45" in descs[0]
+    assert "<img" in descs[1]
+
+
+def test_kml_empty_points():
+    root = ET.fromstring(photos_to_kml([], title="empty"))
+    assert not list(root.iter(f"{_KML_NS}Placemark"))
+
+
+def test_write_photos_kml(tmp_path):
+    out = tmp_path / "photomap.kml"
+    result = write_photos_kml(_two_points(), out, title="t")
+    assert result == out
+    assert "<kml" in out.read_text(encoding="utf-8")
