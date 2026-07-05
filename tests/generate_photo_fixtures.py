@@ -1,6 +1,6 @@
 """One-shot generator for the samples/photos/ fixtures.
 
-Creates three tiny (~1-2 KB) JPEGs: two GPS-tagged over Helsinki churches
+Creates three tiny (under 1 KB) JPEGs: two GPS-tagged over Helsinki churches
 (with an embedded EXIF thumbnail) and one without GPS. Requires ExifTool.
 Run from the repo root:  uv run python tests/generate_photo_fixtures.py
 """
@@ -8,10 +8,14 @@ Run from the repo root:  uv run python tests/generate_photo_fixtures.py
 from __future__ import annotations
 
 import base64
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
-# Minimal valid 1x1 grey baseline JPEG (134 bytes, no EXIF).
+from dji_metadata_embedder.mp4_telemetry import _exiftool_exe
+
+# Minimal valid 1x1 grey baseline JPEG (140 bytes, no EXIF).
 _MINIMAL_JPEG_B64 = (
     "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////"
     "////////////////////////////////////////////////////////////wgALCAAB"
@@ -28,6 +32,9 @@ _GPS = {
 
 
 def main() -> None:
+    exiftool = _exiftool_exe()
+    if shutil.which(exiftool) is None and not Path(exiftool).is_file():
+        sys.exit("ExifTool required to regenerate fixtures — see https://exiftool.org")
     _PHOTOS.mkdir(parents=True, exist_ok=True)
     blob = base64.b64decode(_MINIMAL_JPEG_B64)
     thumb = _PHOTOS / "_thumb.jpg"
@@ -38,7 +45,7 @@ def main() -> None:
         for name, (lat, lon, alt) in _GPS.items():
             subprocess.run(
                 [
-                    "exiftool", "-overwrite_original", "-n",
+                    exiftool, "-overwrite_original", "-n",
                     f"-GPSLatitude={lat}", "-GPSLatitudeRef=N",
                     f"-GPSLongitude={lon}", "-GPSLongitudeRef=E",
                     f"-GPSAltitude={alt}", "-GPSAltitudeRef=0",
@@ -52,7 +59,7 @@ def main() -> None:
             )
         subprocess.run(
             [
-                "exiftool", "-overwrite_original",
+                exiftool, "-overwrite_original",
                 "-DateTimeOriginal=2026:06:15 12:31:00",
                 "-Make=DJI", "-Model=FC8482",
                 str(_PHOTOS / "no_gps.jpg"),

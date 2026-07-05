@@ -173,4 +173,18 @@ def test_photomap_cli_end_to_end(tmp_path):
     assert (tmp_path / "photomap.kml").exists()
     assert (tmp_path / "photomap.geojson").exists()
     html = (tmp_path / "photomap.html").read_text(encoding="utf-8")
-    assert "data:image/jpeg;base64," in html or '"thumb"' in html
+    assert '"thumb"' in html  # thumbnail data present in the embedded GeoJSON
+
+
+@needs_exiftool
+def test_photomap_recursive_real_scan(tmp_path):
+    from dji_metadata_embedder.geo.photomap import scan_photos
+
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    for jpg in SAMPLES_PHOTOS.glob("*.jpg"):
+        shutil.copy(jpg, sub / jpg.name)
+    points, _ = scan_photos(tmp_path)
+    assert points == []
+    points, skipped = scan_photos(tmp_path, recursive=True)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
