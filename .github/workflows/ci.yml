@@ -30,6 +30,9 @@ jobs:
         run: uv run ruff check .
       - name: Mypy
         run: uv run mypy
+      - name: Install ExifTool (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libimage-exiftool-perl
       - name: Pytest
         run: uv run pytest
       - name: Build package
