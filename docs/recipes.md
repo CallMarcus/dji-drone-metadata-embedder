@@ -284,6 +284,8 @@ dji-embed doctor
 dji-embed photomap /photos/finland-churches -r --title "Churches of Finland"
 
 # Creates: /photos/finland-churches/photomap.html
+# Should show:
+# Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)
 ```
 
 #### 3. Export for Google Earth Too
@@ -292,12 +294,6 @@ dji-embed photomap /photos/finland-churches -r --title "Churches of Finland"
 dji-embed photomap /photos/finland-churches -r --title "Churches of Finland" -f all
 
 # Creates: photomap.html, photomap.kml, photomap.geojson
-```
-
-#### 4. Review the Summary
-```bash
-# The console reports how many photos made it onto the map
-# Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)
 ```
 
 ### Expected Results

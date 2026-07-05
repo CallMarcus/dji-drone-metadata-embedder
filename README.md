@@ -135,7 +135,7 @@ Commands:
   embed    Embed telemetry from SRT files into MP4 videos
   validate Validate SRT/MP4 pairs and report drift
   convert  Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
-  photomap   Map GPS-tagged still photos to a clustered HTML/KML/GeoJSON map
+  photomap   Map GPS-tagged still photos to an HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
   doctor     Show system information and verify dependencies
   ui         Launch the local web UI in your browser
@@ -374,9 +374,9 @@ Arguments:
 
 Options:
   -o, --output FILE               Output file; used as the base name when
-                                   --format all
+                                  --format all
   -f, --format [html|kml|geojson|all]
-                                   Map output format (default: html)
+                                  Map output format (default: html)
   -r, --recursive                 Scan subdirectories too
   --title TEXT                    Map title (default: directory name)
   -v, --verbose                   Verbose output
@@ -388,7 +388,7 @@ skipped and counted in a summary; `-v` lists the skipped filenames.
 
 ```bash
 dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
-dji-embed photomap /path/to/photos -f all                             # -> photomap.html + .kml + .geojson
+dji-embed photomap /path/to/photos -f all                             # -> photos/photomap.{html,kml,geojson}
 dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse + custom title
 ```
 
