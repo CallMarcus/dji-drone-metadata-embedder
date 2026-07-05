@@ -82,25 +82,33 @@ const esc = s => String(s).replace(/[&<>"']/g,
 
 const points = (data.features || []).filter(
   f => f.geometry && f.geometry.type === 'Point');
-const cluster = L.markerClusterGroup();
+const cluster = L.markerClusterGroup({ chunkedLoading: true });
+const markers = [];
 const latlngs = [];
-for (const f of points) {
-  const c = f.geometry.coordinates;                  // [lon, lat, alt]
+
+function buildPopup(f) {
   const p = f.properties || {};
-  latlngs.push([c[1], c[0]]);
   let html = '<div class="photo-popup">';
   if (p.thumb) {
-    html += `<img src="data:image/jpeg;base64,${p.thumb}" alt="">`;
+    html += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt="">`;
   }
   html += `<b>${esc(p.name || '')}</b>`;
   if (p.timestamp) html += `<br>${esc(p.timestamp)}`;
   if (p.camera) html += `<br>${esc(p.camera)}`;
   html += `<br>altitude: ${Number(p.alt || 0).toFixed(0)} m</div>`;
-  cluster.addLayer(L.marker([c[1], c[0]]).bindPopup(html, { maxWidth: 300 }));
+  return html;
 }
+
+for (const f of points) {
+  const c = f.geometry.coordinates;                  // [lon, lat, alt]
+  latlngs.push([c[1], c[0]]);
+  markers.push(
+    L.marker([c[1], c[0]]).bindPopup(() => buildPopup(f), { maxWidth: 300 }));
+}
+cluster.addLayers(markers);
 map.addLayer(cluster);
 if (latlngs.length > 1) {
-  map.fitBounds(L.latLngBounds(latlngs).pad(0.1));
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.1), { maxZoom: 17 });
 } else if (latlngs.length === 1) {
   map.setView(latlngs[0], 16);
 } else {

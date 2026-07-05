@@ -56,7 +56,25 @@ def test_html_popup_js_escapes_text_fields():
     # Popup text (name/timestamp/camera) is inserted via the esc() helper so a
     # hostile filename cannot inject HTML into the popup.
     html = photos_to_html(POINTS, title="t")
-    assert "const esc" in html
+    for applied in ("esc(p.thumb", "esc(p.name", "esc(p.timestamp", "esc(p.camera"):
+        assert applied in html
+
+
+def test_html_uses_cluster_bulk_path():
+    html = photos_to_html(POINTS, title="t")
+    assert "chunkedLoading: true" in html
+    assert "cluster.addLayers(markers)" in html
+
+
+def test_html_empty_points_still_valid_document():
+    html = photos_to_html([], title="t")
+    assert html.lstrip().startswith("<!DOCTYPE html>")
+    assert _embedded_geojson(html)["features"] == []
+
+
+def test_html_title_is_escaped():
+    html = photos_to_html(POINTS, title="<script>x")
+    assert "<script>x" not in html
 
 
 def test_write_photos_html(tmp_path):
