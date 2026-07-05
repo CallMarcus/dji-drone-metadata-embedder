@@ -1,6 +1,8 @@
 import json
+import shutil
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from dji_metadata_embedder.cli import main
@@ -140,3 +142,35 @@ def test_photomap_missing_exiftool_is_clean_error(monkeypatch, tmp_path):
     assert res.exit_code != 0
     assert not isinstance(res.exception, PhotomapError)  # no raw traceback
     assert "ExifTool" in res.output
+
+
+SAMPLES_PHOTOS = Path(__file__).resolve().parents[1] / "samples" / "photos"
+
+needs_exiftool = pytest.mark.skipif(
+    shutil.which("exiftool") is None, reason="ExifTool not installed"
+)
+
+
+@needs_exiftool
+def test_photomap_real_exiftool_scan():
+    from dji_metadata_embedder.geo.photomap import scan_photos
+
+    points, skipped = scan_photos(SAMPLES_PHOTOS)
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+    assert skipped == ["no_gps.jpg"]
+    assert points[0].lat == pytest.approx(60.170278)
+    assert points[0].thumbnail_b64  # embedded EXIF thumbnail extracted
+    assert points[0].timestamp == "2026-06-15 12:30:45"
+
+
+@needs_exiftool
+def test_photomap_cli_end_to_end(tmp_path):
+    for jpg in SAMPLES_PHOTOS.glob("*.jpg"):
+        shutil.copy(jpg, tmp_path / jpg.name)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "-f", "all"])
+    assert res.exit_code == 0, res.output
+    assert (tmp_path / "photomap.html").exists()
+    assert (tmp_path / "photomap.kml").exists()
+    assert (tmp_path / "photomap.geojson").exists()
+    html = (tmp_path / "photomap.html").read_text(encoding="utf-8")
+    assert "data:image/jpeg;base64," in html or '"thumb"' in html
