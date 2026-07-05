@@ -367,20 +367,27 @@ def photomap(
                 f"{len(skipped)} had no GPS data (use -v to list them)"
             )
         else:
-            click.echo(f"Mapped {len(points)} photos")
+            click.echo(
+                f"Mapped {len(points)} photo{'s' if len(points) != 1 else ''}"
+            )
     map_title = title or src.resolve().name
-    base = Path(output) if output else src / "photomap.html"
-    formats = ["html", "kml", "geojson"] if fmt.lower() == "all" else [fmt.lower()]
-    for f in formats:
-        out = base.with_suffix(f".{f}")
-        if f == "html":
-            write_photos_html(points, out, map_title)
-        elif f == "kml":
-            write_photos_kml(points, out, map_title)
-        else:
-            write_photos_geojson(points, out)
-        if not quiet:
-            click.echo(f"Wrote {out}")
+    if fmt.lower() == "all":
+        base = Path(output) if output else src / "photomap.html"
+        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
+    else:
+        f = fmt.lower()
+        out = Path(output) if output else src / f"photomap.{f}"
+        targets = [(f, out)]
+    for f, out in targets:
+        try:
+            if f == "html":
+                write_photos_html(points, out, map_title)
+            elif f == "kml":
+                write_photos_kml(points, out, map_title)
+            else:
+                write_photos_geojson(points, out)
+        except OSError as e:
+            raise click.ClickException(f"Could not write {out}: {e}")
 
 
 @main.command()

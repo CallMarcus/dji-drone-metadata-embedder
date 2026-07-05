@@ -102,6 +102,35 @@ def test_photomap_no_gps_photos_is_clean_error(monkeypatch, tmp_path):
     assert "GPS" in res.output
 
 
+def test_photomap_single_format_output_honored_verbatim(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    out = tmp_path / "report.json"
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "-f", "geojson", "-o", str(out)]
+    )
+    assert res.exit_code == 0, res.output
+    assert out.exists()  # extension NOT rewritten
+    assert not (tmp_path / "report.geojson").exists()
+
+
+def test_photomap_write_failure_is_clean_error(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main,
+        ["photomap", str(tmp_path), "-o", str(tmp_path / "no_such_dir" / "m.html")],
+    )
+    assert res.exit_code != 0
+    assert "Could not write" in res.output
+    assert res.exception is None or isinstance(res.exception, SystemExit)
+
+
+def test_photomap_quiet_suppresses_stdout(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "-q"])
+    assert res.exit_code == 0, res.output
+    assert res.output.strip() == ""
+
+
 def test_photomap_missing_exiftool_is_clean_error(monkeypatch, tmp_path):
     def raise_err(directory, recursive):
         raise PhotomapError("ExifTool not found ... dji-embed doctor")
