@@ -75,10 +75,10 @@ RUN curl -L "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-stat
 
 | dji-embed | FFmpeg | ExifTool | Status |
 |-----------|---------|----------|--------|
-| 1.11.0    | 6.1.1   | 12.76    | ✅ Recommended |
-| 1.11.0    | 6.0.x   | 12.70+   | ✅ Supported |
-| 1.11.0    | 5.1.x   | 12.50+   | ⚠️ Limited testing |
-| 1.11.0    | 4.4.x   | 11.00+   | ⚠️ Minimum support |
+| 1.12.0    | 6.1.1   | 12.76    | ✅ Recommended |
+| 1.12.0    | 6.0.x   | 12.70+   | ✅ Supported |
+| 1.12.0    | 5.1.x   | 12.50+   | ⚠️ Limited testing |
+| 1.12.0    | 4.4.x   | 11.00+   | ⚠️ Minimum support |
 
 ## Known Issues
 
@@ -95,7 +95,7 @@ RUN curl -L "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-stat
 The `dji-embed --version` command now shows detected tool versions:
 
 ```
-dji-embed 1.11.0
+dji-embed 1.12.0
   python: python
   ffmpeg: 6.1.1
   exiftool: 12.76
