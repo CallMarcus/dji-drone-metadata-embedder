@@ -75,6 +75,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
 - **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or a standalone HTML map (see [docs/geospatial.md](docs/geospatial.md))
+- **Photo Map**: `dji-embed photomap DIR` plots GPS-tagged still photos (JPG/JPEG/DNG) on a clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
 - **Camera Footprint Polygons**: `convert geojson/kml … --footprint` adds nadir ground-footprint rectangles to GeoJSON/KML output (gimbal-aware on formats that carry attitude; suppressed under `--redact`). See [docs/geospatial.md](docs/geospatial.md).
 - **CoT Export**: `dji-embed convert cot FLIGHT.SRT` writes Cursor-on-Target XML for ATAK/TAK (route + timed track). See [docs/fmv-interop.md](docs/fmv-interop.md).
 - **Footage verification:** `dji-embed verify-sun clip.SRT` reports the sun's azimuth/elevation over a clip for shadow cross-checking; CSV export gains `datetime_utc` / `sun_azimuth` / `sun_elevation` columns.
@@ -134,6 +135,7 @@ Commands:
   embed    Embed telemetry from SRT files into MP4 videos
   validate Validate SRT/MP4 pairs and report drift
   convert  Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
+  photomap   Map GPS-tagged still photos to a clustered HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
   doctor     Show system information and verify dependencies
   ui         Launch the local web UI in your browser
@@ -360,6 +362,40 @@ Leaflet and the basemap tiles load from the internet; the flight data itself is 
 dji-embed convert geojson DJI_0001.SRT --footprint --model air3
 dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 ```
+
+#### `dji-embed photomap` - Map Still Photos
+Map GPS-tagged still photos (JPG/JPEG/DNG) as an HTML, KML, or GeoJSON map.
+
+```bash
+dji-embed photomap [OPTIONS] DIRECTORY
+
+Arguments:
+  DIRECTORY                       Directory containing JPG/JPEG/DNG photos
+
+Options:
+  -o, --output FILE               Output file; used as the base name when
+                                   --format all
+  -f, --format [html|kml|geojson|all]
+                                   Map output format (default: html)
+  -r, --recursive                 Scan subdirectories too
+  --title TEXT                    Map title (default: directory name)
+  -v, --verbose                   Verbose output
+  -q, --quiet                     Suppress info output
+```
+
+Requires ExifTool (`dji-embed doctor` checks it). Photos without GPS data are
+skipped and counted in a summary; `-v` lists the skipped filenames.
+
+```bash
+dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
+dji-embed photomap /path/to/photos -f all                             # -> photomap.html + .kml + .geojson
+dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse + custom title
+```
+
+Leaflet and the OpenStreetMap basemap tiles load from the internet; the photo
+thumbnails themselves are embedded, so the HTML file is portable but needs a
+connection to render the map. A photo map publishes your shooting locations —
+share it deliberately.
 
 #### `dji-embed doctor` - System Diagnostics
 Show system information and verify all dependencies.

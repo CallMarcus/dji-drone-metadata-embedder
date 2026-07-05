@@ -14,6 +14,7 @@ This guide helps you choose the right command and approach for your specific use
 | **Validate file quality** | `dji-embed validate` | Check for timing drift or file issues |
 | **System diagnostics** | `dji-embed doctor` | Troubleshoot installation or dependencies |
 | **Drive it from a browser** | `dji-embed ui` | You prefer a GUI; requires the `[ui]` extra |
+| **Map your still photos** | `dji-embed photomap` | You shot geotagged photos and want them on a map |
 
 ---
 
@@ -46,6 +47,8 @@ This guide helps you choose the right command and approach for your specific use
 | Custom output filename | Specific output file | `dji-embed convert gpx input.SRT -o custom.gpx` |
 | MP4 with no sidecar SRT (Air 3S, Mini 5 Pro) | GPX/CSV/GeoJSON/KML track | `dji-embed convert <fmt> FILE.MP4` (ExifTool-backed; needs recent ExifTool — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md)) |
 | MP4 with no sidecar SRT (Air 3S, Mini 5 Pro) | Sun/shadow verification | `dji-embed verify-sun FILE.MP4` (ExifTool-backed; needs recent ExifTool — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md)) |
+| Photos folder (JPG/DNG) | Clustered HTML map | `dji-embed photomap /path/to/photos` |
+| Photos folder (JPG/DNG) | KML for Google Earth | `dji-embed photomap /path/to/photos -f kml` |
 
 ### For Analysis and Validation
 
