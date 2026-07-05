@@ -15,6 +15,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.12.0] - 2026-07-05
+
+### Added
+
+- **cli**: Photomap — map still-photo locations to HTML/KML/GeoJSON (#244) (b085a63)
+
+### Fixed
+
+- **winget**: Submit a staged manifest directory, not file args (4dd7fe9)
+
+### Documentation
+
+- Auto-generate changelog for v1.11.0 (4bea54b)
+- Sync documentation with v1.11.0 reality (+ version-stamp auto-sync) (#240) (0a75ff2)
+
+### CI/CD
+
+- Bump actions/checkout from 6 to 7 in the actions group (#241) (b2b8b85)
+
+### Maintenance
+
+- **deps**: Bump the production-deps group with 5 updates (#242) (5049593)
+- **winget**: Bump manifests to schema 1.12.0; drop invalid InstallModes (#239) (974f001)
+- **winget**: Fix manifests + flow for first-time submission (#238) (463eca9)
+
+### Other
+
+- Prepare version 1.12.0 (47c9e72)
+
+
 ## [1.11.0] - 2026-06-21
 
 ### Added
