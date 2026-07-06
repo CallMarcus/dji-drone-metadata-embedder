@@ -13,6 +13,16 @@ def _load_module():
     return module
 
 
+def _read_stderr(capsys: pytest.CaptureFixture[str]) -> str:
+    """Captured stderr with path separators normalised to ``/``.
+
+    sync_version.py reports OS-native paths, so on Windows the offending file
+    reads ``winget\\manifest.yaml``; normalising lets the forward-slash path
+    assertions below hold on every platform.
+    """
+    return capsys.readouterr().err.replace("\\", "/")
+
+
 def _write_project(root: Path, version: str) -> None:
     (root / "src/pkg").mkdir(parents=True)
     (root / "tools").mkdir()
@@ -106,7 +116,7 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     )
     with pytest.raises(SystemExit):
         sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
-    err = capsys.readouterr().err
+    err = _read_stderr(capsys)
     assert "winget/manifest.yaml" in err
     # restore so later assertions in this test see an otherwise-synced tree
     (tmp_path / "winget/manifest.yaml").write_text(
@@ -117,7 +127,7 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     # Providing a mismatched version should fail with a helpful message
     with pytest.raises(SystemExit):
         sync_version.main(["9.9.9", "--check"], project_root=tmp_path)
-    err = capsys.readouterr().err
+    err = _read_stderr(capsys)
     assert "expected 9.9.9" in err
     assert "src/pkg/__init__.py" in err
 
@@ -127,7 +137,7 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     )
     with pytest.raises(SystemExit):
         sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
-    err = capsys.readouterr().err
+    err = _read_stderr(capsys)
     assert "expected 1.2.3" in err
     assert "README.md" in err
 
@@ -146,6 +156,6 @@ def test_doc_version_stamp_drift_is_caught(
     (tmp_path / "CLAUDE.md").write_text("**Project Version:** v0.0.1\n")
     with pytest.raises(SystemExit):
         sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
-    err = capsys.readouterr().err
+    err = _read_stderr(capsys)
     assert "CLAUDE.md" in err
 
