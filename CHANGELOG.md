@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.13.0] - 2026-07-06
+
+### Added
+
+- **embed**: --audio-sidecar to mux Neo 2's separate .m4a audio (#247) (05c94c4)
+
+### Documentation
+
+- Auto-generate changelog for v1.12.0 (f0e7361)
+- Replace stale model table with pointer to the canonical list (620b289)
+
+### Other
+
+- Prepare version 1.13.0 (0ec77aa)
+
+
 ## [1.12.0] - 2026-07-05
 
 ### Added
