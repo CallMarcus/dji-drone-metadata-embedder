@@ -222,7 +222,7 @@ if new_format_match:
 | DJI Air 3 | Format 3 | Comprehensive with HTML tags |
 | DJI Mini 5 Pro | Format 3b | FrameCnt + decimal fnum/focal_len |
 | DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
-| DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams |
+| DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams; audio recorded to a **separate same-basename `.m4a`** (see `--audio-sidecar`) |
 | DJI Air 3S | Format 3b | FrameCnt + decimal units; `color_md: hlg`; MP4 carries `djmd`/`dbgi` streams |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |

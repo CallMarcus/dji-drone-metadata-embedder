@@ -184,6 +184,8 @@ Options:
   --exiftool                 Also use ExifTool for GPS metadata
   --dat PATH                 DAT flight log to merge
   --dat-auto                 Auto-detect DAT logs matching videos
+  --audio-sidecar            Auto-detect a same-basename .m4a audio sidecar
+                             (e.g. DJI Neo 2) and mux it in (no re-encode)
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
   --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
                              data streams (default: mp4)
@@ -284,6 +286,8 @@ Options:
   --exiftool                 Also use ExifTool for GPS metadata
   --dat PATH                 DAT flight log to merge
   --dat-auto                 Auto-detect DAT logs matching videos
+  --audio-sidecar            Auto-detect a same-basename .m4a audio sidecar
+                             (e.g. DJI Neo 2) and mux it in (no re-encode)
   --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
   --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
                              data streams (default: mp4)

@@ -103,6 +103,12 @@ def main(ctx: click.Context, log_json: bool) -> None:
 @click.option("--dat", type=click.Path(exists=True), help="DAT flight log to merge")
 @click.option("--dat-auto", is_flag=True, help="Auto-detect DAT logs matching videos")
 @click.option(
+    "--audio-sidecar",
+    is_flag=True,
+    help="Auto-detect a same-basename .m4a audio sidecar (e.g. DJI Neo 2) and "
+    "mux it into the output (no re-encode).",
+)
+@click.option(
     "--redact",
     type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
     default="none",
@@ -132,6 +138,7 @@ def embed(
     exiftool: bool,
     dat: str | None,
     dat_auto: bool,
+    audio_sidecar: bool,
     redact: str,
     container: str,
     extract_home: bool,
@@ -154,6 +161,7 @@ def embed(
         redact=redact,
         container=container.lower(),
         extract_home=extract_home,
+        audio_sidecar=audio_sidecar,
     )
     embedder.process_directory(use_exiftool=exiftool)
 

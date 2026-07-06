@@ -17,8 +17,26 @@ A `processed` folder will be created containing new videos with embedded metadat
 - `-o DIR` – choose an output directory
 - `--exiftool` – also write metadata via ExifTool (requires ExifTool)
 - `--dat FILE` – merge a DAT flight log with the video
+- `--audio-sidecar` – auto-pair a same-basename `.m4a` audio file and mux it in
+  (see [Drones with separate audio](#drones-with-separate-audio-neo-2))
 
 Run `dji-embed --help` to see all available options.
+
+## Drones with separate audio (Neo 2)
+
+Some DJI drones — notably the **Neo 2** — record video and audio as **two
+files**: a silent `DJI_0001.MP4` plus a `DJI_0001.m4a` alongside it. Pass
+`--audio-sidecar` to have `embed` find the matching `.m4a` and mux it into the
+output automatically:
+
+```bash
+dji-embed embed /path/to/footage --audio-sidecar
+```
+
+- Audio is stream-copied (no re-encode), consistent with the rest of the tool.
+- The telemetry subtitle track is preserved.
+- Clips without a matching `.m4a` are processed as usual (a warning is logged).
+- A large video/audio length mismatch is flagged as a warning but still muxed.
 
 ## Converting telemetry
 
