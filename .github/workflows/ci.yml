@@ -8,13 +8,26 @@ on:  # yamllint disable-line rule:truthy
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: ['ubuntu-22.04']
         python-version:
           - '3.10'
           - '3.11'
           - '3.12'
+        # Add a single Windows leg so the ExifTool-backed photomap / MP4
+        # timed-metadata tests actually run on Windows (path, subprocess and
+        # encoding handling differ). One Python version keeps CI cost down.
+        include:
+          - os: 'windows-latest'
+            python-version: '3.12'
+    defaults:
+      run:
+        # Git Bash ships on the Windows runners, so the bash-syntax steps
+        # below (|| true, ls -la, multi-line) work on every OS.
+        shell: bash
     steps:
       - uses: actions/checkout@v7
       - name: Install uv
@@ -33,6 +46,9 @@ jobs:
       - name: Install ExifTool (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libimage-exiftool-perl
+      - name: Install ExifTool (Windows)
+        if: runner.os == 'Windows'
+        run: choco install exiftool --no-progress -y
       - name: Pytest
         run: uv run pytest
       - name: Build package

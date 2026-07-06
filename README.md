@@ -390,6 +390,15 @@ Options:
 Requires ExifTool (`dji-embed doctor` checks it). Photos without GPS data are
 skipped and counted in a summary; `-v` lists the skipped filenames.
 
+Notes:
+- With `-r`, pins are labelled by their path relative to `DIRECTORY`, so
+  per-session folders that reuse DJI's restarting `DJI_0001.JPG` names stay
+  distinct on the map.
+- Popup previews use the small EXIF thumbnail, falling back to a size-capped
+  embedded preview for DNGs that carry no thumbnail.
+- Photos with no EXIF altitude are clamped to the ground in KML (Google Earth)
+  instead of being buried at 0 m below terrain.
+
 ```bash
 dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
 dji-embed photomap /path/to/photos -f all                             # -> photos/photomap.{html,kml,geojson}
