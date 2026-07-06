@@ -7,7 +7,7 @@ from dji_metadata_embedder import DJIMetadataEmbedder
 # Helper to run parser on provided SRT string
 def _parse_from_string(tmp_path, text):
     srt_file = tmp_path / "test.srt"
-    srt_file.write_text(text)
+    srt_file.write_text(text, encoding="utf-8")
     embedder = DJIMetadataEmbedder(tmp_path)
     return embedder.parse_dji_srt(srt_file)
 

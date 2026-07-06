@@ -44,8 +44,12 @@ path = "src/pkg/__init__.py"
     (root / "HOUSEKEEPING.md").write_text(
         f"**Current state:** v{version}, production-ready\n"
     )
+    # This one carries non-ASCII (·), so it must be written UTF-8 explicitly:
+    # sync_version.py reads it as UTF-8, and a locale-default (cp1252) write on
+    # Windows would produce bytes it can't decode.
     (root / "docs/development_roadmap.md").write_text(
-        f"_Last updated: 2026-06-21 · Current version: **v{version}** · Status: x_\n"
+        f"_Last updated: 2026-06-21 · Current version: **v{version}** · Status: x_\n",
+        encoding="utf-8",
     )
     # Two matrix rows (first column) + the `dji-embed X.Y.Z` example line; the
     # FFmpeg column must stay untouched.
@@ -78,19 +82,19 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
         "docs/development_roadmap.md",
         "docs/external-tool-versions.md",
     ]:
-        assert "1.2.3" in (tmp_path / rel).read_text()
+        assert "1.2.3" in (tmp_path / rel).read_text(encoding="utf-8")
 
     # external-tool-versions.md has the version in multiple spots (both matrix
     # rows + the example line); re.subn must bump them all while leaving the
     # FFmpeg tool version alone.
-    ext = (tmp_path / "docs/external-tool-versions.md").read_text()
+    ext = (tmp_path / "docs/external-tool-versions.md").read_text(encoding="utf-8")
     assert ext.count("1.2.3") == 3
     assert "0.1.0" not in ext
     assert "6.1.1" in ext
 
     # Release-tag links (ReleaseNotesUrl) should be bumped too, so the winget
     # manifest never ships stale release notes.
-    assert "releases/tag/v1.2.3" in (tmp_path / "winget/manifest.yaml").read_text()
+    assert "releases/tag/v1.2.3" in (tmp_path / "winget/manifest.yaml").read_text(encoding="utf-8")
 
     # Explicit check with matching version should pass
     sync_version.main(["1.2.3", "--check"], project_root=tmp_path)

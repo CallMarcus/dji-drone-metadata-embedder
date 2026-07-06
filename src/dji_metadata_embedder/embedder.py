@@ -746,7 +746,7 @@ class DJIMetadataEmbedder:
                                 {"lat": h.lat, "lon": h.lon, "alt": h.alt} if h else None
                             )
                         try:
-                            with open(json_tmp_path, "w") as f:
+                            with open(json_tmp_path, "w", encoding="utf-8") as f:
                                 json.dump(json_data, f, indent=2)
                             os.replace(json_tmp_path, json_path)
                         except OSError as e:

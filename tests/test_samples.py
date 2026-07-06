@@ -21,9 +21,9 @@ def run_sample(name: str, tmp_path, monkeypatch):
     video = tmp_path / "clip.mp4"
     dat = tmp_path / "clip.DAT"
     if video_b64.exists():
-        video.write_bytes(base64.b64decode(video_b64.read_text()))
+        video.write_bytes(base64.b64decode(video_b64.read_text(encoding="utf-8")))
     if dat_b64.exists():
-        dat.write_bytes(base64.b64decode(dat_b64.read_text()))
+        dat.write_bytes(base64.b64decode(dat_b64.read_text(encoding="utf-8")))
     srt = base / "clip.SRT"
     output = tmp_path / "out.mp4"
 

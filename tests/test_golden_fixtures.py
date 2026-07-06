@@ -27,7 +27,7 @@ class TestGoldenFixtures:
         """Test Mini 3/4 Pro square bracket format parsing."""
         sample = GOLDEN_SAMPLES["mini_3_4_pro"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -57,7 +57,7 @@ class TestGoldenFixtures:
         """Test Air 3 HTML-formatted SRT with extended telemetry."""
         sample = GOLDEN_SAMPLES["air3_html_extended"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -85,7 +85,7 @@ class TestGoldenFixtures:
         """Test Avata 2 legacy GPS format with BAROMETER data."""
         sample = GOLDEN_SAMPLES["avata2_legacy_gps"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -113,7 +113,7 @@ class TestGoldenFixtures:
         """Test Matrice 300 / legacy-with-unit GPS format (altitude unit suffix)."""
         sample = GOLDEN_SAMPLES["m300_legacy_unit"]
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
 
@@ -137,7 +137,7 @@ class TestGoldenFixtures:
         """Test Phantom 4 RTK / P4P compact single-line format."""
         sample = GOLDEN_SAMPLES["p4rtk_compact"]
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
 
@@ -161,7 +161,7 @@ class TestGoldenFixtures:
         """Test Mavic 3 Enterprise format with RTK and extended data."""
         sample = GOLDEN_SAMPLES["mavic3_enterprise"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -193,7 +193,7 @@ class TestLenientParserMode:
         """Test parser handles missing timestamps in lenient mode."""
         sample = EDGE_CASE_SAMPLES["missing_timestamps"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -214,7 +214,7 @@ class TestLenientParserMode:
         """Test parser handles mixed telemetry formats."""
         sample = EDGE_CASE_SAMPLES["mixed_formats"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -234,7 +234,7 @@ class TestLenientParserMode:
         """Test parser handles extreme coordinate values."""
         sample = EDGE_CASE_SAMPLES["extreme_coordinates"]
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
             f.write(sample["srt_content"])
             temp_path = Path(f.name)
         
@@ -338,7 +338,7 @@ class TestComprehensiveValidation:
     def test_all_golden_samples(self):
         """Test all golden samples can be parsed without errors."""
         for sample_name, sample in GOLDEN_SAMPLES.items():
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False, encoding='utf-8') as f:
                 f.write(sample["srt_content"])
                 temp_path = Path(f.name)
             
