@@ -255,6 +255,60 @@ class TestProcessDirectoryAudioSidecar:
             "duration" in w.lower() for w in result["warnings"]
         ), f"expected a duration-mismatch warning, got {result['warnings']}"
 
+    def test_small_duration_gap_within_tolerance_does_not_warn(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A sub-tolerance gap (container rounding, not a mispairing) must not
+        warn — a 1.5s gap on a 60s clip is normal."""
+        _audio, out_dir = self._prep(tmp_path, with_audio=True)
+        captured: list = []
+        durations = {
+            "DJI_20240101_123456.mp4": 60.0,
+            "DJI_20240101_123456.m4a": 58.5,
+        }
+        monkeypatch.setattr(
+            subprocess, "run", _make_run_capture(captured, durations)
+        )
+        monkeypatch.setattr(
+            "dji_metadata_embedder.embedder.Progress", _fake_progress_class()
+        )
+
+        embedder = DJIMetadataEmbedder(
+            str(tmp_path), output_dir=str(out_dir), audio_sidecar=True
+        )
+        result = embedder.process_directory(use_exiftool=False)
+
+        assert not any(
+            "sidecar duration" in w.lower() for w in result["warnings"]
+        ), f"did not expect a sidecar duration warning, got {result['warnings']}"
+
+    def test_duration_tolerance_scales_with_clip_length(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """On a long clip, an 8s gap (2.7%) is within tolerance — the relative
+        band scales so it no longer trips the old 1s absolute threshold."""
+        _audio, out_dir = self._prep(tmp_path, with_audio=True)
+        captured: list = []
+        durations = {
+            "DJI_20240101_123456.mp4": 300.0,
+            "DJI_20240101_123456.m4a": 292.0,
+        }
+        monkeypatch.setattr(
+            subprocess, "run", _make_run_capture(captured, durations)
+        )
+        monkeypatch.setattr(
+            "dji_metadata_embedder.embedder.Progress", _fake_progress_class()
+        )
+
+        embedder = DJIMetadataEmbedder(
+            str(tmp_path), output_dir=str(out_dir), audio_sidecar=True
+        )
+        result = embedder.process_directory(use_exiftool=False)
+
+        assert not any(
+            "sidecar duration" in w.lower() for w in result["warnings"]
+        ), f"did not expect a sidecar duration warning, got {result['warnings']}"
+
 
 class TestCliAudioSidecarFlag:
     """The embed command exposes --audio-sidecar and threads it through."""
