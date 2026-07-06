@@ -656,13 +656,16 @@ class DJIMetadataEmbedder:
                     else:
                         # Sanity check: flag a large video/audio length gap (wrong
                         # pairing, truncated recording) but still mux — the user
-                        # opted in and may want whatever audio exists.
+                        # opted in and may want whatever audio exists. The tolerance
+                        # is relative (max of a 2s floor and 5% of the clip) so
+                        # normal container-rounding gaps on a correctly paired clip
+                        # don't cry wolf, while gross mispairings still warn.
                         video_dur = _ffprobe_duration(video_path)
                         audio_dur = _ffprobe_duration(audio_file)
                         if (
                             video_dur is not None
                             and audio_dur is not None
-                            and abs(video_dur - audio_dur) > 1.0
+                            and abs(video_dur - audio_dur) > max(2.0, 0.05 * video_dur)
                         ):
                             warning_msg = (
                                 f"Audio sidecar duration ({audio_dur:.1f}s) differs "
