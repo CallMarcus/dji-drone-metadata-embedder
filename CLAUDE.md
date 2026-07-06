@@ -400,5 +400,5 @@ The previous `agents.md` was more generic for multiple AI assistants and focused
 ---
 
 **Last Updated:** 2026-06-21
-**Project Version:** v1.12.0
+**Project Version:** v1.13.0
 **Status:** Production Ready ✅
