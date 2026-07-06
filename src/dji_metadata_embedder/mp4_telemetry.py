@@ -8,13 +8,17 @@ model, so the convert exporters and verify-sun work on sidecar-less footage.
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
 from .utilities import TelemetrySample, is_gps_fix
+from .utils.exiftool import exiftool_exe
+
+# Back-compat alias: this private name predates the shared resolver in
+# utils/exiftool.py. Kept so any external importer of the old symbol still works.
+_exiftool_exe = exiftool_exe
 
 
 class Mp4TelemetryError(RuntimeError):
@@ -126,18 +130,10 @@ _EXIFTOOL_INSTALL_HINT = (
 )
 
 
-def _exiftool_exe() -> str:
-    """Resolve the ExifTool executable (env override, else PATH ``exiftool``)."""
-    env = os.environ.get("DJIEMBED_EXIFTOOL_PATH")
-    if env and Path(env).exists():
-        return env
-    return "exiftool"
-
-
 def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
-            [_exiftool_exe(), *args], capture_output=True, text=True
+            [exiftool_exe(), *args], capture_output=True, text=True
         )
     except FileNotFoundError:
         raise Mp4TelemetryError(_EXIFTOOL_INSTALL_HINT) from None

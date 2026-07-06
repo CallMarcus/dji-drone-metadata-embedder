@@ -158,7 +158,7 @@ def extract_telemetry_to_gpx(
                 f"    </wpt>\n"
             )
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
         f.write(gpx_header)
         f.write(home_wpt)
         f.write(trk_open)

@@ -187,4 +187,6 @@ def test_photomap_recursive_real_scan(tmp_path):
     points, _ = scan_photos(tmp_path)
     assert points == []
     points, skipped = scan_photos(tmp_path, recursive=True)
-    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+    # Recursive scans carry the subdirectory so per-session archives don't
+    # collide on DJI's restarting basenames.
+    assert [p.name for p in points] == ["sub/church1.jpg", "sub/church2.jpg"]

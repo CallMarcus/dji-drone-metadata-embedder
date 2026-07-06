@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from ..mp4_telemetry import _exiftool_exe
 from ..utilities import is_gps_fix
+from ..utils.exiftool import exiftool_exe
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,9 @@ _SCAN_TAGS = [
     "-EXIF:ExposureTime",
     "-EXIF:FNumber",
     "-EXIF:ThumbnailImage",
+    # DJI DNGs carry no EXIF:ThumbnailImage; their preview is PreviewImage
+    # (IFD0/SubIFD). Requested for all photos, used only as a fallback below.
+    "-PreviewImage",
 ]
 _PHOTO_EXTS = ("jpg", "jpeg", "dng")
 
@@ -51,15 +54,23 @@ _PHOTO_EXTS = ("jpg", "jpeg", "dng")
 # writers may embed it in CDATA/data URIs without further escaping.
 _BASE64_RE = re.compile(r"[A-Za-z0-9+/=\s]+")
 
+# Cap on the PreviewImage fallback so a DNG-heavy archive doesn't blow the
+# ~15-40 KB/photo embed budget (raw previews can be multi-MB). ~225 KB decoded.
+# UNVERIFIED against a real DJI DNG: the JSON shape is assumed identical to
+# ThumbnailImage ("base64:...") — the tag differs, the encoding does not.
+_MAX_PREVIEW_B64_CHARS = 300_000
+
 
 @dataclass
 class PhotoPoint:
-    """One GPS-tagged photo: WGS84 lat/lon, altitude (m, 0.0 when the EXIF has
-    none), source filename, and optional capture metadata for popups."""
+    """One GPS-tagged photo: WGS84 lat/lon, altitude (m, ``None`` when the EXIF
+    has no ``GPSAltitude``), source filename, and optional capture metadata for
+    popups. ``None`` altitude is kept distinct from a real 0 m fix so writers
+    can clamp such placemarks to the ground rather than burying them."""
 
     lat: float
     lon: float
-    alt: float
+    alt: float | None
     name: str
     timestamp: str | None = None
     model: str | None = None
@@ -95,6 +106,30 @@ def _maybe_str(value: object) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _clean_base64(raw: object) -> str | None:
+    """Return the base64 payload of an ExifTool ``-b`` blob (``base64:...``), else None."""
+    if isinstance(raw, str) and raw.startswith("base64:"):
+        candidate = raw[len("base64:"):]
+        if _BASE64_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+
+def _extract_thumbnail_b64(entry: dict) -> str | None:
+    """Pick a preview blob: the small EXIF thumbnail, else a size-capped PreviewImage.
+
+    The EXIF thumbnail is always preferred (small, present on JPGs). PreviewImage
+    is the DNG fallback, taken only when it stays under ``_MAX_PREVIEW_B64_CHARS``.
+    """
+    thumb = _clean_base64(entry.get("ThumbnailImage"))
+    if thumb is not None:
+        return thumb
+    preview = _clean_base64(entry.get("PreviewImage"))
+    if preview is not None and len(preview) <= _MAX_PREVIEW_B64_CHARS:
+        return preview
+    return None
+
+
 def format_exposure(exposure: float | None) -> str | None:
     """Format ExposureTime seconds for display: ``0.001`` -> ``1/1000 s``."""
     if not exposure or exposure <= 0:
@@ -119,33 +154,50 @@ def camera_summary(p: PhotoPoint) -> str:
     return " · ".join(x for x in parts if x)
 
 
-def points_from_exiftool_json(data: list[dict]) -> tuple[list[PhotoPoint], list[str]]:
+def _display_name(source: str, root: Path | None) -> str:
+    """Display name for a scanned photo.
+
+    Basename by default. When *root* is given (recursive scans), use the path
+    relative to the scan root so per-session archives don't collapse to
+    indistinguishable ``DJI_0001.JPG`` pins — DJI restarts numbering per card.
+    ExifTool echoes the directory argument's separators, so both sides are
+    normalised to ``/`` before stripping; a SourceFile outside *root*
+    (unexpected) falls back to the basename.
+    """
+    if root is None:
+        return Path(source).name
+    src = source.replace("\\", "/")
+    prefix = str(root).replace("\\", "/").rstrip("/") + "/"
+    if src.startswith(prefix):
+        return src[len(prefix):]
+    return Path(source).name
+
+
+def points_from_exiftool_json(
+    data: list[dict], *, root: Path | None = None
+) -> tuple[list[PhotoPoint], list[str]]:
     """Map an ExifTool ``-json`` scan to ``(points, skipped_names)``.
 
     Photos without a usable GPS fix (missing tags, or the (0, 0) no-fix
     placeholder) go to ``skipped_names``. Both lists are sorted by filename so
-    output is deterministic regardless of scan order.
+    output is deterministic regardless of scan order. When *root* is supplied,
+    display names are relative to it (see :func:`_display_name`).
     """
     points: list[PhotoPoint] = []
     skipped: list[str] = []
     for entry in data:
-        name = Path(str(entry.get("SourceFile", "?"))).name
+        name = _display_name(str(entry.get("SourceFile", "?")), root)
         lat = _maybe_float(entry.get("GPSLatitude"))
         lon = _maybe_float(entry.get("GPSLongitude"))
         if lat is None or lon is None or not is_gps_fix(lat, lon):
             skipped.append(name)
             continue
-        thumb = entry.get("ThumbnailImage")
-        thumb_b64: str | None = None
-        if isinstance(thumb, str) and thumb.startswith("base64:"):
-            candidate = thumb[len("base64:"):]
-            if _BASE64_RE.fullmatch(candidate):
-                thumb_b64 = candidate
+        thumb_b64 = _extract_thumbnail_b64(entry)
         points.append(
             PhotoPoint(
                 lat=lat,
                 lon=lon,
-                alt=_maybe_float(entry.get("GPSAltitude")) or 0.0,
+                alt=_maybe_float(entry.get("GPSAltitude")),
                 name=name,
                 timestamp=_display_datetime(entry.get("DateTimeOriginal")),
                 model=_maybe_str(entry.get("Model")),
@@ -167,7 +219,7 @@ def _run_exiftool_scan(directory: Path, recursive: bool) -> list[dict]:
     "no photos", not an error. A non-zero exit with no JSON at all is a real
     failure (unreadable directory, broken install) and raises.
     """
-    args = [_exiftool_exe(), "-json", "-n", "-b"]
+    args = [exiftool_exe(), "-json", "-n", "-b"]
     if recursive:
         args.append("-r")
     args += _SCAN_TAGS
@@ -202,7 +254,11 @@ def scan_photos(
     directory: Path | str, recursive: bool = False
 ) -> tuple[list[PhotoPoint], list[str]]:
     """Scan *directory* for photos and return ``(gps_points, skipped_names)``."""
-    return points_from_exiftool_json(_run_exiftool_scan(Path(directory), recursive))
+    directory = Path(directory)
+    return points_from_exiftool_json(
+        _run_exiftool_scan(directory, recursive),
+        root=directory if recursive else None,
+    )
 
 
 def photos_to_geojson(
@@ -218,7 +274,11 @@ def photos_to_geojson(
         props: dict = {"name": p.name}
         if p.timestamp:
             props["timestamp"] = p.timestamp
-        props["alt"] = p.alt
+        # Missing altitude is omitted entirely (no property, 2D coordinate)
+        # rather than reported as a spurious 0 m.
+        coords = [p.lon, p.lat] if p.alt is None else [p.lon, p.lat, p.alt]
+        if p.alt is not None:
+            props["alt"] = p.alt
         camera = camera_summary(p)
         if camera:
             props["camera"] = camera
@@ -227,7 +287,7 @@ def photos_to_geojson(
         features.append(
             {
                 "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [p.lon, p.lat, p.alt]},
+                "geometry": {"type": "Point", "coordinates": coords},
                 "properties": props,
             }
         )
@@ -273,13 +333,20 @@ def photos_to_kml(points: list[PhotoPoint], title: str) -> str:
         camera = camera_summary(p)
         if camera:
             desc.append(escape(camera))
-        desc.append(f"altitude: {p.alt:g} m")
+        # No EXIF altitude -> clamp to terrain (a 0 m absolute placemark buries
+        # the pin below ground in Google Earth); the altitude value is ignored
+        # in that mode, so emit a placeholder 0.
+        if p.alt is None:
+            alt_mode, alt_coord = "clampToGround", "0"
+        else:
+            alt_mode, alt_coord = "absolute", f"{p.alt}"
+            desc.append(f"altitude: {p.alt:g} m")
         placemarks.append(
             "\n    <Placemark>"
             f"<name>{escape(p.name)}</name>"
             f"<description><![CDATA[{'<br/>'.join(desc)}]]></description>"
-            "<Point><altitudeMode>absolute</altitudeMode>"
-            f"<coordinates>{p.lon},{p.lat},{p.alt}</coordinates></Point>"
+            f"<Point><altitudeMode>{alt_mode}</altitudeMode>"
+            f"<coordinates>{p.lon},{p.lat},{alt_coord}</coordinates></Point>"
             "</Placemark>"
         )
     return _KML_TEMPLATE.format(name=escape(title), placemarks="".join(placemarks))

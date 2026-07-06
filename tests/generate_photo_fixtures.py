@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from dji_metadata_embedder.mp4_telemetry import _exiftool_exe
+from dji_metadata_embedder.utils.exiftool import exiftool_exe
 
 # Minimal valid 1x1 grey baseline JPEG (140 bytes, no EXIF).
 _MINIMAL_JPEG_B64 = (
@@ -32,7 +32,7 @@ _GPS = {
 
 
 def main() -> None:
-    exiftool = _exiftool_exe()
+    exiftool = exiftool_exe()
     if shutil.which(exiftool) is None and not Path(exiftool).is_file():
         sys.exit("ExifTool required to regenerate fixtures — see https://exiftool.org")
     _PHOTOS.mkdir(parents=True, exist_ok=True)

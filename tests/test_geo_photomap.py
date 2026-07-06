@@ -1,6 +1,7 @@
 import json as jsonlib
 import subprocess
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 
@@ -59,11 +60,99 @@ def test_parses_gps_photos_and_skips_the_rest():
     assert p.exposure == 0.001 and p.fnum == 1.7
 
 
+# DJI restarts file numbering per card/session, so a recursive per-location
+# archive scan collides on basenames unless names carry their subdirectory.
+_RECURSIVE = [
+    {"SourceFile": "/scan/root/north/DJI_0001.JPG", "GPSLatitude": 1.0, "GPSLongitude": 2.0},
+    {"SourceFile": "/scan/root/south/DJI_0001.JPG", "GPSLatitude": 3.0, "GPSLongitude": 4.0},
+]
+
+
+def test_recursive_root_yields_relative_display_names():
+    points, _ = points_from_exiftool_json(_RECURSIVE, root=Path("/scan/root"))
+    assert [p.name for p in points] == ["north/DJI_0001.JPG", "south/DJI_0001.JPG"]
+
+
+def test_no_root_yields_basenames():
+    points, _ = points_from_exiftool_json(_RECURSIVE)
+    assert [p.name for p in points] == ["DJI_0001.JPG", "DJI_0001.JPG"]
+
+
+def test_relative_name_falls_back_to_basename_when_outside_root():
+    # SourceFile not under the given root (unexpected) -> safe basename.
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": "/elsewhere/x.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0}],
+        root=Path("/scan/root"),
+    )
+    assert points[0].name == "x.jpg"
+
+
+def test_relative_name_normalises_backslash_separators():
+    # ExifTool echoes the directory arg's separators; a Windows root uses "\".
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": r"C:\scan\root/sub/DJI_0001.JPG",
+          "GPSLatitude": 1.0, "GPSLongitude": 2.0}],
+        root=Path(r"C:\scan\root"),
+    )
+    assert points[0].name == "sub/DJI_0001.JPG"
+
+
+def test_scan_photos_recursive_uses_relative_names(monkeypatch, tmp_path):
+    src = [{"SourceFile": f"{tmp_path}/a/DJI_0001.JPG",
+            "GPSLatitude": 1.0, "GPSLongitude": 2.0}]
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **k: _Proc(stdout=jsonlib.dumps(src))
+    )
+    points, _ = scan_photos(tmp_path, recursive=True)
+    assert points[0].name == "a/DJI_0001.JPG"
+
+
 def test_thumbnail_base64_prefix_is_stripped():
     points, _ = points_from_exiftool_json(CANNED)
     by_name = {p.name: p for p in points}
     assert by_name["church2.jpg"].thumbnail_b64 == "/9j/THUMB2"
     assert by_name["church1.jpg"].thumbnail_b64 is None
+
+
+def test_dng_previewimage_used_when_no_thumbnail():
+    # DJI DNGs expose their preview as PreviewImage, not EXIF:ThumbnailImage.
+    points, _ = points_from_exiftool_json([{
+        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+        "PreviewImage": "base64:/9j/PREVIEW",
+    }])
+    assert points[0].thumbnail_b64 == "/9j/PREVIEW"
+
+
+def test_thumbnail_preferred_over_preview():
+    # The small EXIF thumbnail wins over the (potentially large) preview.
+    points, _ = points_from_exiftool_json([{
+        "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+        "ThumbnailImage": "base64:/9j/THUMB",
+        "PreviewImage": "base64:/9j/PREVIEW",
+    }])
+    assert points[0].thumbnail_b64 == "/9j/THUMB"
+
+
+def test_oversized_preview_is_dropped_to_protect_budget():
+    from dji_metadata_embedder.geo import photomap as pm
+    big = "A" * (pm._MAX_PREVIEW_B64_CHARS + 4)  # valid base64, over the cap
+    points, _ = points_from_exiftool_json([{
+        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+        "PreviewImage": "base64:" + big,
+    }])
+    assert points[0].thumbnail_b64 is None
+
+
+def test_scan_photos_requests_preview_tag(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        return _Proc(stdout="[]")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    scan_photos(tmp_path)
+    assert "-PreviewImage" in seen["args"]
 
 
 def test_non_base64_thumbnail_is_dropped():
@@ -76,12 +165,20 @@ def test_non_base64_thumbnail_is_dropped():
     assert points[0].thumbnail_b64 is None
 
 
-def test_missing_altitude_defaults_to_zero():
+def test_missing_altitude_is_none():
     points, _ = points_from_exiftool_json(
         [{"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0}]
     )
-    assert points[0].alt == 0.0
+    assert points[0].alt is None  # distinct from a real 0 m fix
     assert points[0].timestamp is None
+
+
+def test_real_zero_altitude_is_preserved_distinct_from_missing():
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": "z.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+          "GPSAltitude": 0.0}]
+    )
+    assert points[0].alt == 0.0
 
 
 def test_unparseable_numeric_fields_become_none():
@@ -239,6 +336,40 @@ def test_geojson_include_thumbnails_opt_in():
 
 def test_geojson_empty_points():
     assert photos_to_geojson([]) == {"type": "FeatureCollection", "features": []}
+
+
+# One photo with EXIF altitude, one without — exercises the alt: float | None split.
+_MIXED_ALT = [
+    PhotoPoint(lat=1.0, lon=2.0, alt=100.0, name="has_alt.jpg"),
+    PhotoPoint(lat=3.0, lon=4.0, alt=None, name="no_alt.jpg"),
+]
+
+
+def test_geojson_omits_altitude_when_missing():
+    by_name = {
+        f["properties"]["name"]: f for f in photos_to_geojson(_MIXED_ALT)["features"]
+    }
+    has = by_name["has_alt.jpg"]
+    assert has["geometry"]["coordinates"] == [2.0, 1.0, 100.0]
+    assert has["properties"]["alt"] == 100.0
+    missing = by_name["no_alt.jpg"]
+    assert missing["geometry"]["coordinates"] == [4.0, 3.0]  # 2D — no altitude
+    assert "alt" not in missing["properties"]
+
+
+def test_kml_clamps_to_ground_when_altitude_missing():
+    root = ET.fromstring(photos_to_kml(_MIXED_ALT, title="t"))
+    pms = {
+        pm.find(f"{_KML_NS}name").text: pm
+        for pm in root.iter(f"{_KML_NS}Placemark")
+    }
+    has = pms["has_alt.jpg"].find(f"{_KML_NS}Point")
+    assert has.find(f"{_KML_NS}altitudeMode").text == "absolute"
+    assert has.find(f"{_KML_NS}coordinates").text == "2.0,1.0,100.0"
+    missing = pms["no_alt.jpg"].find(f"{_KML_NS}Point")
+    assert missing.find(f"{_KML_NS}altitudeMode").text == "clampToGround"
+    # altitude is ignored under clampToGround; emit a placeholder 0
+    assert missing.find(f"{_KML_NS}coordinates").text == "4.0,3.0,0"
 
 
 def test_write_photos_geojson(tmp_path):
