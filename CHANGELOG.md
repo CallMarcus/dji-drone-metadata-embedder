@@ -15,6 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.14.0] - 2026-07-06
+
+### Added
+
+- **photomap**: #245 follow-ups — recursive names, clampToGround, DNG previews + Windows CI (#250) (45f3e46)
+
+### Fixed
+
+- **embed**: Loosen --audio-sidecar duration-mismatch tolerance (#251) (fbdec3b)
+
+### Documentation
+
+- Auto-generate changelog for v1.13.0 (0fd2fc9)
+
+### Other
+
+- Prepare version 1.14.0 (1527c40)
+
+
 ## [1.13.0] - 2026-07-06
 
 ### Added
