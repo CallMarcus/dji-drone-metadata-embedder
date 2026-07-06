@@ -50,7 +50,9 @@ def has_admin_privileges() -> bool:
             return False
         except Exception:  # noqa: BLE001
             return False
-    return os.geteuid() == 0
+    # POSIX-only; unreachable on Windows (os.name == "nt" returns above), but
+    # mypy on Windows can't see that, so silence the platform-specific attr.
+    return os.geteuid() == 0  # type: ignore[attr-defined]
 
 
 def get_system_architecture() -> str:
