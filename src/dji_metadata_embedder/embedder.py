@@ -156,6 +156,7 @@ class DJIMetadataEmbedder:
         resample_strategy: str = "linear",
         container: str = "mp4",
         extract_home: bool = False,
+        audio_sidecar: bool = False,
     ):
         self.directory = Path(directory)
         self.output_dir = (
@@ -176,6 +177,9 @@ class DJIMetadataEmbedder:
         # Opt-in only: the HOME/launch point is the operator's location, so it
         # is parsed solely when explicitly requested and never written to MP4.
         self.extract_home = extract_home
+        # Opt-in: Neo 2 records audio to a separate .m4a; when set, auto-pair and
+        # mux the same-basename sidecar into the output (issue #246).
+        self.audio_sidecar = audio_sidecar
 
     def parse_dji_srt(self, srt_path: Path) -> Dict[str, Any]:
         """Parse DJI SRT file and extract telemetry data."""
@@ -410,8 +414,15 @@ class DJIMetadataEmbedder:
         srt_path: Path,
         telemetry: Dict[str, Any],
         output_path: Path,
+        audio_path: Optional[Path] = None,
     ) -> bool:
-        """Embed SRT as subtitle track and add metadata using ffmpeg."""
+        """Embed SRT as subtitle track and add metadata using ffmpeg.
+
+        When *audio_path* is given (Neo 2 records audio to a separate .m4a,
+        issue #246), it is added as a third input and its audio stream is muxed
+        into the output. Audio is appended last so the SRT keeps input index 1
+        and the existing ``-map 1`` subtitle mapping stays correct.
+        """
         import os
         import platform
 
@@ -443,12 +454,17 @@ class DJIMetadataEmbedder:
             else:
                 stream_maps = ["-map", "0", "-map", "-0:d", "-map", "1"]
                 subtitle_codec = "mov_text"
+
+            # Audio sidecar is the third input (index 2); pull its audio stream
+            # with -map 2:a. Keeping it last preserves the SRT's input index 1.
+            inputs = ["-i", str(video_path), "-i", str(srt_path)]
+            if audio_path is not None:
+                inputs += ["-i", str(audio_path)]
+                stream_maps += ["-map", "2:a"]
+
             cmd = [
                 ffmpeg_cmd,
-                "-i",
-                str(video_path),
-                "-i",
-                str(srt_path),
+                *inputs,
                 *stream_maps,
                 "-c",
                 "copy",
@@ -619,6 +635,43 @@ class DJIMetadataEmbedder:
                             "Failed to parse DAT file %s: %s", dat_file.name, e
                         )
 
+                # Optionally pair a separate audio sidecar. The Neo 2 records
+                # audio to a same-basename .m4a next to the silent video; mux it
+                # back in on request (issue #246). Warn-and-continue when absent
+                # so mixed folders (some clips with audio, some without) still
+                # process every video.
+                audio_file = None
+                if self.audio_sidecar:
+                    for ext in (".m4a", ".M4A"):
+                        cand = video_path.with_suffix(ext)
+                        if cand.exists():
+                            audio_file = cand
+                            break
+                    if audio_file is None:
+                        warning_msg = (
+                            f"No .m4a audio sidecar found for: {video_path.name}"
+                        )
+                        logger.warning(warning_msg)
+                        result["warnings"].append(warning_msg)
+                    else:
+                        # Sanity check: flag a large video/audio length gap (wrong
+                        # pairing, truncated recording) but still mux — the user
+                        # opted in and may want whatever audio exists.
+                        video_dur = _ffprobe_duration(video_path)
+                        audio_dur = _ffprobe_duration(audio_file)
+                        if (
+                            video_dur is not None
+                            and audio_dur is not None
+                            and abs(video_dur - audio_dur) > 1.0
+                        ):
+                            warning_msg = (
+                                f"Audio sidecar duration ({audio_dur:.1f}s) differs "
+                                f"from video ({video_dur:.1f}s) for "
+                                f"{video_path.name}; muxing anyway"
+                            )
+                            logger.warning(warning_msg)
+                            result["warnings"].append(warning_msg)
+
                 # Final output path; write to temp first, then atomic move (issue #162).
                 # When overwrite (issue #163), destination = same as input file.
                 if self.overwrite:
@@ -638,7 +691,11 @@ class DJIMetadataEmbedder:
 
                 # Embed metadata using ffmpeg into temp file
                 if self.embed_metadata_ffmpeg(
-                    video_path, srt_path, telemetry, temp_output_path
+                    video_path,
+                    srt_path,
+                    telemetry,
+                    temp_output_path,
+                    audio_path=audio_file,
                 ):
                     if _validate_embedded_output(video_path, temp_output_path):
                         try:
