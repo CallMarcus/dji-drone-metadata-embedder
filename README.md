@@ -3,6 +3,7 @@
 [![GitHub Release]][release]
 [![Version](https://img.shields.io/badge/version-1.14.0-blue)][release]
 [![PyPI]][pypi]
+[![Winget]][winget]
 
 A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files.
 This tool extracts GPS coordinates, altitude, camera settings and other telemetry data from SRT files and embeds
@@ -39,12 +40,18 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 ### Option 2: Direct Download
 Download the ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
 
-### Option 3: Python Package
+### Option 3: Windows Package Manager (winget)
+```powershell
+winget install CallMarcus.DJIMetadataEmbedder
+```
+Already installed? Upgrade with `winget upgrade CallMarcus.DJIMetadataEmbedder`.
+
+> Note: winget installs the portable `dji-embed.exe` only. Install FFmpeg and ExifTool separately (`winget install Gyan.FFmpeg OliverBetz.ExifTool`), or use the bootstrap script above, which bundles them.
+
+### Option 4: Python Package
 ```powershell
 pip install dji-drone-metadata-embedder
 ```
-
-> **Windows Package Manager (winget)** — planned, not yet available. The package has not been published to `winget-pkgs` yet; tracking in [#175](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/175).
 
 ## macOS / Linux quick-start
 
@@ -589,3 +596,5 @@ This tool is not affiliated with or endorsed by DJI. Use at your own risk.
 [release]: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases
 [PyPI]: https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi
 [pypi]: https://pypi.org/project/dji-drone-metadata-embedder/
+[Winget]: https://img.shields.io/winget/v/CallMarcus.DJIMetadataEmbedder?logo=windows&label=winget
+[winget]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/c/CallMarcus/DJIMetadataEmbedder

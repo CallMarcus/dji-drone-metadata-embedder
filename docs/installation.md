@@ -8,6 +8,17 @@
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
+The bootstrap script also installs FFmpeg and ExifTool.
+
+### Windows – winget
+
+```powershell
+winget install CallMarcus.DJIMetadataEmbedder
+```
+
+Installs the portable `dji-embed.exe`. FFmpeg and ExifTool are not bundled — add
+them with `winget install Gyan.FFmpeg OliverBetz.ExifTool`, or use the bootstrap
+script above, which bundles everything.
 
 ### Windows – manual path
 

@@ -94,13 +94,16 @@ from pre-existing environmental gaps.
   per-job artefacts, and richer previews – instead of new GUI frameworks.
 - **Performance work on large batches.** Candidates include parallel
   per-clip embedding and streaming SRT parsing for long flights.
-- **Winget catalog publish — in Microsoft's queue.** #175 is closed (the
-  `release-winget.yml` workflow was fixed, not rewritten). The first-publisher
-  submission for `CallMarcus.DJIMetadataEmbedder` is open as
-  [microsoft/winget-pkgs#391183](https://github.com/microsoft/winget-pkgs/pull/391183),
-  awaiting moderator approval. The workflow stays `workflow_dispatch`-only and
-  the three hand-maintained manifests in `winget/` remain in use; a future
-  `winget-releaser` rewrite is optional, not required.
+- **Winget catalog publish — live.** `CallMarcus.DJIMetadataEmbedder` is
+  published in the public winget source (`winget install
+  CallMarcus.DJIMetadataEmbedder`). The first-publisher submission
+  [microsoft/winget-pkgs#391183](https://github.com/microsoft/winget-pkgs/pull/391183)
+  (v1.11.0) merged 2026-07-06; version updates are filed manually per release via
+  `gh workflow run release-winget.yml -f version=X.Y.Z`. The workflow stays
+  `workflow_dispatch`-only and the three hand-maintained manifests in `winget/`
+  remain in use. Remaining follow-up: fold the winget update step into the normal
+  release cadence so the catalog stops lagging PyPI/EXE (a `winget-releaser`
+  rewrite is one option, not required).
 
 ## Explicitly out of scope
 

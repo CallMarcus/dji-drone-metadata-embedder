@@ -98,5 +98,5 @@ The project maintains local winget manifests in the `/winget` directory:
 
 Users can install via:
 ```powershell
-winget install dji-embed
+winget install CallMarcus.DJIMetadataEmbedder
 ```
