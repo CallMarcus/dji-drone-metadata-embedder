@@ -142,3 +142,33 @@ def test_csv_fuzz_sun_computed_from_fuzzed_coords(tmp_path):
     az, el = sun_position(39.123, 116.654, utc)
     assert fuzzed["sun_azimuth"] == f"{az:.3f}"
     assert fuzzed["sun_elevation"] == f"{el:.3f}"
+
+
+def test_csv_from_mp4_honours_redact(tmp_path, monkeypatch):
+    """MP4 input previously bypassed --redact entirely (#248)."""
+    from datetime import datetime
+
+    from dji_metadata_embedder import telemetry_converter as tc
+    from dji_metadata_embedder.utilities import TelemetrySample
+
+    samples = [
+        TelemetrySample(
+            39.123456, 116.654321, 100.0, "00:00:00,000",
+            datetime(2026, 7, 1, 4, 0, 0),
+        )
+    ]
+    monkeypatch.setattr("dji_metadata_embedder.utilities.load_samples", lambda p: samples)
+
+    video = tmp_path / "DJI_0001.MP4"
+    video.write_bytes(b"\x00")
+
+    drop = _read_csv(tc.extract_telemetry_to_csv(video, tmp_path / "d.csv", redact="drop"))[0]
+    assert drop["latitude"] == "" and drop["longitude"] == ""
+    assert drop["sun_azimuth"] == "" and drop["sun_elevation"] == ""
+    assert drop["datetime_utc"] != ""
+    assert drop["abs_altitude"] != ""
+
+    fuzz = _read_csv(tc.extract_telemetry_to_csv(video, tmp_path / "z.csv", redact="fuzz"))[0]
+    assert fuzz["latitude"] == "39.123"
+    assert fuzz["longitude"] == "116.654"
+    assert fuzz["sun_azimuth"] != ""

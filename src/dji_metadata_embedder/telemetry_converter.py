@@ -309,7 +309,9 @@ _CSV_COLUMNS = (
 )
 
 
-def _csv_from_samples(samples: list[TelemetrySample], output_path: Path) -> Path:
+def _csv_from_samples(
+    samples: list[TelemetrySample], output_path: Path, redact: str = "none"
+) -> Path:
     """Write CSV rows from video-sourced samples (UTC is intrinsic).
 
     Fills geo, altitude, ``datetime_utc`` and solar columns; camera columns that
@@ -322,15 +324,24 @@ def _csv_from_samples(samples: list[TelemetrySample], output_path: Path) -> Path
     for s in samples:
         row = {c: "" for c in _CSV_COLUMNS}
         row["timestamp"] = s.cue
-        row["latitude"] = f"{s.lat}"
-        row["longitude"] = f"{s.lon}"
+        # Track redaction (#248): same policy as the SRT path.
+        lat: float | None = s.lat
+        lon: float | None = s.lon
+        if redact == "fuzz":
+            lat, lon = round(s.lat, 3), round(s.lon, 3)
+        if redact == "drop":
+            lat = None
+            lon = None
+        else:
+            row["latitude"] = f"{lat}"
+            row["longitude"] = f"{lon}"
         if s.rel_alt is not None:
             row["rel_altitude"] = f"{s.rel_alt}"
         row["abs_altitude"] = f"{s.alt}"
         if s.dt is not None:
             row["datetime_utc"] = s.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if is_gps_fix(s.lat, s.lon):
-                az, el = sun_position(s.lat, s.lon, s.dt)
+            if lat is not None and lon is not None and is_gps_fix(lat, lon):
+                az, el = sun_position(lat, lon, s.dt)
                 row["sun_azimuth"] = f"{az:.3f}"
                 row["sun_elevation"] = f"{el:.3f}"
         rows.append(row)
@@ -365,7 +376,7 @@ def extract_telemetry_to_csv(
     from .utilities import load_samples
 
     if is_video(srt_path):
-        return _csv_from_samples(load_samples(srt_path), output_path)
+        return _csv_from_samples(load_samples(srt_path), output_path, redact)
 
     home_cols: list[str] = []
     home = None
