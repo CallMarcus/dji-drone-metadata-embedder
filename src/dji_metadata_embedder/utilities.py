@@ -451,6 +451,20 @@ def check_dependencies() -> Tuple[bool, list[str]]:
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     pass  # Fall through to normal check
 
+            # Copy provisioned via `dji-embed doctor --install exiftool`
+            if name == "exiftool":
+                from .utils.provision import provisioned_exiftool
+
+                prov = provisioned_exiftool()
+                if prov is not None:
+                    try:
+                        subprocess.run(
+                            [str(prov), "-ver"], capture_output=True, check=True
+                        )
+                        continue  # Tool found, skip to next
+                    except (subprocess.CalledProcessError, OSError):
+                        pass  # Fall through to normal check
+
             # Normal check
             try:
                 # Use shell=True on Windows to find executables in PATH

@@ -269,3 +269,28 @@ def test_reject_unsafe_archive_members(monkeypatch, tmp_path):
 def test_provision_real_download(tmp_path):
     exe = provision_exiftool(root=tmp_path / "tools")
     assert exe.exists()
+
+
+def test_check_dependencies_finds_provisioned_exiftool(monkeypatch, tmp_path):
+    """A provisioned copy satisfies the exiftool dependency check."""
+    import subprocess
+
+    from dji_metadata_embedder import utilities
+
+    def fake_run(cmd, **kwargs):
+        exe = cmd[0] if isinstance(cmd, list) else cmd
+        if "exiftool" in str(exe) and str(tmp_path) in str(exe):
+            return subprocess.CompletedProcess(cmd, 0, stdout="13.59", stderr="")
+        raise FileNotFoundError(exe)
+
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path))
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    exe = tmp_path / f"exiftool-{EXIFTOOL_VERSION}" / (
+        "exiftool.exe" if provision.platform.system() == "Windows" else "exiftool"
+    )
+    exe.parent.mkdir(parents=True)
+    exe.write_text("stub")
+    monkeypatch.setattr(utilities.subprocess, "run", fake_run)
+
+    ok, missing = utilities.check_dependencies()
+    assert "exiftool" not in missing
