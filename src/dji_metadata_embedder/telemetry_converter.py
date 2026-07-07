@@ -162,13 +162,19 @@ def extract_telemetry_to_gpx(
         f.write(gpx_header)
         f.write(home_wpt)
         f.write(trk_open)
-        for point in gps_points:
-            f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
-            f.write(f'            <ele>{point["ele"]}</ele>\n')
-            time_str = _point_time(point)
-            if time_str:
-                f.write(f'            <time>{time_str}</time>\n')
-            f.write("        </trkpt>\n")
+        # Track redaction (#248): drop -> empty <trkseg/>; fuzz -> 3 decimals
+        # (~100 m), the same policy as redact_coords/redact_home.
+        if redact != "drop":
+            for point in gps_points:
+                lat, lon = point["lat"], point["lon"]
+                if redact == "fuzz":
+                    lat, lon = round(lat, 3), round(lon, 3)
+                f.write(f'        <trkpt lat="{lat}" lon="{lon}">\n')
+                f.write(f'            <ele>{point["ele"]}</ele>\n')
+                time_str = _point_time(point)
+                if time_str:
+                    f.write(f'            <time>{time_str}</time>\n')
+                f.write("        </trkpt>\n")
         f.write(gpx_footer)
 
     logger.info("GPX file created: %s", output_path)
