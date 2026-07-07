@@ -162,13 +162,19 @@ def extract_telemetry_to_gpx(
         f.write(gpx_header)
         f.write(home_wpt)
         f.write(trk_open)
-        for point in gps_points:
-            f.write(f'        <trkpt lat="{point["lat"]}" lon="{point["lon"]}">\n')
-            f.write(f'            <ele>{point["ele"]}</ele>\n')
-            time_str = _point_time(point)
-            if time_str:
-                f.write(f'            <time>{time_str}</time>\n')
-            f.write("        </trkpt>\n")
+        # Track redaction (#248): drop -> empty <trkseg/>; fuzz -> 3 decimals
+        # (~100 m), the same policy as redact_coords/redact_home.
+        if redact != "drop":
+            for point in gps_points:
+                lat, lon = point["lat"], point["lon"]
+                if redact == "fuzz":
+                    lat, lon = round(lat, 3), round(lon, 3)
+                f.write(f'        <trkpt lat="{lat}" lon="{lon}">\n')
+                f.write(f'            <ele>{point["ele"]}</ele>\n')
+                time_str = _point_time(point)
+                if time_str:
+                    f.write(f'            <time>{time_str}</time>\n')
+                f.write("        </trkpt>\n")
         f.write(gpx_footer)
 
     logger.info("GPX file created: %s", output_path)
@@ -303,7 +309,9 @@ _CSV_COLUMNS = (
 )
 
 
-def _csv_from_samples(samples: list[TelemetrySample], output_path: Path) -> Path:
+def _csv_from_samples(
+    samples: list[TelemetrySample], output_path: Path, redact: str = "none"
+) -> Path:
     """Write CSV rows from video-sourced samples (UTC is intrinsic).
 
     Fills geo, altitude, ``datetime_utc`` and solar columns; camera columns that
@@ -316,15 +324,24 @@ def _csv_from_samples(samples: list[TelemetrySample], output_path: Path) -> Path
     for s in samples:
         row = {c: "" for c in _CSV_COLUMNS}
         row["timestamp"] = s.cue
-        row["latitude"] = f"{s.lat}"
-        row["longitude"] = f"{s.lon}"
+        # Track redaction (#248): same policy as the SRT path.
+        lat: float | None = s.lat
+        lon: float | None = s.lon
+        if redact == "fuzz":
+            lat, lon = round(s.lat, 3), round(s.lon, 3)
+        if redact == "drop":
+            lat = None
+            lon = None
+        else:
+            row["latitude"] = f"{lat}"
+            row["longitude"] = f"{lon}"
         if s.rel_alt is not None:
             row["rel_altitude"] = f"{s.rel_alt}"
         row["abs_altitude"] = f"{s.alt}"
         if s.dt is not None:
             row["datetime_utc"] = s.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if is_gps_fix(s.lat, s.lon):
-                az, el = sun_position(s.lat, s.lon, s.dt)
+            if lat is not None and lon is not None and is_gps_fix(lat, lon):
+                az, el = sun_position(lat, lon, s.dt)
                 row["sun_azimuth"] = f"{az:.3f}"
                 row["sun_elevation"] = f"{el:.3f}"
         rows.append(row)
@@ -359,7 +376,7 @@ def extract_telemetry_to_csv(
     from .utilities import load_samples
 
     if is_video(srt_path):
-        return _csv_from_samples(load_samples(srt_path), output_path)
+        return _csv_from_samples(load_samples(srt_path), output_path, redact)
 
     home_cols: list[str] = []
     home = None
@@ -400,10 +417,20 @@ def extract_telemetry_to_csv(
             lat_val: float | None = None
             lon_val: float | None = None
             if lat_match and lon_match:
-                row["latitude"] = lat_match.group(1)
-                row["longitude"] = lon_match.group(1)
                 lat_val = float(lat_match.group(1))
                 lon_val = float(lon_match.group(1))
+                # Track redaction (#248): fuzz -> 3 decimals (~100 m, same
+                # policy as redact_coords); drop -> blank GPS cells. Fuzzing
+                # lat_val/lon_val here also feeds the fuzzed position into
+                # the solar pass below.
+                if redact == "fuzz":
+                    lat_val, lon_val = round(lat_val, 3), round(lon_val, 3)
+                if redact == "drop":
+                    lat_val = None
+                    lon_val = None
+                else:
+                    row["latitude"] = f"{lat_val}"
+                    row["longitude"] = f"{lon_val}"
 
             # Altitude
             alt_match = re.search(
@@ -451,11 +478,13 @@ def extract_telemetry_to_csv(
     offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
     if offset is not None:
         for row, (abs_dt, lat_val, lon_val) in zip(rows, solar_inputs):
-            if abs_dt is None or lat_val is None or lon_val is None:
+            if abs_dt is None:
                 continue
             utc = abs_dt - offset
+            # datetime_utc reveals when, not where — filled even when the
+            # coordinates are redacted away (#248).
             row["datetime_utc"] = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if not is_gps_fix(lat_val, lon_val):
+            if lat_val is None or lon_val is None or not is_gps_fix(lat_val, lon_val):
                 continue
             az, el = sun_position(lat_val, lon_val, utc)
             row["sun_azimuth"] = f"{az:.3f}"

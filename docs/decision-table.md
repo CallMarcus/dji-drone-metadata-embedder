@@ -71,7 +71,7 @@ This guide helps you choose the right command and approach for your specific use
 ### Privacy & Redaction
 - `--redact none` - Keep all GPS data (default)
 - `--redact fuzz` - Round GPS coordinates to ~100m precision
-- `--redact drop` - Remove all GPS data completely
+- `--redact drop` - Remove all GPS data completely (csv keeps rows with GPS/sun columns blanked)
 
 ### Advanced Options
 - `--exiftool` - Use ExifTool for additional metadata formats
