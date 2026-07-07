@@ -294,3 +294,28 @@ def test_check_dependencies_finds_provisioned_exiftool(monkeypatch, tmp_path):
 
     ok, missing = utilities.check_dependencies()
     assert "exiftool" not in missing
+
+
+def test_get_tool_versions_sees_provisioned_exiftool(monkeypatch, tmp_path):
+    """--version resolves exiftool through the shared resolver (provisioned copy)."""
+    import subprocess
+
+    from dji_metadata_embedder import utilities
+
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path))
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    exe = tmp_path / f"exiftool-{EXIFTOOL_VERSION}" / (
+        "exiftool.exe" if provision.platform.system() == "Windows" else "exiftool"
+    )
+    exe.parent.mkdir(parents=True)
+    exe.write_text("stub")
+
+    def fake_run(cmd, **kwargs):
+        first = str(cmd[0] if isinstance(cmd, list) else cmd)
+        if str(tmp_path) in first:
+            return subprocess.CompletedProcess(cmd, 0, stdout="13.59", stderr="")
+        raise FileNotFoundError(first)
+
+    monkeypatch.setattr(utilities.subprocess, "run", fake_run)
+    versions = utilities.get_tool_versions()
+    assert versions["exiftool"] == "13.59"
