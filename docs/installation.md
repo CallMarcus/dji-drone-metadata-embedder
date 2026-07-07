@@ -18,7 +18,9 @@ winget install CallMarcus.DJIMetadataEmbedder
 
 Installs the portable `dji-embed.exe`. FFmpeg and ExifTool are not bundled — add
 them with `winget install Gyan.FFmpeg OliverBetz.ExifTool`, or use the bootstrap
-script above, which bundles everything.
+script above, which bundles everything. For MP4 timed-metadata support you can
+also let the tool install its own pinned ExifTool: `dji-embed doctor --install
+exiftool` (any OS, no admin rights).
 
 ### Windows – manual path
 
@@ -39,6 +41,10 @@ pip install dji-drone-metadata-embedder
 sudo apt update && sudo apt install ffmpeg exiftool
 pip install dji-drone-metadata-embedder
 ```
+
+Distro ExifTool packages are often too old for DJI MP4 timed metadata —
+run `dji-embed doctor --install exiftool` to get a current, checksum-verified
+copy in your user directory.
 
 ### Docker
 

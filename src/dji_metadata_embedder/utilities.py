@@ -377,7 +377,12 @@ def get_tool_versions() -> dict[str, str]:
             env_var = f"DJIEMBED_{name.upper()}_PATH"
             tool_path = os.environ.get(env_var)
             
-            if tool_path and Path(tool_path).exists():
+            if name == "exiftool":
+                # Shared resolver: env override → provisioned copy → PATH
+                from .utils.exiftool import exiftool_exe
+
+                test_cmd = [exiftool_exe()] + cmd[1:]
+            elif tool_path and Path(tool_path).exists():
                 test_cmd = [tool_path] + cmd[1:]
             else:
                 test_cmd = cmd
@@ -450,6 +455,20 @@ def check_dependencies() -> Tuple[bool, list[str]]:
                     continue  # Tool found, skip to next
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     pass  # Fall through to normal check
+
+            # Copy provisioned via `dji-embed doctor --install exiftool`
+            if name == "exiftool":
+                from .utils.provision import provisioned_exiftool
+
+                prov = provisioned_exiftool()
+                if prov is not None:
+                    try:
+                        subprocess.run(
+                            [str(prov), "-ver"], capture_output=True, check=True
+                        )
+                        continue  # Tool found, skip to next
+                    except (subprocess.CalledProcessError, OSError):
+                        pass  # Fall through to normal check
 
             # Normal check
             try:

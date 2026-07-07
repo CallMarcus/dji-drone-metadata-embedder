@@ -32,21 +32,26 @@ dji-embed --version
 
 ## ExifTool  
 
-### Recommended Version: 12.76
+### Recommended Version: 13.59
 
 **Why this version:**
-- Mature GPS metadata support
-- Extensive video format compatibility  
-- Active maintenance and security updates
-- Proven stability with MP4 files
+- Current production release
+- Decodes DJI `djmd`/`dbgi` MP4 timed metadata for all supported models
+  (Air 3S ≥ 13.39, Mini 5 Pro ≥ 13.52)
+- Matches the `dji-embed doctor --install exiftool` pin
+
+**Note:** 12.76 (Ubuntu 24.04's package) recognises DJI MP4 telemetry streams
+but decodes **no GPS** — run `dji-embed doctor --install exiftool` on such
+systems.
 
 **Download sources:**
+- **Any OS (recommended):** `dji-embed doctor --install exiftool` — pinned, checksum-verified, per-user install
 - **Windows**: https://exiftool.org/install.html#Windows (Standalone executable)
 - **macOS**: `brew install exiftool`
 - **Linux**: `apt install exiftool` or equivalent
 
-**Minimum supported:** 11.00+  
-**Latest tested:** 13.25
+**Minimum supported:** 11.00+ (SRT workflows); 13.05+ (MP4 timed metadata)  
+**Latest tested:** 13.59
 
 ### Version Detection
 
@@ -64,18 +69,19 @@ The Dockerfile pins these exact versions:
 
 ```dockerfile
 ARG FFMPEG_VERSION=6.1.1
-ARG EXIFTOOL_VERSION=12.76
 
 # Usage in Dockerfile
 RUN curl -L "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
     | tar -xJ --strip-components=1 -C /usr/local/bin/
 ```
 
+The image installs ExifTool from apt with no version pin (`apt-get install ffmpeg exiftool`).
+
 ## Compatibility Matrix
 
 | dji-embed | FFmpeg | ExifTool | Status |
 |-----------|---------|----------|--------|
-| 1.14.0    | 6.1.1   | 12.76    | ✅ Recommended |
+| 1.14.0    | 6.1.1   | 13.59    | ✅ Recommended |
 | 1.14.0    | 6.0.x   | 12.70+   | ✅ Supported |
 | 1.14.0    | 5.1.x   | 12.50+   | ⚠️ Limited testing |
 | 1.14.0    | 4.4.x   | 11.00+   | ⚠️ Minimum support |
@@ -98,7 +104,7 @@ The `dji-embed --version` command now shows detected tool versions:
 dji-embed 1.14.0
   python: python
   ffmpeg: 6.1.1
-  exiftool: 12.76
+  exiftool: 13.59
 ```
 
 If tools show "not available", they need to be installed or added to PATH.

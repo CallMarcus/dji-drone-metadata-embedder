@@ -419,3 +419,9 @@ def test_write_photos_kml(tmp_path):
     result = write_photos_kml(_two_points(), out, title="t")
     assert result == out
     assert "<kml" in out.read_text(encoding="utf-8")
+
+
+def test_photomap_install_hint_names_the_doctor_command():
+    from dji_metadata_embedder.geo.photomap import _EXIFTOOL_INSTALL_HINT
+
+    assert "dji-embed doctor --install exiftool" in _EXIFTOOL_INSTALL_HINT

@@ -329,7 +329,7 @@ try {
 # Install tools (FFmpeg and ExifTool)
 $binDir = Join-Path $env:LOCALAPPDATA 'dji-embed\bin'
 $FFmpegUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
-$ExifToolUrl = 'https://sourceforge.net/projects/exiftool/files/exiftool-13.33_64.zip/download'
+$ExifToolUrl = 'https://sourceforge.net/projects/exiftool/files/exiftool-13.59_64.zip/download'
 New-Item -Force -ItemType Directory $binDir | Out-Null
 
 # Function to download and extract tools safely

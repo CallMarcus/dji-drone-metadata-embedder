@@ -26,9 +26,10 @@ class PhotomapError(RuntimeError):
 
 
 _EXIFTOOL_INSTALL_HINT = (
-    "ExifTool not found. Install it (https://exiftool.org) or set "
-    "DJIEMBED_EXIFTOOL_PATH to the executable, then run 'dji-embed doctor' "
-    "to verify."
+    "ExifTool not found. Run: dji-embed doctor --install exiftool "
+    "(downloads a pinned, checksum-verified copy; no admin rights needed). "
+    "Alternatively install it from https://exiftool.org or set "
+    "DJIEMBED_EXIFTOOL_PATH to the executable."
 )
 
 # One batch call reads GPS, capture metadata, and the EXIF-embedded thumbnail

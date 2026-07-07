@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
+from .utils.provision import EXIFTOOL_VERSION, provision_exiftool
 from .metadata_check import check_metadata
 from .telemetry_converter import (
     extract_telemetry_to_gpx,
@@ -401,13 +402,30 @@ def photomap(
 @main.command()
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+@click.option(
+    "--install",
+    "install_tool",
+    type=click.Choice(["exiftool"]),
+    help="Download a pinned, checksum-verified copy of the tool into the "
+    "per-user tools directory (no admin rights needed), then run the checks.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="With --install: reinstall even when already provisioned.",
+)
 @click.pass_context
-def doctor(ctx: click.Context, verbose: bool, quiet: bool) -> None:
+def doctor(
+    ctx: click.Context, verbose: bool, quiet: bool, install_tool: str | None, force: bool
+) -> None:
     """Show system information and verify dependencies."""
     log_json = ctx.obj.get('log_json', False)
     setup_logging(verbose, quiet, log_json)
-    
+
     try:
+        if install_tool == "exiftool":
+            exe = provision_exiftool(force=force)
+            click.echo(f"ExifTool {EXIFTOOL_VERSION} installed: {exe}")
         run_doctor()
         if log_json:
             click.echo(json.dumps({"status": "success"}))
