@@ -26,9 +26,20 @@ ExifTool decodes each model's protobuf schema in a specific release:
 
 Newer models land in later releases — check the ExifTool change history. If your
 ExifTool is too old, the stream is recognised but no GPS is decoded, and
-`dji-embed` reports which schema needs a newer ExifTool. Ubuntu/Debian packages
-lag; install a current ExifTool from <https://exiftool.org> (or set
-`DJIEMBED_EXIFTOOL_PATH`).
+`dji-embed` reports which schema needs a newer ExifTool.
+
+**Getting a current ExifTool** — distro packages lag badly (Ubuntu 24.04 ships
+12.76, which decodes no DJI GPS at all). The built-in installer fetches a
+pinned, checksum-verified copy into a per-user directory (no admin rights):
+
+    dji-embed doctor --install exiftool
+
+It lands in `%LOCALAPPDATA%\dji-embed\tools\` (Windows),
+`~/.local/share/dji-embed/tools/` (Linux) or `~/Library/Application
+Support/dji-embed/tools/` (macOS), and `dji-embed` prefers it automatically.
+`dji-embed doctor` shows the resolved version and whether it can decode each
+supported model. To use a specific binary instead, set
+`DJIEMBED_EXIFTOOL_PATH`.
 
 ## What you get
 

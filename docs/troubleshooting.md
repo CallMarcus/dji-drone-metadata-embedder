@@ -92,6 +92,18 @@ rm -rf ~/.local/bin/dji-embed         # Linux/macOS
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
+### "Telemetry stream present but no GPS decoded" / ExifTool too old
+
+Your ExifTool predates the decoder for that model (e.g. Ubuntu 24.04 ships
+12.76; Air 3S needs ≥ 13.39, Mini 5 Pro ≥ 13.52). Fix:
+
+    dji-embed doctor --install exiftool
+
+This downloads the pinned, checksum-verified release into a per-user tools
+directory and `dji-embed` uses it automatically. `dji-embed doctor` shows the
+resolved version and a `timed-metadata decode:` verdict. Use `--force` to
+reinstall; `DJIEMBED_EXIFTOOL_PATH` overrides everything.
+
 ### "python was not found"
 
 **Windows:**

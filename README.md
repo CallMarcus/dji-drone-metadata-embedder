@@ -426,6 +426,10 @@ dji-embed doctor
 No arguments or options required.
 ```
 
+`dji-embed doctor --install exiftool` downloads a pinned, checksum-verified
+ExifTool into your user directory — useful where system packages are too old
+for MP4 timed metadata (most Linux distros).
+
 #### `dji-embed wizard` - Interactive Setup
 Launch interactive setup wizard (under development).
 
