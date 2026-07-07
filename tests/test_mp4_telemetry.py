@@ -85,7 +85,7 @@ def test_extract_samples_undecoded_raises(monkeypatch, tmp_path):
     f.write_bytes(b"\x00")
     monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _load("neo2_undecoded_g3j.json"))
     monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto;model_name:FC9470")
-    monkeypatch.setattr(mt, "_exiftool_version", lambda: "13.55")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "13.55")
     with pytest.raises(mt.Mp4TelemetryError) as exc:
         mt.extract_samples(f)
     assert "dvtm_NEO2.proto" in str(exc.value)
@@ -157,3 +157,27 @@ def test_probe_none_when_no_track(monkeypatch, tmp_path):
     f = tmp_path / "x.mp4"
     f.write_bytes(b"\x00")
     assert mt.probe(f) is None
+
+
+def test_install_hint_names_the_doctor_command():
+    from dji_metadata_embedder.mp4_telemetry import _EXIFTOOL_INSTALL_HINT
+
+    assert "dji-embed doctor --install exiftool" in _EXIFTOOL_INSTALL_HINT
+
+
+def test_undecodable_stream_error_names_model_floor(monkeypatch, tmp_path):
+    import dji_metadata_embedder.mp4_telemetry as m
+
+    video = tmp_path / "DJI_0001.MP4"
+    video.write_bytes(b"\x00")
+    # ExifTool "ran" but decoded nothing for this model:
+    monkeypatch.setattr(m, "_run_exiftool_json", lambda path: [{"Doc1": {"SampleTime": 0.0}}])
+    monkeypatch.setattr(m, "probe", lambda path: "dvtm_Air3s.proto;model_name:FC9113")
+    monkeypatch.setattr(m, "exiftool_version", lambda: "12.76")
+
+    with pytest.raises(m.Mp4TelemetryError) as err:
+        m.extract_samples(video)
+    text = str(err.value)
+    assert ">= 13.39" in text
+    assert "12.76" in text
+    assert "dji-embed doctor --install exiftool" in text

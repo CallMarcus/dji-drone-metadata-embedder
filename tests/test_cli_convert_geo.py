@@ -173,7 +173,7 @@ def test_convert_mp4_too_old_exiftool_clean_error(monkeypatch, tmp_path):
         lambda p: [{"Doc1": {"SampleTime": 0}}],
     )
     monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto")
-    monkeypatch.setattr(mt, "_exiftool_version", lambda: "12.76")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "12.76")
     mp4 = tmp_path / "neo2.mp4"
     mp4.write_bytes(b"\x00")
     res = CliRunner().invoke(main, ["convert", "geojson", str(mp4)])

@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .utilities import TelemetrySample, is_gps_fix
-from .utils.exiftool import exiftool_exe
+from .utils.exiftool import decode_floor, exiftool_exe, exiftool_version
 
 # Back-compat alias: this private name predates the shared resolver in
 # utils/exiftool.py. Kept so any external importer of the old symbol still works.
@@ -124,9 +124,10 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
 
 
 _EXIFTOOL_INSTALL_HINT = (
-    "ExifTool not found. Install it (https://exiftool.org) or set "
-    "DJIEMBED_EXIFTOOL_PATH to the executable. Reading MP4 timed metadata "
-    "needs ExifTool >= 13.39 for Air 3S, >= 13.52 for Mini 5 Pro."
+    "ExifTool not found. Run: dji-embed doctor --install exiftool "
+    "(downloads a pinned, checksum-verified copy; no admin rights needed). "
+    "Alternatively install it from https://exiftool.org or set "
+    "DJIEMBED_EXIFTOOL_PATH to the executable."
 )
 
 
@@ -137,11 +138,6 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
         )
     except FileNotFoundError:
         raise Mp4TelemetryError(_EXIFTOOL_INSTALL_HINT) from None
-
-
-def _exiftool_version() -> str | None:
-    proc = _run(["-ver"])
-    return proc.stdout.strip() or None
 
 
 def _run_exiftool_json(path: Path) -> list:
@@ -193,9 +189,12 @@ def extract_samples(path: Path) -> list[TelemetrySample]:
             f".SRT for this clip?"
         )
     if not saw_telemetry:
+        floor = decode_floor(schema)
+        ver = exiftool_version() or "unknown"
         raise Mp4TelemetryError(
-            f"Telemetry stream present ({schema}) in {path.name} but ExifTool "
-            f"{_exiftool_version()} decoded no GPS for this model. Upgrade "
-            f"ExifTool (see docs/MP4_TIMED_METADATA.md)."
+            f"Telemetry stream ({schema}) in {path.name} needs ExifTool >= "
+            f"{floor}; you have {ver}, which decoded no GPS for this model. "
+            f"Run: dji-embed doctor --install exiftool "
+            f"(see docs/MP4_TIMED_METADATA.md)."
         )
     return []  # decoded, but no GPS fix in this clip

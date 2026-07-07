@@ -18,7 +18,7 @@ _FIXTURE = os.environ.get("DJI_MP4_FIXTURE")
 
 def _exiftool_ok() -> bool:
     try:
-        ver = mt._exiftool_version()
+        ver = mt.exiftool_version()
     except Exception:
         return False
     if not ver:
