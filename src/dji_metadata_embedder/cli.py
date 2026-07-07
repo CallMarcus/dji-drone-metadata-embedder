@@ -207,9 +207,10 @@ def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
     type=click.Choice(["none", "drop", "fuzz"], case_sensitive=False),
     default="none",
     show_default=True,
-    help="GPS redaction: drop removes the track (geojson/kml/html/cot) and the "
-    "HOME marker; fuzz coarsens to ~100 m. For gpx/csv only the HOME marker is "
-    "redacted (the track is unredacted there).",
+    help="GPS redaction, applied to the track in every format: drop removes "
+    "the track (gpx/geojson/kml/html/cot) or blanks the GPS+sun columns "
+    "(csv, rows kept); fuzz coarsens to ~100 m. The opt-in HOME marker is "
+    "redacted the same way.",
 )
 @click.option(
     "--interval",

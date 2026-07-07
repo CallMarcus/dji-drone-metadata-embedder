@@ -172,3 +172,14 @@ def test_csv_from_mp4_honours_redact(tmp_path, monkeypatch):
     assert fuzz["latitude"] == "39.123"
     assert fuzz["longitude"] == "116.654"
     assert fuzz["sun_azimuth"] != ""
+
+
+def test_convert_redact_help_has_no_gpx_csv_caveat():
+    from click.testing import CliRunner
+
+    from dji_metadata_embedder import cli as cli_mod
+
+    res = CliRunner().invoke(cli_mod.main, ["convert", "--help"])
+    flat = " ".join(res.output.split())  # click wraps help text; unwrap first
+    assert "unredacted" not in flat
+    assert "every format" in flat

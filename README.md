@@ -334,10 +334,10 @@ Options:
   -b, --batch                Batch process directory
   --tz-offset OFFSET         UTC offset for GPX/CoT timestamps, e.g. '+05:30' or
                              '-8' ('auto' detects from file mtime; default: auto)
-  --redact [none|drop|fuzz]  GPS redaction (default: none). drop/fuzz cover the
-                             track for geojson/kml/html/cot and the HOME marker
-                             in all formats; for gpx/csv only the HOME marker is
-                             redacted (the track there is unredacted)
+  --redact [none|drop|fuzz]  GPS redaction (default: none), applied to the track
+                             in every format: drop removes the track (or blanks
+                             the GPS+sun columns in csv, rows kept); fuzz
+                             coarsens to ~100 m. HOME marker redacted the same way
   --interval FLOAT           cot only: seconds between sampled points (default: 1.0)
   --cot-type CODE            cot only: CoT type/affiliation code (default: a-n-A)
   --footprint                geojson/kml only: add camera footprint polygons
