@@ -12,10 +12,14 @@ from https://exiftool.org/checksums.txt. Nothing else.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import platform
+import shutil
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +72,36 @@ def provisioned_exiftool(root: Path | None = None) -> Path | None:
     exe = "exiftool.exe" if platform.system() == "Windows" else "exiftool"
     path = root / f"exiftool-{EXIFTOOL_VERSION}" / exe
     return path if path.exists() else None
+
+
+def _download(url: str, dest: Path) -> None:
+    """Stream ``url`` to ``dest`` (no checksum here — see _verify_sha256)."""
+    req = Request(url, headers={"User-Agent": "dji-embed"})
+    with urlopen(req, timeout=60) as response, open(dest, "wb") as out:
+        shutil.copyfileobj(response, out)
+
+
+def _fetch_artifact(artifact: str, dest: Path) -> None:
+    """Download ``artifact`` from the first mirror that responds."""
+    errors: list[str] = []
+    for mirror in _MIRRORS:
+        url = mirror.format(artifact=artifact)
+        try:
+            logger.info("Downloading %s", url)
+            _download(url, dest)
+            return
+        except (URLError, HTTPError, OSError) as exc:
+            errors.append(f"{url}: {exc}")
+    raise ProvisionError(
+        "Could not download ExifTool from any mirror:\n  " + "\n  ".join(errors)
+    )
+
+
+def _verify_sha256(path: Path, expected: str) -> None:
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != expected:
+        raise ProvisionError(
+            f"Checksum mismatch for {path.name}: expected {expected}, got "
+            f"{digest}. The download is corrupted or tampered with — "
+            "nothing was installed."
+        )

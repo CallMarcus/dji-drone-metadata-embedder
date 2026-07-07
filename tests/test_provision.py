@@ -1,8 +1,15 @@
+import hashlib
 from pathlib import Path
+from urllib.error import URLError
+
+import pytest
 
 from dji_metadata_embedder.utils import provision
 from dji_metadata_embedder.utils.provision import (
     EXIFTOOL_VERSION,
+    ProvisionError,
+    _fetch_artifact,
+    _verify_sha256,
     provisioned_exiftool,
     tools_dir,
 )
@@ -47,3 +54,42 @@ def test_provisioned_exiftool_present_windows(monkeypatch, tmp_path):
     exe.parent.mkdir(parents=True)
     exe.write_text("stub")
     assert provisioned_exiftool(tmp_path) == exe
+
+
+def test_verify_sha256_accepts_matching_file(tmp_path):
+    f = tmp_path / "a.bin"
+    f.write_bytes(b"payload")
+    _verify_sha256(f, hashlib.sha256(b"payload").hexdigest())  # no raise
+
+
+def test_verify_sha256_rejects_mismatch(tmp_path):
+    f = tmp_path / "a.bin"
+    f.write_bytes(b"tampered")
+    with pytest.raises(ProvisionError, match="Checksum mismatch"):
+        _verify_sha256(f, hashlib.sha256(b"payload").hexdigest())
+
+
+def test_fetch_artifact_falls_back_to_second_mirror(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_download(url, dest):
+        calls.append(url)
+        if "exiftool.org" in url:
+            raise URLError("404 gone after release rollover")
+        dest.write_bytes(b"from-mirror")
+
+    monkeypatch.setattr(provision, "_download", fake_download)
+    dest = tmp_path / "artifact.zip"
+    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    assert dest.read_bytes() == b"from-mirror"
+    assert len(calls) == 2
+    assert "sourceforge" in calls[1]
+
+
+def test_fetch_artifact_reports_all_mirrors_on_total_failure(monkeypatch, tmp_path):
+    def fake_download(url, dest):
+        raise URLError("no route")
+
+    monkeypatch.setattr(provision, "_download", fake_download)
+    with pytest.raises(ProvisionError, match="exiftool.org"):
+        _fetch_artifact("exiftool-13.59_64.zip", tmp_path / "artifact.zip")
