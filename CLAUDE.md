@@ -36,7 +36,8 @@ src/dji_metadata_embedder/
 │   ├── processor.py         # Processing pipeline
 │   └── validator.py         # SRT validation & drift detection
 └── utils/
-    ├── dependency_manager.py # FFmpeg/ExifTool management
+    ├── exiftool.py          # Shared ExifTool resolver (env → provisioned → PATH)
+    ├── provision.py         # Pinned, checksum-verified ExifTool download
     └── system_info.py       # System diagnostics
 ```
 
