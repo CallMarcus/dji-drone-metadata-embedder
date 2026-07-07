@@ -805,7 +805,25 @@ def run_doctor() -> None:
     deps_ok, missing = check_dependencies()
 
     logger.info("  ffmpeg: %s", "FOUND" if "ffmpeg" not in missing else "MISSING")
-    logger.info("  exiftool: %s", "FOUND" if "exiftool" not in missing else "MISSING")
+    if "exiftool" not in missing:
+        from .utils import exiftool as exiftool_utils
+
+        ver = exiftool_utils.exiftool_version()
+        if ver:
+            logger.info(
+                "  exiftool: FOUND %s (%s: %s)",
+                ver,
+                exiftool_utils.exiftool_source(),
+                exiftool_utils.exiftool_exe(),
+            )
+            logger.info(
+                "  timed-metadata decode: %s",
+                exiftool_utils.describe_decode_capability(ver),
+            )
+        else:
+            logger.info("  exiftool: FOUND")
+    else:
+        logger.info("  exiftool: MISSING")
 
     if deps_ok:
         logger.info("All dependencies verified.")
