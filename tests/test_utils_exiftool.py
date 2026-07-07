@@ -3,8 +3,11 @@ from dji_metadata_embedder.utils.exiftool import (
     decode_floor,
     describe_decode_capability,
     exiftool_exe,
+    exiftool_source,
+    exiftool_version,
     version_key,
 )
+from dji_metadata_embedder.utils.provision import EXIFTOOL_VERSION
 
 
 def test_defaults_to_path_exiftool(monkeypatch):
@@ -72,3 +75,42 @@ def test_describe_decode_capability_ok_at_pin():
     text = describe_decode_capability("13.59")
     assert text.startswith("OK")
     assert "covers all supported models" in text
+
+
+def _provision_stub(tmp_path, monkeypatch):
+    """Create a fake provisioned install and point DJIEMBED_TOOLS_DIR at it."""
+    import platform as _platform
+
+    exe_name = "exiftool.exe" if _platform.system() == "Windows" else "exiftool"
+    exe = tmp_path / f"exiftool-{EXIFTOOL_VERSION}" / exe_name
+    exe.parent.mkdir(parents=True)
+    exe.write_text("stub")
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path))
+    return exe
+
+
+def test_provisioned_copy_beats_path(monkeypatch, tmp_path):
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    exe = _provision_stub(tmp_path, monkeypatch)
+    assert exiftool_exe() == str(exe)
+    assert exiftool_source() == "provisioned"
+
+
+def test_env_override_beats_provisioned(monkeypatch, tmp_path):
+    _provision_stub(tmp_path, monkeypatch)
+    override = tmp_path / "custom-exiftool"
+    override.write_text("stub")
+    monkeypatch.setenv("DJIEMBED_EXIFTOOL_PATH", str(override))
+    assert exiftool_exe() == str(override)
+    assert exiftool_source() == "env"
+
+
+def test_path_fallback_source(monkeypatch, tmp_path):
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path))  # empty → no provisioned
+    assert exiftool_exe() == "exiftool"
+    assert exiftool_source() == "PATH"
+
+
+def test_exiftool_version_none_when_missing(monkeypatch, tmp_path):
+    assert exiftool_version(str(tmp_path / "does-not-exist")) is None

@@ -40,3 +40,11 @@ if "rich" not in sys.modules:
     sys.modules["rich"] = rich
     sys.modules["rich.progress"] = progress
     sys.modules["rich.logging"] = logging_mod
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolate_tools_dir(monkeypatch, tmp_path_factory):
+    """Keep a developer's provisioned ExifTool from leaking into tests."""
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path_factory.mktemp("tools")))
