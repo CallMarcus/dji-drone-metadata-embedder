@@ -406,10 +406,20 @@ def extract_telemetry_to_csv(
             lat_val: float | None = None
             lon_val: float | None = None
             if lat_match and lon_match:
-                row["latitude"] = lat_match.group(1)
-                row["longitude"] = lon_match.group(1)
                 lat_val = float(lat_match.group(1))
                 lon_val = float(lon_match.group(1))
+                # Track redaction (#248): fuzz -> 3 decimals (~100 m, same
+                # policy as redact_coords); drop -> blank GPS cells. Fuzzing
+                # lat_val/lon_val here also feeds the fuzzed position into
+                # the solar pass below.
+                if redact == "fuzz":
+                    lat_val, lon_val = round(lat_val, 3), round(lon_val, 3)
+                if redact == "drop":
+                    lat_val = None
+                    lon_val = None
+                else:
+                    row["latitude"] = f"{lat_val}"
+                    row["longitude"] = f"{lon_val}"
 
             # Altitude
             alt_match = re.search(
@@ -457,11 +467,13 @@ def extract_telemetry_to_csv(
     offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
     if offset is not None:
         for row, (abs_dt, lat_val, lon_val) in zip(rows, solar_inputs):
-            if abs_dt is None or lat_val is None or lon_val is None:
+            if abs_dt is None:
                 continue
             utc = abs_dt - offset
+            # datetime_utc reveals when, not where — filled even when the
+            # coordinates are redacted away (#248).
             row["datetime_utc"] = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if not is_gps_fix(lat_val, lon_val):
+            if lat_val is None or lon_val is None or not is_gps_fix(lat_val, lon_val):
                 continue
             az, el = sun_position(lat_val, lon_val, utc)
             row["sun_azimuth"] = f"{az:.3f}"
