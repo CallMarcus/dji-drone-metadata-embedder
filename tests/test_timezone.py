@@ -69,6 +69,58 @@ def test_rounds_noisy_offset_to_nearest_quarter_hour():
     assert estimate_utc_offset(first, last, mtime_utc) == timedelta(hours=2)
 
 
+def test_implausible_offset_returns_none():
+    """A zip-reset mtime yielding +28.5h is impossible (real zones are within
+    UTC-12..+14) and must be rejected, not trusted (#259)."""
+    first = datetime(2024, 6, 1, 14, 0, 0)
+    last = datetime(2024, 6, 1, 14, 10, 0)
+    mtime_utc = datetime(2024, 5, 31, 9, 40, 0)  # last - (+28.5h)
+    assert estimate_utc_offset(first, last, mtime_utc) is None
+
+
+def test_implausible_negative_offset_returns_none():
+    """Same clamp on the negative side (mtime far in the future)."""
+    first = datetime(2024, 6, 1, 14, 0, 0)
+    last = datetime(2024, 6, 1, 14, 10, 0)
+    mtime_utc = datetime(2024, 6, 2, 14, 10, 0)  # last + 24h -> UTC-24
+    assert estimate_utc_offset(first, last, mtime_utc) is None
+
+
+def test_implausible_offset_logs_warning(caplog):
+    import logging
+
+    first = datetime(2024, 6, 1, 14, 0, 0)
+    last = datetime(2024, 6, 1, 14, 10, 0)
+    mtime_utc = datetime(2024, 5, 31, 9, 40, 0)
+    with caplog.at_level(logging.WARNING):
+        estimate_utc_offset(first, last, mtime_utc)
+    assert any("--tz-offset" in r.message for r in caplog.records)
+
+
+def test_extreme_real_offset_kept():
+    """UTC+14 (Line Islands) is the real-world maximum and must survive."""
+    first = datetime(2024, 6, 1, 14, 0, 0)
+    last = datetime(2024, 6, 1, 14, 10, 0)
+    mtime_utc = datetime(2024, 6, 1, 0, 10, 0)  # last - 14h
+    assert estimate_utc_offset(first, last, mtime_utc) == timedelta(hours=14)
+
+
+def test_gpx_falls_back_when_offset_implausible(tmp_path):
+    """With a zip-reset mtime the GPX keeps cue timestamps instead of writing
+    absolute times a day off (#259)."""
+    srt = tmp_path / "clip.SRT"
+    srt.write_text(_HTML_SRT)
+    # mtime ~2.5 years after the recorded 2024-01-01 wall clock -> no
+    # plausible timezone explains it.
+    mtime = datetime(2026, 7, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+    os.utime(srt, (mtime, mtime))
+    out = tmp_path / "clip.gpx"
+    extract_telemetry_to_gpx(srt, out)
+    text = out.read_text()
+    assert "2024-01-01T" not in text  # no fabricated absolute UTC times
+    assert "00:00:00,000" in text  # raw cue fallback
+
+
 @pytest.mark.parametrize(
     "value, expected",
     [

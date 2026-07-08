@@ -9,9 +9,15 @@ import subprocess
 from rich.logging import RichHandler
 
 
+logger = logging.getLogger(__name__)
+
 # Seconds in a quarter hour — the granularity real-world UTC offsets use
 # (whole hours plus the :30 and :45 zones like India and Nepal).
 _QUARTER_HOUR = 15 * 60
+
+# Real-world UTC offsets span UTC-12 to UTC+14; a detected offset outside
+# +/-14h is proof the file mtime is not the recording time (#259).
+_MAX_PLAUSIBLE_OFFSET = timedelta(hours=14)
 
 # DJI SRT blocks carry an absolute wall-clock datetime on their own line, with
 # the milliseconds separated by either a comma (older firmware) or a dot
@@ -56,7 +62,7 @@ def estimate_utc_offset(
     first_local: datetime,
     last_local: datetime,
     file_mtime_utc: datetime,
-) -> timedelta:
+) -> timedelta | None:
     """Estimate the UTC offset of naive DJI SRT timestamps.
 
     DJI SRT wall-clock timestamps are local with no timezone, while the source
@@ -66,6 +72,11 @@ def estimate_utc_offset(
     hour (covering offsets such as UTC+5:30 and UTC+5:45), and the residual
     distance from that boundary is kept. The hypothesis with the smaller
     residual wins, since a genuine offset lands cleanly on a quarter hour.
+
+    Returns ``None`` when the best hypothesis falls outside the plausible
+    UTC-12..UTC+14 range (clamped symmetrically to +/-14h): the mtime then
+    cannot be the recording time — typically reset by a zip or cloud transfer
+    (#259). Callers fall back to raw cue timestamps.
 
     All three datetimes must be naive (``file_mtime_utc`` expressed in UTC).
 
@@ -81,6 +92,15 @@ def estimate_utc_offset(
         if best_residual is None or residual < best_residual:
             best_residual = residual
             best_offset = timedelta(seconds=rounded)
+    if abs(best_offset) > _MAX_PLAUSIBLE_OFFSET:
+        logger.warning(
+            "Timezone auto-detection failed: the file mtime does not match the "
+            "recording window (implied offset %+.1fh; real timezones are within "
+            "UTC-12..UTC+14). This is common after zip/cloud transfers. Pass "
+            "--tz-offset for absolute UTC times.",
+            best_offset.total_seconds() / 3600,
+        )
+        return None
     return best_offset
 
 

@@ -364,6 +364,34 @@ ffmpeg -i input.mp4 -r 30 -c:v libx264 -preset medium -crf 20 output.mp4
    dji-embed embed part2/
    ```
 
+### Wrong or Missing UTC Times in GPX/CSV Exports
+
+**Problem:** `convert` warns "Timezone auto-detection failed", or exported UTC
+times are hours off
+
+**Background:** DJI SRT timestamps are local wall-clock time with no timezone.
+With the default `--tz-offset auto`, the local→UTC offset is recovered from the
+SRT file's modification time, which only works when the mtime still marks the
+recording time.
+
+**Causes:**
+- Extracting a zip usually resets the mtime to the extraction time. The
+  detected offset then lands outside the real UTC−12..UTC+14 range, detection
+  refuses (falling back to raw cue timestamps), and a warning is printed.
+- Cloud transfers (Drive, Dropbox, messaging apps) often rewrite mtimes too.
+
+**Solution:** pass the offset explicitly:
+```bash
+# Footage recorded at UTC+2 (e.g. central Europe in summer)
+dji-embed convert gpx clip.SRT --tz-offset +2
+```
+
+**Known limitation — footage from another timezone:** zip timestamps are
+timezone-naive local times. A zip created in UTC−5 and extracted in UTC+2 with
+timestamps preserved yields a *plausible-looking* wrong offset that no sanity
+check can catch. For footage received from someone in another timezone, always
+pass `--tz-offset` with the **pilot's** offset.
+
 ---
 
 ## 📈 Performance Issues

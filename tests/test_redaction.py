@@ -1,4 +1,5 @@
 import csv as _csv
+from datetime import timedelta
 from pathlib import Path
 
 from dji_metadata_embedder.telemetry_converter import (
@@ -121,7 +122,11 @@ TRACK_SRT_DT = (
 def test_csv_drop_keeps_datetime_but_blanks_sun(tmp_path):
     srt = tmp_path / "g.SRT"
     srt.write_text(TRACK_SRT_DT, encoding="utf-8")
-    out = extract_telemetry_to_csv(srt, tmp_path / "g.csv", redact="drop")
+    # Explicit offset: the tmp file's mtime is unrelated to the fixture's
+    # wall-clock datetime, so auto-detection would (correctly, #259) refuse.
+    out = extract_telemetry_to_csv(
+        srt, tmp_path / "g.csv", tz_offset=timedelta(hours=8), redact="drop"
+    )
     row = _read_csv(out)[0]
     assert row["datetime_utc"] != ""  # timestamps reveal when, not where
     assert row["sun_azimuth"] == "" and row["sun_elevation"] == ""
@@ -134,8 +139,12 @@ def test_csv_fuzz_sun_computed_from_fuzzed_coords(tmp_path):
 
     srt = tmp_path / "g.SRT"
     srt.write_text(TRACK_SRT_DT, encoding="utf-8")
-    fuzzed = _read_csv(extract_telemetry_to_csv(srt, tmp_path / "fz.csv", redact="fuzz"))[0]
-    raw = _read_csv(extract_telemetry_to_csv(srt, tmp_path / "raw.csv"))[0]
+    # Explicit offset for the same reason as above (#259).
+    tz = timedelta(hours=8)
+    fuzzed = _read_csv(
+        extract_telemetry_to_csv(srt, tmp_path / "fz.csv", tz_offset=tz, redact="fuzz")
+    )[0]
+    raw = _read_csv(extract_telemetry_to_csv(srt, tmp_path / "raw.csv", tz_offset=tz))[0]
     assert fuzzed["sun_azimuth"] != ""
     # Angles must match the FUZZED position, not the raw one.
     utc = datetime.strptime(raw["datetime_utc"], "%Y-%m-%dT%H:%M:%SZ")
