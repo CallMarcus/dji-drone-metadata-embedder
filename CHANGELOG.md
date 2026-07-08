@@ -15,6 +15,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.15.0] - 2026-07-08
+
+### Added
+
+- **convert**: Redact the per-frame track in gpx/csv exports (#255) (5d85826)
+- **deps**: Cross-platform, version-aware ExifTool provisioning (#254) (e518b84)
+
+### Fixed
+
+- **cli**: Accept a directory for convert -o, writing <stem>.<ext> into it (#260) (32798a1)
+- **convert**: Clamp estimate_utc_offset to plausible timezones and warn on failure (#261) (8c7c654)
+- **convert**: Exclude pre-GPS-lock (0,0) frames from GPX tracks (#258) (41da1b4)
+
+### Documentation
+
+- Add winget install instructions and badge (now live on winget) (89a69e8)
+- Auto-generate changelog for v1.14.0 (7f37fba)
+
+### Other
+
+- Prepare version 1.15.0 (6fd5f65)
+
+
 ## [1.14.0] - 2026-07-06
 
 ### Added
