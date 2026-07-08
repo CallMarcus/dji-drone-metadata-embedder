@@ -275,6 +275,12 @@ def convert(
     if batch and not src.is_dir():
         raise click.ClickException("--batch requires a directory input")
 
+    # -o pointing at an existing directory means "write <stem>.<ext> in there",
+    # matching embed -o semantics (#257).
+    if output is not None and Path(output).is_dir():
+        suffix = ".cot.xml" if command == "cot" else f".{command}"
+        output = str(Path(output) / (src.stem + suffix))
+
     def run_one(srt: Path, out: str | None) -> None:
         if command == "gpx":
             extract_telemetry_to_gpx(srt, out, tz_offset=offset,
