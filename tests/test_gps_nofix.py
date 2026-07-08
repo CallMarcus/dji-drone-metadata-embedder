@@ -11,6 +11,7 @@ pre-lock -> lock transition, plus a synthetic all-zero clip.
 from pathlib import Path
 
 from dji_metadata_embedder import DJIMetadataEmbedder
+from dji_metadata_embedder.telemetry_converter import extract_telemetry_to_gpx
 from dji_metadata_embedder.utilities import parse_telemetry_points, is_gps_fix
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
@@ -47,6 +48,17 @@ def test_telemetry_points_drop_no_fix(tmp_path):
     lat, lon, alt, _ts = points[0]
     assert (lat, lon) == LOCKED_GPS
     assert alt == LOCKED_ALT
+
+
+def test_gpx_track_excludes_no_fix_frames(tmp_path):
+    """GPX export must not write Null Island trackpoints (issue #256)."""
+    out = tmp_path / "track.gpx"
+    extract_telemetry_to_gpx(NOFIX_CLIP, out)
+    content = out.read_text()
+    # Only the three locked frames become trackpoints.
+    assert content.count("<trkpt") == 3
+    assert 'lat="0.0"' not in content
+    assert f'lat="{LOCKED_GPS[0]}"' in content
 
 
 def _write_all_zero_srt(path: Path) -> Path:

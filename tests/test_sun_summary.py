@@ -78,5 +78,7 @@ def test_summarize_sun_skips_no_fix_frames(tmp_path):
         "[latitude: 59.0] [longitude: 18.0] [rel_alt: 1.0 abs_alt: 100.0]</font>\n"
     )
     s = summarize_sun(srt, tz_offset=timedelta(hours=2))
-    assert s["points"] == 2          # both GPS-bearing lines parsed
-    assert s["sun_computed"] == 1    # only the genuine fix gets a sun angle
+    # No-fix frames are dropped at parse time (#256), matching the video
+    # path, so only the genuine fix is counted and gets a sun angle.
+    assert s["points"] == 1
+    assert s["sun_computed"] == 1

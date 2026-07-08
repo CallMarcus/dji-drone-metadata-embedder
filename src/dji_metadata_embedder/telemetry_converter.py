@@ -46,10 +46,16 @@ def _parse_gps_points(content: str) -> list[dict[str, Any]]:
         lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
         alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", telemetry_line)
         if lat_match and lon_match:
+            lat, lon = float(lat_match.group(1)), float(lon_match.group(1))
+            # Frames recorded before GPS lock carry the (0, 0) sentinel and
+            # must not become Null Island trackpoints (#256). The video path
+            # already filters these in load_samples.
+            if not is_gps_fix(lat, lon):
+                continue
             gps_points.append(
                 {
-                    "lat": float(lat_match.group(1)),
-                    "lon": float(lon_match.group(1)),
+                    "lat": lat,
+                    "lon": lon,
                     "ele": float(alt_match.group(1)) if alt_match else 0,
                     "time": timestamp_match.group(1) if timestamp_match else None,
                     "datetime": _parse_srt_datetime(telemetry_line),
