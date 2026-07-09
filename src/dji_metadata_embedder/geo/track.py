@@ -35,10 +35,16 @@ class TrackPoint:
 
 @dataclass
 class Track:
-    """A named ordered sequence of :class:`TrackPoint`."""
+    """A named ordered sequence of :class:`TrackPoint`.
+
+    ``segments`` lists the source file names when the track was stitched from
+    size-split recordings (see :func:`..flightmap.join_split_flights`); it is
+    ``None`` for a track built from a single file.
+    """
 
     name: str
     points: list[TrackPoint]
+    segments: list[str] | None = None
 
 
 def _cue_seconds(cue: str) -> float:

@@ -86,7 +86,12 @@ function popupHtml(p) {
   if (p.start) html += `<br>${esc(p.start)}`;
   if (p.duration_s != null) html += `<br>duration: ${fmtDuration(p.duration_s)}`;
   if (p.alt_min != null) html += `<br>altitude: ${p.alt_min}–${p.alt_max} m`;
-  html += `<br>${p.points} GPS point${p.points === 1 ? '' : 's'}</div>`;
+  html += `<br>${p.points} GPS point${p.points === 1 ? '' : 's'}`;
+  if (p.segments) {
+    html += `<br>${p.segments.length} size-split files: ` +
+            `${esc(p.segments[0])} → ${esc(p.segments[p.segments.length - 1])}`;
+  }
+  html += '</div>';
   return html;
 }
 

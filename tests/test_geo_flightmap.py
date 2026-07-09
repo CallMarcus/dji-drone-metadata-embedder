@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dji_metadata_embedder.geo.flightmap import (
     flights_to_geojson,
@@ -121,6 +121,128 @@ def test_format_duration():
     assert format_duration(0) == "0:00"
     assert format_duration(243) == "4:03"
     assert format_duration(3723) == "1:02:03"
+
+
+def _dt_srt(start: datetime, coords: list[tuple[float, float, float]]) -> str:
+    """Datetime-carrying bracket SRT (Air 3-style), one block per second."""
+    blocks = []
+    for i, (lat, lon, alt) in enumerate(coords):
+        stamp = (start + timedelta(seconds=i)).strftime("%Y-%m-%d %H:%M:%S.000")
+        blocks.append(
+            f"{i + 1}\n00:00:{i:02d},000 --> 00:00:{i + 1:02d},000\n"
+            f'<font size="28">FrameCnt: {i + 1}, DiffTime: 1000ms\n'
+            f"{stamp}\n"
+            f"[iso: 100] [shutter: 1/500.0] [fnum: 1.8] [ev: 0] "
+            f"[focal_len: 24.00] [latitude: {lat}] [longitude: {lon}] "
+            f"[rel_alt: 1.000 abs_alt: {alt}] [ct: 5000] </font>\n"
+        )
+    return "\n".join(blocks)
+
+
+T0 = datetime(2026, 6, 15, 12, 0, 0)
+# Segment A ends at T0+2s / (34.00002, -84); B resumes 1 s later ~1 m away.
+SEG_A = _dt_srt(T0, [(34.0, -84.0, 100.0), (34.00001, -84.0, 101.0),
+                     (34.00002, -84.0, 102.0)])
+SEG_B = _dt_srt(T0 + timedelta(seconds=3),
+                [(34.00003, -84.0, 103.0), (34.00004, -84.0, 104.0)])
+SEG_C = _dt_srt(T0 + timedelta(seconds=5),
+                [(34.00005, -84.0, 105.0), (34.00006, -84.0, 106.0)])
+
+
+def test_join_chains_size_split_segments(tmp_path):
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", SEG_B)
+    tracks, skipped = scan_flights(tmp_path)
+    assert skipped == []
+    assert len(tracks) == 1
+    flight = tracks[0]
+    assert flight.name == "DJI_0001"
+    assert flight.segments == ["DJI_0001", "DJI_0002"]
+    assert len(flight.points) == 5
+    assert flight.points[-1].alt == 104.0  # B's points appended after A's
+
+
+def test_join_chains_three_segments(tmp_path):
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", SEG_B)
+    _write(tmp_path, "DJI_0003.SRT", SEG_C)
+    tracks, _ = scan_flights(tmp_path)
+    assert len(tracks) == 1
+    assert tracks[0].segments == ["DJI_0001", "DJI_0002", "DJI_0003"]
+    assert len(tracks[0].points) == 7
+
+
+def test_join_skips_nonconsecutive_file_numbers(tmp_path):
+    # Photos share DJI's numbering counter, so a split can jump 0001 -> 0003.
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0003.SRT", SEG_B)
+    tracks, _ = scan_flights(tmp_path)
+    assert len(tracks) == 1
+    assert tracks[0].segments == ["DJI_0001", "DJI_0003"]
+
+
+def test_no_join_when_time_gap_exceeds_threshold(tmp_path):
+    late = _dt_srt(T0 + timedelta(minutes=10), [(34.00003, -84.0, 103.0),
+                                                (34.00004, -84.0, 104.0)])
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", late)
+    tracks, _ = scan_flights(tmp_path)
+    assert [t.name for t in tracks] == ["DJI_0001", "DJI_0002"]
+    assert all(t.segments is None for t in tracks)
+
+
+def test_no_join_when_position_jumps(tmp_path):
+    far = _dt_srt(T0 + timedelta(seconds=3), [(34.1, -84.0, 103.0),
+                                              (34.10001, -84.0, 104.0)])  # ~11 km
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", far)
+    tracks, _ = scan_flights(tmp_path)
+    assert len(tracks) == 2
+
+
+def test_no_join_across_directories(tmp_path):
+    _write(tmp_path, "card1/DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "card2/DJI_0002.SRT", SEG_B)
+    tracks, _ = scan_flights(tmp_path, recursive=True)
+    assert len(tracks) == 2
+
+
+def test_no_join_without_srt_datetimes(tmp_path):
+    # Formats without a datetime line would leave gaps to be guessed from
+    # file mtimes, which copies rewrite — so they are never joined.
+    _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
+    _write(tmp_path, "DJI_0002.SRT", FLIGHT_A)
+    tracks, _ = scan_flights(tmp_path)
+    assert len(tracks) == 2
+
+
+def test_join_gap_zero_disables_joining(tmp_path):
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", SEG_B)
+    tracks, _ = scan_flights(tmp_path, join_gap=0)
+    assert len(tracks) == 2
+
+
+def test_join_applies_fuzz_after_joining(tmp_path):
+    # Fuzz rounds to ~100 m; joining first means the continuity check still
+    # sees the precise coordinates.
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", SEG_B)
+    tracks, _ = scan_flights(tmp_path, redact="fuzz")
+    assert len(tracks) == 1
+    assert all(p.lat == 34.0 and p.lon == -84.0 for p in tracks[0].points)
+
+
+def test_joined_flight_properties_carry_segments(tmp_path):
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    _write(tmp_path, "DJI_0002.SRT", SEG_B)
+    tracks, _ = scan_flights(tmp_path)
+    feature = flights_to_geojson(tracks)["features"][0]
+    assert feature["properties"]["segments"] == ["DJI_0001", "DJI_0002"]
+    assert feature["properties"]["duration_s"] == 4  # spans both segments
+    kml = flights_to_kml(tracks, title="t")
+    assert kml.count("<Placemark>") == 1
+    assert "2 size-split files (DJI_0001 → DJI_0002)" in kml
 
 
 def test_writers_create_files(tmp_path):

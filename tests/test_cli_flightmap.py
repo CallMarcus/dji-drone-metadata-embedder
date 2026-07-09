@@ -131,3 +131,35 @@ def test_flightmap_quiet_suppresses_stdout(tmp_path):
     res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "-q"])
     assert res.exit_code == 0, res.output
     assert res.output.strip() == ""
+
+
+# Two size-split segments: B's telemetry resumes 1 s after A ends, ~1 m away.
+SPLIT_A = (
+    "1\n00:00:00,000 --> 00:00:01,000\n"
+    '<font size="28">FrameCnt: 1, DiffTime: 1000ms\n'
+    "2026-06-15 12:00:00.000\n"
+    "[latitude: 34.0] [longitude: -84.0] [rel_alt: 1.000 abs_alt: 100.0]</font>\n\n"
+    "2\n00:00:01,000 --> 00:00:02,000\n"
+    '<font size="28">FrameCnt: 2, DiffTime: 1000ms\n'
+    "2026-06-15 12:00:01.000\n"
+    "[latitude: 34.00001] [longitude: -84.0] [rel_alt: 1.000 abs_alt: 101.0]</font>\n"
+)
+SPLIT_B = SPLIT_A.replace("12:00:00", "12:00:02").replace("12:00:01", "12:00:03")
+
+
+def test_flightmap_joins_size_split_recordings(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": SPLIT_A, "DJI_0002.SRT": SPLIT_B})
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path)])
+    assert res.exit_code == 0, res.output
+    assert "Mapped 1 flight" in res.output
+    assert "Joined 2 size-split files into 1 flight" in res.output
+    text = (tmp_path / "flightmap.html").read_text(encoding="utf-8")
+    assert '"segments": ["DJI_0001", "DJI_0002"]' in text
+
+
+def test_flightmap_join_gap_zero_disables(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": SPLIT_A, "DJI_0002.SRT": SPLIT_B})
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--join-gap", "0"])
+    assert res.exit_code == 0, res.output
+    assert "Mapped 2 flights" in res.output
+    assert "Joined" not in res.output

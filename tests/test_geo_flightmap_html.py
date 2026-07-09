@@ -58,11 +58,21 @@ def test_html_escapes_script_close_in_data():
 
 
 def test_html_popup_js_escapes_text_fields():
-    # Popup text (name/start) is inserted via the esc() helper so a hostile
-    # filename cannot inject HTML into the popup or the layer control.
+    # Popup text (name/start/segments) is inserted via the esc() helper so a
+    # hostile filename cannot inject HTML into the popup or the layer control.
     html = flights_to_html(TRACKS, title="t")
-    for applied in ("esc(p.name", "esc(p.start"):
+    for applied in ("esc(p.name", "esc(p.start", "esc(p.segments[0]"):
         assert applied in html
+
+
+def test_html_embeds_segments_for_joined_flights():
+    joined = [Track(name="DJI_0001", segments=["DJI_0001", "DJI_0002"], points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000"),
+        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:01,000"),
+    ])]
+    html = flights_to_html(joined, title="t")
+    props = _embedded_geojson(html)["features"][0]["properties"]
+    assert props["segments"] == ["DJI_0001", "DJI_0002"]
 
 
 def test_html_draws_tracks_with_layer_control():

@@ -171,6 +171,31 @@ reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
 telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
 those per clip with `dji-embed convert html VIDEO.MP4`.
 
+### Size-split recordings are joined
+
+DJI closes the MP4/SRT pair when a recording hits the 4 GB file-size limit and
+keeps recording into the next numbered file, so a long flight arrives as
+several files. `flightmap` stitches these back into one flight when the next
+file sits in the same directory and its telemetry starts within `--join-gap`
+seconds (default 15) of the previous file ending *and* resumes within the
+distance the drone could plausibly have covered in that gap. A joined flight
+keeps the first segment's name; its popup, KML description, and GeoJSON
+`segments` property list the source files.
+
+Details worth knowing:
+
+- Gaps are measured on the SRT's own per-block timestamps, never on file
+  mtimes — so joining still works on archives whose mtimes were rewritten by
+  zip/cloud transfers. Formats without a datetime line in the SRT are never
+  joined for the same reason.
+- Consecutive file numbers are *not* required: photos share DJI's numbering
+  counter, so a split flight can legitimately jump `DJI_0010` → `DJI_0012`.
+- Two flights flown back-to-back from the same launch point are kept apart by
+  the time check; two files recorded around the same time in different
+  locations are kept apart by the position check.
+- `--join-gap 0` disables joining entirely; raise it if your drone pauses
+  longer between segments.
+
 ## Privacy
 
 All three geo formats honour `--redact`:

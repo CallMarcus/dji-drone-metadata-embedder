@@ -431,6 +431,16 @@ def photomap(
     show_default=True,
     help="GPS redaction: fuzz coarsens every flight to ~100 m before writing",
 )
+@click.option(
+    "--join-gap",
+    type=float,
+    default=15.0,
+    show_default=True,
+    metavar="SECONDS",
+    help="Chain size-split recordings (DJI starts a new file at the 4 GB "
+    "limit) into one flight when the next file's telemetry starts within "
+    "SECONDS and resumes where the previous file ended. 0 disables joining.",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def flightmap(
@@ -440,6 +450,7 @@ def flightmap(
     recursive: bool,
     title: str | None,
     redact: str,
+    join_gap: float,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -447,13 +458,16 @@ def flightmap(
 
     Reads only the .SRT telemetry sidecars (fast — the videos are never
     opened) and draws each flight as its own coloured track with a summary
-    popup, as HTML, KML, or GeoJSON. Sidecar-less models whose telemetry
-    lives inside the MP4 (Air 3S, Mini 5 Pro, ...) need
-    'dji-embed convert html VIDEO.MP4' per clip instead.
+    popup, as HTML, KML, or GeoJSON. Recordings split at the 4 GB file
+    limit are chained back into one flight (see --join-gap). Sidecar-less
+    models whose telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, ...)
+    need 'dji-embed convert html VIDEO.MP4' per clip instead.
     """
     setup_logging(verbose, quiet)
     src = Path(directory)
-    tracks, skipped = scan_flights(src, recursive=recursive, redact=redact.lower())
+    tracks, skipped = scan_flights(
+        src, recursive=recursive, redact=redact.lower(), join_gap=join_gap
+    )
     total = len(tracks) + len(skipped)
     if total == 0:
         raise click.ClickException(
@@ -476,6 +490,13 @@ def flightmap(
         else:
             click.echo(
                 f"Mapped {len(tracks)} flight{'s' if len(tracks) != 1 else ''}"
+            )
+        joined = [t for t in tracks if t.segments]
+        if joined:
+            files_joined = sum(len(t.segments or []) for t in joined)
+            click.echo(
+                f"Joined {files_joined} size-split files into "
+                f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
             )
     map_title = title or src.resolve().name
     if fmt.lower() == "all":

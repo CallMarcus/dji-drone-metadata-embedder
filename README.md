@@ -276,7 +276,8 @@ dji-embed convert html DJI_0042.MP4              # sidecar-less models: read tel
 **A folder of flights → one combined map.** Reads only the `.SRT` telemetry
 sidecars (the videos are never opened, so a whole archive scans in seconds)
 and draws each flight as its own coloured track with a summary popup and a
-layer toggle:
+layer toggle. Recordings that DJI split at the 4 GB file limit are
+automatically stitched back into one flight:
 
 ```bash
 dji-embed flightmap /path/to/footage             # -> footage/flightmap.html
@@ -436,6 +437,11 @@ Options:
   --title TEXT                    Map title (default: directory name)
   --redact [none|fuzz]            GPS redaction: fuzz coarsens every flight to
                                   ~100 m before writing (default: none)
+  --join-gap SECONDS              Chain size-split recordings (DJI starts a new
+                                  file at the 4 GB limit) into one flight when
+                                  the next file's telemetry starts within
+                                  SECONDS and resumes where the previous file
+                                  ended. 0 disables joining (default: 15.0)
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -457,6 +463,11 @@ Notes:
 - With `-r`, flights are labelled by their path relative to `DIRECTORY`
   (`session1/DJI_0001`), so per-session folders that reuse DJI's restarting
   file numbering stay distinct.
+- Long recordings that DJI split at the 4 GB file limit are stitched back
+  into one flight when the next file's telemetry continues (in time and
+  position) where the previous one ended — measured on the SRT's own
+  timestamps, so it survives copied files with rewritten mtimes. The popup
+  lists the joined files; tune or disable with `--join-gap`.
 - Sidecar-less models whose telemetry lives inside the MP4 (Air 3S,
   Mini 5 Pro, …) are not scanned; map those per clip with
   `dji-embed convert html VIDEO.MP4`.
