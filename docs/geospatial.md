@@ -143,6 +143,34 @@ dji-embed convert html DJI_0001.SRT --redact drop   # empty track, no coords
 dji-embed convert html DJI_0001.SRT --redact fuzz   # ~100 m coarsened coords
 ```
 
+## Combined flight map (`flightmap`)
+
+```bash
+dji-embed flightmap ./footage                    # -> footage/flightmap.html
+dji-embed flightmap ./footage -r                 # scan subdirectories too
+dji-embed flightmap ./footage -f all             # html + kml + geojson
+dji-embed flightmap ./footage --redact fuzz      # ~100 m coarsened tracks
+```
+
+Where `convert html` maps one flight, `flightmap` maps a whole folder: every
+`.SRT` log becomes its own coloured track on a single standalone HTML map,
+with a start marker, a summary popup (start time, duration, altitude range,
+GPS point count), and a layer control to toggle flights. Only the SRT sidecars
+are read — the videos are never opened — so scanning a large archive takes
+seconds and needs no external tools.
+
+The GeoJSON output is one `LineString` feature per flight carrying the same
+summary properties (no per-sample points — at archive scale they would swamp
+the file); the KML is one path placemark per flight, which Google Earth and
+Google My Maps import as separate lines.
+
+SRT files without GPS telemetry (ordinary subtitles, clips that never got a
+fix) are skipped and counted; `-v` lists them. With `-r`, flights are labelled
+by their path relative to the scanned folder so per-session directories that
+reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
+telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
+those per clip with `dji-embed convert html VIDEO.MP4`.
+
 ## Privacy
 
 All three geo formats honour `--redact`:
@@ -160,3 +188,6 @@ Pre-GPS-lock `(0, 0)` frames are always excluded.
 dji-embed convert geojson ./footage --batch     # all *.SRT in the folder
 dji-embed convert html ./footage --batch        # one .html map per *.SRT
 ```
+
+For a single combined map of the whole folder instead, see
+[`flightmap`](#combined-flight-map-flightmap) above.

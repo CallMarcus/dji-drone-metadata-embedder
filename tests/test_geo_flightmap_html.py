@@ -1,0 +1,90 @@
+import json
+import re
+from datetime import datetime
+
+from dji_metadata_embedder.geo.flightmap_html import flights_to_html, write_flights_html
+from dji_metadata_embedder.geo.track import Track, TrackPoint
+
+TRACKS = [
+    Track(name="DJI_0001", points=[
+        TrackPoint(lat=10.0, lon=20.0, alt=5.0, timestamp="00:00:00,000",
+                   utc=datetime(2026, 6, 15, 12, 0, 0)),
+        TrackPoint(lat=10.001, lon=20.001, alt=6.5, timestamp="00:00:01,000",
+                   utc=datetime(2026, 6, 15, 12, 1, 0)),
+    ]),
+    Track(name="DJI_0002", points=[
+        TrackPoint(lat=11.0, lon=21.0, alt=7.0, timestamp="00:00:00,000"),
+        TrackPoint(lat=11.001, lon=21.001, alt=8.0, timestamp="00:00:01,000"),
+    ]),
+]
+
+_DATA_RE = re.compile(
+    r'<script type="application/json" id="flight-data">(.*?)</script>',
+    re.DOTALL,
+)
+
+
+def _embedded_geojson(html: str) -> dict:
+    match = _DATA_RE.search(html)
+    assert match, "flight-data script block not found"
+    return json.loads(match.group(1))
+
+
+def test_html_embeds_one_feature_per_flight():
+    html = flights_to_html(TRACKS, title="Summer flights")
+    data = _embedded_geojson(html)
+    names = [f["properties"]["name"] for f in data["features"]]
+    assert names == ["DJI_0001", "DJI_0002"]
+    assert all(f["geometry"]["type"] == "LineString" for f in data["features"])
+
+
+def test_html_is_self_contained_document_with_pinned_libs():
+    html = flights_to_html(TRACKS, title="Summer flights")
+    assert html.lstrip().startswith("<!DOCTYPE html>")
+    assert 'id="map"' in html
+    assert "leaflet@1.9.4" in html
+    # Both remote assets (leaflet css + js) carry SRI pins.
+    assert html.count('integrity="sha256-') == 2
+    assert "Summer flights" in html
+
+
+def test_html_escapes_script_close_in_data():
+    evil = [Track(name="x</script>y", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")])]
+    html = flights_to_html(evil, title="t")
+    data_block = _DATA_RE.search(html).group(1)
+    assert "</script>" not in data_block.lower()
+    assert json.loads(data_block)["features"][0]["properties"]["name"] == "x</script>y"
+
+
+def test_html_popup_js_escapes_text_fields():
+    # Popup text (name/start) is inserted via the esc() helper so a hostile
+    # filename cannot inject HTML into the popup or the layer control.
+    html = flights_to_html(TRACKS, title="t")
+    for applied in ("esc(p.name", "esc(p.start"):
+        assert applied in html
+
+
+def test_html_draws_tracks_with_layer_control():
+    html = flights_to_html(TRACKS, title="t")
+    assert "L.polyline" in html
+    assert "L.control.layers" in html
+    assert "PALETTE" in html
+
+
+def test_html_empty_tracks_still_valid_document():
+    html = flights_to_html([], title="t")
+    assert html.lstrip().startswith("<!DOCTYPE html>")
+    assert _embedded_geojson(html)["features"] == []
+
+
+def test_html_title_is_escaped():
+    html = flights_to_html(TRACKS, title="<script>x")
+    assert "<script>x" not in html
+
+
+def test_write_flights_html(tmp_path):
+    out = tmp_path / "flightmap.html"
+    result = write_flights_html(TRACKS, out, title="t")
+    assert result == out
+    assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
