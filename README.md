@@ -81,8 +81,9 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **GPS Metadata Embedding**: Embed GPS coordinates as standard metadata tags
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
-- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or a standalone HTML map (see [docs/geospatial.md](docs/geospatial.md))
-- **Photo Map**: `dji-embed photomap DIR` plots GPS-tagged still photos (JPG/JPEG/DNG) on a clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
+- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or CoT (see [docs/geospatial.md](docs/geospatial.md))
+- **Flight Map**: `dji-embed convert html FLIGHT.SRT` renders a flight as a standalone HTML map (altitude-coloured track) you can open in any browser — see [Put your flights and photos on a map](#put-your-flights-and-photos-on-a-map)
+- **Photo Map**: `dji-embed photomap DIR` plots a whole folder of GPS-tagged still photos (JPG/JPEG/DNG) on a single clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
 - **Camera Footprint Polygons**: `convert geojson/kml … --footprint` adds nadir ground-footprint rectangles to GeoJSON/KML output (gimbal-aware on formats that carry attitude; suppressed under `--redact`). See [docs/geospatial.md](docs/geospatial.md).
 - **CoT Export**: `dji-embed convert cot FLIGHT.SRT` writes Cursor-on-Target XML for ATAK/TAK (route + timed track). See [docs/fmv-interop.md](docs/fmv-interop.md).
 - **Footage verification:** `dji-embed verify-sun clip.SRT` reports the sun's azimuth/elevation over a clip for shadow cross-checking; CSV export gains `datetime_utc` / `sun_azimuth` / `sun_elevation` columns.
@@ -139,9 +140,9 @@ dji-embed embed /path/to/drone/footage
 dji-embed [OPTIONS] COMMAND [ARGS]...
 
 Commands:
-  embed    Embed telemetry from SRT files into MP4 videos
-  validate Validate SRT/MP4 pairs and report drift
-  convert  Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
+  embed      Embed telemetry from SRT files into MP4 videos
+  validate   Validate SRT/MP4 pairs and report drift
+  convert    Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
   photomap   Map GPS-tagged still photos to an HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
   doctor     Show system information and verify dependencies
@@ -259,6 +260,43 @@ Batch convert directory to CSV:
 dji-embed convert csv /path/to/srt/files --batch
 ```
 
+### Put Your Flights and Photos on a Map
+
+Two commands cover the "show me where this was shot" workflows:
+
+**One flight → one HTML map.** Renders the flight path coloured by altitude,
+viewable in any browser:
+
+```bash
+dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
+dji-embed convert html DJI_0042.MP4              # sidecar-less models: read telemetry from the MP4
+```
+
+**A folder of flights → one map per clip:**
+
+```bash
+dji-embed convert html /path/to/footage --batch  # -> one .html next to each clip
+```
+
+Note: `--batch` writes a *separate* map per flight — there is currently no
+single combined map for a folder of videos. If you want that, GPX/GeoJSON
+batch output imports cleanly into tools like [Google My Maps](https://www.google.com/mymaps)
+or [GPX Studio](https://gpx.studio) as one layer per flight.
+
+**A folder of still photos → one combined, clustered map** with an EXIF
+thumbnail popup per pin (requires ExifTool):
+
+```bash
+dji-embed photomap /path/to/photos               # -> photos/photomap.html
+dji-embed photomap /path/to/photos -f kml        # Google Earth instead
+```
+
+`photomap` scans JPG/JPEG/DNG stills only; videos are mapped per-clip with
+`convert html` as above. All HTML maps embed your data but load the basemap
+tiles from the internet, so they need a connection to render — and they reveal
+your shooting locations, so share them deliberately. Details and more formats
+(KML, GeoJSON, CoT, camera footprints): [docs/geospatial.md](docs/geospatial.md).
+
 ### Check Existing Metadata
 
 You can check if your videos or photos already contain GPS or altitude
@@ -356,6 +394,7 @@ Options:
 ```bash
 dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
 dji-embed convert html DJI_0001.SRT -o flight.html
+dji-embed convert html /path/to/footage --batch  # one map per clip (not combined)
 ```
 
 **CoT (Cursor-on-Target) example** — for ATAK/TAK; see [docs/fmv-interop.md](docs/fmv-interop.md):
