@@ -75,6 +75,14 @@ def test_html_embeds_segments_for_joined_flights():
     assert props["segments"] == ["DJI_0001", "DJI_0002"]
 
 
+def test_html_popup_neutral_join_wording():
+    # Joins also catch quick stop/start re-records, so the popup must not
+    # claim the files were size-splits.
+    html = flights_to_html(TRACKS, title="t")
+    assert "recorded across" in html
+    assert "size-split" not in html
+
+
 def test_html_popup_prefers_relative_height_and_readable_ranges():
     # The popup JS must show rel-alt height when present and join ranges with
     # " to " so negative abs altitudes don't render as "-125.6--66.8 m".

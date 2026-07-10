@@ -92,7 +92,7 @@ function popupHtml(p) {
   }
   html += `<br>${p.points} GPS point${p.points === 1 ? '' : 's'}`;
   if (p.segments) {
-    html += `<br>${p.segments.length} size-split files: ` +
+    html += `<br>recorded across ${p.segments.length} files: ` +
             `${esc(p.segments[0])} → ${esc(p.segments[p.segments.length - 1])}`;
   }
   html += '</div>';

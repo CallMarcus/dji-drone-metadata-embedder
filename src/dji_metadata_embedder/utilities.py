@@ -202,6 +202,13 @@ def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
         lat_match = re.search(r"\[latitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         lon_match = re.search(r"\[longitude:\s*([+-]?\d+\.?\d*)\]", tele_line)
         alt_match = re.search(r"abs_alt:\s*([+-]?\d+\.?\d*)\]", tele_line)
+        if lat_match and lon_match and alt_match is None:
+            # Every documented bracket format carries abs_alt right after the
+            # coordinates, so its absence means the block was cut mid-write
+            # (drone powered off while flushing the final block). Drop the
+            # sample rather than fabricate alt=0.0. The GPS(...) compact form
+            # (no abs_alt token at all) takes the branch below instead.
+            continue
         if not (lat_match and lon_match):
             # Tolerate optional altitude unit suffix (M300 ``0.0M``) and an
             # optional space before ``(`` used by the P4 RTK compact format.

@@ -479,6 +479,9 @@ Notes:
   position) where the previous one ended — measured on the SRT's own
   timestamps, so it survives copied files with rewritten mtimes. The popup
   lists the joined files; tune or disable with `--join-gap`.
+- Tracks are thinned to ~1 GPS point per second for the map (DJI logs ~30
+  per second) — visually identical but far smaller files; use
+  `dji-embed convert` on a single flight when you need every sample.
 - Popup start times are converted to UTC using each file's mtime. On archives
   whose mtimes were rewritten (zip/cloud transfers) the tool warns once and
   falls back to the mtime; pass `--tz-offset` with your recording timezone to
