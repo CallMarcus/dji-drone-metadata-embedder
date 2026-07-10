@@ -82,7 +82,7 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
 - **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or CoT (see [docs/geospatial.md](docs/geospatial.md))
-- **Flight Map**: `dji-embed flightmap DIR` draws every flight in a folder of `.SRT` logs on one combined HTML map (or KML/GeoJSON) — fast, the videos are never opened; `dji-embed convert html FLIGHT.SRT` maps a single flight with an altitude-coloured track — see [Put your flights and photos on a map](#put-your-flights-and-photos-on-a-map)
+- **Flight Map** *(experimental)*: `dji-embed flightmap DIR` draws every flight in a folder of `.SRT` logs on one combined HTML map (or KML/GeoJSON) — fast, the videos are never opened; `dji-embed convert html FLIGHT.SRT` maps a single flight with an altitude-coloured track — see [Put your flights and photos on a map](#put-your-flights-and-photos-on-a-map)
 - **Photo Map**: `dji-embed photomap DIR` plots a whole folder of GPS-tagged still photos (JPG/JPEG/DNG) on a single clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
 - **Camera Footprint Polygons**: `convert geojson/kml … --footprint` adds nadir ground-footprint rectangles to GeoJSON/KML output (gimbal-aware on formats that carry attitude; suppressed under `--redact`). See [docs/geospatial.md](docs/geospatial.md).
 - **CoT Export**: `dji-embed convert cot FLIGHT.SRT` writes Cursor-on-Target XML for ATAK/TAK (route + timed track). See [docs/fmv-interop.md](docs/fmv-interop.md).
@@ -273,11 +273,11 @@ dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
 dji-embed convert html DJI_0042.MP4              # sidecar-less models: read telemetry from the MP4
 ```
 
-**A folder of flights → one combined map.** Reads only the `.SRT` telemetry
-sidecars (the videos are never opened, so a whole archive scans in seconds)
-and draws each flight as its own coloured track with a summary popup and a
-layer toggle. Recordings that DJI split at the 4 GB file limit are
-automatically stitched back into one flight:
+**A folder of flights → one combined map** *(experimental — feedback
+welcome!)*. Reads only the `.SRT` telemetry sidecars (the videos are never
+opened, so a whole archive scans in seconds) and draws each flight as its own
+coloured track with a summary popup and a layer toggle. Recordings that DJI
+split at the 4 GB file limit are automatically stitched back into one flight:
 
 ```bash
 dji-embed flightmap /path/to/footage             # -> footage/flightmap.html
@@ -419,8 +419,14 @@ dji-embed convert geojson DJI_0001.SRT --footprint --model air3
 dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 ```
 
-#### `dji-embed flightmap` - Combined Flight Map
+#### `dji-embed flightmap` - Combined Flight Map (experimental)
 Map every flight in a folder of DJI `.SRT` logs on one combined map.
+
+> **Experimental:** `flightmap` is new and its size-split joining heuristics
+> may still be tuned based on real-world feedback. If it joins flights it
+> shouldn't (or misses ones it should), please
+> [open an issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues)
+> with the SRT file names and timestamps.
 
 ```bash
 dji-embed flightmap [OPTIONS] DIRECTORY
@@ -442,6 +448,11 @@ Options:
                                   the next file's telemetry starts within
                                   SECONDS and resumes where the previous file
                                   ended. 0 disables joining (default: 15.0)
+  --tz-offset OFFSET              UTC offset of the SRT timestamps, e.g.
+                                  '+05:30' or '-8'. 'auto' detects it from each
+                                  file's mtime; pass it explicitly when the
+                                  files were copied through zip/cloud transfers
+                                  that rewrote the mtimes (default: auto)
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -468,6 +479,10 @@ Notes:
   position) where the previous one ended — measured on the SRT's own
   timestamps, so it survives copied files with rewritten mtimes. The popup
   lists the joined files; tune or disable with `--join-gap`.
+- Popup start times are converted to UTC using each file's mtime. On archives
+  whose mtimes were rewritten (zip/cloud transfers) the tool warns once and
+  falls back to the mtime; pass `--tz-offset` with your recording timezone to
+  get correct absolute times. Joining itself is unaffected either way.
 - Sidecar-less models whose telemetry lives inside the MP4 (Air 3S,
   Mini 5 Pro, …) are not scanned; map those per clip with
   `dji-embed convert html VIDEO.MP4`.

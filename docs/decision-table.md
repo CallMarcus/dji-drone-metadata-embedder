@@ -14,7 +14,7 @@ This guide helps you choose the right command and approach for your specific use
 | **Validate file quality** | `dji-embed validate` | Check for timing drift or file issues |
 | **System diagnostics** | `dji-embed doctor` | Troubleshoot installation or dependencies |
 | **Drive it from a browser** | `dji-embed ui` | You prefer a GUI; requires the `[ui]` extra |
-| **Map a whole folder of flights** | `dji-embed flightmap` | You want every flight's track on one combined map |
+| **Map a whole folder of flights** | `dji-embed flightmap` | You want every flight's track on one combined map (experimental) |
 | **Map your still photos** | `dji-embed photomap` | You shot geotagged photos and want them on a map |
 
 ---

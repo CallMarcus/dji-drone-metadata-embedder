@@ -145,6 +145,11 @@ dji-embed convert html DJI_0001.SRT --redact fuzz   # ~100 m coarsened coords
 
 ## Combined flight map (`flightmap`)
 
+> **Experimental:** `flightmap` is new and its size-split joining heuristics
+> may still be tuned based on real-world feedback. If it joins flights it
+> shouldn't (or misses ones it should), please open an issue with the SRT
+> file names and timestamps.
+
 ```bash
 dji-embed flightmap ./footage                    # -> footage/flightmap.html
 dji-embed flightmap ./footage -r                 # scan subdirectories too
@@ -171,6 +176,13 @@ reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
 telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
 those per clip with `dji-embed convert html VIDEO.MP4`.
 
+Popup start times are converted to UTC by auto-detecting the recording
+timezone from each file's mtime. On archives whose mtimes were rewritten by
+zip/cloud transfers the auto-detection fails; `flightmap` then warns once
+(with a file count) and falls back to mtime-based times. Pass
+`--tz-offset '+02:00'` (your recording timezone) for correct absolute times —
+track shapes, durations, and joining are unaffected either way.
+
 ### Size-split recordings are joined
 
 DJI closes the MP4/SRT pair when a recording hits the 4 GB file-size limit and
@@ -195,6 +207,10 @@ Details worth knowing:
   locations are kept apart by the position check.
 - `--join-gap 0` disables joining entirely; raise it if your drone pauses
   longer between segments.
+- Known limitation: segments are only compared against the most recent
+  flight in time order, so if two drones recorded into the same folder at
+  the same time, a split flight interleaved with the other drone's files
+  is not joined. Rare in practice — open an issue if it bites you.
 
 ## Privacy
 
