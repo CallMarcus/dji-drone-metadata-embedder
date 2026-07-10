@@ -143,6 +143,75 @@ dji-embed convert html DJI_0001.SRT --redact drop   # empty track, no coords
 dji-embed convert html DJI_0001.SRT --redact fuzz   # ~100 m coarsened coords
 ```
 
+## Combined flight map (`flightmap`)
+
+> **Experimental:** `flightmap` is new and its size-split joining heuristics
+> may still be tuned based on real-world feedback. If it joins flights it
+> shouldn't (or misses ones it should), please open an issue with the SRT
+> file names and timestamps.
+
+```bash
+dji-embed flightmap ./footage                    # -> footage/flightmap.html
+dji-embed flightmap ./footage -r                 # scan subdirectories too
+dji-embed flightmap ./footage -f all             # html + kml + geojson
+dji-embed flightmap ./footage --redact fuzz      # ~100 m coarsened tracks
+```
+
+Where `convert html` maps one flight, `flightmap` maps a whole folder: every
+`.SRT` log becomes its own coloured track on a single standalone HTML map,
+with a start marker, a summary popup (start time, duration, altitude range,
+GPS point count), and a layer control to toggle flights. Only the SRT sidecars
+are read — the videos are never opened — so scanning a large archive takes
+seconds and needs no external tools.
+
+The GeoJSON output is one `LineString` feature per flight carrying the same
+summary properties (no per-sample points — at archive scale they would swamp
+the file); the KML is one path placemark per flight, which Google Earth and
+Google My Maps import as separate lines.
+
+SRT files without GPS telemetry (ordinary subtitles, clips that never got a
+fix) are skipped and counted; `-v` lists them. With `-r`, flights are labelled
+by their path relative to the scanned folder so per-session directories that
+reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
+telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
+those per clip with `dji-embed convert html VIDEO.MP4`.
+
+Popup start times are converted to UTC by auto-detecting the recording
+timezone from each file's mtime. On archives whose mtimes were rewritten by
+zip/cloud transfers the auto-detection fails; `flightmap` then warns once
+(with a file count) and falls back to mtime-based times. Pass
+`--tz-offset '+02:00'` (your recording timezone) for correct absolute times —
+track shapes, durations, and joining are unaffected either way.
+
+### Size-split recordings are joined
+
+DJI closes the MP4/SRT pair when a recording hits the 4 GB file-size limit and
+keeps recording into the next numbered file, so a long flight arrives as
+several files. `flightmap` stitches these back into one flight when the next
+file sits in the same directory and its telemetry starts within `--join-gap`
+seconds (default 15) of the previous file ending *and* resumes within the
+distance the drone could plausibly have covered in that gap. A joined flight
+keeps the first segment's name; its popup, KML description, and GeoJSON
+`segments` property list the source files.
+
+Details worth knowing:
+
+- Gaps are measured on the SRT's own per-block timestamps, never on file
+  mtimes — so joining still works on archives whose mtimes were rewritten by
+  zip/cloud transfers. Formats without a datetime line in the SRT are never
+  joined for the same reason.
+- Consecutive file numbers are *not* required: photos share DJI's numbering
+  counter, so a split flight can legitimately jump `DJI_0010` → `DJI_0012`.
+- Two flights flown back-to-back from the same launch point are kept apart by
+  the time check; two files recorded around the same time in different
+  locations are kept apart by the position check.
+- `--join-gap 0` disables joining entirely; raise it if your drone pauses
+  longer between segments.
+- Known limitation: segments are only compared against the most recent
+  flight in time order, so if two drones recorded into the same folder at
+  the same time, a split flight interleaved with the other drone's files
+  is not joined. Rare in practice — open an issue if it bites you.
+
 ## Privacy
 
 All three geo formats honour `--redact`:
@@ -160,3 +229,6 @@ Pre-GPS-lock `(0, 0)` frames are always excluded.
 dji-embed convert geojson ./footage --batch     # all *.SRT in the folder
 dji-embed convert html ./footage --batch        # one .html map per *.SRT
 ```
+
+For a single combined map of the whole folder instead, see
+[`flightmap`](#combined-flight-map-flightmap) above.

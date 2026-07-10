@@ -23,7 +23,11 @@ from .geo import (
     convert_to_html,
     convert_to_cot,
     PhotomapError,
+    scan_flights,
     scan_photos,
+    write_flights_geojson,
+    write_flights_html,
+    write_flights_kml,
     write_photos_geojson,
     write_photos_html,
     write_photos_kml,
@@ -81,6 +85,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4 pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
+      flightmap Map every flight in a folder of SRT logs on one combined map (experimental)
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
@@ -402,6 +407,131 @@ def photomap(
                 write_photos_kml(points, out, map_title)
             else:
                 write_photos_geojson(points, out)
+        except OSError as e:
+            raise click.ClickException(f"Could not write {out}: {e}")
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "-o", "--output", type=click.Path(dir_okay=False),
+    help="Output file; used as the base name when --format all",
+)
+@click.option(
+    "-f", "--format", "fmt",
+    type=click.Choice(["html", "kml", "geojson", "all"], case_sensitive=False),
+    default="html", show_default=True, help="Map output format",
+)
+@click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
+@click.option("--title", default=None, help="Map title (default: directory name)")
+@click.option(
+    "--redact",
+    type=click.Choice(["none", "fuzz"], case_sensitive=False),
+    default="none",
+    show_default=True,
+    help="GPS redaction: fuzz coarsens every flight to ~100 m before writing",
+)
+@click.option(
+    "--join-gap",
+    type=float,
+    default=15.0,
+    show_default=True,
+    metavar="SECONDS",
+    help="Chain size-split recordings (DJI starts a new file at the 4 GB "
+    "limit) into one flight when the next file's telemetry starts within "
+    "SECONDS and resumes where the previous file ended. 0 disables joining.",
+)
+@click.option(
+    "--tz-offset",
+    default="auto",
+    show_default=True,
+    metavar="OFFSET",
+    help="UTC offset of the SRT timestamps, e.g. '+05:30' or '-8'. 'auto' "
+    "detects it from each file's mtime; pass it explicitly when the files "
+    "were copied through zip/cloud transfers that rewrote the mtimes.",
+)
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+def flightmap(
+    directory: str,
+    output: str | None,
+    fmt: str,
+    recursive: bool,
+    title: str | None,
+    redact: str,
+    join_gap: float,
+    tz_offset: str,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Map every flight in a folder of DJI .SRT logs on one combined map (experimental).
+
+    Reads only the .SRT telemetry sidecars (fast — the videos are never
+    opened) and draws each flight as its own coloured track with a summary
+    popup, as HTML, KML, or GeoJSON. Recordings split at the 4 GB file
+    limit are chained back into one flight (see --join-gap). Sidecar-less
+    models whose telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, ...)
+    need 'dji-embed convert html VIDEO.MP4' per clip instead.
+    """
+    setup_logging(verbose, quiet)
+    try:
+        offset = parse_utc_offset(tz_offset)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--tz-offset")
+    src = Path(directory)
+    tracks, skipped = scan_flights(
+        src,
+        recursive=recursive,
+        redact=redact.lower(),
+        join_gap=join_gap,
+        tz_offset=offset,
+    )
+    total = len(tracks) + len(skipped)
+    if total == 0:
+        raise click.ClickException(
+            f"No .SRT telemetry files found in {src}"
+            + ("" if recursive else " (use -r to scan subdirectories)")
+        )
+    if not tracks:
+        raise click.ClickException(
+            f"None of the {total} SRT files in {src} contain GPS telemetry"
+        )
+    if verbose:
+        for name in skipped:
+            click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
+    if not quiet:
+        if skipped:
+            click.echo(
+                f"Mapped {len(tracks)} of {total} flights; "
+                f"{len(skipped)} had no GPS telemetry (use -v to list them)"
+            )
+        else:
+            click.echo(
+                f"Mapped {len(tracks)} flight{'s' if len(tracks) != 1 else ''}"
+            )
+        joined = [t for t in tracks if t.segments]
+        if joined:
+            files_joined = sum(len(t.segments or []) for t in joined)
+            click.echo(
+                f"Joined {files_joined} size-split files into "
+                f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
+            )
+    map_title = title or src.resolve().name
+    if fmt.lower() == "all":
+        base = Path(output) if output else src / "flightmap.html"
+        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
+    else:
+        f = fmt.lower()
+        out = Path(output) if output else src / f"flightmap.{f}"
+        targets = [(f, out)]
+    for f, out in targets:
+        try:
+            if f == "html":
+                write_flights_html(tracks, out, map_title)
+            elif f == "kml":
+                write_flights_kml(tracks, out, map_title)
+            else:
+                write_flights_geojson(tracks, out)
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
 

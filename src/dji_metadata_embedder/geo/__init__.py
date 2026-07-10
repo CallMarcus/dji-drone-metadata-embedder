@@ -1,6 +1,14 @@
 """Geospatial track/photo models and exporters (GeoJSON, KML, HTML, CoT)."""
 
 from .cot import convert_to_cot, track_to_cot
+from .flightmap import (
+    flights_to_geojson,
+    flights_to_kml,
+    scan_flights,
+    write_flights_geojson,
+    write_flights_kml,
+)
+from .flightmap_html import flights_to_html, write_flights_html
 from .footprint import FOV_TABLE, Footprint, build_footprints, lens_for
 from .geojson import convert_to_geojson, track_to_geojson
 from .html_viewer import convert_to_html, track_to_html
@@ -44,4 +52,11 @@ __all__ = [
     "write_photos_kml",
     "photos_to_html",
     "write_photos_html",
+    "scan_flights",
+    "flights_to_geojson",
+    "write_flights_geojson",
+    "flights_to_kml",
+    "write_flights_kml",
+    "flights_to_html",
+    "write_flights_html",
 ]

@@ -81,8 +81,9 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 - **GPS Metadata Embedding**: Embed GPS coordinates as standard metadata tags
 - **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
 - **Multiple Format Support**: Handles different DJI SRT telemetry formats
-- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or a standalone HTML map (see [docs/geospatial.md](docs/geospatial.md))
-- **Photo Map**: `dji-embed photomap DIR` plots GPS-tagged still photos (JPG/JPEG/DNG) on a clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
+- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or CoT (see [docs/geospatial.md](docs/geospatial.md))
+- **Flight Map** *(experimental)*: `dji-embed flightmap DIR` draws every flight in a folder of `.SRT` logs on one combined HTML map (or KML/GeoJSON) — fast, the videos are never opened; `dji-embed convert html FLIGHT.SRT` maps a single flight with an altitude-coloured track — see [Put your flights and photos on a map](#put-your-flights-and-photos-on-a-map)
+- **Photo Map**: `dji-embed photomap DIR` plots a whole folder of GPS-tagged still photos (JPG/JPEG/DNG) on a single clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
 - **Camera Footprint Polygons**: `convert geojson/kml … --footprint` adds nadir ground-footprint rectangles to GeoJSON/KML output (gimbal-aware on formats that carry attitude; suppressed under `--redact`). See [docs/geospatial.md](docs/geospatial.md).
 - **CoT Export**: `dji-embed convert cot FLIGHT.SRT` writes Cursor-on-Target XML for ATAK/TAK (route + timed track). See [docs/fmv-interop.md](docs/fmv-interop.md).
 - **Footage verification:** `dji-embed verify-sun clip.SRT` reports the sun's azimuth/elevation over a clip for shadow cross-checking; CSV export gains `datetime_utc` / `sun_azimuth` / `sun_elevation` columns.
@@ -139,9 +140,10 @@ dji-embed embed /path/to/drone/footage
 dji-embed [OPTIONS] COMMAND [ARGS]...
 
 Commands:
-  embed    Embed telemetry from SRT files into MP4 videos
-  validate Validate SRT/MP4 pairs and report drift
-  convert  Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
+  embed      Embed telemetry from SRT files into MP4 videos
+  validate   Validate SRT/MP4 pairs and report drift
+  convert    Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
+  flightmap  Map every flight in a folder of SRT logs on one combined map
   photomap   Map GPS-tagged still photos to an HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
   doctor     Show system information and verify dependencies
@@ -259,6 +261,48 @@ Batch convert directory to CSV:
 dji-embed convert csv /path/to/srt/files --batch
 ```
 
+### Put Your Flights and Photos on a Map
+
+Two commands cover the "show me where this was shot" workflows:
+
+**One flight → one HTML map.** Renders the flight path coloured by altitude,
+viewable in any browser:
+
+```bash
+dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
+dji-embed convert html DJI_0042.MP4              # sidecar-less models: read telemetry from the MP4
+```
+
+**A folder of flights → one combined map** *(experimental — feedback
+welcome!)*. Reads only the `.SRT` telemetry sidecars (the videos are never
+opened, so a whole archive scans in seconds) and draws each flight as its own
+coloured track with a summary popup and a layer toggle. Recordings that DJI
+split at the 4 GB file limit are automatically stitched back into one flight:
+
+```bash
+dji-embed flightmap /path/to/footage             # -> footage/flightmap.html
+dji-embed flightmap /path/to/footage -r          # scan subdirectories too
+dji-embed flightmap /path/to/footage -f kml      # Google Earth / My Maps instead
+```
+
+Prefer one map per clip? `dji-embed convert html /path/to/footage --batch`
+writes a separate `.html` next to each video.
+
+**A folder of still photos → one combined, clustered map** with an EXIF
+thumbnail popup per pin (requires ExifTool):
+
+```bash
+dji-embed photomap /path/to/photos               # -> photos/photomap.html
+dji-embed photomap /path/to/photos -f kml        # Google Earth instead
+```
+
+`photomap` scans JPG/JPEG/DNG stills; `flightmap` scans `.SRT` flight logs.
+All HTML maps embed your data but load the basemap tiles from the internet, so
+they need a connection to render — and they reveal your flying locations, so
+share them deliberately (`flightmap --redact fuzz` coarsens tracks to ~100 m).
+Details and more formats (KML, GeoJSON, CoT, camera footprints):
+[docs/geospatial.md](docs/geospatial.md).
+
 ### Check Existing Metadata
 
 You can check if your videos or photos already contain GPS or altitude
@@ -356,6 +400,7 @@ Options:
 ```bash
 dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
 dji-embed convert html DJI_0001.SRT -o flight.html
+dji-embed convert html /path/to/footage --batch  # one map per clip (not combined)
 ```
 
 **CoT (Cursor-on-Target) example** — for ATAK/TAK; see [docs/fmv-interop.md](docs/fmv-interop.md):
@@ -373,6 +418,78 @@ Leaflet and the basemap tiles load from the internet; the flight data itself is 
 dji-embed convert geojson DJI_0001.SRT --footprint --model air3
 dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 ```
+
+#### `dji-embed flightmap` - Combined Flight Map (experimental)
+Map every flight in a folder of DJI `.SRT` logs on one combined map.
+
+> **Experimental:** `flightmap` is new and its size-split joining heuristics
+> may still be tuned based on real-world feedback. If it joins flights it
+> shouldn't (or misses ones it should), please
+> [open an issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues)
+> with the SRT file names and timestamps.
+
+```bash
+dji-embed flightmap [OPTIONS] DIRECTORY
+
+Arguments:
+  DIRECTORY                       Directory containing .SRT flight logs
+
+Options:
+  -o, --output FILE               Output file; used as the base name when
+                                  --format all
+  -f, --format [html|kml|geojson|all]
+                                  Map output format (default: html)
+  -r, --recursive                 Scan subdirectories too
+  --title TEXT                    Map title (default: directory name)
+  --redact [none|fuzz]            GPS redaction: fuzz coarsens every flight to
+                                  ~100 m before writing (default: none)
+  --join-gap SECONDS              Chain size-split recordings (DJI starts a new
+                                  file at the 4 GB limit) into one flight when
+                                  the next file's telemetry starts within
+                                  SECONDS and resumes where the previous file
+                                  ended. 0 disables joining (default: 15.0)
+  --tz-offset OFFSET              UTC offset of the SRT timestamps, e.g.
+                                  '+05:30' or '-8'. 'auto' detects it from each
+                                  file's mtime; pass it explicitly when the
+                                  files were copied through zip/cloud transfers
+                                  that rewrote the mtimes (default: auto)
+  -v, --verbose                   Verbose output
+  -q, --quiet                     Suppress info output
+```
+
+Reads only the `.SRT` telemetry sidecars — the videos are never opened and no
+external tool is needed — so scanning a large archive is fast. Each flight
+becomes its own coloured track with a popup (start time, duration, altitude
+range, GPS points) and a layer toggle; the KML imports into Google Earth and
+Google My Maps as one line per flight. SRT files without GPS telemetry
+(e.g. ordinary subtitles) are skipped and counted in a summary; `-v` lists them.
+
+```bash
+dji-embed flightmap /path/to/footage                        # -> footage/flightmap.html
+dji-embed flightmap /path/to/footage -f all                 # -> footage/flightmap.{html,kml,geojson}
+dji-embed flightmap /path/to/footage -r --title "Road trip" # recurse + custom title
+```
+
+Notes:
+- With `-r`, flights are labelled by their path relative to `DIRECTORY`
+  (`session1/DJI_0001`), so per-session folders that reuse DJI's restarting
+  file numbering stay distinct.
+- Long recordings that DJI split at the 4 GB file limit are stitched back
+  into one flight when the next file's telemetry continues (in time and
+  position) where the previous one ended — measured on the SRT's own
+  timestamps, so it survives copied files with rewritten mtimes. The popup
+  lists the joined files; tune or disable with `--join-gap`.
+- Popup start times are converted to UTC using each file's mtime. On archives
+  whose mtimes were rewritten (zip/cloud transfers) the tool warns once and
+  falls back to the mtime; pass `--tz-offset` with your recording timezone to
+  get correct absolute times. Joining itself is unaffected either way.
+- Sidecar-less models whose telemetry lives inside the MP4 (Air 3S,
+  Mini 5 Pro, …) are not scanned; map those per clip with
+  `dji-embed convert html VIDEO.MP4`.
+- Leaflet and the OpenStreetMap basemap tiles load from the internet; the
+  flight data itself is embedded, so the HTML file is portable but needs a
+  connection to render. A flight map publishes where you fly — share it
+  deliberately, or use `--redact fuzz`.
 
 #### `dji-embed photomap` - Map Still Photos
 Map GPS-tagged still photos (JPG/JPEG/DNG) as an HTML, KML, or GeoJSON map.
