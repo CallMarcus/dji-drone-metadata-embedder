@@ -1,7 +1,7 @@
 # DJI Drone Metadata Embedder
 
 [![GitHub Release]][release]
-[![Version](https://img.shields.io/badge/version-1.16.0-blue)][release]
+[![Version](https://img.shields.io/badge/version-1.16.1-blue)][release]
 [![PyPI]][pypi]
 [![Winget]][winget]
 
