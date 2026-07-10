@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.16.1] - 2026-07-10
+
+### Fixed
+
+- **flightmap**: Popup accuracy, 1 Hz display thinning, truncated-block guard (#263) (018b2c0)
+
+### Documentation
+
+- Auto-generate changelog for v1.16.0 (075e322)
+
+### Other
+
+- Prepare version 1.16.1 (647f341)
+
+
 ## [1.16.0] - 2026-07-10
 
 ### Added
