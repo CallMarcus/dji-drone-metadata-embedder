@@ -87,8 +87,17 @@ from pre-existing environmental gaps.
   Leaflet/OSM, no API key, v1.7.0), the **interactive map panel in the web UI**
   (#222, v1.9.0), and **camera-footprint polygons** (#215, `--footprint`,
   v1.9.0). Every renderer consumes the same GeoJSON. Remaining follow-ups are
-  oblique-trapezoid / view-frustum footprints (needs DAT attitude) and
-  terrain/DEM draping.
+  now tracked as issues:
+  [#265](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/265)
+  oblique-trapezoid / view-frustum footprints — unblocked, since gimbal
+  attitude is already parsed from SRT (`gb_yaw`/`gb_pitch`) and the djmd MP4
+  track (DAT logs are *not* required, contrary to earlier assumptions);
+  [#266](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/266)
+  terrain/DEM support via an optional `[terrain]` extra;
+  [#267](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/267)
+  flight playback animation in the flightmap viewer; and
+  [#268](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/268)
+  a 3D terrain view (MapLibre `--3d` template, deliberately parked).
 - **Richer web UI.** Incremental improvements to the Flask UI
   (`src/dji_metadata_embedder/ui/`) – nicer job progress, downloadable
   per-job artefacts, and richer previews – instead of new GUI frameworks.
