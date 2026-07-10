@@ -13,10 +13,11 @@ import json
 import logging
 import posixpath
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from .. import utilities
 from ..utilities import load_samples, redact_coords
 from .geometry import haversine_m
 from .track import Track, build_track_from_samples
@@ -129,11 +130,35 @@ def join_split_flights(
     return [e.track for e in flights]
 
 
+class _TzWarningAggregator(logging.Filter):
+    """Collapse per-file timezone auto-detection warnings into one summary.
+
+    A folder whose mtimes were rewritten by a zip/cloud transfer would
+    otherwise repeat :func:`..utilities.estimate_utc_offset`'s warning once
+    per file — on an archive scan that is pure noise. The per-file warnings
+    are swallowed here and :func:`scan_flights` emits a single count-carrying
+    summary instead.
+    """
+
+    _PREFIX = "Timezone auto-detection failed"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.count = 0
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.getMessage().startswith(self._PREFIX):
+            self.count += 1
+            return False
+        return True
+
+
 def scan_flights(
     directory: Path | str,
     recursive: bool = False,
     redact: str = "none",
     join_gap: float = 15.0,
+    tz_offset: timedelta | None = None,
 ) -> tuple[list[Track], list[str]]:
     """Scan *directory* for ``.SRT`` files and return ``(tracks, skipped)``.
 
@@ -144,7 +169,10 @@ def scan_flights(
     acquired a fix, unreadable files) go to ``skipped``. Both lists are sorted
     by name so output is deterministic regardless of filesystem order.
     ``redact`` (``fuzz`` coarsens to ~100 m) is applied *after* joining so the
-    coarsened coordinates cannot break the continuity check.
+    coarsened coordinates cannot break the continuity check. ``tz_offset``
+    fixes the SRT-local -> UTC offset for every file; ``None`` auto-detects it
+    per file from the mtime, falling back to mtime-based start times (with one
+    aggregated warning) when the mtimes were rewritten by a transfer.
     """
     root = Path(directory)
     files: set[Path] = set()
@@ -152,22 +180,40 @@ def scan_flights(
         files.update(root.rglob(pattern) if recursive else root.glob(pattern))
     entries: list[_ScanEntry] = []
     skipped: list[str] = []
-    for path in sorted(files):
-        name = _display_name(path, root, recursive)
-        try:
-            samples = load_samples(path)
-            if not samples:
+    tz_warnings = _TzWarningAggregator()
+    util_logger = logging.getLogger(utilities.__name__)
+    util_logger.addFilter(tz_warnings)
+    try:
+        for path in sorted(files):
+            name = _display_name(path, root, recursive)
+            try:
+                samples = load_samples(path)
+                if not samples:
+                    skipped.append(name)
+                    continue
+                mtime_utc = datetime.fromtimestamp(
+                    path.stat().st_mtime, tz=timezone.utc
+                ).replace(tzinfo=None)
+                track = build_track_from_samples(
+                    name, samples, tz_offset=tz_offset, mtime_utc=mtime_utc
+                )
+            except (OSError, ValueError) as exc:
+                logger.warning("Skipping %s: %s", path, exc)
                 skipped.append(name)
                 continue
-            mtime_utc = datetime.fromtimestamp(
-                path.stat().st_mtime, tz=timezone.utc
-            ).replace(tzinfo=None)
-            track = build_track_from_samples(name, samples, mtime_utc=mtime_utc)
-        except (OSError, ValueError) as exc:
-            logger.warning("Skipping %s: %s", path, exc)
-            skipped.append(name)
-            continue
-        entries.append(_ScanEntry(track, samples[0].dt, samples[-1].dt))
+            entries.append(_ScanEntry(track, samples[0].dt, samples[-1].dt))
+    finally:
+        util_logger.removeFilter(tz_warnings)
+    if tz_warnings.count:
+        logger.warning(
+            "Timezone auto-detection failed for %d of %d SRT files: their "
+            "mtimes do not match the recording window (common after zip/cloud "
+            "transfers), so those start times fall back to the file mtime and "
+            "may be wrong. Pass --tz-offset to set the recording timezone "
+            "explicitly.",
+            tz_warnings.count,
+            len(files),
+        )
     if join_gap > 0:
         tracks = join_split_flights(entries, max_gap_s=join_gap)
     else:

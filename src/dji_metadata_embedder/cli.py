@@ -85,7 +85,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4 pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
-      flightmap Map every flight in a folder of SRT logs on one combined map
+      flightmap Map every flight in a folder of SRT logs on one combined map (experimental)
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
@@ -441,6 +441,15 @@ def photomap(
     "limit) into one flight when the next file's telemetry starts within "
     "SECONDS and resumes where the previous file ended. 0 disables joining.",
 )
+@click.option(
+    "--tz-offset",
+    default="auto",
+    show_default=True,
+    metavar="OFFSET",
+    help="UTC offset of the SRT timestamps, e.g. '+05:30' or '-8'. 'auto' "
+    "detects it from each file's mtime; pass it explicitly when the files "
+    "were copied through zip/cloud transfers that rewrote the mtimes.",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def flightmap(
@@ -451,10 +460,11 @@ def flightmap(
     title: str | None,
     redact: str,
     join_gap: float,
+    tz_offset: str,
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Map every flight in a folder of DJI .SRT logs on one combined map.
+    """Map every flight in a folder of DJI .SRT logs on one combined map (experimental).
 
     Reads only the .SRT telemetry sidecars (fast — the videos are never
     opened) and draws each flight as its own coloured track with a summary
@@ -464,9 +474,17 @@ def flightmap(
     need 'dji-embed convert html VIDEO.MP4' per clip instead.
     """
     setup_logging(verbose, quiet)
+    try:
+        offset = parse_utc_offset(tz_offset)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--tz-offset")
     src = Path(directory)
     tracks, skipped = scan_flights(
-        src, recursive=recursive, redact=redact.lower(), join_gap=join_gap
+        src,
+        recursive=recursive,
+        redact=redact.lower(),
+        join_gap=join_gap,
+        tz_offset=offset,
     )
     total = len(tracks) + len(skipped)
     if total == 0:

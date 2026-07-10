@@ -147,6 +147,32 @@ SPLIT_A = (
 SPLIT_B = SPLIT_A.replace("12:00:00", "12:00:02").replace("12:00:01", "12:00:03")
 
 
+def test_flightmap_tz_offset_option_sets_start_times(tmp_path):
+    import os
+
+    _folder(tmp_path, {"DJI_0001.SRT": SPLIT_A})
+    # mtime a zip transfer rewrote: auto-detection would fail without the flag
+    os.utime(tmp_path / "DJI_0001.SRT", (946684800.0, 946684800.0))
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "-f", "geojson", "--tz-offset", "+2"],
+    )
+    assert res.exit_code == 0, res.output
+    data = json.loads((tmp_path / "flightmap.geojson").read_text(encoding="utf-8"))
+    # local 2026-06-15 12:00:00 at UTC+2 -> 10:00:00 UTC
+    assert data["features"][0]["properties"]["start"] == "2026-06-15 10:00:00 UTC"
+
+
+def test_flightmap_invalid_tz_offset_is_clean_error(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--tz-offset", "nope"]
+    )
+    assert res.exit_code != 0
+    assert "Invalid UTC offset" in res.output
+    assert res.exception is None or isinstance(res.exception, SystemExit)
+
+
 def test_flightmap_joins_size_split_recordings(tmp_path):
     _folder(tmp_path, {"DJI_0001.SRT": SPLIT_A, "DJI_0002.SRT": SPLIT_B})
     res = CliRunner().invoke(main, ["flightmap", str(tmp_path)])

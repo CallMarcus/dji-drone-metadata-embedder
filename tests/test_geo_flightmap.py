@@ -1,4 +1,6 @@
 import json
+import logging
+import os
 from datetime import datetime, timedelta
 
 from dji_metadata_embedder.geo.flightmap import (
@@ -243,6 +245,49 @@ def test_joined_flight_properties_carry_segments(tmp_path):
     kml = flights_to_kml(tracks, title="t")
     assert kml.count("<Placemark>") == 1
     assert "2 size-split files (DJI_0001 → DJI_0002)" in kml
+
+
+# mtime far outside any recording window (2000-01-01 UTC) so timezone
+# auto-detection is guaranteed to fail for the 2026-dated segments above.
+_BOGUS_MTIME = 946684800.0
+
+
+def test_scan_flights_explicit_tz_offset_resolves_utc(tmp_path):
+    path = _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    os.utime(path, (_BOGUS_MTIME, _BOGUS_MTIME))
+    tracks, _ = scan_flights(tmp_path, tz_offset=timedelta(hours=2))
+    # local 12:00:00 at UTC+2 -> 10:00:00 UTC
+    assert tracks[0].points[0].utc == T0 - timedelta(hours=2)
+
+
+def test_scan_flights_aggregates_tz_detection_warnings(tmp_path, caplog):
+    # Three distinct flights (hours apart, so never joined), all with mtimes
+    # a zip transfer rewrote: one summary warning, not one per file.
+    for i in range(3):
+        srt = _dt_srt(T0 + timedelta(hours=2 * i),
+                      [(10.0 + i, 20.0, 5.0), (10.001 + i, 20.0, 6.0)])
+        path = _write(tmp_path, f"DJI_000{i + 1}.SRT", srt)
+        os.utime(path, (_BOGUS_MTIME, _BOGUS_MTIME))
+    with caplog.at_level(logging.WARNING):
+        tracks, _ = scan_flights(tmp_path)
+    assert len(tracks) == 3
+    tz_warnings = [
+        r.message for r in caplog.records
+        if "Timezone auto-detection failed" in r.message
+    ]
+    assert len(tz_warnings) == 1
+    assert "3" in tz_warnings[0]
+    assert "--tz-offset" in tz_warnings[0]
+
+
+def test_scan_flights_tz_offset_silences_detection_warnings(tmp_path, caplog):
+    path = _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    os.utime(path, (_BOGUS_MTIME, _BOGUS_MTIME))
+    with caplog.at_level(logging.WARNING):
+        scan_flights(tmp_path, tz_offset=timedelta(hours=2))
+    assert not any(
+        "Timezone auto-detection failed" in r.message for r in caplog.records
+    )
 
 
 def test_writers_create_files(tmp_path):
