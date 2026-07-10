@@ -169,6 +169,12 @@ summary properties (no per-sample points — at archive scale they would swamp
 the file); the KML is one path placemark per flight, which Google Earth and
 Google My Maps import as separate lines.
 
+DJI logs one GPS point per video frame (~30 Hz), so `flightmap` thins every
+track to about one point per second (always keeping the exact first and last
+fix) — visually identical, but a 400-file archive drops from ~70 MB to a few
+MB of HTML. Your SRT files are untouched; for full-rate output of a single
+flight use `dji-embed convert` instead.
+
 SRT files without GPS telemetry (ordinary subtitles, clips that never got a
 fix) are skipped and counted; `-v` lists them. With `-r`, flights are labelled
 by their path relative to the scanned folder so per-session directories that

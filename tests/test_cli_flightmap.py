@@ -178,7 +178,7 @@ def test_flightmap_joins_size_split_recordings(tmp_path):
     res = CliRunner().invoke(main, ["flightmap", str(tmp_path)])
     assert res.exit_code == 0, res.output
     assert "Mapped 1 flight" in res.output
-    assert "Joined 2 size-split files into 1 flight" in res.output
+    assert "Joined 2 files into 1 flight" in res.output
     text = (tmp_path / "flightmap.html").read_text(encoding="utf-8")
     assert '"segments": ["DJI_0001", "DJI_0002"]' in text
 

@@ -20,7 +20,7 @@ from xml.sax.saxutils import escape
 from .. import utilities
 from ..utilities import load_samples, redact_coords
 from .geometry import haversine_m
-from .track import Track, build_track_from_samples
+from .track import Track, TrackPoint, build_track_from_samples
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,35 @@ def join_split_flights(
     return [e.track for e in flights]
 
 
+# DJI logs one GPS point per video frame (~30 Hz); at archive scale that
+# balloons the combined map (398 files -> 72 MB HTML) with detail the eye
+# cannot see. Display output keeps ~1 point per second.
+_DISPLAY_INTERVAL_S = 1.0
+
+
+def _decimate_points(
+    points: list[TrackPoint], interval_s: float = _DISPLAY_INTERVAL_S
+) -> list[TrackPoint]:
+    """Thin *points* to at most one per *interval_s*, keeping first and last.
+
+    Timing comes from each point's resolved UTC; points without one are kept
+    (no basis for thinning). Must run *after* split-joining — the continuity
+    check needs the raw boundary fixes.
+    """
+    if len(points) <= 2:
+        return points
+    kept = [points[0]]
+    for p in points[1:-1]:
+        if (
+            p.utc is None
+            or kept[-1].utc is None
+            or (p.utc - kept[-1].utc).total_seconds() >= interval_s
+        ):
+            kept.append(p)
+    kept.append(points[-1])
+    return kept
+
+
 class _TzWarningAggregator(logging.Filter):
     """Collapse per-file timezone auto-detection warnings into one summary.
 
@@ -218,6 +247,8 @@ def scan_flights(
         tracks = join_split_flights(entries, max_gap_s=join_gap)
     else:
         tracks = [e.track for e in entries]
+    for track in tracks:
+        track.points = _decimate_points(track.points)
     if redact == "fuzz":
         for track in tracks:
             coords = redact_coords([(p.lat, p.lon) for p in track.points], "fuzz")
@@ -248,6 +279,12 @@ def _flight_properties(track: Track) -> dict:
     alts = [p.alt for p in track.points]
     props["alt_min"] = round(min(alts), 1)
     props["alt_max"] = round(max(alts), 1)
+    # DJI's abs_alt reference varies by model and can sit far below sea level,
+    # so popups prefer height above takeoff whenever the format carries it.
+    rels = [p.rel_alt for p in track.points if p.rel_alt is not None]
+    if rels:
+        props["height_min"] = round(min(rels), 1)
+        props["height_max"] = round(max(rels), 1)
     if track.segments:
         props["segments"] = track.segments
     return props
@@ -309,11 +346,20 @@ def flights_to_kml(tracks: list[Track], title: str) -> str:
         desc = [props.get("start")]
         if "duration_s" in props:
             desc.append(f"duration: {format_duration(props['duration_s'])}")
-        desc.append(f"altitude: {props['alt_min']:g} - {props['alt_max']:g} m")
+        if "height_min" in props:
+            desc.append(
+                f"height: {props['height_min']:g} to "
+                f"{props['height_max']:g} m above takeoff"
+            )
+        else:
+            desc.append(
+                f"altitude: {props['alt_min']:g} to "
+                f"{props['alt_max']:g} m (as logged)"
+            )
         desc.append(f"{props['points']} GPS points")
         if track.segments:
             desc.append(
-                f"{len(track.segments)} size-split files "
+                f"recorded across {len(track.segments)} files "
                 f"({track.segments[0]} → {track.segments[-1]})"
             )
         if len(track.points) >= 2:

@@ -38,6 +38,35 @@ def test_samples_datetime_none_when_absent(tmp_path):
     assert all(s.dt is None for s in samples)
 
 
+def test_truncated_final_block_is_dropped(tmp_path):
+    # A drone powered off mid-write leaves the last block cut inside the
+    # altitude tokens. Real case: DJI_0209 ends "...[latitude: X] [longitude:
+    # Y] [rel_". The sample must be dropped, not given a fabricated alt=0.0.
+    truncated = NODT_SRT + (
+        "\n3\n00:00:02,000 --> 00:00:03,000\n"
+        '<font size="28">[latitude: 12.0] [longitude: 22.0] [rel_'
+    )
+    srt = tmp_path / "cut.SRT"
+    srt.write_text(truncated, encoding="utf-8")
+    samples = parse_telemetry_samples(srt)
+    assert len(samples) == 2
+    assert all(s.alt != 0.0 for s in samples)
+
+
+def test_gps_compact_form_without_abs_alt_still_parses(tmp_path):
+    # Avata 2-style GPS(lat,lon,alt) has no abs_alt token; the altitude comes
+    # from the GPS() group and must survive the truncated-block guard.
+    srt = tmp_path / "avata.SRT"
+    srt.write_text(
+        "1\n00:00:00,000 --> 00:00:00,033\n"
+        "GPS(39.906217,116.391305,69.800) BAROMETER(91.2)\n",
+        encoding="utf-8",
+    )
+    samples = parse_telemetry_samples(srt)
+    assert len(samples) == 1
+    assert samples[0].alt == 69.8
+
+
 def test_parse_telemetry_points_is_unchanged_wrapper():
     # The legacy 4-tuple API must be byte-for-byte the same as before.
     pts = parse_telemetry_points(CLIP)

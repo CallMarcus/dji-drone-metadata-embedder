@@ -119,6 +119,48 @@ def test_flights_to_kml_escapes_names():
     assert "t&lt;&amp;&gt;" in kml
 
 
+def test_flight_properties_prefer_relative_height():
+    # DJI's abs_alt reference is unreliable (can sit far below sea level), so
+    # when the format carries rel_alt the popup fields use height-above-takeoff.
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
+                   rel_alt=1.2),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
+                   rel_alt=96.4),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert (props["height_min"], props["height_max"]) == (1.2, 96.4)
+    # abs alt stays available for GeoJSON consumers
+    assert (props["alt_min"], props["alt_max"]) == (-125.6, -66.8)
+
+
+def test_flight_properties_without_rel_alt_have_no_height():
+    props = flights_to_geojson(_tracks())["features"][0]["properties"]
+    assert "height_min" not in props
+
+
+def test_kml_relative_height_preferred_and_readable():
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
+                   rel_alt=1.2),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
+                   rel_alt=96.4),
+    ])
+    kml = flights_to_kml([track], title="t")
+    assert "height: 1.2 to 96.4 m above takeoff" in kml
+
+
+def test_kml_negative_altitude_range_readable():
+    # Without rel_alt the abs range must not render as "-125.6--66.8 m".
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000"),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000"),
+    ])
+    kml = flights_to_kml([track], title="t")
+    assert "altitude: -125.6 to -66.8 m (as logged)" in kml
+    assert "--" not in kml.split("<description>")[1].split("</description>")[0]
+
+
 def test_format_duration():
     assert format_duration(0) == "0:00"
     assert format_duration(243) == "4:03"
@@ -244,7 +286,50 @@ def test_joined_flight_properties_carry_segments(tmp_path):
     assert feature["properties"]["duration_s"] == 4  # spans both segments
     kml = flights_to_kml(tracks, title="t")
     assert kml.count("<Placemark>") == 1
-    assert "2 size-split files (DJI_0001 → DJI_0002)" in kml
+    # Neutral wording: joins also catch quick stop/start re-records, so the
+    # description must not claim the files were size-splits.
+    assert "recorded across 2 files (DJI_0001 → DJI_0002)" in kml
+    assert "size-split" not in kml
+
+
+def _hz30_srt(start: datetime, seconds: float, lat0: float = 34.0) -> str:
+    """30 Hz datetime-carrying SRT: one block per video frame, drifting north."""
+    blocks = []
+    n = int(seconds * 30)
+    for i in range(n):
+        t = start + timedelta(seconds=i / 30)
+        stamp = t.strftime("%Y-%m-%d %H:%M:%S.") + f"{t.microsecond // 1000:03d}"
+        cue_s, cue_ms = divmod(int(i * 1000 / 30), 1000)
+        blocks.append(
+            f"{i + 1}\n00:00:{cue_s:02d},{cue_ms:03d} --> 00:00:{cue_s:02d},{cue_ms + 33:03d}\n"
+            f'<font size="28">FrameCnt: {i + 1}, DiffTime: 33ms\n'
+            f"{stamp}\n"
+            f"[latitude: {lat0 + i * 1e-6:.6f}] [longitude: -84.0] "
+            f"[rel_alt: 1.000 abs_alt: 100.0]</font>\n"
+        )
+    return "\n".join(blocks)
+
+
+def test_scan_flights_decimates_to_one_point_per_second(tmp_path):
+    # 5 s of 30 Hz telemetry = 150 raw points; the map keeps ~1 Hz plus the
+    # exact first and last fix so archive-scale HTML stays small.
+    _write(tmp_path, "DJI_0001.SRT", _hz30_srt(T0, 5.0))
+    tracks, _ = scan_flights(tmp_path)
+    pts = tracks[0].points
+    assert len(pts) <= 7
+    assert pts[0].lat == 34.0                       # first fix kept verbatim
+    assert pts[-1].lat == 34.0 + 149 * 1e-6         # last fix kept verbatim
+
+
+def test_decimation_does_not_break_split_joining(tmp_path):
+    # Continuity is checked on raw boundary points before decimation.
+    _write(tmp_path, "DJI_0001.SRT", _hz30_srt(T0, 2.0))
+    _write(tmp_path, "DJI_0002.SRT",
+           _hz30_srt(T0 + timedelta(seconds=2), 2.0, lat0=34.0 + 60 * 1e-6))
+    tracks, _ = scan_flights(tmp_path)
+    assert len(tracks) == 1
+    assert tracks[0].segments == ["DJI_0001", "DJI_0002"]
+    assert len(tracks[0].points) <= 8               # ~4 s at 1 Hz + endpoints
 
 
 # mtime far outside any recording window (2000-01-01 UTC) so timezone

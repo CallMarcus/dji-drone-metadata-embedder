@@ -513,7 +513,7 @@ def flightmap(
         if joined:
             files_joined = sum(len(t.segments or []) for t in joined)
             click.echo(
-                f"Joined {files_joined} size-split files into "
+                f"Joined {files_joined} files into "
                 f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
             )
     map_title = title or src.resolve().name
