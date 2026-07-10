@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.16.0] - 2026-07-10
+
+### Added
+
+- **flightmap**: Combined map of every flight in a folder of SRT logs (#262) (724fdc7)
+
+### Documentation
+
+- Auto-generate changelog for v1.15.0 (55922a3)
+
+### Other
+
+- Prepare version 1.16.0 (038a3b9)
+
+
 ## [1.15.0] - 2026-07-08
 
 ### Added
