@@ -75,6 +75,28 @@ def test_html_embeds_segments_for_joined_flights():
     assert props["segments"] == ["DJI_0001", "DJI_0002"]
 
 
+def test_html_popup_prefers_relative_height_and_readable_ranges():
+    # The popup JS must show rel-alt height when present and join ranges with
+    # " to " so negative abs altitudes don't render as "-125.6--66.8 m".
+    html = flights_to_html(TRACKS, title="t")
+    assert "p.height_min" in html
+    assert "m above takeoff" in html
+    assert "}–${" not in html  # old en-dash range join
+
+
+def test_html_embeds_height_properties_from_rel_alt():
+    tracks = [Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
+                   rel_alt=1.2),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
+                   rel_alt=96.4),
+    ])]
+    props = _embedded_geojson(flights_to_html(tracks, title="t"))["features"][0][
+        "properties"
+    ]
+    assert (props["height_min"], props["height_max"]) == (1.2, 96.4)
+
+
 def test_html_draws_tracks_with_layer_control():
     html = flights_to_html(TRACKS, title="t")
     assert "L.polyline" in html

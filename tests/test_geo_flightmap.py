@@ -119,6 +119,48 @@ def test_flights_to_kml_escapes_names():
     assert "t&lt;&amp;&gt;" in kml
 
 
+def test_flight_properties_prefer_relative_height():
+    # DJI's abs_alt reference is unreliable (can sit far below sea level), so
+    # when the format carries rel_alt the popup fields use height-above-takeoff.
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
+                   rel_alt=1.2),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
+                   rel_alt=96.4),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert (props["height_min"], props["height_max"]) == (1.2, 96.4)
+    # abs alt stays available for GeoJSON consumers
+    assert (props["alt_min"], props["alt_max"]) == (-125.6, -66.8)
+
+
+def test_flight_properties_without_rel_alt_have_no_height():
+    props = flights_to_geojson(_tracks())["features"][0]["properties"]
+    assert "height_min" not in props
+
+
+def test_kml_relative_height_preferred_and_readable():
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
+                   rel_alt=1.2),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
+                   rel_alt=96.4),
+    ])
+    kml = flights_to_kml([track], title="t")
+    assert "height: 1.2 to 96.4 m above takeoff" in kml
+
+
+def test_kml_negative_altitude_range_readable():
+    # Without rel_alt the abs range must not render as "-125.6--66.8 m".
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000"),
+        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000"),
+    ])
+    kml = flights_to_kml([track], title="t")
+    assert "altitude: -125.6 to -66.8 m (as logged)" in kml
+    assert "--" not in kml.split("<description>")[1].split("</description>")[0]
+
+
 def test_format_duration():
     assert format_duration(0) == "0:00"
     assert format_duration(243) == "4:03"

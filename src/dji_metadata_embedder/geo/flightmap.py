@@ -248,6 +248,12 @@ def _flight_properties(track: Track) -> dict:
     alts = [p.alt for p in track.points]
     props["alt_min"] = round(min(alts), 1)
     props["alt_max"] = round(max(alts), 1)
+    # DJI's abs_alt reference varies by model and can sit far below sea level,
+    # so popups prefer height above takeoff whenever the format carries it.
+    rels = [p.rel_alt for p in track.points if p.rel_alt is not None]
+    if rels:
+        props["height_min"] = round(min(rels), 1)
+        props["height_max"] = round(max(rels), 1)
     if track.segments:
         props["segments"] = track.segments
     return props
@@ -309,7 +315,16 @@ def flights_to_kml(tracks: list[Track], title: str) -> str:
         desc = [props.get("start")]
         if "duration_s" in props:
             desc.append(f"duration: {format_duration(props['duration_s'])}")
-        desc.append(f"altitude: {props['alt_min']:g} - {props['alt_max']:g} m")
+        if "height_min" in props:
+            desc.append(
+                f"height: {props['height_min']:g} to "
+                f"{props['height_max']:g} m above takeoff"
+            )
+        else:
+            desc.append(
+                f"altitude: {props['alt_min']:g} to "
+                f"{props['alt_max']:g} m (as logged)"
+            )
         desc.append(f"{props['points']} GPS points")
         if track.segments:
             desc.append(
