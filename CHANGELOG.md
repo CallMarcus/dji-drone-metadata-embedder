@@ -15,6 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.17.0] - 2026-07-12
+
+### Added
+
+- **photomap**: Link map pins to original photos (#269) (6107ead)
+
+### Fixed
+
+- **bootstrap**: FFmpeg download no longer hangs — GitHub mirror, progress, stall timeouts (#270) (07a33f8)
+
+### Documentation
+
+- **roadmap**: Mapping follow-ups now tracked as issues #265-#268; DAT not needed for oblique footprints (ef63813)
+- Auto-generate changelog for v1.16.1 (1713c9e)
+
+### Other
+
+- Prepare version 1.17.0 (bba6c45)
+
+
 ## [1.16.1] - 2026-07-10
 
 ### Fixed
