@@ -8,6 +8,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $VerbosePreference = if($Silent){'SilentlyContinue'} else{'Continue'}
 
+# PowerShell 5.1 on older Windows 10 builds may have an explicit protocol list
+# without TLS 1.2, which GitHub (and most mirrors) require. Add it in that
+# case; a value of 0 (SystemDefault) already lets the OS negotiate TLS 1.2+.
+$secProto = [Net.ServicePointManager]::SecurityProtocol
+if (($secProto -ne 0) -and (-not ($secProto -band [Net.SecurityProtocolType]::Tls12))) {
+    [Net.ServicePointManager]::SecurityProtocol = $secProto -bor [Net.SecurityProtocolType]::Tls12
+}
+
 function Log($Msg){ if(-not $Silent){ Write-Host "[+] $Msg" -ForegroundColor Green } }
 function LogError($Msg){ Write-Host "[!] ERROR: $Msg" -ForegroundColor Red }
 function LogWarn($Msg){ Write-Host "[!] WARNING: $Msg" -ForegroundColor Yellow }
@@ -332,30 +340,72 @@ $FFmpegUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
 $ExifToolUrl = 'https://sourceforge.net/projects/exiftool/files/exiftool-13.59_64.zip/download'
 New-Item -Force -ItemType Directory $binDir | Out-Null
 
-# Function to download and extract tools safely
-function Install-Tool($Name, $Url, $ExtractLogic) {
+# Download a file with progress output and stall timeouts.
+# WebClient.DownloadFile is silent and has no read timeout: on a slow mirror a
+# 100+ MB download shows nothing for many minutes and a stalled connection
+# blocks forever - both look exactly like a hung installer.
+function Get-RemoteFile($Url, $OutFile, $Name) {
+    $req = [System.Net.WebRequest]::Create($Url)
+    $req.UserAgent = 'DJI-Embed-Installer'
+    $req.Timeout = 30000            # connect / first response
+    $req.ReadWriteTimeout = 30000   # abort if the stream stalls
+    $resp = $req.GetResponse()
+    try {
+        $totalBytes = $resp.ContentLength
+        $sizeText = if ($totalBytes -gt 0) { "$([Math]::Round($totalBytes/1MB, 1)) MB" } else { "size unknown" }
+        LogInfo "Downloading $Name ($sizeText) from $($resp.ResponseUri.Host)..."
+        $inStream = $resp.GetResponseStream()
+        $outStream = [System.IO.File]::Create($OutFile)
+        try {
+            $buffer = New-Object byte[] 1048576
+            $done = 0
+            $nextReport = 25
+            while (($read = $inStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                $outStream.Write($buffer, 0, $read)
+                $done += $read
+                if ($totalBytes -gt 0) {
+                    $pct = [int](100 * $done / $totalBytes)
+                    if ($pct -ge $nextReport) {
+                        LogInfo "  $Name download: $pct% ($([Math]::Round($done/1MB)) MB)"
+                        $nextReport += 25
+                    }
+                }
+            }
+        } finally {
+            $outStream.Close()
+            $inStream.Close()
+        }
+    } finally {
+        $resp.Close()
+    }
+}
+
+# Function to download and extract tools safely. $Urls may be a single URL or
+# a list of mirrors tried in order.
+function Install-Tool($Name, $Urls, $ExtractLogic) {
     try {
         LogInfo "Installing $Name..."
-        $fileName = Split-Path $Url -Leaf
+        $Urls = @($Urls)
+        $fileName = Split-Path $Urls[-1] -Leaf
         $tempFile = Join-Path $env:TEMP $fileName
         $tempDir = Join-Path $env:TEMP "$Name-extract"
-        
-        # Download with .NET WebClient for better handling of large files
-        try {
-            $wc = New-Object System.Net.WebClient
-            $wc.Headers.Add("User-Agent", "DJI-Embed-Installer")
-            $wc.DownloadFile($Url, $tempFile)
-        } catch {
-            # Fallback to Invoke-WebRequest if WebClient fails
-            LogWarn "WebClient failed, trying Invoke-WebRequest..."
-            Invoke-WebRequest -Uri $Url -OutFile $tempFile -UseBasicParsing
+
+        $downloaded = $false
+        foreach ($url in $Urls) {
+            try {
+                Get-RemoteFile $url $tempFile $Name
+                $downloaded = $true
+                break
+            } catch {
+                LogWarn "Download from $url failed: $($_.Exception.Message)"
+            }
         }
-        
+
         # Check if file was downloaded
-        if (-not (Test-Path $tempFile)) {
-            throw "Download failed - file not found"
+        if (-not $downloaded -or -not (Test-Path $tempFile)) {
+            throw "Download failed - all sources exhausted"
         }
-        
+
         $fileSize = (Get-Item $tempFile).Length
         LogInfo "Downloaded $Name ($([Math]::Round($fileSize/1MB, 1)) MB)"
         
@@ -381,8 +431,34 @@ function Install-Tool($Name, $Url, $ExtractLogic) {
     }
 }
 
+# gyan.dev serves the FFmpeg builds itself but is frequently very slow
+# (~70 KB/s observed 2026-07-12: ~25 minutes for the ~105 MB zip, with the old
+# silent downloader that presented as a hung installer). The identical builds
+# are mirrored on GitHub's CDN (GyanD/codexffmpeg - the same source winget's
+# Gyan.FFmpeg package uses). Resolve the current version from gyan.dev's
+# redirect (a headers-only request), then prefer the fast mirror; the direct
+# gyan.dev download stays as the fallback.
+function Get-FFmpegUrls {
+    $urls = @()
+    try {
+        $req = [System.Net.WebRequest]::Create($FFmpegUrl)
+        $req.Method = 'HEAD'
+        $req.AllowAutoRedirect = $false
+        $req.Timeout = 15000
+        $resp = $req.GetResponse()
+        try { $location = $resp.Headers['Location'] } finally { $resp.Close() }
+        if ($location -match 'ffmpeg-([0-9.]+)-essentials_build\.zip') {
+            $ver = $Matches[1]
+            $urls += "https://github.com/GyanD/codexffmpeg/releases/download/$ver/ffmpeg-$ver-essentials_build.zip"
+        }
+    } catch {
+        LogWarn "Could not resolve the FFmpeg mirror URL: $($_.Exception.Message)"
+    }
+    return $urls + $FFmpegUrl
+}
+
 # Install FFmpeg
-$ffmpegSuccess = Install-Tool "FFmpeg" $FFmpegUrl {
+$ffmpegSuccess = Install-Tool "FFmpeg" (Get-FFmpegUrls) {
     param($zipFile, $tempDir)
     
     # Use .NET for extraction of large files
