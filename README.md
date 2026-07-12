@@ -510,6 +510,11 @@ Options:
                                   Map output format (default: html)
   -r, --recursive                 Scan subdirectories too
   --title TEXT                    Map title (default: directory name)
+  --link-originals                HTML popups link the thumbnail/filename to
+                                  the original photo file
+  --link-base PREFIX              Folder or URL prefix for --link-originals
+                                  hrefs, for when the originals do not sit
+                                  beside the HTML
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -525,11 +530,20 @@ Notes:
   embedded preview for DNGs that carry no thumbnail.
 - Photos with no EXIF altitude are clamped to the ground in KML (Google Earth)
   instead of being buried at 0 m below terrain.
+- `--link-originals` makes each popup's thumbnail and filename a click-through
+  to the full-resolution original (HTML output only). The links are plain
+  relative hrefs, so they resolve while the HTML sits next to the photos and
+  break if the map is moved or emailed without them — the popup always names
+  the file regardless. Use `--link-base` when the originals live elsewhere
+  (a relative folder like `../DCIM`, or an absolute URL). Browsers download
+  rather than display DNG files; JPGs open in a new tab.
 
 ```bash
 dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
 dji-embed photomap /path/to/photos -f all                             # -> photos/photomap.{html,kml,geojson}
 dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse + custom title
+dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
+dji-embed photomap /path/to/photos --link-originals --link-base ../DCIM   # originals live elsewhere
 ```
 
 Leaflet and the OpenStreetMap basemap tiles load from the internet; the photo

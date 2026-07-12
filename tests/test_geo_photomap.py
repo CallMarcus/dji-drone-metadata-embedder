@@ -425,3 +425,52 @@ def test_photomap_install_hint_names_the_doctor_command():
     from dji_metadata_embedder.geo.photomap import _EXIFTOOL_INSTALL_HINT
 
     assert "dji-embed doctor --install exiftool" in _EXIFTOOL_INSTALL_HINT
+
+
+# ---------------------------------------------------------------------------
+# Original-photo links (#253): the `link` property is opt-in via link_base.
+# link_base=None (the default) must leave every output byte-identical, so the
+# shareable GeoJSON/HTML never gains fragile file references by accident.
+
+
+def test_geojson_no_link_property_by_default():
+    for f in photos_to_geojson(_two_points())["features"]:
+        assert "link" not in f["properties"]
+
+
+def test_geojson_link_base_empty_links_to_relative_name():
+    data = photos_to_geojson(_two_points(), link_base="")
+    by_name = {f["properties"]["name"]: f for f in data["features"]}
+    assert by_name["church1.jpg"]["properties"]["link"] == "church1.jpg"
+
+
+def test_geojson_link_preserves_subdirectories_from_recursive_scans():
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="card1/DJI_0001.JPG")]
+    data = photos_to_geojson(pts, link_base="")
+    assert data["features"][0]["properties"]["link"] == "card1/DJI_0001.JPG"
+
+
+def test_geojson_link_base_relative_folder_prefixes_href():
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg")]
+    # Trailing slash and Windows separators are normalised before joining.
+    for base in ("photos/", "photos", "..\\DCIM"):
+        data = photos_to_geojson(pts, link_base=base)
+        link = data["features"][0]["properties"]["link"]
+        assert link == base.replace("\\", "/").rstrip("/") + "/a.jpg"
+
+
+def test_geojson_link_base_absolute_url():
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg")]
+    data = photos_to_geojson(pts, link_base="https://example.com/photos/")
+    assert (
+        data["features"][0]["properties"]["link"]
+        == "https://example.com/photos/a.jpg"
+    )
+
+
+def test_geojson_link_percent_encodes_name_but_keeps_separators():
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name='sub dir/a#b"c.jpg')]
+    data = photos_to_geojson(pts, link_base="")
+    # Each path segment is percent-encoded (space, #, ") but "/" survives so
+    # relative subdirectory links still resolve.
+    assert data["features"][0]["properties"]["link"] == "sub%20dir/a%23b%22c.jpg"

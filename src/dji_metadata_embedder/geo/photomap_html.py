@@ -88,11 +88,18 @@ const latlngs = [];
 
 function buildPopup(f) {
   const p = f.properties || {};
-  let html = '<div class="photo-popup">';
+  let inner = '';
   if (p.thumb) {
-    html += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt="">`;
+    inner += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt="">`;
   }
-  html += `<b>${esc(p.name || '')}</b>`;
+  inner += `<b>${esc(p.name || '')}</b>`;
+  let html = '<div class="photo-popup">';
+  if (p.link) {
+    // Opt-in (--link-originals): thumbnail + filename open the original file.
+    html += `<a href="${esc(p.link)}" target="_blank" rel="noopener">${inner}</a>`;
+  } else {
+    html += inner;
+  }
   if (p.timestamp) html += `<br>${esc(p.timestamp)}`;
   if (p.camera) html += `<br>${esc(p.camera)}`;
   html += `<br>altitude: ${Number(p.alt || 0).toFixed(0)} m</div>`;
@@ -117,9 +124,20 @@ if (latlngs.length > 1) {
 """
 
 
-def photos_to_html(points: list[PhotoPoint], title: str) -> str:
-    """Return a complete self-contained HTML photo map."""
-    geojson = photos_to_geojson(points, include_thumbnails=True)
+def photos_to_html(
+    points: list[PhotoPoint], title: str, *, link_base: str | None = None
+) -> str:
+    """Return a complete self-contained HTML photo map.
+
+    ``link_base`` (issue #253): when not ``None``, popups link the thumbnail
+    and filename to the original photo file — ``""`` means the originals sit
+    beside the HTML, otherwise a folder/URL prefix. Such links only resolve
+    while the originals stay reachable; the default (``None``) keeps the map
+    fully self-contained.
+    """
+    geojson = photos_to_geojson(
+        points, include_thumbnails=True, link_base=link_base
+    )
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
@@ -137,8 +155,16 @@ def photos_to_html(points: list[PhotoPoint], title: str) -> str:
     )
 
 
-def write_photos_html(points: list[PhotoPoint], output_path: Path, title: str) -> Path:
+def write_photos_html(
+    points: list[PhotoPoint],
+    output_path: Path,
+    title: str,
+    *,
+    link_base: str | None = None,
+) -> Path:
     """Write *points* as an HTML map to *output_path* and return it."""
-    output_path.write_text(photos_to_html(points, title), encoding="utf-8")
+    output_path.write_text(
+        photos_to_html(points, title, link_base=link_base), encoding="utf-8"
+    )
     logger.info("HTML photo map created: %s", output_path)
     return output_path

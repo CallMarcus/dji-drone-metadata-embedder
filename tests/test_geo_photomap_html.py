@@ -82,3 +82,23 @@ def test_write_photos_html(tmp_path):
     result = write_photos_html(POINTS, out, title="t")
     assert result == out
     assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
+def test_html_no_links_by_default():
+    data = _embedded_geojson(photos_to_html(POINTS, title="t"))
+    assert all("link" not in f["properties"] for f in data["features"])
+
+
+def test_html_link_base_embeds_link_properties():
+    html = photos_to_html(POINTS, title="t", link_base="")
+    data = _embedded_geojson(html)
+    by_name = {f["properties"]["name"]: f for f in data["features"]}
+    assert by_name["church1.jpg"]["properties"]["link"] == "church1.jpg"
+
+
+def test_html_popup_anchor_is_escaped_and_noopener():
+    html = photos_to_html(POINTS, title="t", link_base="")
+    # The href goes through the esc() helper and opens in a new tab without
+    # window.opener access.
+    assert "esc(p.link" in html
+    assert 'target="_blank" rel="noopener"' in html
