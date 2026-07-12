@@ -5,68 +5,95 @@
 [![PyPI]][pypi]
 [![Winget]][winget]
 
-A Python tool to embed telemetry data from DJI drone SRT files into MP4 video files.
-This tool extracts GPS coordinates, altitude, camera settings and other telemetry data from SRT files and embeds
-them as metadata in the corresponding video files.
+A free tool that puts your DJI drone footage on the map — literally. It reads
+the telemetry DJI records with every flight (GPS position, altitude, camera
+settings) and turns it into interactive maps, standard GPS files, and location
+metadata embedded in the videos themselves.
 
-See the [Development Roadmap](docs/development_roadmap.md) for plans to expand this CLI tool into a Windows
-application with a graphical interface.
-For detailed setup instructions and a quick-start tutorial, see
-[docs/installation.md](docs/installation.md) and [docs/user_guide.md](docs/user_guide.md).
-Common problems are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
+New to command-line tools? Start with [Get started](#get-started) below —
+it's a handful of copy-paste commands. For a guided tour see
+[docs/user_guide.md](docs/user_guide.md), and if anything fails,
+[docs/troubleshooting.md](docs/troubleshooting.md) has the fixes.
 
-## Intended use & scope
+## What can it do?
 
-This is a tool for **transparency and accountability**. Drone telemetry is
-dual-use, and this project deliberately focuses on the open side of that:
-verifying and documenting footage, georeferencing it for mapping, and making it
-interoperable with open GIS workflows. The uses we build for include
-open-source verification and journalism, human-rights and conflict
-documentation, search-and-rescue and disaster response, humanitarian damage
-assessment, environmental monitoring, agriculture, and infrastructure
-inspection.
+- **See every flight on one map** — point `dji-embed flightmap` at a folder of
+  footage and get a single interactive map with each flight as its own
+  coloured track *(experimental)*.
+- **See where every photo was taken** — `dji-embed photomap` pins a whole
+  folder of stills on one clustered map, thumbnails included.
+- **Make videos searchable by location** — `dji-embed embed` writes the GPS
+  data into the video files so Windows Photos, Google Photos, and similar apps
+  can find them by place. No re-encoding, no quality loss, and the full
+  telemetry is preserved as a subtitle track for overlays in video editors.
+- **Export flight tracks** — GPX for Google Earth, CSV for spreadsheets,
+  GeoJSON/KML for GIS tools, CoT for ATAK/TAK
+  (see [docs/geospatial.md](docs/geospatial.md) and
+  [docs/fmv-interop.md](docs/fmv-interop.md)).
+- **Verify footage** — see what metadata files already carry
+  (`dji-embed check`), and cross-check shadows in the footage against the
+  astronomical sun (`dji-embed verify-sun`).
+- **Keep locations private when sharing** — `--redact` drops or coarsens GPS
+  data to ~100 m in any output.
 
-Feature and documentation decisions favor **provenance, verification,
-georeferencing, and standards interoperability**. We do not build targeting or
-other offensive capabilities.
+Works on Windows, macOS, and Linux; whole folders are processed in one go,
+with a progress bar. `.DAT` flight logs can be merged in where available.
 
-## Easy Windows install
+## Get started
 
-### Option 1: Bootstrap Script (Includes FFmpeg/ExifTool)
+You'll need Python 3.10+ and FFmpeg (ExifTool is optional, but unlocks the
+photo map and a few other features). On Windows the bootstrap script below
+installs all of it for you.
+
+### Windows
+
+Open PowerShell and paste:
+
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
-### Option 2: Direct Download
-Download the ready-to-run **dji-embed.exe** from the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
+<details>
+<summary>Other ways to install on Windows</summary>
 
-### Option 3: Windows Package Manager (winget)
-```powershell
-winget install CallMarcus.DJIMetadataEmbedder
-```
-Already installed? Upgrade with `winget upgrade CallMarcus.DJIMetadataEmbedder`.
+- **Direct download:** grab the ready-to-run **dji-embed.exe** from the
+  [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases).
 
-> Note: winget installs the portable `dji-embed.exe` only. Install FFmpeg and ExifTool separately (`winget install Gyan.FFmpeg OliverBetz.ExifTool`), or use the bootstrap script above, which bundles them.
+- **Windows Package Manager:**
 
-### Option 4: Python Package
-```powershell
-pip install dji-drone-metadata-embedder
-```
+  ```powershell
+  winget install CallMarcus.DJIMetadataEmbedder
+  ```
 
-## macOS / Linux quick-start
+  Already installed? Upgrade with `winget upgrade CallMarcus.DJIMetadataEmbedder`.
+  winget installs the portable `dji-embed.exe` only — install FFmpeg and
+  ExifTool separately (`winget install Gyan.FFmpeg OliverBetz.ExifTool`), or
+  use the bootstrap script above, which bundles them.
+
+- **Python package:**
+
+  ```powershell
+  pip install dji-drone-metadata-embedder
+  ```
+
+  If the command `python` is not recognized on Windows, use `py` instead.
+
+</details>
+
+### macOS / Linux
 
 ```bash
-brew install ffmpeg exiftool
-sudo apt update && sudo apt install ffmpeg exiftool
+brew install ffmpeg exiftool                          # macOS
+sudo apt update && sudo apt install ffmpeg exiftool   # Debian/Ubuntu
 pip install dji-drone-metadata-embedder
 ```
+
+<details>
+<summary>Docker and building from source</summary>
 
 ```bash
 docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 ```
-
-<details>
-<summary>Advanced</summary>
 
 - Build from source with `uv sync --extra dev` (or `pip install -e .`)
 - Use the provided `Dockerfile` for custom images
@@ -74,22 +101,46 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed -i *.MP4
 
 </details>
 
+### Your first map
 
-## Features
+```bash
+dji-embed doctor                        # 1. confirm everything is installed
+dji-embed flightmap /path/to/footage    # 2. all flights in a folder -> flightmap.html
+dji-embed photomap /path/to/photos      # 3. all photos in a folder  -> photomap.html
+```
 
-- **Batch Processing**: Process entire directories of DJI drone footage automatically
-- **GPS Metadata Embedding**: Embed GPS coordinates as standard metadata tags
-- **Subtitle Track Preservation**: Keep telemetry data as subtitle track for overlay viewing
-- **Multiple Format Support**: Handles different DJI SRT telemetry formats
-- **Telemetry Export**: Export flight data to JSON, GPX, CSV, GeoJSON, KML, or CoT (see [docs/geospatial.md](docs/geospatial.md))
-- **Flight Map** *(experimental)*: `dji-embed flightmap DIR` draws every flight in a folder of `.SRT` logs on one combined HTML map (or KML/GeoJSON) — fast, the videos are never opened; `dji-embed convert html FLIGHT.SRT` maps a single flight with an altitude-coloured track — see [Put your flights and photos on a map](#put-your-flights-and-photos-on-a-map)
-- **Photo Map**: `dji-embed photomap DIR` plots a whole folder of GPS-tagged still photos (JPG/JPEG/DNG) on a single clustered HTML map (or KML/GeoJSON) with EXIF thumbnail popups — requires ExifTool
-- **Camera Footprint Polygons**: `convert geojson/kml … --footprint` adds nadir ground-footprint rectangles to GeoJSON/KML output (gimbal-aware on formats that carry attitude; suppressed under `--redact`). See [docs/geospatial.md](docs/geospatial.md).
-- **CoT Export**: `dji-embed convert cot FLIGHT.SRT` writes Cursor-on-Target XML for ATAK/TAK (route + timed track). See [docs/fmv-interop.md](docs/fmv-interop.md).
-- **Footage verification:** `dji-embed verify-sun clip.SRT` reports the sun's azimuth/elevation over a clip for shadow cross-checking; CSV export gains `datetime_utc` / `sun_azimuth` / `sun_elevation` columns.
-- **DAT Flight Log Support**: Merge `.DAT` flight logs into metadata
-- **Cross-Platform**: Works on Windows, macOS, and Linux
-- **Progress Bar**: See processing status while videos are being embedded
+Open the resulting `.html` file in any browser — done. The maps embed your
+data but load the background map tiles from the internet, so they need a
+connection to render.
+
+**Prefer a browser over the terminal?** There's an optional local web UI that
+wraps the main commands:
+
+```bash
+pip install 'dji-drone-metadata-embedder[ui]'
+dji-embed ui
+```
+
+It runs entirely on your own machine (`127.0.0.1`) — details under
+[`dji-embed ui`](#dji-embed-ui---local-web-ui) below.
+
+> **Privacy note:** maps and exports reveal where you fly. Share them
+> deliberately, or add `--redact fuzz` to coarsen every position to ~100 m.
+
+## Which command do I need?
+
+| I want to… | Run |
+|---|---|
+| See all my flights on one map | `dji-embed flightmap /path/to/footage` |
+| See my photos on a map | `dji-embed photomap /path/to/photos` |
+| Map one flight in detail | `dji-embed convert html DJI_0001.SRT` |
+| Make videos searchable by location | `dji-embed embed /path/to/footage` |
+| Get a GPX track for Google Earth | `dji-embed convert gpx DJI_0001.SRT` |
+| See what metadata a file already has | `dji-embed check DJI_0001.MP4` |
+| Check my setup | `dji-embed doctor` |
+
+More scenarios: [docs/decision-table.md](docs/decision-table.md) and
+end-to-end examples in [docs/recipes.md](docs/recipes.md).
 
 ## Supported DJI Models
 
@@ -117,24 +168,25 @@ for `dji-embed convert <fmt> FILE.MP4` and `dji-embed verify-sun FILE.MP4`.
 Requires a recent ExifTool (Air 3S ≥ 13.39, Mini 5 Pro ≥ 13.52); see
 [docs/MP4_TIMED_METADATA.md](docs/MP4_TIMED_METADATA.md).
 
-## Requirements
+## Intended use & scope
 
- - Python 3.10 or higher
-- FFmpeg
-- ExifTool (optional, for additional metadata embedding)
+This is a tool for **transparency and accountability**. Drone telemetry is
+dual-use, and this project deliberately focuses on the open side of that:
+verifying and documenting footage, georeferencing it for mapping, and making it
+interoperable with open GIS workflows. The uses we build for include
+open-source verification and journalism, human-rights and conflict
+documentation, search-and-rescue and disaster response, humanitarian damage
+assessment, environmental monitoring, agriculture, and infrastructure
+inspection.
 
-## Usage
+Feature and documentation decisions favor **provenance, verification,
+georeferencing, and standards interoperability**. We do not build targeting or
+other offensive capabilities.
 
-If the command `python` is not recognized, use `py` instead.
+## Command reference
 
-### Basic Usage
-
-Process a single directory:
-```bash
-dji-embed embed /path/to/drone/footage
-```
-
-### Commands
+Everything below is also available at the terminal via
+`dji-embed COMMAND --help`.
 
 ```bash
 dji-embed [OPTIONS] COMMAND [ARGS]...
@@ -155,30 +207,20 @@ Global Options:
   -h, --help  Show this message and exit
 ```
 
-### Web UI (optional)
+### `dji-embed embed` - Process Videos
 
-Prefer a browser over the terminal? Install the `[ui]` extra and launch the
-local UI — it runs entirely on `127.0.0.1` and uses your installed browser,
-so there is no separate signed app to trust.
+Embed telemetry from SRT files into the matching MP4 videos. Processing shows
+a progress bar for each file; results go to a `processed` subdirectory (see
+[Output](#output)).
 
 ```bash
-pip install 'dji-drone-metadata-embedder[ui]'
-dji-embed ui                       # opens http://127.0.0.1:<free-port>
-dji-embed ui --no-browser          # print the URL instead of opening
-dji-embed ui --port 8765           # pin to a fixed port
+dji-embed embed /path/to/drone/footage                      # basic usage
+dji-embed embed "D:\DroneFootage\Flight1" -o "D:\Processed" # custom output directory
+dji-embed embed "D:\DroneFootage\Flight1" --exiftool        # also write EXIF GPS tags
 ```
 
-Every tab (Doctor / Embed / Validate / Convert / Check) is a thin wrapper
-over the matching CLI command. The **Map** tab renders a processed clip's
-flight path on an interactive map (Leaflet + OpenStreetMap) with an altitude
-profile and a play-the-flight scrubber — only the basemap tiles load from the
-network; the flight data and all other assets stay local, and redaction is
-applied server-side so exact coordinates never reach the browser when set.
-Access is gated by a per-session token that is injected into the opened URL;
-requests without the token return `403`. Chromium-based browsers will offer
-"Install app" for a standalone window.
-
-### Embed Command Options
+<details>
+<summary>All options</summary>
 
 ```bash
 dji-embed embed [OPTIONS] DIRECTORY
@@ -207,164 +249,56 @@ Options:
   -q, --quiet                Suppress progress output
 ```
 
-By default, processing shows a progress bar for each file.
-Use `--verbose` for detailed output or `--quiet` to reduce messages.
+</details>
 
-### Examples
+### `dji-embed validate` - Check SRT/MP4 Sync
 
-Process footage with custom output directory:
+Validate SRT/MP4 pairs and generate a drift analysis report — useful when
+subtitles seem out of step with the video.
+
 ```bash
-dji-embed embed "D:\DroneFootage\Flight1" -o "D:\ProcessedVideos"
+dji-embed validate /path/to/footage
 ```
 
-Process with ExifTool for additional metadata:
+<details>
+<summary>All options</summary>
+
 ```bash
-dji-embed embed "D:\DroneFootage\Flight1" --exiftool
+dji-embed validate [OPTIONS] DIRECTORY
+
+Options:
+  --drift-threshold FLOAT  Drift threshold in seconds for warnings
+  --format [text|json]     Output format for drift report
+  -v, --verbose            Verbose output
+  -q, --quiet              Suppress info output
 ```
 
-Check existing metadata in files:
+</details>
+
+### `dji-embed convert` - Export Telemetry
+
+Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML
+map. On sidecar-less models (Air 3S, Mini 5 Pro, …) the input can be the MP4
+itself.
+
 ```bash
-dji-embed check "D:\DroneFootage\Flight1"
+dji-embed convert gpx DJI_0001.SRT               # GPS track for Google Earth
+dji-embed convert csv DJI_0001.SRT -o telemetry.csv
+dji-embed convert gpx /path/to/srt/files --batch # whole directory in one go
+dji-embed convert html DJI_0001.SRT              # single-flight map -> DJI_0001.html
+dji-embed convert html DJI_0042.MP4              # sidecar-less models: telemetry from the MP4
 ```
 
-Run system diagnostics:
-```bash
-dji-embed doctor
-```
+GPX/CoT timestamps are written in UTC. DJI SRT times are local with no
+timezone, so the offset is auto-detected from the file's modification time.
+Override it when the mtime is unreliable (e.g. copied files):
 
-### Convert Telemetry to Other Formats
-
-Extract GPS track to GPX:
-```bash
-dji-embed convert gpx DJI_0001.SRT
-```
-
-GPX timestamps are written in UTC. DJI SRT times are local with no timezone, so
-the offset is auto-detected from the file's modification time. Override it when
-the mtime is unreliable (e.g. copied files):
 ```bash
 dji-embed convert gpx DJI_0001.SRT --tz-offset +05:30
 ```
 
-Export telemetry to CSV:
-```bash
-dji-embed convert csv DJI_0001.SRT -o telemetry.csv
-```
-
-Batch convert directory to GPX:
-```bash
-dji-embed convert gpx /path/to/srt/files --batch
-```
-
-Batch convert directory to CSV:
-```bash
-dji-embed convert csv /path/to/srt/files --batch
-```
-
-### Put Your Flights and Photos on a Map
-
-Two commands cover the "show me where this was shot" workflows:
-
-**One flight → one HTML map.** Renders the flight path coloured by altitude,
-viewable in any browser:
-
-```bash
-dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
-dji-embed convert html DJI_0042.MP4              # sidecar-less models: read telemetry from the MP4
-```
-
-**A folder of flights → one combined map** *(experimental — feedback
-welcome!)*. Reads only the `.SRT` telemetry sidecars (the videos are never
-opened, so a whole archive scans in seconds) and draws each flight as its own
-coloured track with a summary popup and a layer toggle. Recordings that DJI
-split at the 4 GB file limit are automatically stitched back into one flight:
-
-```bash
-dji-embed flightmap /path/to/footage             # -> footage/flightmap.html
-dji-embed flightmap /path/to/footage -r          # scan subdirectories too
-dji-embed flightmap /path/to/footage -f kml      # Google Earth / My Maps instead
-```
-
-Prefer one map per clip? `dji-embed convert html /path/to/footage --batch`
-writes a separate `.html` next to each video.
-
-**A folder of still photos → one combined, clustered map** with an EXIF
-thumbnail popup per pin (requires ExifTool):
-
-```bash
-dji-embed photomap /path/to/photos               # -> photos/photomap.html
-dji-embed photomap /path/to/photos -f kml        # Google Earth instead
-```
-
-`photomap` scans JPG/JPEG/DNG stills; `flightmap` scans `.SRT` flight logs.
-All HTML maps embed your data but load the basemap tiles from the internet, so
-they need a connection to render — and they reveal your flying locations, so
-share them deliberately (`flightmap --redact fuzz` coarsens tracks to ~100 m).
-Details and more formats (KML, GeoJSON, CoT, camera footprints):
-[docs/geospatial.md](docs/geospatial.md).
-
-### Check Existing Metadata
-
-You can check if your videos or photos already contain GPS or altitude
-information using the check command:
-
-```bash
-dji-embed check DJI_0001.MP4
-dji-embed check /path/to/footage
-```
-
-`check` uses `ffprobe` for QuickTime tags and `exiftool` for EXIF data
-when available. Pass `--verbose` for debug output or `--quiet` to only
-show warnings and errors.
-
-## CLI Reference
-
-### All Commands
-
-#### `dji-embed embed` - Process Videos
-Embed telemetry from SRT files into MP4 videos.
-
-```bash
-dji-embed embed [OPTIONS] DIRECTORY
-
-Arguments:
-  DIRECTORY                  Directory containing MP4 and SRT files
-
-Options:
-  -o, --output DIRECTORY     Output directory (ignored if --overwrite)
-  --overwrite                Overwrite original video files in place
-                             (destination = input folder)
-  --exiftool                 Also use ExifTool for GPS metadata
-  --dat PATH                 DAT flight log to merge
-  --dat-auto                 Auto-detect DAT logs matching videos
-  --audio-sidecar            Auto-detect a same-basename .m4a audio sidecar
-                             (e.g. DJI Neo 2) and mux it in (no re-encode)
-  --redact [none|drop|fuzz]  Redact GPS coordinates (default: none)
-  --container [mp4|mkv]      Output container; 'mkv' preserves DJI djmd/dbgi
-                             data streams (default: mp4)
-  --extract-home             Extract the HOME / launch point into the JSON
-                             sidecar; off by default, never written to the
-                             MP4, always honours --redact
-  -v, --verbose              Verbose output
-  -q, --quiet                Suppress progress output
-```
-
-#### `dji-embed check` - Check Metadata
-Check media files for existing embedded metadata.
-
-```bash
-dji-embed check [OPTIONS] [PATHS]...
-
-Arguments:
-  PATHS...                   Files or directories to check
-
-Options:
-  -v, --verbose              Verbose output
-  -q, --quiet                Suppress info output
-```
-
-#### `dji-embed convert` - Export Formats
-Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML map.
+<details>
+<summary>All options</summary>
 
 ```bash
 dji-embed convert [OPTIONS] {gpx|csv|geojson|kml|html|cot} INPUT
@@ -395,38 +329,51 @@ Options:
   -q, --quiet                Suppress info output
 ```
 
-**HTML map example** — produces a self-contained `flight.html` you can open in any browser:
+</details>
 
-```bash
-dji-embed convert html DJI_0001.SRT              # -> DJI_0001.html
-dji-embed convert html DJI_0001.SRT -o flight.html
-dji-embed convert html /path/to/footage --batch  # one map per clip (not combined)
-```
-
-**CoT (Cursor-on-Target) example** — for ATAK/TAK; see [docs/fmv-interop.md](docs/fmv-interop.md):
+**CoT (Cursor-on-Target)** — for ATAK/TAK; see [docs/fmv-interop.md](docs/fmv-interop.md):
 
 ```bash
 dji-embed convert cot DJI_0001.SRT                       # -> DJI_0001.cot.xml
 dji-embed convert cot DJI_0001.SRT --interval 2 --cot-type a-u-A
 ```
 
-Leaflet and the basemap tiles load from the internet; the flight data itself is embedded, so the file is portable but needs a connection to render the map.
-
-**Camera footprint example** — overlay per-interval ground-coverage polygons in GeoJSON/KML for down-looking footage (suppressed under `--redact`; see [docs/geospatial.md](docs/geospatial.md)):
+**Camera footprints** — overlay per-interval ground-coverage polygons in
+GeoJSON/KML for down-looking footage (suppressed under `--redact`; see
+[docs/geospatial.md](docs/geospatial.md)):
 
 ```bash
 dji-embed convert geojson DJI_0001.SRT --footprint --model air3
 dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 ```
 
-#### `dji-embed flightmap` - Combined Flight Map (experimental)
-Map every flight in a folder of DJI `.SRT` logs on one combined map.
+### `dji-embed flightmap` - Combined Flight Map (experimental)
+
+Map every flight in a folder of DJI `.SRT` logs on one combined map. Reads
+only the `.SRT` telemetry sidecars — the videos are never opened and no
+external tool is needed — so scanning a large archive is fast. Each flight
+becomes its own coloured track with a popup (start time, duration, altitude
+range, GPS points) and a layer toggle; the KML imports into Google Earth and
+Google My Maps as one line per flight. SRT files without GPS telemetry
+(e.g. ordinary subtitles) are skipped and counted in a summary; `-v` lists them.
 
 > **Experimental:** `flightmap` is new and its size-split joining heuristics
 > may still be tuned based on real-world feedback. If it joins flights it
 > shouldn't (or misses ones it should), please
 > [open an issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues)
 > with the SRT file names and timestamps.
+
+```bash
+dji-embed flightmap /path/to/footage                        # -> footage/flightmap.html
+dji-embed flightmap /path/to/footage -f all                 # -> footage/flightmap.{html,kml,geojson}
+dji-embed flightmap /path/to/footage -r --title "Road trip" # recurse + custom title
+```
+
+Prefer one map per clip? `dji-embed convert html /path/to/footage --batch`
+writes a separate `.html` next to each video.
+
+<details>
+<summary>All options</summary>
 
 ```bash
 dji-embed flightmap [OPTIONS] DIRECTORY
@@ -457,18 +404,7 @@ Options:
   -q, --quiet                     Suppress info output
 ```
 
-Reads only the `.SRT` telemetry sidecars — the videos are never opened and no
-external tool is needed — so scanning a large archive is fast. Each flight
-becomes its own coloured track with a popup (start time, duration, altitude
-range, GPS points) and a layer toggle; the KML imports into Google Earth and
-Google My Maps as one line per flight. SRT files without GPS telemetry
-(e.g. ordinary subtitles) are skipped and counted in a summary; `-v` lists them.
-
-```bash
-dji-embed flightmap /path/to/footage                        # -> footage/flightmap.html
-dji-embed flightmap /path/to/footage -f all                 # -> footage/flightmap.{html,kml,geojson}
-dji-embed flightmap /path/to/footage -r --title "Road trip" # recurse + custom title
-```
+</details>
 
 Notes:
 - With `-r`, flights are labelled by their path relative to `DIRECTORY`
@@ -494,8 +430,22 @@ Notes:
   connection to render. A flight map publishes where you fly — share it
   deliberately, or use `--redact fuzz`.
 
-#### `dji-embed photomap` - Map Still Photos
+### `dji-embed photomap` - Map Still Photos
+
 Map GPS-tagged still photos (JPG/JPEG/DNG) as an HTML, KML, or GeoJSON map.
+Requires ExifTool (`dji-embed doctor` checks it). Photos without GPS data are
+skipped and counted in a summary; `-v` lists the skipped filenames.
+
+```bash
+dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
+dji-embed photomap /path/to/photos -f all                             # -> photos/photomap.{html,kml,geojson}
+dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse + custom title
+dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
+dji-embed photomap /path/to/photos --link-originals --link-base ../DCIM   # originals live elsewhere
+```
+
+<details>
+<summary>All options</summary>
 
 ```bash
 dji-embed photomap [OPTIONS] DIRECTORY
@@ -510,12 +460,16 @@ Options:
                                   Map output format (default: html)
   -r, --recursive                 Scan subdirectories too
   --title TEXT                    Map title (default: directory name)
+  --link-originals                HTML popups link the thumbnail/filename to
+                                  the original photo file
+  --link-base PREFIX              Folder or URL prefix for --link-originals
+                                  hrefs, for when the originals do not sit
+                                  beside the HTML
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
 
-Requires ExifTool (`dji-embed doctor` checks it). Photos without GPS data are
-skipped and counted in a summary; `-v` lists the skipped filenames.
+</details>
 
 Notes:
 - With `-r`, pins are labelled by their path relative to `DIRECTORY`, so
@@ -525,43 +479,99 @@ Notes:
   embedded preview for DNGs that carry no thumbnail.
 - Photos with no EXIF altitude are clamped to the ground in KML (Google Earth)
   instead of being buried at 0 m below terrain.
+- `--link-originals` makes each popup's thumbnail and filename a click-through
+  to the full-resolution original (HTML output only). The links are plain
+  relative hrefs, so they resolve while the HTML sits next to the photos and
+  break if the map is moved or emailed without them — the popup always names
+  the file regardless. Use `--link-base` when the originals live elsewhere
+  (a relative folder like `../DCIM`, or an absolute URL). Browsers download
+  rather than display DNG files; JPGs open in a new tab.
+- Leaflet and the OpenStreetMap basemap tiles load from the internet; the
+  photo thumbnails themselves are embedded, so the HTML file is portable but
+  needs a connection to render. A photo map publishes your shooting
+  locations — share it deliberately.
+
+### `dji-embed check` - Check Existing Metadata
+
+Check whether videos or photos already contain GPS or altitude information.
 
 ```bash
-dji-embed photomap /path/to/photos                                    # -> photos/photomap.html
-dji-embed photomap /path/to/photos -f all                             # -> photos/photomap.{html,kml,geojson}
-dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse + custom title
+dji-embed check DJI_0001.MP4
+dji-embed check /path/to/footage
 ```
 
-Leaflet and the OpenStreetMap basemap tiles load from the internet; the photo
-thumbnails themselves are embedded, so the HTML file is portable but needs a
-connection to render the map. A photo map publishes your shooting locations —
-share it deliberately.
+`check` uses `ffprobe` for QuickTime tags and `exiftool` for EXIF data
+when available. Pass `--verbose` for debug output or `--quiet` to only
+show warnings and errors.
 
-#### `dji-embed doctor` - System Diagnostics
+### `dji-embed verify-sun` - Sun-Position Cross-Check
+
+Summarise the sun's azimuth/elevation over a clip so analysts can compare
+shadow direction and length in the footage against the astronomical sun.
+Accepts an `.SRT` sidecar or, on sidecar-less models, the MP4 itself.
+CSV export (`dji-embed convert csv`) gains matching `datetime_utc` /
+`sun_azimuth` / `sun_elevation` columns.
+
+```bash
+dji-embed verify-sun DJI_0001.SRT
+dji-embed verify-sun DJI_0042.MP4 --format json
+```
+
+<details>
+<summary>All options</summary>
+
+```bash
+dji-embed verify-sun [OPTIONS] SRT
+
+Options:
+  --tz-offset OFFSET    UTC offset for the SRT timestamps, e.g. '+05:30' or
+                        '-8'. 'auto' detects it from the SRT file mtime
+                        (default: auto)
+  --format [text|json]  Output format (default: text)
+  -v, --verbose         Verbose output
+  -q, --quiet           Suppress info output
+```
+
+</details>
+
+### `dji-embed doctor` - System Diagnostics
+
 Show system information and verify all dependencies.
 
 ```bash
 dji-embed doctor
-
-No arguments or options required.
 ```
 
 `dji-embed doctor --install exiftool` downloads a pinned, checksum-verified
 ExifTool into your user directory — useful where system packages are too old
 for MP4 timed metadata (most Linux distros).
 
-#### `dji-embed wizard` - Interactive Setup
-Launch interactive setup wizard (under development).
+### `dji-embed ui` - Local Web UI
+
+Launch the local web UI in your browser (requires the `[ui]` extra). It runs
+entirely on `127.0.0.1` and uses your installed browser, so there is no
+separate signed app to trust.
 
 ```bash
-dji-embed wizard
-
-No arguments or options required.
+pip install 'dji-drone-metadata-embedder[ui]'
+dji-embed ui                       # opens http://127.0.0.1:<free-port>
+dji-embed ui --no-browser          # print the URL instead of opening
+dji-embed ui --port 8765           # pin to a fixed port
 ```
+
+Every tab (Doctor / Embed / Validate / Convert / Check) is a thin wrapper
+over the matching CLI command. The **Map** tab renders a processed clip's
+flight path on an interactive map (Leaflet + OpenStreetMap) with an altitude
+profile and a play-the-flight scrubber — only the basemap tiles load from the
+network; the flight data and all other assets stay local, and redaction is
+applied server-side so exact coordinates never reach the browser when set.
+Access is gated by a per-session token that is injected into the opened URL;
+requests without the token return `403`. Chromium-based browsers will offer
+"Install app" for a standalone window.
 
 ## Output
 
-The tool creates a `processed` subdirectory containing:
+The `embed` command creates a `processed` subdirectory containing:
 
 - `*_metadata.MP4` - Video files with embedded metadata and telemetry subtitles
 - `*_telemetry.json` - Flight summary with GPS data, altitude, and camera settings
@@ -595,26 +605,10 @@ Example JSON output:
 3. **No Re-encoding**: Uses stream copy for fast processing without quality loss
 4. **Summary Generation**: Creates JSON files with flight statistics
 
-## SRT Format Support
-
-The tool supports multiple DJI SRT formats:
-
-### Format 1 (DJI Mini 3 Pro):
-```
-[latitude: 59.302335] [longitude: 18.203059] [rel_alt: 1.300 abs_alt: 132.860]
-```
-
-### Format 2 (Older models):
-```
-GPS(59.302335,18.203059,132.860)
-```
-
-## Use Cases
-
-- **Photo Management**: Videos become searchable by location in Windows Photos, Google Photos, etc.
-- **Video Editing**: Telemetry subtitle track can be used for overlay effects
-- **Flight Analysis**: Export GPX tracks for Google Earth visualization
-- **Archival**: Preserve all flight data within the video file itself
+The tool recognises multiple DJI SRT dialects, from the bracketed
+`[latitude: 59.302335] [longitude: 18.203059]` style of recent models to the
+legacy `GPS(59.302335,18.203059,132.860)` form — the full catalogue lives in
+[docs/SRT_FORMATS.md](docs/SRT_FORMATS.md).
 
 ## Troubleshooting
 
@@ -696,6 +690,8 @@ If your DJI model uses a different SRT format, we're happy to add support in exc
 ## Release
 
 See [docs/RELEASE.md](docs/RELEASE.md) for instructions on publishing a new version.
+There are also plans to grow this CLI tool into a Windows application with a
+graphical interface — see the [Development Roadmap](docs/development_roadmap.md).
 
 ## License
 

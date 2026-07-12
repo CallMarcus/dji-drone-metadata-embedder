@@ -344,6 +344,17 @@ def convert(
 )
 @click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
 @click.option("--title", default=None, help="Map title (default: directory name)")
+@click.option(
+    "--link-originals", is_flag=True,
+    help="HTML popups link the thumbnail/filename to the original photo file "
+         "(resolves while the map stays next to the photos)",
+)
+@click.option(
+    "--link-base", default=None, metavar="PREFIX",
+    help="Folder or URL prefix for --link-originals hrefs, for when the "
+         "originals do not sit beside the HTML (e.g. photos/ or "
+         "https://example.com/photos/)",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def photomap(
@@ -352,6 +363,8 @@ def photomap(
     fmt: str,
     recursive: bool,
     title: str | None,
+    link_originals: bool,
+    link_base: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -363,6 +376,17 @@ def photomap(
     Requires ExifTool (see 'dji-embed doctor').
     """
     setup_logging(verbose, quiet)
+    if link_base is not None and not link_originals:
+        raise click.UsageError("--link-base requires --link-originals")
+    if link_originals and fmt.lower() not in ("html", "all"):
+        click.echo(
+            "Note: --link-originals only affects HTML output; "
+            f"{fmt.lower()} is unchanged",
+            err=True,
+        )
+    # None = no links (default, self-contained map); "" = originals beside the
+    # HTML; otherwise the user-supplied prefix.
+    html_link_base = (link_base or "") if link_originals else None
     src = Path(directory)
     try:
         points, skipped = scan_photos(src, recursive=recursive)
@@ -402,7 +426,7 @@ def photomap(
     for f, out in targets:
         try:
             if f == "html":
-                write_photos_html(points, out, map_title)
+                write_photos_html(points, out, map_title, link_base=html_link_base)
             elif f == "kml":
                 write_photos_kml(points, out, map_title)
             else:

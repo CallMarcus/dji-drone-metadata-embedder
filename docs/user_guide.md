@@ -74,6 +74,7 @@ dji-embed photomap /path/to/photos -f kml                             # -> photo
 dji-embed photomap /path/to/photos -f geojson                         # -> photos/photomap.geojson
 dji-embed photomap /path/to/photos -f all -o archive/photomap         # -> archive/photomap.{html,kml,geojson}
 dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # scan subdirectories too
+dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
 ```
 
 The command scans the whole directory in one pass, so even large archives
@@ -85,6 +86,15 @@ KML opens the same thumbnails in Google Earth Pro (Google My Maps import may
 drop the images but keeps the placemarks). GeoJSON is interchange-only — no
 thumbnails, just `name`/`timestamp`/`alt`/`camera` properties — for use in
 GIS tools.
+
+With `--link-originals`, the HTML popups' thumbnail and filename become a
+click-through to the full-resolution original in a new browser tab (JPGs
+render inline; browsers download DNGs instead). The links are relative, so
+they work while the map file sits next to the photos and break if it's moved
+or shared without them — the popup still identifies the file by name and date
+either way. If the originals live elsewhere, point at them with
+`--link-base ../DCIM` (relative folder) or `--link-base https://example.com/photos/`
+(absolute URL).
 
 Photos without GPS coordinates are skipped and counted in a summary, e.g.
 `Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)`; add

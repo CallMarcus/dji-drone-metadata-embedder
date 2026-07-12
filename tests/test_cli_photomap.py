@@ -190,3 +190,61 @@ def test_photomap_recursive_real_scan(tmp_path):
     # Recursive scans carry the subdirectory so per-session archives don't
     # collide on DJI's restarting basenames.
     assert [p.name for p in points] == ["sub/church1.jpg", "sub/church2.jpg"]
+
+
+def _html_link_props(path: Path) -> list[str | None]:
+    text = path.read_text(encoding="utf-8")
+    start = text.index('id="photo-data">') + len('id="photo-data">')
+    data = json.loads(text[start:text.index("</script>", start)])
+    return [f["properties"].get("link") for f in data["features"]]
+
+
+def test_photomap_links_are_opt_in(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path)])
+    assert res.exit_code == 0, res.output
+    assert _html_link_props(tmp_path / "photomap.html") == [None]
+
+
+def test_photomap_link_originals_adds_links_to_html_only(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "-f", "all", "--link-originals"]
+    )
+    assert res.exit_code == 0, res.output
+    assert _html_link_props(tmp_path / "photomap.html") == ["church1.jpg"]
+    # KML and GeoJSON stay link-free (issue #253: HTML only).
+    geo = json.loads((tmp_path / "photomap.geojson").read_text(encoding="utf-8"))
+    assert all("link" not in f["properties"] for f in geo["features"])
+    assert "church1.jpg</a>" not in (tmp_path / "photomap.kml").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_photomap_link_base_prefixes_hrefs(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main,
+        ["photomap", str(tmp_path), "--link-originals", "--link-base", "../DCIM"],
+    )
+    assert res.exit_code == 0, res.output
+    assert _html_link_props(tmp_path / "photomap.html") == ["../DCIM/church1.jpg"]
+
+
+def test_photomap_link_base_without_link_originals_errors(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--link-base", "photos/"]
+    )
+    assert res.exit_code != 0
+    assert "--link-base requires --link-originals" in res.output
+    assert not (tmp_path / "photomap.html").exists()
+
+
+def test_photomap_link_originals_without_html_output_warns(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "-f", "kml", "--link-originals"]
+    )
+    assert res.exit_code == 0, res.output
+    assert "only affects HTML output" in res.output

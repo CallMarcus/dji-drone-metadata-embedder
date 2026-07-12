@@ -13,6 +13,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 from ..utilities import is_gps_fix
@@ -262,17 +263,42 @@ def scan_photos(
     )
 
 
+def _link_href(name: str, base: str) -> str:
+    """Href to the original photo: percent-encoded *name* under *base*.
+
+    Each ``/``-separated segment of *name* is fully percent-encoded (spaces,
+    ``#``, quotes) while the separators survive, so relative subdirectory
+    links from recursive scans still resolve. *base* is taken as-is apart
+    from separator normalisation — it may be a relative folder or an absolute
+    URL, and encoding it would corrupt ``https://``.
+    """
+    encoded = "/".join(quote(seg, safe="") for seg in name.split("/"))
+    base = base.replace("\\", "/").rstrip("/")
+    return f"{base}/{encoded}" if base else encoded
+
+
 def photos_to_geojson(
-    points: list[PhotoPoint], *, include_thumbnails: bool = False
+    points: list[PhotoPoint],
+    *,
+    include_thumbnails: bool = False,
+    link_base: str | None = None,
 ) -> dict:
     """Return a GeoJSON ``FeatureCollection`` of photo ``Point`` features.
 
     Thumbnails are excluded by default — base64 blobs do not belong in the GIS
     interchange file. The HTML viewer opts in for its embedded copy.
+
+    ``link_base`` (issue #253) is equally opt-in: when not ``None``, each
+    feature gains a ``link`` property pointing at the original photo file
+    (``""`` = alongside the map, else a folder/URL prefix). The standalone
+    GeoJSON writer never passes it — a shared map must not accumulate fragile
+    file references by default.
     """
     features: list[dict] = []
     for p in points:
         props: dict = {"name": p.name}
+        if link_base is not None:
+            props["link"] = _link_href(p.name, link_base)
         if p.timestamp:
             props["timestamp"] = p.timestamp
         # Missing altitude is omitted entirely (no property, 2D coordinate)
