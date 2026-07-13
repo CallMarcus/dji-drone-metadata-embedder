@@ -1,7 +1,8 @@
 """One-shot generator for the samples/photos/ fixtures.
 
-Creates three tiny (under 1 KB) JPEGs: two GPS-tagged over Helsinki churches
-(with an embedded EXIF thumbnail) and one without GPS. Requires ExifTool.
+Creates four tiny (under 1 KB) JPEGs: three GPS-tagged (two over Helsinki
+churches with an embedded EXIF thumbnail, one a GPano panorama) and one
+without GPS. Requires ExifTool.
 Run from the repo root:  uv run python tests/generate_photo_fixtures.py
 """
 
@@ -40,7 +41,7 @@ def main() -> None:
     thumb = _PHOTOS / "_thumb.jpg"
     thumb.write_bytes(blob)
     try:
-        for name in (*_GPS, "no_gps.jpg"):
+        for name in (*_GPS, "pano.jpg", "no_gps.jpg"):
             (_PHOTOS / name).write_bytes(blob)
         for name, (lat, lon, alt) in _GPS.items():
             subprocess.run(
@@ -57,6 +58,23 @@ def main() -> None:
                 ],
                 check=True,
             )
+        # GPano equirectangular panorama (Senate Square) — exercises the
+        # photomap 360-viewer detection (#271).
+        subprocess.run(
+            [
+                exiftool, "-overwrite_original", "-n",
+                "-GPSLatitude=60.168600", "-GPSLatitudeRef=N",
+                "-GPSLongitude=24.953900", "-GPSLongitudeRef=E",
+                "-GPSAltitude=12.0", "-GPSAltitudeRef=0",
+                "-DateTimeOriginal=2026:06:15 12:32:00",
+                "-Make=DJI", "-Model=FC8482",
+                "-XMP-GPano:ProjectionType=equirectangular",
+                "-XMP-GPano:UsePanoramaViewer=true",
+                f"-ThumbnailImage<={thumb}",
+                str(_PHOTOS / "pano.jpg"),
+            ],
+            check=True,
+        )
         subprocess.run(
             [
                 exiftool, "-overwrite_original",

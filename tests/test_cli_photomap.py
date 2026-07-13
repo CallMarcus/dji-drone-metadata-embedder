@@ -156,8 +156,11 @@ def test_photomap_real_exiftool_scan():
     from dji_metadata_embedder.geo.photomap import scan_photos
 
     points, skipped = scan_photos(SAMPLES_PHOTOS)
-    assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
+    assert [p.name for p in points] == ["church1.jpg", "church2.jpg", "pano.jpg"]
     assert skipped == ["no_gps.jpg"]
+    by_name = {p.name: p for p in points}
+    assert by_name["pano.jpg"].is_pano is True
+    assert by_name["church1.jpg"].is_pano is False
     assert points[0].lat == pytest.approx(60.170278)
     assert points[0].thumbnail_b64  # embedded EXIF thumbnail extracted
     assert points[0].timestamp == "2026-06-15 12:30:45"
@@ -167,13 +170,16 @@ def test_photomap_real_exiftool_scan():
 def test_photomap_cli_end_to_end(tmp_path):
     for jpg in SAMPLES_PHOTOS.glob("*.jpg"):
         shutil.copy(jpg, tmp_path / jpg.name)
-    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "-f", "all"])
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "-f", "all", "--link-originals"]
+    )
     assert res.exit_code == 0, res.output
     assert (tmp_path / "photomap.html").exists()
     assert (tmp_path / "photomap.kml").exists()
     assert (tmp_path / "photomap.geojson").exists()
     html = (tmp_path / "photomap.html").read_text(encoding="utf-8")
     assert '"thumb"' in html  # thumbnail data present in the embedded GeoJSON
+    assert "pannellum@" in html  # pano.jpg triggers the 360 viewer assets
 
 
 @needs_exiftool
@@ -189,7 +195,9 @@ def test_photomap_recursive_real_scan(tmp_path):
     points, skipped = scan_photos(tmp_path, recursive=True)
     # Recursive scans carry the subdirectory so per-session archives don't
     # collide on DJI's restarting basenames.
-    assert [p.name for p in points] == ["sub/church1.jpg", "sub/church2.jpg"]
+    assert [p.name for p in points] == [
+        "sub/church1.jpg", "sub/church2.jpg", "sub/pano.jpg"
+    ]
 
 
 def _html_link_props(path: Path) -> list[str | None]:
