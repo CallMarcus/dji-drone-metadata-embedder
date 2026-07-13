@@ -521,3 +521,20 @@ def test_scan_requests_gpano_projection_tag(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", fake_run)
     scan_photos(tmp_path)
     assert "-XMP-GPano:ProjectionType" in seen["args"]
+
+
+_PANO_POINT = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="pano.jpg", is_pano=True)
+_FLAT_POINT = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="flat.jpg")
+
+
+def test_geojson_pano_property_requires_link_base():
+    # Without links the viewer has nothing to load: no pano property at all.
+    data = photos_to_geojson([_PANO_POINT, _FLAT_POINT])
+    assert all("pano" not in f["properties"] for f in data["features"])
+
+
+def test_geojson_pano_property_with_link_base_only_on_panos():
+    data = photos_to_geojson([_PANO_POINT, _FLAT_POINT], link_base="")
+    by_name = {f["properties"]["name"]: f["properties"] for f in data["features"]}
+    assert by_name["pano.jpg"]["pano"] is True
+    assert "pano" not in by_name["flat.jpg"]
