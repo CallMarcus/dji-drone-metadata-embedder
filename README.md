@@ -21,7 +21,8 @@ it's a handful of copy-paste commands. For a guided tour see
   footage and get a single interactive map with each flight as its own
   coloured track *(experimental)*.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
-  folder of stills on one clustered map, thumbnails included.
+  folder of stills on one clustered map, thumbnails included, and opens 360°
+  panoramas in an interactive viewer.
 - **Make videos searchable by location** — `dji-embed embed` writes the GPS
   data into the video files so Windows Photos, Google Photos, and similar apps
   can find them by place. No re-encoding, no quality loss, and the full
@@ -442,6 +443,7 @@ dji-embed photomap /path/to/photos -f all                             # -> photo
 dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse + custom title
 dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
 dji-embed photomap /path/to/photos --link-originals --link-base ../DCIM   # originals live elsewhere
+dji-embed photomap /path/to/photos --redact fuzz                      # ~100 m coarsened pins
 ```
 
 <details>
@@ -465,6 +467,8 @@ Options:
   --link-base PREFIX              Folder or URL prefix for --link-originals
                                   hrefs, for when the originals do not sit
                                   beside the HTML
+  --redact [none|fuzz]            Coarsen every photo location to ~100 m
+                                  before writing (default: none)
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -486,6 +490,13 @@ Notes:
   the file regardless. Use `--link-base` when the originals live elsewhere
   (a relative folder like `../DCIM`, or an absolute URL). Browsers download
   rather than display DNG files; JPGs open in a new tab.
+- 360° panoramas (DJI, Insta360, Google Camera, …) are detected during the
+  same scan; with `--link-originals`, clicking one opens an embedded
+  interactive viewer instead of a flat, distorted JPEG.
+- `--redact fuzz` coarsens every pin to ~100 m before the map is written —
+  use it for maps you plan to share. Combined with `--link-originals`, the
+  linked originals still carry exact GPS in their EXIF, so share those
+  deliberately too.
 - Leaflet and the OpenStreetMap basemap tiles load from the internet; the
   photo thumbnails themselves are embedded, so the HTML file is portable but
   needs a connection to render. A photo map publishes your shooting

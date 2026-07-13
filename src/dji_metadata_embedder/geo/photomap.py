@@ -11,12 +11,12 @@ import json
 import logging
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import quote
 from xml.sax.saxutils import escape
 
-from ..utilities import is_gps_fix
+from ..utilities import is_gps_fix, redact_coords
 from ..utils.exiftool import exiftool_exe
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,9 @@ _SCAN_TAGS = [
     # DJI DNGs carry no EXIF:ThumbnailImage; their preview is PreviewImage
     # (IFD0/SubIFD). Requested for all photos, used only as a fallback below.
     "-PreviewImage",
+    # XMP GPano marks stitched panoramas (DJI, Insta360, Google Camera, ...).
+    # equirectangular => the HTML map can open the photo in a 360 viewer.
+    "-XMP-GPano:ProjectionType",
 ]
 _PHOTO_EXTS = ("jpg", "jpeg", "dng")
 
@@ -68,7 +71,8 @@ class PhotoPoint:
     """One GPS-tagged photo: WGS84 lat/lon, altitude (m, ``None`` when the EXIF
     has no ``GPSAltitude``), source filename, and optional capture metadata for
     popups. ``None`` altitude is kept distinct from a real 0 m fix so writers
-    can clamp such placemarks to the ground rather than burying them."""
+    can clamp such placemarks to the ground rather than burying them.
+    ``is_pano`` marks GPano equirectangular panoramas (360 viewer candidates)."""
 
     lat: float
     lon: float
@@ -80,6 +84,7 @@ class PhotoPoint:
     exposure: float | None = None
     fnum: float | None = None
     thumbnail_b64: str | None = None
+    is_pano: bool = False
 
 
 def _display_datetime(value: object) -> str | None:
@@ -195,6 +200,8 @@ def points_from_exiftool_json(
             skipped.append(name)
             continue
         thumb_b64 = _extract_thumbnail_b64(entry)
+        proj = entry.get("ProjectionType")
+        is_pano = isinstance(proj, str) and proj.strip().lower() == "equirectangular"
         points.append(
             PhotoPoint(
                 lat=lat,
@@ -207,6 +214,7 @@ def points_from_exiftool_json(
                 exposure=_maybe_float(entry.get("ExposureTime")),
                 fnum=_maybe_float(entry.get("FNumber")),
                 thumbnail_b64=thumb_b64,
+                is_pano=is_pano,
             )
         )
     points.sort(key=lambda p: p.name)
@@ -263,6 +271,20 @@ def scan_photos(
     )
 
 
+def redact_photo_points(points: list[PhotoPoint], mode: str) -> list[PhotoPoint]:
+    """Return *points* with coordinates coarsened per *mode*.
+
+    ``fuzz`` rounds through the shared :func:`redact_coords` (3 decimals,
+    ~100 m) so the privacy guarantee stays single-sourced with flightmap and
+    convert. Any other mode returns the list unchanged. ``drop`` is not
+    offered for photos — it would simply empty the map.
+    """
+    if mode != "fuzz" or not points:
+        return points
+    coords = redact_coords([(p.lat, p.lon) for p in points], "fuzz")
+    return [replace(p, lat=lat, lon=lon) for p, (lat, lon) in zip(points, coords)]
+
+
 def _link_href(name: str, base: str) -> str:
     """Href to the original photo: percent-encoded *name* under *base*.
 
@@ -292,13 +314,16 @@ def photos_to_geojson(
     feature gains a ``link`` property pointing at the original photo file
     (``""`` = alongside the map, else a folder/URL prefix). The standalone
     GeoJSON writer never passes it — a shared map must not accumulate fragile
-    file references by default.
+    file references by default. Panoramic photos additionally get
+    ``"pano": true`` so the HTML viewer can open them in 360°.
     """
     features: list[dict] = []
     for p in points:
         props: dict = {"name": p.name}
         if link_base is not None:
             props["link"] = _link_href(p.name, link_base)
+            if p.is_pano:
+                props["pano"] = True
         if p.timestamp:
             props["timestamp"] = p.timestamp
         # Missing altitude is omitted entirely (no property, 2D coordinate)

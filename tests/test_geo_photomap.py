@@ -474,3 +474,84 @@ def test_geojson_link_percent_encodes_name_but_keeps_separators():
     # Each path segment is percent-encoded (space, #, ") but "/" survives so
     # relative subdirectory links still resolve.
     assert data["features"][0]["properties"]["link"] == "sub%20dir/a%23b%22c.jpg"
+
+
+# ---------------------------------------------------------------------------
+# GPano detection (#271): equirectangular panoramas are flagged for a later
+# 360 viewer. Detection is opt-in metadata only — it never affects GPS/skip
+# logic above.
+
+
+def test_gpano_equirectangular_sets_is_pano():
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": "p.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+          "ProjectionType": "equirectangular"}]
+    )
+    assert points[0].is_pano is True
+
+
+def test_gpano_is_case_insensitive():
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": "p.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+          "ProjectionType": "Equirectangular"}]
+    )
+    assert points[0].is_pano is True
+
+
+def test_missing_or_other_projection_is_not_pano():
+    points, _ = points_from_exiftool_json(
+        [
+            {"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0},
+            {"SourceFile": "b.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+             "ProjectionType": "cylindrical"},
+            {"SourceFile": "c.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+             "ProjectionType": 7},
+        ]
+    )
+    assert [p.is_pano for p in points] == [False, False, False]
+
+
+def test_scan_requests_gpano_projection_tag(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        return _Proc(stdout="[]")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    scan_photos(tmp_path)
+    assert "-XMP-GPano:ProjectionType" in seen["args"]
+
+
+_PANO_POINT = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="pano.jpg", is_pano=True)
+_FLAT_POINT = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="flat.jpg")
+
+
+def test_geojson_pano_property_requires_link_base():
+    # Without links the viewer has nothing to load: no pano property at all.
+    data = photos_to_geojson([_PANO_POINT, _FLAT_POINT])
+    assert all("pano" not in f["properties"] for f in data["features"])
+
+
+def test_geojson_pano_property_with_link_base_only_on_panos():
+    data = photos_to_geojson([_PANO_POINT, _FLAT_POINT], link_base="")
+    by_name = {f["properties"]["name"]: f["properties"] for f in data["features"]}
+    assert by_name["pano.jpg"]["pano"] is True
+    assert "pano" not in by_name["flat.jpg"]
+
+
+def test_redact_photo_points_fuzz_rounds_to_3_decimals():
+    from dji_metadata_embedder.geo.photomap import redact_photo_points
+
+    pts = [PhotoPoint(lat=60.170278, lon=24.952222, alt=95.3, name="a.jpg")]
+    out = redact_photo_points(pts, "fuzz")
+    assert (out[0].lat, out[0].lon) == (60.170, 24.952)
+    assert out[0].alt == 95.3 and out[0].name == "a.jpg"
+    assert pts[0].lat == 60.170278  # input not mutated
+
+
+def test_redact_photo_points_none_is_identity():
+    from dji_metadata_embedder.geo.photomap import redact_photo_points
+
+    pts = [PhotoPoint(lat=60.170278, lon=24.952222, alt=None, name="a.jpg")]
+    assert redact_photo_points(pts, "none") == pts
