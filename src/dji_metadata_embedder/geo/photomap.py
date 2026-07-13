@@ -49,6 +49,9 @@ _SCAN_TAGS = [
     # DJI DNGs carry no EXIF:ThumbnailImage; their preview is PreviewImage
     # (IFD0/SubIFD). Requested for all photos, used only as a fallback below.
     "-PreviewImage",
+    # XMP GPano marks stitched panoramas (DJI, Insta360, Google Camera, ...).
+    # equirectangular => the HTML map can open the photo in a 360 viewer.
+    "-XMP-GPano:ProjectionType",
 ]
 _PHOTO_EXTS = ("jpg", "jpeg", "dng")
 
@@ -68,7 +71,8 @@ class PhotoPoint:
     """One GPS-tagged photo: WGS84 lat/lon, altitude (m, ``None`` when the EXIF
     has no ``GPSAltitude``), source filename, and optional capture metadata for
     popups. ``None`` altitude is kept distinct from a real 0 m fix so writers
-    can clamp such placemarks to the ground rather than burying them."""
+    can clamp such placemarks to the ground rather than burying them.
+    ``is_pano`` marks GPano equirectangular panoramas (360 viewer candidates)."""
 
     lat: float
     lon: float
@@ -80,6 +84,7 @@ class PhotoPoint:
     exposure: float | None = None
     fnum: float | None = None
     thumbnail_b64: str | None = None
+    is_pano: bool = False
 
 
 def _display_datetime(value: object) -> str | None:
@@ -195,6 +200,8 @@ def points_from_exiftool_json(
             skipped.append(name)
             continue
         thumb_b64 = _extract_thumbnail_b64(entry)
+        proj = entry.get("ProjectionType")
+        is_pano = isinstance(proj, str) and proj.strip().lower() == "equirectangular"
         points.append(
             PhotoPoint(
                 lat=lat,
@@ -207,6 +214,7 @@ def points_from_exiftool_json(
                 exposure=_maybe_float(entry.get("ExposureTime")),
                 fnum=_maybe_float(entry.get("FNumber")),
                 thumbnail_b64=thumb_b64,
+                is_pano=is_pano,
             )
         )
     points.sort(key=lambda p: p.name)
