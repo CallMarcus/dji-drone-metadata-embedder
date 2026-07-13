@@ -75,6 +75,7 @@ dji-embed photomap /path/to/photos -f geojson                         # -> photo
 dji-embed photomap /path/to/photos -f all -o archive/photomap         # -> archive/photomap.{html,kml,geojson}
 dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # scan subdirectories too
 dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
+dji-embed photomap /path/to/photos --redact fuzz                      # ~100 m coarsened pins
 ```
 
 The command scans the whole directory in one pass, so even large archives
@@ -96,6 +97,11 @@ either way. If the originals live elsewhere, point at them with
 `--link-base ../DCIM` (relative folder) or `--link-base https://example.com/photos/`
 (absolute URL).
 
+360° panoramas (GPano photos from DJI, Insta360, Google Camera, …) are
+detected automatically; with `--link-originals`, clicking one opens an
+embedded interactive 360° viewer instead of a flat, distorted JPEG — an
+"open original" link stays in the popup as a fallback.
+
 Photos without GPS coordinates are skipped and counted in a summary, e.g.
 `Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)`; add
 `-v` to list the skipped filenames.
@@ -103,7 +109,9 @@ Photos without GPS coordinates are skipped and counted in a summary, e.g.
 Like the other HTML maps, Leaflet and the OpenStreetMap basemap tiles load
 from the internet; the photo thumbnails themselves are embedded in the file.
 
-A photo map publishes your shooting locations — share it deliberately.
+A photo map publishes your shooting locations — share it deliberately, or
+pass `--redact fuzz` to coarsen every pin to ~100 m first. Note that linked
+originals (`--link-originals`) still carry exact GPS in their EXIF.
 
 ## Footage verification (sun / shadow check)
 

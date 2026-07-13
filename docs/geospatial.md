@@ -218,6 +218,64 @@ Details worth knowing:
   the same time, a split flight interleaved with the other drone's files
   is not joined. Rare in practice — open an issue if it bites you.
 
+## Photo map (`photomap`)
+
+```bash
+dji-embed photomap ./photos                     # -> photos/photomap.html
+dji-embed photomap ./photos -f all               # html + kml + geojson
+dji-embed photomap ./photos --link-originals     # popups open the original photos
+```
+
+Where `flightmap` plots video flight tracks, `photomap` plots individual
+GPS-tagged still photos (JPG/JPEG/DNG). ExifTool scans the whole directory in
+one pass (`dji-embed doctor` checks it's installed); the HTML map clusters
+nearby shots into an expandable marker, and clicking a pin shows the EXIF
+thumbnail, filename, timestamp, altitude, and camera settings. Photos with no
+GPS are skipped and counted in a summary; `-v` lists them.
+
+With `--link-originals`, a popup's thumbnail and filename become a
+click-through to the full-resolution original (JPGs open inline, DNGs
+download). The links are relative to the HTML file, so they only resolve
+while the map sits next to the photos — pass `--link-base` (a relative
+folder or an absolute URL) when the originals live elsewhere.
+
+### 360° panoramas
+
+Stitched spherical panoramas (DJI, Insta360, Google Camera, …) carry XMP
+GPano tags. Photomap detects `ProjectionType=equirectangular` during the
+same ExifTool scan; when `--link-originals` is set, clicking such a pin
+opens the photo in an embedded 360° viewer
+([Pannellum](https://pannellum.org/), loaded from the CDN like Leaflet)
+instead of a flat, distorted JPEG. An "open original" link stays in the
+popup as a fallback.
+
+```bash
+dji-embed photomap /path/to/panoramas --link-originals
+```
+
+Notes:
+
+- Without `--link-originals` the map is unchanged — the viewer needs the
+  original files to be reachable from the HTML.
+- Very large panoramas can exceed a device's WebGL texture size (phones are
+  often limited to 8192 px wide); the viewer shows an error in that case and
+  the "open original" link still works.
+- With an absolute `--link-base` URL, the web server hosting the photos must
+  send CORS headers (`Access-Control-Allow-Origin`) — the 360° viewer loads
+  the image into WebGL, which browsers block cross-origin without them. The
+  "open original" link works either way.
+
+### Redacting photo locations
+
+`--redact fuzz` coarsens every photo location to ~100 m before any
+output is written (html/kml/geojson), same as flightmap. Caveat: if you
+also pass `--link-originals` and share the original files, their EXIF still
+contains the exact coordinates — the fuzz only applies to the map.
+
+```bash
+dji-embed photomap /path/to/photos --redact fuzz
+```
+
 ## Privacy
 
 All three geo formats honour `--redact`:
