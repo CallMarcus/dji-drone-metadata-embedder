@@ -23,6 +23,7 @@ from .geo import (
     convert_to_html,
     convert_to_cot,
     PhotomapError,
+    redact_photo_points,
     scan_flights,
     scan_photos,
     write_flights_geojson,
@@ -355,6 +356,15 @@ def convert(
          "originals do not sit beside the HTML (e.g. photos/ or "
          "https://example.com/photos/)",
 )
+@click.option(
+    "--redact",
+    type=click.Choice(["none", "fuzz"], case_sensitive=False),
+    default="none",
+    show_default=True,
+    help="GPS redaction: fuzz coarsens every photo location to ~100 m "
+    "before writing (all formats). Linked/attached original files still "
+    "carry exact GPS in their EXIF.",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def photomap(
@@ -365,6 +375,7 @@ def photomap(
     title: str | None,
     link_originals: bool,
     link_base: str | None,
+    redact: str,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -373,7 +384,8 @@ def photomap(
     Scans DIRECTORY with ExifTool, drops a pin per geotagged photo, and embeds
     each photo's EXIF thumbnail in the html/kml popups. The html map clusters
     nearby pins and loads Leaflet and OpenStreetMap tiles from the internet.
-    Requires ExifTool (see 'dji-embed doctor').
+    Requires ExifTool (see 'dji-embed doctor'). GPano 360° panoramas open in
+    an embedded viewer when --link-originals is set.
     """
     setup_logging(verbose, quiet)
     if link_base is not None and not link_originals:
@@ -392,6 +404,14 @@ def photomap(
         points, skipped = scan_photos(src, recursive=recursive)
     except PhotomapError as e:
         raise click.ClickException(str(e))
+    if redact.lower() == "fuzz":
+        points = redact_photo_points(points, "fuzz")
+        if link_originals:
+            click.echo(
+                "Note: --redact fuzz coarsens the map coordinates, but the "
+                "linked original photos still carry exact GPS in their EXIF",
+                err=True,
+            )
     total = len(points) + len(skipped)
     if total == 0:
         raise click.ClickException(

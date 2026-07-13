@@ -538,3 +538,20 @@ def test_geojson_pano_property_with_link_base_only_on_panos():
     by_name = {f["properties"]["name"]: f["properties"] for f in data["features"]}
     assert by_name["pano.jpg"]["pano"] is True
     assert "pano" not in by_name["flat.jpg"]
+
+
+def test_redact_photo_points_fuzz_rounds_to_3_decimals():
+    from dji_metadata_embedder.geo.photomap import redact_photo_points
+
+    pts = [PhotoPoint(lat=60.170278, lon=24.952222, alt=95.3, name="a.jpg")]
+    out = redact_photo_points(pts, "fuzz")
+    assert (out[0].lat, out[0].lon) == (60.170, 24.952)
+    assert out[0].alt == 95.3 and out[0].name == "a.jpg"
+    assert pts[0].lat == 60.170278  # input not mutated
+
+
+def test_redact_photo_points_none_is_identity():
+    from dji_metadata_embedder.geo.photomap import redact_photo_points
+
+    pts = [PhotoPoint(lat=60.170278, lon=24.952222, alt=None, name="a.jpg")]
+    assert redact_photo_points(pts, "none") == pts

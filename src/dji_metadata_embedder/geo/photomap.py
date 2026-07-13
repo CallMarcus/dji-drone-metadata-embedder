@@ -11,12 +11,12 @@ import json
 import logging
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import quote
 from xml.sax.saxutils import escape
 
-from ..utilities import is_gps_fix
+from ..utilities import is_gps_fix, redact_coords
 from ..utils.exiftool import exiftool_exe
 
 logger = logging.getLogger(__name__)
@@ -269,6 +269,20 @@ def scan_photos(
         _run_exiftool_scan(directory, recursive),
         root=directory if recursive else None,
     )
+
+
+def redact_photo_points(points: list[PhotoPoint], mode: str) -> list[PhotoPoint]:
+    """Return *points* with coordinates coarsened per *mode*.
+
+    ``fuzz`` rounds through the shared :func:`redact_coords` (3 decimals,
+    ~100 m) so the privacy guarantee stays single-sourced with flightmap and
+    convert. Any other mode returns the list unchanged. ``drop`` is not
+    offered for photos — it would simply empty the map.
+    """
+    if mode != "fuzz" or not points:
+        return points
+    coords = redact_coords([(p.lat, p.lon) for p in points], "fuzz")
+    return [replace(p, lat=lat, lon=lon) for p, (lat, lon) in zip(points, coords)]
 
 
 def _link_href(name: str, base: str) -> str:

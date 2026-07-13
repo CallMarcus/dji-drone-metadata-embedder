@@ -248,3 +248,33 @@ def test_photomap_link_originals_without_html_output_warns(monkeypatch, tmp_path
     )
     assert res.exit_code == 0, res.output
     assert "only affects HTML output" in res.output
+
+
+def test_photomap_redact_fuzz_coarsens_all_formats(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "-f", "all", "--redact", "fuzz"]
+    )
+    assert res.exit_code == 0, res.output
+    geo = json.loads((tmp_path / "photomap.geojson").read_text(encoding="utf-8"))
+    assert geo["features"][0]["geometry"]["coordinates"][:2] == [24.952, 60.17]
+    assert "60.170278" not in (tmp_path / "photomap.kml").read_text(encoding="utf-8")
+    assert "60.170278" not in (tmp_path / "photomap.html").read_text(encoding="utf-8")
+
+
+def test_photomap_redact_fuzz_with_links_warns_about_exif(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main,
+        ["photomap", str(tmp_path), "--redact", "fuzz", "--link-originals"],
+    )
+    assert res.exit_code == 0, res.output
+    assert "exact GPS" in res.output
+
+
+def test_photomap_redact_default_none_keeps_exact_coords(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path)])
+    assert res.exit_code == 0, res.output
+    html = (tmp_path / "photomap.html").read_text(encoding="utf-8")
+    assert "60.170278" in html
