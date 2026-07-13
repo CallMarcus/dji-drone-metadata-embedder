@@ -102,3 +102,49 @@ def test_html_popup_anchor_is_escaped_and_noopener():
     # window.opener access.
     assert "esc(p.link" in html
     assert 'target="_blank" rel="noopener"' in html
+
+
+PANO_POINTS = POINTS + [
+    PhotoPoint(lat=60.1686, lon=24.9539, alt=12.0, name="pano.jpg",
+               thumbnail_b64="/9j/PANO", is_pano=True),
+]
+
+
+def test_html_no_pannellum_without_panos():
+    html = photos_to_html(POINTS, title="t", link_base="")
+    assert "pannellum" not in html
+    assert 'id="pano-overlay"' not in html
+
+
+def test_html_no_pannellum_without_links():
+    # A pano without --link-originals has nothing the viewer could load.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "pannellum" not in html
+    data = _embedded_geojson(html)
+    assert all("pano" not in f["properties"] for f in data["features"])
+
+
+def test_html_pano_with_links_embeds_pinned_viewer():
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    assert "pannellum@2.5.6/build/pannellum.js" in html
+    assert "pannellum@2.5.6/build/pannellum.css" in html
+    # 5 existing SRI pins (leaflet css+js, cluster js+2css) + pannellum css+js.
+    assert html.count('integrity="sha256-') == 7
+    assert 'id="pano-overlay"' in html
+    assert 'id="pano-close"' in html
+    by_name = {
+        f["properties"]["name"]: f["properties"]
+        for f in _embedded_geojson(html)["features"]
+    }
+    assert by_name["pano.jpg"]["pano"] is True
+    assert "pano" not in by_name["church1.jpg"]
+
+
+def test_html_pano_popup_keeps_plain_fallback_link():
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    # Pano popups: main click opens the viewer, plus an escaped plain link
+    # ("open original") as fallback; Escape and the close button tear down.
+    assert 'class="pano-open"' in html
+    assert "open original" in html
+    assert "pannellum.viewer(" in html
+    assert "panoViewer.destroy()" in html
