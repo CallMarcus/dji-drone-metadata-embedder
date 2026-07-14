@@ -82,7 +82,8 @@ The command scans the whole directory in one pass, so even large archives
 scan quickly (ExifTool must be installed — `dji-embed doctor` checks this).
 The HTML map clusters nearby shots into an expandable numbered marker so a
 dense session doesn't turn into a wall of overlapping pins; clicking a photo
-shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings.
+shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings,
+and hovering a marker previews the thumbnail and filename without clicking.
 KML opens the same thumbnails in Google Earth Pro (Google My Maps import may
 drop the images but keeps the placemarks). GeoJSON is interchange-only — no
 thumbnails, just `name`/`timestamp`/`alt`/`camera` properties — for use in

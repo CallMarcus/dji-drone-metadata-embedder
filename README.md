@@ -484,6 +484,8 @@ Notes:
   distinct on the map.
 - Popup previews use the small EXIF thumbnail, falling back to a size-capped
   embedded preview for DNGs that carry no thumbnail.
+- Hovering a marker shows the thumbnail and filename in a tooltip, so a map
+  can be skimmed without clicking every pin (HTML output, desktop browsers).
 - Photos with no EXIF altitude are clamped to the ground in KML (Google Earth)
   instead of being buried at 0 m below terrain.
 - `--link-originals` makes each popup's thumbnail and filename a click-through
