@@ -81,10 +81,10 @@ The image installs ExifTool from apt with no version pin (`apt-get install ffmpe
 
 | dji-embed | FFmpeg | ExifTool | Status |
 |-----------|---------|----------|--------|
-| 1.18.0    | 6.1.1   | 13.59    | ✅ Recommended |
-| 1.18.0    | 6.0.x   | 12.70+   | ✅ Supported |
-| 1.18.0    | 5.1.x   | 12.50+   | ⚠️ Limited testing |
-| 1.18.0    | 4.4.x   | 11.00+   | ⚠️ Minimum support |
+| 1.19.0    | 6.1.1   | 13.59    | ✅ Recommended |
+| 1.19.0    | 6.0.x   | 12.70+   | ✅ Supported |
+| 1.19.0    | 5.1.x   | 12.50+   | ⚠️ Limited testing |
+| 1.19.0    | 4.4.x   | 11.00+   | ⚠️ Minimum support |
 
 ## Known Issues
 
@@ -101,7 +101,7 @@ The image installs ExifTool from apt with no version pin (`apt-get install ffmpe
 The `dji-embed --version` command now shows detected tool versions:
 
 ```
-dji-embed 1.18.0
+dji-embed 1.19.0
   python: python
   ffmpeg: 6.1.1
   exiftool: 13.59
