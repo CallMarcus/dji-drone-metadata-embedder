@@ -115,6 +115,50 @@ dji-embed --help
 # Or install Python from python.org
 ```
 
+### I updated, but `dji-embed --version` still shows the old version
+
+Almost always two different Pythons on the same machine (python.org,
+Microsoft Store, winget, Homebrew...): the `dji-embed` on your PATH belongs
+to one interpreter, while plain `pip` belongs to another. `pip install
+dji-drone-metadata-embedder` then reports "requirement already satisfied"
+in the wrong environment — and without `--upgrade` it never updates anyway.
+
+**Diagnose** — find which interpreter owns the `dji-embed` that runs:
+
+```powershell
+# Windows (PowerShell)
+Get-Command dji-embed | Format-List Source
+# e.g. C:\...\Python313\Scripts\dji-embed.exe
+#      → owned by C:\...\Python313\python.exe
+```
+
+```bash
+# macOS/Linux
+command -v dji-embed
+# e.g. ~/.local/bin/dji-embed — its first line names the owning python
+head -1 "$(command -v dji-embed)"
+```
+
+**Fix** — upgrade with that interpreter, not with bare `pip`:
+
+```powershell
+# Windows: use the python.exe next to the Scripts folder found above
+& "C:\...\Python313\python.exe" -m pip install --upgrade dji-drone-metadata-embedder
+dji-embed --version
+```
+
+```bash
+# macOS/Linux
+/path/to/that/python -m pip install --upgrade dji-drone-metadata-embedder
+
+# pipx installs avoid this whole problem — one isolated env per app:
+pipx upgrade dji-drone-metadata-embedder
+```
+
+The standalone Windows EXE and winget installs are separate from pip:
+update those by downloading the new EXE from the GitHub release, or with
+`winget upgrade CallMarcus.DJIMetadataEmbedder`.
+
 ### Permission Errors
 
 **Solutions:**
