@@ -104,6 +104,50 @@ def test_html_popup_anchor_is_escaped_and_noopener():
     assert 'target="_blank" rel="noopener"' in html
 
 
+def _tooltip_builder(html: str) -> str:
+    match = re.search(r"function buildTooltip\(f\) \{(.*?)\n\}", html, re.DOTALL)
+    assert match, "buildTooltip function not found"
+    return match.group(1)
+
+
+def test_html_markers_bind_hover_tooltip():
+    # Hover preview (issue #273): every marker gets a sticky tooltip so the
+    # map can be skimmed without clicking each pin.
+    html = photos_to_html(POINTS, title="t")
+    assert "bindTooltip(" in html
+    assert "sticky: true" in html
+
+
+def test_html_tooltip_shows_thumbnail_and_escaped_name():
+    # The tooltip carries the EXIF thumbnail plus the filename; the filename
+    # goes through the esc() helper so hostile names cannot inject HTML.
+    body = _tooltip_builder(photos_to_html(POINTS, title="t"))
+    assert "esc(p.thumb" in body
+    assert "esc(p.name" in body
+    assert "data:image/jpeg;base64," in body
+
+
+def test_html_tooltip_degrades_without_thumbnail():
+    # Points without a thumb fall back to a filename-only tooltip: the <img>
+    # sits inside an `if (p.thumb)` guard while the name is unconditional.
+    body = _tooltip_builder(photos_to_html(POINTS, title="t"))
+    assert "if (p.thumb)" in body
+    assert "esc(p.name" in body
+
+
+def test_html_tooltip_css_limits_thumbnail_size():
+    html = photos_to_html(POINTS, title="t")
+    assert ".photo-tooltip img" in html
+    assert "max-width: 160px" in html
+
+
+def test_html_tooltip_does_not_replace_click_popup():
+    # The hover preview is additive: markers still bind the full click popup.
+    html = photos_to_html(POINTS, title="t")
+    assert "bindPopup(" in html
+    assert "bindTooltip(" in html
+
+
 PANO_POINTS = POINTS + [
     PhotoPoint(lat=60.1686, lon=24.9539, alt=12.0, name="pano.jpg",
                thumbnail_b64="/9j/PANO", is_pano=True),

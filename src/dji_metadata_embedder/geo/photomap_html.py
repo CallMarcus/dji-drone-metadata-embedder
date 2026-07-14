@@ -60,6 +60,7 @@ _TEMPLATE = """<!DOCTYPE html>
   html, body {{ height: 100%; margin: 0; }}
   #map {{ height: 100%; }}
   .photo-popup img {{ max-width: 260px; display: block; margin-bottom: 4px; }}
+  .photo-tooltip img {{ max-width: 160px; display: block; margin-bottom: 2px; }}
 </style>
 </head>
 <body>
@@ -194,11 +195,27 @@ function buildPopup(f) {
   return html;
 }
 
+// Hover preview (issue #273): thumbnail + filename in a sticky tooltip so a
+// map can be skimmed without clicking every pin. Thumb-less points fall back
+// to a filename-only tooltip. Desktop-only by design: touch devices have no
+// hover and the click popup already covers them.
+function buildTooltip(f) {
+  const p = f.properties || {};
+  let html = '<div class="photo-tooltip">';
+  if (p.thumb) {
+    html += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt="">`;
+  }
+  html += `${esc(p.name || '')}</div>`;
+  return html;
+}
+
 for (const f of points) {
   const c = f.geometry.coordinates;                  // [lon, lat, alt]
   latlngs.push([c[1], c[0]]);
   markers.push(
-    L.marker([c[1], c[0]]).bindPopup(() => buildPopup(f), { maxWidth: 300 }));
+    L.marker([c[1], c[0]])
+      .bindPopup(() => buildPopup(f), { maxWidth: 300 })
+      .bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' }));
 }
 cluster.addLayers(markers);
 map.addLayer(cluster);
