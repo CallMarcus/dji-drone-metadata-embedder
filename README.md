@@ -564,6 +564,25 @@ dji-embed doctor
 ExifTool into your user directory — useful where system packages are too old
 for MP4 timed metadata (most Linux distros).
 
+**Opt-in update check.** Normal commands never touch the network. `doctor`
+is the only command that may go online for version info, and it asks first:
+the first interactive run prompts once (`Check online for newer versions
+(PyPI + ExifTool)? [y/N]`, default No) and remembers your answer. When
+enabled, doctor compares your dji-embed against PyPI and your ExifTool
+against the bundled pin, and prints an upgrade command matched to how you
+installed (winget/EXE, pipx, or the exact `python -m pip` for your
+interpreter). Network failures degrade silently to the offline report.
+
+```bash
+dji-embed doctor --online     # enable for this run and remember it
+dji-embed doctor --offline    # disable for this run and remember it
+```
+
+Set `DJIEMBED_NO_UPDATE_CHECK=1` to hard-disable the check regardless of the
+remembered choice. Non-interactive runs (no terminal, or `CI` set) never
+prompt and never check. The ExifTool-vs-pin comparison needs no network and
+is always shown when your ExifTool is older than the pinned release.
+
 ### `dji-embed ui` - Local Web UI
 
 Launch the local web UI in your browser (requires the `[ui]` extra). It runs

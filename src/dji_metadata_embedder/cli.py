@@ -627,9 +627,22 @@ def flightmap(
     is_flag=True,
     help="With --install: reinstall even when already provisioned.",
 )
+@click.option(
+    "--online/--offline",
+    "online",
+    default=None,
+    help="Enable/disable the online update check (PyPI + ExifTool pin) for "
+    "this run and remember the choice. Default: remembered choice, asked "
+    "once on interactive terminals. DJIEMBED_NO_UPDATE_CHECK=1 hard-disables.",
+)
 @click.pass_context
 def doctor(
-    ctx: click.Context, verbose: bool, quiet: bool, install_tool: str | None, force: bool
+    ctx: click.Context,
+    verbose: bool,
+    quiet: bool,
+    install_tool: str | None,
+    force: bool,
+    online: bool | None,
 ) -> None:
     """Show system information and verify dependencies."""
     log_json = ctx.obj.get('log_json', False)
@@ -639,7 +652,7 @@ def doctor(
         if install_tool == "exiftool":
             exe = provision_exiftool(force=force)
             click.echo(f"ExifTool {EXIFTOOL_VERSION} installed: {exe}")
-        run_doctor()
+        run_doctor(online=online)
         if log_json:
             click.echo(json.dumps({"status": "success"}))
         sys.exit(ExitCode.SUCCESS)

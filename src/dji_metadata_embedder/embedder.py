@@ -790,8 +790,13 @@ class DJIMetadataEmbedder:
         return result
 
 
-def run_doctor() -> None:
-    """Print system and dependency information."""
+def run_doctor(online: bool | None = None) -> None:
+    """Print system and dependency information.
+
+    ``online`` forces the opt-in update check on/off for this run (and
+    persists the choice); ``None`` uses the remembered consent, prompting
+    once on interactive terminals.
+    """
     from .utilities import check_dependencies
 
     # System information
@@ -829,6 +834,12 @@ def run_doctor() -> None:
         logger.info("All dependencies verified.")
     else:
         logger.warning("Some dependencies are missing or not functional.")
+
+    # Opt-in update check (doctor is the only command that may go online).
+    from .utils import update_check
+
+    for line in update_check.update_report(online):
+        logger.info("%s", line)
 
 
 def main():

@@ -123,6 +123,13 @@ to one interpreter, while plain `pip` belongs to another. `pip install
 dji-drone-metadata-embedder` then reports "requirement already satisfied"
 in the wrong environment — and without `--upgrade` it never updates anyway.
 
+**Shortcut:** `dji-embed doctor --online` checks PyPI for the latest release
+and prints the exact upgrade command for the interpreter that owns *your*
+`dji-embed` (the literal `python.exe -m pip ...` path, `pipx upgrade`, or
+the winget/EXE route) — no PATH archaeology needed. The check is opt-in and
+only ever runs from `doctor`; see the README for details and the
+`DJIEMBED_NO_UPDATE_CHECK=1` opt-out.
+
 **Diagnose** — find which interpreter owns the `dji-embed` that runs:
 
 ```powershell

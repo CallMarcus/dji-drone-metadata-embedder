@@ -85,3 +85,71 @@ def test_doctor_install_rejects_unknown_tool():
     runner = CliRunner()
     result = runner.invoke(cli_mod.main, ["doctor", "--install", "ffmpeg"])
     assert result.exit_code != 0  # click.Choice rejects it
+
+
+def test_doctor_ci_env_no_prompt_no_network(monkeypatch, tmp_path):
+    """Non-interactive doctor must neither prompt nor touch the network."""
+    from dji_metadata_embedder.utils import update_check as uc
+
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+
+    monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
+    monkeypatch.setattr(
+        "builtins.input", lambda *a: (_ for _ in ()).throw(AssertionError("prompted"))
+    )
+
+    def no_net(*a, **k):
+        raise AssertionError("network touched")
+
+    monkeypatch.setattr(uc, "urlopen", no_net)
+    runner = CliRunner()
+    result = runner.invoke(cli_mod.main, ["doctor", "-q"], env={"CI": "1"})
+    assert result.exit_code == 0
+
+
+def test_doctor_online_flag_respects_kill_switch(monkeypatch, tmp_path):
+    """DJIEMBED_NO_UPDATE_CHECK=1 hard-disables even doctor --online."""
+    from dji_metadata_embedder.utils import update_check as uc
+
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+
+    def no_net(*a, **k):
+        raise AssertionError("network touched despite kill switch")
+
+    monkeypatch.setattr(uc, "urlopen", no_net)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.main,
+        ["doctor", "--online"],
+        env={"DJIEMBED_NO_UPDATE_CHECK": "1"},
+    )
+    assert result.exit_code == 0
+    assert uc.load_consent() is None  # kill switch also blocks persisting
+
+
+def test_doctor_offline_flag_persists_choice(monkeypatch, tmp_path):
+    from dji_metadata_embedder.utils import update_check as uc
+
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+
+    monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
+    runner = CliRunner()
+    result = runner.invoke(cli_mod.main, ["doctor", "--offline", "-q"])
+    assert result.exit_code == 0
+    assert uc.load_consent() is False
+
+
+def test_doctor_online_flag_checks_and_persists(monkeypatch, caplog, tmp_path):
+    from dji_metadata_embedder.utils import update_check as uc
+
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+
+    monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
+    monkeypatch.setattr(uc, "latest_pypi_version", lambda **k: "99.0.0")
+    runner = CliRunner()
+    with caplog.at_level(logging.INFO):
+        result = runner.invoke(cli_mod.main, ["doctor", "--online"])
+    assert result.exit_code == 0
+    assert uc.load_consent() is True
+    assert "99.0.0 available" in caplog.text
+    assert "online check: enabled" in caplog.text
