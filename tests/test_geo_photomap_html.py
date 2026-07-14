@@ -148,3 +148,26 @@ def test_html_pano_popup_keeps_plain_fallback_link():
     assert "open original" in html
     assert "pannellum.viewer(" in html
     assert "panoViewer.destroy()" in html
+
+
+def test_html_pano_file_protocol_shows_help_instead_of_viewer():
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    # Maps opened from disk cannot feed WebGL: openPano branches on the
+    # protocol and shows guidance instead of launching Pannellum.
+    assert "location.protocol === 'file:'" in html
+    assert "pano-blocked" in html
+    assert "--serve" in html
+    assert "open original" in html
+
+
+def test_html_pano_container_reset_on_every_open():
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    # The container's content is set on each open so a stale file:// message
+    # can never linger under a later Pannellum instance.
+    assert "panoContainer.innerHTML = ''" in html
+
+
+def test_html_file_protocol_help_absent_without_panos():
+    html = photos_to_html(POINTS, title="t", link_base="")
+    assert "pano-blocked" not in html
+    assert "location.protocol" not in html
