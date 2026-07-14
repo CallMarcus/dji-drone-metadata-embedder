@@ -253,10 +253,26 @@ popup as a fallback.
 dji-embed photomap /path/to/panoramas --link-originals
 ```
 
+The simplest way to use the viewer is `--serve` (it implies
+`--link-originals`):
+
+```bash
+dji-embed photomap /path/to/panoramas --serve
+```
+
+This writes the map, serves its folder at a private local address
+(`http://127.0.0.1:<port>` — reachable only from your own computer), and
+opens it in your browser. Press Ctrl+C in the terminal to stop.
+
 Notes:
 
-- Without `--link-originals` the map is unchanged — the viewer needs the
-  original files to be reachable from the HTML.
+- Opened straight from disk (double-clicking `photomap.html`), the 360°
+  viewer is blocked by the browser — `file://` pages may not feed local
+  images to WebGL. The map shows a short explanation instead; use `--serve`
+  and the viewer works. The "open original" link works either way.
+- Without `--link-originals` (or `--serve`, which implies it) the map is
+  unchanged — the viewer needs the original files to be reachable from the
+  HTML.
 - Very large panoramas can exceed a device's WebGL texture size (phones are
   often limited to 8192 px wide); the viewer shows an error in that case and
   the "open original" link still works.
