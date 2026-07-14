@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.18.0] - 2026-07-14
+
+### Added
+
+- **photomap**: --serve local map server; clear error for file:// pano viewing (#275) (3fea23f)
+- **photomap**: 360° panorama viewer and --redact fuzz (#272) (90c92c0)
+
+### Documentation
+
+- Auto-generate changelog for v1.17.0 (418311f)
+
+### Other
+
+- Prepare version 1.18.0 (179aaa2)
+
+
 ## [1.17.0] - 2026-07-12
 
 ### Added
