@@ -24,6 +24,7 @@ from .photomap import (
     write_photos_kml,
 )
 from .photomap_html import photos_to_html, write_photos_html
+from .serve import serve_directory
 from .solar import sun_position
 from .track import Track, TrackPoint, build_track
 
@@ -61,4 +62,5 @@ __all__ = [
     "write_flights_kml",
     "flights_to_html",
     "write_flights_html",
+    "serve_directory",
 ]
