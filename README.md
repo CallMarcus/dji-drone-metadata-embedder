@@ -444,6 +444,7 @@ dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse 
 dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
 dji-embed photomap /path/to/photos --link-originals --link-base ../DCIM   # originals live elsewhere
 dji-embed photomap /path/to/photos --redact fuzz                      # ~100 m coarsened pins
+dji-embed photomap /path/to/photos --serve                            # serve + open browser (360° viewer works)
 ```
 
 <details>
@@ -469,6 +470,8 @@ Options:
                                   beside the HTML
   --redact [none|fuzz]            Coarsen every photo location to ~100 m
                                   before writing (default: none)
+  --serve                         Serve the map on 127.0.0.1 and open the
+                                  browser (implies --link-originals)
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -491,8 +494,10 @@ Notes:
   (a relative folder like `../DCIM`, or an absolute URL). Browsers download
   rather than display DNG files; JPGs open in a new tab.
 - 360° panoramas (DJI, Insta360, Google Camera, …) are detected during the
-  same scan; with `--link-originals`, clicking one opens an embedded
-  interactive viewer instead of a flat, distorted JPEG.
+  same scan; clicking one opens an embedded interactive viewer instead of a
+  flat, distorted JPEG when the map is served with `--serve` (or opened over
+  HTTP with `--link-originals`) — browsers block the viewer on maps opened
+  straight from disk.
 - `--redact fuzz` coarsens every pin to ~100 m before the map is written —
   use it for maps you plan to share. Combined with `--link-originals`, the
   linked originals still carry exact GPS in their EXIF, so share those

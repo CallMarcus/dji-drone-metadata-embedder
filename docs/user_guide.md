@@ -102,6 +102,14 @@ detected automatically; with `--link-originals`, clicking one opens an
 embedded interactive 360° viewer instead of a flat, distorted JPEG — an
 "open original" link stays in the popup as a fallback.
 
+```bash
+dji-embed photomap /path/to/photos --serve
+```
+
+Writes the map, then serves it at a private local address and opens your
+browser — required for the built-in 360° panorama viewer, which browsers
+block when the map is opened straight from disk.
+
 Photos without GPS coordinates are skipped and counted in a summary, e.g.
 `Mapped 412 of 430 photos; 18 had no GPS data (use -v to list them)`; add
 `-v` to list the skipped filenames.

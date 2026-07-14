@@ -91,6 +91,9 @@ _PANO_HEAD = (
     "  #pano-close { position: absolute; top: 8px; right: 16px; z-index: 2001;\n"
     "                font-size: 28px; line-height: 1; color: #fff;\n"
     "                background: none; border: none; cursor: pointer; }\n"
+    "  #pano-viewer .pano-blocked { color: #fff; max-width: 32em;\n"
+    "    margin: 20vh auto 0; padding: 0 1em; text-align: center;\n"
+    "    font: 16px/1.6 system-ui, sans-serif; }\n"
     "</style>"
 )
 
@@ -111,9 +114,22 @@ _PANO_SCRIPT = (
 _PANO_JS = """
 let panoViewer = null;
 const panoOverlay = document.getElementById('pano-overlay');
+const panoContainer = document.getElementById('pano-viewer');
 function openPano(src) {
-  if (panoViewer) { panoViewer.destroy(); }
+  if (panoViewer) { panoViewer.destroy(); panoViewer = null; }
   panoOverlay.style.display = 'block';
+  if (location.protocol === 'file:') {
+    // Browsers refuse WebGL pixel access to images on file:// pages, so the
+    // viewer cannot work for maps opened straight from disk.
+    panoContainer.innerHTML = '<div class="pano-blocked">' +
+      '360\\u00b0 view is blocked by the browser for maps opened straight ' +
+      'from disk.<br>Use the "open original" link in the popup, or rebuild ' +
+      'the map with:<br><code>dji-embed photomap &lt;your folder&gt; ' +
+      '--serve</code></div>';
+    return;
+  }
+  // Reset so a previous file:// message (or dead viewer DOM) never lingers.
+  panoContainer.innerHTML = '';
   // Lazy: the original file is only fetched here, on first click. Pannellum
   // renders its own error text in the container if the load fails (missing
   // file, WebGL texture limit); the popup's plain link remains the fallback.
