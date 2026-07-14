@@ -286,3 +286,81 @@ def test_photomap_redact_default_none_keeps_exact_coords(monkeypatch, tmp_path):
     assert res.exit_code == 0, res.output
     html = (tmp_path / "photomap.html").read_text(encoding="utf-8")
     assert "60.170278" in html
+
+
+def _mock_serve(monkeypatch):
+    calls = {}
+
+    def fake(directory, filename, **kwargs):
+        calls["directory"] = Path(directory)
+        calls["filename"] = filename
+        calls["kwargs"] = kwargs
+
+    monkeypatch.setattr("dji_metadata_embedder.cli.serve_directory", fake)
+    return calls
+
+
+def test_photomap_serve_implies_links_and_serves_html_folder(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    calls = _mock_serve(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "--serve"])
+    assert res.exit_code == 0, res.output
+    assert _html_link_props(tmp_path / "photomap.html") == ["church1.jpg"]
+    assert calls["directory"] == tmp_path
+    assert calls["filename"] == "photomap.html"
+    assert calls["kwargs"]["quiet"] is False
+    assert calls["kwargs"]["log_requests"] is False
+
+
+def test_photomap_serve_requires_html_format(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    calls = _mock_serve(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "--serve", "-f", "kml"])
+    assert res.exit_code != 0
+    assert "--serve requires the HTML map" in res.output
+    assert calls == {}
+
+
+def test_photomap_serve_format_all_serves_the_html_output(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    calls = _mock_serve(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "--serve", "-f", "all"])
+    assert res.exit_code == 0, res.output
+    assert calls["filename"] == "photomap.html"
+
+
+def test_photomap_serve_with_link_base_warns(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    _mock_serve(monkeypatch)
+    res = CliRunner().invoke(
+        main,
+        ["photomap", str(tmp_path), "--serve", "--link-base", "https://example.com/p/"],
+    )
+    assert res.exit_code == 0, res.output
+    assert "--link-base" in res.output and "may not resolve" in res.output
+
+
+def test_photomap_serve_verbose_enables_request_logging(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    calls = _mock_serve(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "--serve", "-v"])
+    assert res.exit_code == 0, res.output
+    assert calls["kwargs"]["log_requests"] is True
+
+
+def test_photomap_serve_with_redact_fuzz_still_warns_about_exif(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    _mock_serve(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--serve", "--redact", "fuzz"]
+    )
+    assert res.exit_code == 0, res.output
+    assert "still carry exact GPS" in res.output
+
+
+def test_photomap_no_serve_never_starts_server(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    calls = _mock_serve(monkeypatch)
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path)])
+    assert res.exit_code == 0, res.output
+    assert calls == {}

@@ -26,6 +26,7 @@ from .geo import (
     redact_photo_points,
     scan_flights,
     scan_photos,
+    serve_directory,
     write_flights_geojson,
     write_flights_html,
     write_flights_kml,
@@ -365,6 +366,14 @@ def convert(
     "before writing (all formats). Linked/attached original files still "
     "carry exact GPS in their EXIF.",
 )
+@click.option(
+    "--serve", "serve_map", is_flag=True,
+    help="After writing the map, serve its folder at a private local address "
+         "(http://127.0.0.1, this computer only) and open the browser. "
+         "Implies --link-originals. Needed for the 360° viewer, which "
+         "browsers block when the map is opened straight from disk. "
+         "With -v, each HTTP request is logged.",
+)
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def photomap(
@@ -376,6 +385,7 @@ def photomap(
     link_originals: bool,
     link_base: str | None,
     redact: str,
+    serve_map: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -385,9 +395,23 @@ def photomap(
     each photo's EXIF thumbnail in the html/kml popups. The html map clusters
     nearby pins and loads Leaflet and OpenStreetMap tiles from the internet.
     Requires ExifTool (see 'dji-embed doctor'). GPano 360° panoramas open in
-    an embedded viewer when --link-originals is set.
+    an embedded viewer when --link-originals is set. Use --serve to view the
+    map over local HTTP — required for the 360° viewer, which browsers block
+    on maps opened straight from disk.
     """
     setup_logging(verbose, quiet)
+    if serve_map:
+        if fmt.lower() not in ("html", "all"):
+            raise click.UsageError(
+                "--serve requires the HTML map (use -f html or -f all)"
+            )
+        if link_base is not None:
+            click.echo(
+                "Note: --serve serves the map's own folder; --link-base "
+                "links may not resolve through it",
+                err=True,
+            )
+        link_originals = True
     if link_base is not None and not link_originals:
         raise click.UsageError("--link-base requires --link-originals")
     if link_originals and fmt.lower() not in ("html", "all"):
@@ -453,6 +477,14 @@ def photomap(
                 write_photos_geojson(points, out)
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
+    if serve_map:
+        html_out = next(out for f, out in targets if f == "html")
+        serve_directory(
+            html_out.parent,
+            html_out.name,
+            quiet=quiet,
+            log_requests=verbose,
+        )
 
 
 @main.command()
