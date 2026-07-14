@@ -15,6 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.19.0] - 2026-07-14
+
+### Added
+
+- **doctor**: Opt-in online update check with environment-aware upgrade hints (#279) (13e561e)
+- **photomap**: Thumbnail preview on marker hover (#278) (1e07356)
+
+### Documentation
+
+- Auto-generate changelog for v1.18.0 (791134c)
+- Desktop GUI design spec (issue #264 stage 3) (43e92aa)
+- Troubleshoot pip upgrade hitting the wrong Python (ab27df6)
+
+### Other
+
+- Prepare version 1.19.0 (c3dbd52)
+
+
 ## [1.18.0] - 2026-07-14
 
 ### Added
