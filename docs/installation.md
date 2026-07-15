@@ -4,11 +4,30 @@
 
 ## Easy Windows install
 
+### Windows – installer with desktop app (recommended)
+
+Download `dji-metadata-embedder-setup-<version>.exe` from the
+[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest)
+and run it. One installer carries everything:
+
+- the **DJI Metadata Embedder** desktop app (Start menu entry) for the
+  common tasks — make a map, embed telemetry, check your setup — with no
+  command line involved;
+- the full `dji-embed` command line, ready in any new terminal window
+  (the install folder is added to your user PATH);
+- pinned FFmpeg and ExifTool builds, so nothing else needs installing.
+
+No admin rights needed — it installs per-user. The uninstaller removes the
+PATH entries again.
+
+### Windows – bootstrap script
+
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
-The bootstrap script also installs FFmpeg and ExifTool.
+The bootstrap script also installs FFmpeg and ExifTool (CLI only, no
+desktop app).
 
 ### Windows – winget
 

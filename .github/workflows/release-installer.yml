@@ -1,0 +1,180 @@
+---
+name: Build Windows Installer
+
+# One installer carries everything (issue #264 stage 3e): the Avalonia GUI
+# (Start menu entry), dji-embed.exe beside it, and pinned FFmpeg + ExifTool
+# in tools\ — with both directories added to the user PATH so the full CLI
+# works from any terminal with no extra steps.
+
+on:
+  workflow_run:
+    workflows: ["Release to PyPI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.21.0)'
+        required: true
+        type: string
+      upload:
+        description: 'Attach to the GitHub release (needs an existing tag)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  # Pinned FFmpeg build bundled into the installer (gyan.dev release
+  # essentials, GPL). Upgrading the pin = bump both lines.
+  FFMPEG_VERSION: '8.1.2'
+  FFMPEG_SHA256: 'db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec'
+
+jobs:
+  installer:
+    if: ${{ (github.event_name == 'workflow_dispatch') || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Determine release version
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_UPLOAD: ${{ inputs.upload }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            ver="$INPUT_VERSION"
+            upload="$INPUT_UPLOAD"
+          else
+            ver="${HEAD_BRANCH#v}"
+            upload='true'
+          fi
+          # The version feeds shell commands and the ISCC command line:
+          # accept strict X.Y.Z only.
+          if ! printf '%s' "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "unexpected version: $ver" >&2
+            exit 1
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+          echo "upload=$upload" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Sync and verify project version
+        run: |
+          uv run python tools/sync_version.py ${{ steps.meta.outputs.version }}
+          uv run python tools/sync_version.py ${{ steps.meta.outputs.version }} --check
+      - name: Install dependencies
+        run: uv sync --extra build
+
+      - name: Build dji-embed.exe
+        run: uv run python tools/build_exe.py
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish GUI (self-contained win-x64)
+        run: >
+          dotnet publish gui/DjiEmbed.Gui -c Release -r win-x64
+          --self-contained true
+          -p:Version=${{ steps.meta.outputs.version }}
+          -o staging/app
+
+      - name: Stage CLI
+        run: cp dist/dji-embed.exe staging/app/
+
+      - name: Stage pinned FFmpeg
+        run: |
+          url="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-${FFMPEG_VERSION}-essentials_build.zip"
+          curl -fsSL "$url" -o ffmpeg.zip
+          echo "${FFMPEG_SHA256}  ffmpeg.zip" | sha256sum -c
+          unzip -q ffmpeg.zip -d ffmpeg-extract
+          mkdir -p staging/app/tools staging/app/licenses
+          cp ffmpeg-extract/ffmpeg-*/bin/ffmpeg.exe staging/app/tools/
+          cp ffmpeg-extract/ffmpeg-*/bin/ffprobe.exe staging/app/tools/
+          cp ffmpeg-extract/ffmpeg-*/LICENSE staging/app/licenses/FFMPEG-LICENSE.txt
+
+      - name: Stage pinned ExifTool
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+          from dji_metadata_embedder.utils.provision import provision_exiftool
+          exe = provision_exiftool(root=Path("exiftool-root"))
+          print(f"provisioned: {exe}")
+          PY
+          cp -r exiftool-root/exiftool-*/. staging/app/tools/
+
+      - name: Stage license notes
+        run: |
+          cp LICENSE staging/app/licenses/LICENSE.txt
+          {
+            echo "DJI Metadata Embedder bundles the following third-party tools:"
+            echo
+            echo "- FFmpeg ${FFMPEG_VERSION} (ffmpeg.exe, ffprobe.exe) - GPL build by"
+            echo "  gyan.dev (https://www.gyan.dev/ffmpeg/builds/). Source code:"
+            echo "  https://ffmpeg.org/download.html - license in FFMPEG-LICENSE.txt."
+            echo "- ExifTool by Phil Harvey (https://exiftool.org/), distributed"
+            echo "  under the Perl Artistic License / GPL - see the exiftool_files"
+            echo "  folder for its license files."
+          } > staging/app/licenses/THIRD-PARTY.txt
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            /DAppVersion=${{ steps.meta.outputs.version }} `
+            /DStagingDir=..\staging\app `
+            /O..\dist-installer installer\DjiMetadataEmbedder.iss
+          Get-ChildItem dist-installer
+
+      - name: Smoke test - installer runs silently
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist-installer\*.exe | Select-Object -First 1
+          & $setup.FullName /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
+          $app = "$env:LOCALAPPDATA\Programs\DJI Metadata Embedder"
+          foreach ($f in @("DjiEmbed.Gui.exe", "dji-embed.exe",
+                           "tools\ffmpeg.exe", "tools\exiftool.exe")) {
+            if (-not (Test-Path "$app\$f")) { throw "missing $f" }
+          }
+          $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+          if ($userPath -notlike "*DJI Metadata Embedder*") {
+            throw "install dir not on user PATH"
+          }
+          & "$app\dji-embed.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "bundled CLI failed" }
+
+      - name: Generate checksum
+        run: |
+          cd dist-installer
+          sha256sum -- *.exe > SHA256SUMS-installer.txt
+          cat SHA256SUMS-installer.txt
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ steps.meta.outputs.version }}
+          path: dist-installer/*
+
+      - name: Attach to GitHub release
+        if: ${{ steps.meta.outputs.upload == 'true' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          files: dist-installer/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
