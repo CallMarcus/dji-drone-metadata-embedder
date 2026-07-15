@@ -104,8 +104,8 @@ shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings,
 and hovering a marker previews the thumbnail and filename without clicking.
 KML opens the same thumbnails in Google Earth Pro (Google My Maps import may
 drop the images but keeps the placemarks). GeoJSON is interchange-only — no
-thumbnails, just `name`/`timestamp`/`alt`/`camera` properties — for use in
-GIS tools.
+thumbnails, just `name`/`timestamp`/`alt`/`camera` properties (plus
+`"pano": true` on 360° panoramas) — for use in GIS tools.
 
 With `--link-originals`, the HTML popups' thumbnail and filename become a
 click-through to the full-resolution original in a new browser tab (JPGs
@@ -117,7 +117,9 @@ either way. If the originals live elsewhere, point at them with
 (absolute URL).
 
 360° panoramas (GPano photos from DJI, Insta360, Google Camera, …) are
-detected automatically; with `--link-originals`, clicking one opens an
+detected automatically and drawn as orange markers (regular photos are blue);
+when a folder mixes both, a checkbox control on the map lets you show or hide
+each type independently. With `--link-originals`, clicking a panorama opens an
 embedded interactive 360° viewer instead of a flat, distorted JPEG — an
 "open original" link stays in the popup as a fallback.
 
