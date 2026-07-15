@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
+             x:Class="DjiEmbed.Gui.Views.MakeMapView"
+             x:DataType="vm:MakeMapViewModel">
+
+    <DockPanel Margin="32,28">
+        <TextBlock DockPanel.Dock="Top" Text="Make a map"
+                   FontSize="24" FontWeight="SemiBold" Margin="0,0,0,24" />
+
+        <!-- Pick -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:MakeMapStep.Pick}}"
+                    Spacing="16">
+            <Border Name="DropZone" DragDrop.AllowDrop="True"
+                    BorderThickness="2" CornerRadius="10" Padding="32,44"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                    <TextBlock Text="Drop a folder of footage here"
+                               FontSize="16" HorizontalAlignment="Center" />
+                    <TextBlock Text="photos, drone videos with their .SRT flight logs, or both"
+                               Opacity="0.6" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <Button Name="ChooseFolderButton" HorizontalAlignment="Center"
+                    Click="OnChooseFolderClick">
+                <TextBlock Text="Choose a folder…" />
+            </Button>
+            <Button HorizontalAlignment="Center" Theme="{DynamicResource TransparentButton}"
+                    Command="{Binding GoHomeCommand}">
+                <TextBlock Text="Back" Opacity="0.7" />
+            </Button>
+        </StackPanel>
+
+        <!-- Running -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:MakeMapStep.Running}}"
+                    Spacing="14" VerticalAlignment="Center">
+            <TextBlock Text="{Binding StatusText}" FontSize="16" />
+            <ProgressBar Minimum="0"
+                         Maximum="{Binding Total, FallbackValue=1, TargetNullValue=1}"
+                         Value="{Binding Current}"
+                         IsIndeterminate="{Binding Total,
+                             Converter={x:Static ObjectConverters.IsNull}}" />
+            <TextBlock Text="{Binding CurrentItem}" Opacity="0.6" FontSize="12" />
+            <Button HorizontalAlignment="Center" Command="{Binding CancelCommand}">
+                <TextBlock Text="Cancel" />
+            </Button>
+        </StackPanel>
+
+        <!-- Done -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:MakeMapStep.Done}}"
+                    Spacing="14" VerticalAlignment="Center">
+            <TextBlock Text="Your map is ready" FontSize="18" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding Outputs}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <DockPanel Margin="0,4">
+                            <Button DockPanel.Dock="Right" Margin="12,0,0,0"
+                                    Command="{Binding $parent[ItemsControl].((vm:MakeMapViewModel)DataContext).OpenOutputCommand}"
+                                    CommandParameter="{Binding}">
+                                <TextBlock Text="Open map" />
+                            </Button>
+                            <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Opacity="0.8" />
+                        </DockPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button HorizontalAlignment="Center" Command="{Binding GoHomeCommand}">
+                <TextBlock Text="Done" />
+            </Button>
+        </StackPanel>
+
+        <!-- Failed -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:MakeMapStep.Failed}}"
+                    Spacing="14" VerticalAlignment="Center">
+            <TextBlock Text="That didn't work" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+            <Expander Header="Technical details"
+                      IsVisible="{Binding ErrorDetails,
+                          Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{Binding ErrorDetails}" TextWrapping="Wrap"
+                           FontFamily="Consolas,Menlo,monospace" FontSize="12" />
+            </Expander>
+            <Button HorizontalAlignment="Center" Command="{Binding GoHomeCommand}">
+                <TextBlock Text="Back" />
+            </Button>
+        </StackPanel>
+    </DockPanel>
+
+</UserControl>

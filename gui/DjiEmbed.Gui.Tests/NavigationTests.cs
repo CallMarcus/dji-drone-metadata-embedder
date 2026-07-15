@@ -1,0 +1,60 @@
+using System.Linq;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
+using DjiEmbed.Gui.ViewModels;
+using DjiEmbed.Gui.Views;
+
+namespace DjiEmbed.Gui.Tests;
+
+public class NavigationTests
+{
+    [AvaloniaFact]
+    public void Make_a_map_card_navigates_to_the_map_flow()
+    {
+        var window = new MainWindow { DataContext = new MainViewModel() };
+        window.Show();
+
+        var makeMap = window.GetVisualDescendants().OfType<Button>()
+            .First(b => b.GetVisualDescendants().OfType<TextBlock>()
+                .Any(t => t.Text == "Make a map"));
+        makeMap.Focus();
+        window.KeyPressQwerty(Avalonia.Input.PhysicalKey.Enter,
+            Avalonia.Input.RawInputModifiers.None);
+
+        Assert.NotNull(window.GetVisualDescendants()
+            .OfType<MakeMapView>().FirstOrDefault());
+    }
+
+    [AvaloniaFact]
+    public void Map_flow_back_button_returns_home()
+    {
+        var main = new MainViewModel();
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        main.StartTask(TaskKind.MakeMap);
+
+        var vm = Assert.IsType<MakeMapViewModel>(main.CurrentPage);
+        vm.GoHomeCommand.Execute(null);
+        Assert.IsType<HomeViewModel>(main.CurrentPage);
+    }
+
+    [AvaloniaFact]
+    public void Map_flow_pick_step_offers_drop_and_browse()
+    {
+        var main = new MainViewModel();
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        main.StartTask(TaskKind.MakeMap);
+        // Give the ContentControl a layout pass so the new page's visual
+        // tree exists before we inspect it.
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var texts = window.GetVisualDescendants()
+            .OfType<TextBlock>().Select(t => t.Text ?? "").ToList();
+        Assert.Contains(texts, t => t.Contains("Drop a folder"));
+        Assert.Contains(texts, t => t.Contains("Choose a folder"));
+    }
+}

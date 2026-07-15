@@ -1,29 +1,32 @@
-using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using DjiEmbed.Gui.Services;
 
 namespace DjiEmbed.Gui.ViewModels;
 
 /// <summary>
-/// The home screen: one question, exactly three task cards, a CLI escape
-/// hatch in the footer. The anti-bloat rules in the design spec
-/// (docs/superpowers/specs/2026-07-14-desktop-gui-design.md) are binding:
-/// no menu bar, no tabs, no settings dialog.
+/// Window shell: swaps the current page. Every task is one linear flow
+/// that ends back at the home screen.
 /// </summary>
 public partial class MainViewModel : ViewModelBase
 {
-    // The task flows land in later sub-stages of issue #264 stage 3; the
-    // commands exist now so the cards are real buttons from day one.
-    [RelayCommand]
-    private void MakeMap()
+    [ObservableProperty]
+    public partial ViewModelBase CurrentPage { get; set; }
+
+    public MainViewModel()
     {
+        CurrentPage = new HomeViewModel(StartTask);
     }
 
-    [RelayCommand]
-    private void EmbedTelemetry()
+    public void StartTask(TaskKind kind)
     {
+        CurrentPage = kind switch
+        {
+            TaskKind.MakeMap => new MakeMapViewModel(
+                CliLocator.Find(), new DjiEmbedRunner(), GoHome),
+            // Embed and check flows arrive in stage 3d.
+            _ => CurrentPage,
+        };
     }
 
-    [RelayCommand]
-    private void CheckSetup()
-    {
-    }
+    private void GoHome() => CurrentPage = new HomeViewModel(StartTask);
 }

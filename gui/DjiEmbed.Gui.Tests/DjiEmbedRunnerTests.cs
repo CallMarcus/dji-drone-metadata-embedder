@@ -13,29 +13,8 @@ public class DjiEmbedRunnerTests : IDisposable
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private string WriteFakeCli(IEnumerable<string> stdoutLines,
-        int exitCode = 0, string? stderrLine = null, int sleepSeconds = 0)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var cmd = Path.Combine(_dir, "fake-cli.cmd");
-            var body = "@echo off\r\n" + string.Join("\r\n",
-                stdoutLines.Select(l => "echo " + l.Replace("\"", "\"\""))); // best effort
-            if (stderrLine is not null) body += $"\r\necho {stderrLine} 1>&2";
-            if (sleepSeconds > 0) body += $"\r\nping -n {sleepSeconds + 1} 127.0.0.1 > nul";
-            body += $"\r\nexit /b {exitCode}\r\n";
-            File.WriteAllText(cmd, body);
-            return cmd;
-        }
-        var sh = Path.Combine(_dir, "fake-cli.sh");
-        var lines = string.Join("\n",
-            stdoutLines.Select(l => "echo '" + l.Replace("'", "'\\''") + "'"));
-        if (stderrLine is not null) lines += $"\necho '{stderrLine}' >&2";
-        if (sleepSeconds > 0) lines += $"\nsleep {sleepSeconds}";
-        File.WriteAllText(sh, "#!/bin/sh\n" + lines + $"\nexit {exitCode}\n");
-        File.SetUnixFileMode(sh,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        return sh;
-    }
+        int exitCode = 0, string? stderrLine = null, int sleepSeconds = 0) =>
+        FakeCli.WriteEventStream(_dir, stdoutLines, exitCode, stderrLine, sleepSeconds);
 
     private static readonly string[] HappyStream =
     [
@@ -52,7 +31,8 @@ public class DjiEmbedRunnerTests : IDisposable
         var seen = new List<ProgressEvent>();
         var result = await new DjiEmbedRunner().RunAsync(
             cli, ["flightmap", "/some/dir"],
-            new Progress<ProgressEvent>(seen.Add));
+            new Progress<ProgressEvent>(seen.Add),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(0, result.ExitCode);
         Assert.True(result.Success);
@@ -71,7 +51,7 @@ public class DjiEmbedRunnerTests : IDisposable
             """{"v": 1, "event": "start", "command": "flightmap"}""",
             """{"v": 1, "event": "error", "message": "No .SRT telemetry files found"}""",
         ], exitCode: 1);
-        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"]);
+        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"], ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.ExitCode);
         Assert.False(result.Success);
@@ -89,7 +69,7 @@ public class DjiEmbedRunnerTests : IDisposable
             """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
             """{"v": 1, "event": "result", "ok": false, "outputs": [], "summary": {"errors": ["x.mp4"]}}""",
         ]);
-        var result = await new DjiEmbedRunner().RunAsync(cli, ["embed", "/x"]);
+        var result = await new DjiEmbedRunner().RunAsync(cli, ["embed", "/x"], ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, result.ExitCode);
         Assert.False(result.Success);
@@ -105,7 +85,7 @@ public class DjiEmbedRunnerTests : IDisposable
             "Traceback (most recent call last):",
             HappyStream[3],
         ]);
-        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"]);
+        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"], ct: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Single(result.MalformedLines);
@@ -119,7 +99,7 @@ public class DjiEmbedRunnerTests : IDisposable
         // or error; the contract says exactly one terminal event, so its
         // absence means the run cannot be trusted.
         var cli = WriteFakeCli([HappyStream[0], HappyStream[1]]);
-        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"]);
+        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"], ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Null(result.Terminal);
@@ -130,7 +110,7 @@ public class DjiEmbedRunnerTests : IDisposable
     public async Task Stderr_is_captured_for_diagnostics()
     {
         var cli = WriteFakeCli(HappyStream, stderrLine: "some log line");
-        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"]);
+        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"], ct: TestContext.Current.CancellationToken);
         Assert.Contains("some log line", result.StderrText);
     }
 
@@ -139,20 +119,10 @@ public class DjiEmbedRunnerTests : IDisposable
     {
         // The fake echoes its own argv on stdout as a malformed line; the
         // runner must have added --progress jsonl after the caller's args.
-        string cli;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            cli = Path.Combine(_dir, "argv.cmd");
-            File.WriteAllText(cli, "@echo off\r\necho ARGS %*\r\nexit /b 0\r\n");
-        }
-        else
-        {
-            cli = Path.Combine(_dir, "argv.sh");
-            File.WriteAllText(cli, "#!/bin/sh\necho \"ARGS $@\"\nexit 0\n");
-            File.SetUnixFileMode(cli,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        }
-        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"]);
+        var cli = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? FakeCli.WriteScript(_dir, "@echo off\r\necho ARGS %*\r\nexit /b 0\r\n")
+            : FakeCli.WriteScript(_dir, "#!/bin/sh\necho \"ARGS $@\"\nexit 0\n");
+        var result = await new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"], ct: TestContext.Current.CancellationToken);
         var argsLine = Assert.Single(result.MalformedLines);
         Assert.Contains("flightmap", argsLine);
         Assert.Contains("--progress jsonl", argsLine);

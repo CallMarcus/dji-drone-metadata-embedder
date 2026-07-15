@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
+             x:Class="DjiEmbed.Gui.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.card">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="20,16" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="TextBlock.cardTitle">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.cardSubtitle">
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="32,28">
+        <TextBlock DockPanel.Dock="Top"
+                   Text="What do you want to do?"
+                   FontSize="24" FontWeight="SemiBold"
+                   Margin="0,0,0,24" />
+
+        <!-- The escape hatch is a sentence, not a pane. -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="Need more control? The dji-embed command line has every option."
+                   Opacity="0.6" FontSize="12"
+                   Margin="0,20,0,0" TextWrapping="Wrap" />
+
+        <StackPanel Spacing="14" VerticalAlignment="Top">
+            <Button Classes="card" Command="{Binding MakeMapCommand}">
+                <StackPanel>
+                    <TextBlock Classes="cardTitle" Text="Make a map" />
+                    <TextBlock Classes="cardSubtitle"
+                               Text="See a whole folder of photos or drone flights on one map. Everything stays on this computer." />
+                </StackPanel>
+            </Button>
+            <Button Classes="card" Command="{Binding EmbedTelemetryCommand}">
+                <StackPanel>
+                    <TextBlock Classes="cardTitle" Text="Embed telemetry" />
+                    <TextBlock Classes="cardSubtitle"
+                               Text="Write GPS from your drone's flight logs into the video files, so photo apps can sort them by place. Your originals are never changed." />
+                </StackPanel>
+            </Button>
+            <Button Classes="card" Command="{Binding CheckSetupCommand}">
+                <StackPanel>
+                    <TextBlock Classes="cardTitle" Text="Check my setup" />
+                    <TextBlock Classes="cardSubtitle"
+                               Text="Make sure everything this app needs is present and working." />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </DockPanel>
+
+</UserControl>
