@@ -159,14 +159,116 @@ def test_dragged_file_hints_at_dragging_the_folder(tmp_path):
     assert "No such command" not in res.output
 
 
-def test_frozen_no_args_shows_drag_hint_not_help(monkeypatch):
+def test_mixed_drop_maps_the_folder_and_skips_the_file(monkeypatch, tmp_path):
+    opened = _capture_browser(monkeypatch)
+    trip = tmp_path / "trip"
+    trip.mkdir()
+    (trip / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
+    stray = tmp_path / "DJI_0002.MP4"
+    stray.write_bytes(b"fake")
+    res = CliRunner().invoke(main, [str(trip), str(stray)])
+    assert res.exit_code == 0, res.output
+    assert (trip / "flightmap.html").exists()
+    assert len(opened) == 1
+    assert "Skipping" in res.output and "DJI_0002.MP4" in res.output
+
+
+def test_multiple_dragged_files_get_the_folder_hint(tmp_path):
+    files = []
+    for name in ("DJI_0001.MP4", "DJI_0002.MP4"):
+        f = tmp_path / name
+        f.write_bytes(b"fake")
+        files.append(str(f))
+    res = CliRunner().invoke(main, files)
+    assert res.exit_code != 0
+    assert "folder" in res.output.lower()
+    assert "No such command" not in res.output
+
+
+def test_directory_with_options_gets_guidance(tmp_path):
+    (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
+    res = CliRunner().invoke(main, [str(tmp_path), "-v"])
+    assert res.exit_code != 0
+    assert "flightmap" in res.output
+    assert "No such command" not in res.output
+
+
+def test_partial_failure_exits_nonzero_but_still_opens_good_map(
+    monkeypatch, tmp_path
+):
+    opened = _capture_browser(monkeypatch)
+    good = tmp_path / "good"
+    good.mkdir()
+    (good / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    res = CliRunner().invoke(main, [str(good), str(empty)])
+    assert res.exit_code != 0
+    assert (good / "flightmap.html").exists()
+    assert len(opened) == 1
+    assert "Nothing to map" in res.output and "empty" in res.output
+
+
+def test_frozen_no_args_double_click_shows_drag_hint_not_help(monkeypatch):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(cli, "_launched_from_explorer", lambda: True)
     res = CliRunner().invoke(main, [])
     assert res.exit_code == 0, res.output
     assert "drag" in res.output.lower()
     assert "Commands:" not in res.output  # not the click help dump
 
 
+def test_frozen_no_args_in_terminal_still_shows_help(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(cli, "_launched_from_explorer", lambda: False)
+    res = CliRunner().invoke(main, [])
+    assert "Usage:" in res.output
+
+
 def test_unfrozen_no_args_still_shows_help():
     res = CliRunner().invoke(main, [])
     assert "Usage:" in res.output
+
+
+def test_frozen_double_click_error_pauses_before_window_closes(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(cli, "_launched_from_explorer", lambda: True)
+    paused = []
+    monkeypatch.setattr("click.pause", lambda info: paused.append(info))
+    video = tmp_path / "DJI_0001.MP4"
+    video.write_bytes(b"fake")
+    res = CliRunner().invoke(main, [str(video)])
+    assert res.exit_code != 0
+    assert "folder" in res.output.lower()
+    assert len(paused) == 1
+
+
+def test_terminal_error_does_not_pause(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(cli, "_launched_from_explorer", lambda: False)
+    paused = []
+    monkeypatch.setattr("click.pause", lambda info: paused.append(info))
+    video = tmp_path / "DJI_0001.MP4"
+    video.write_bytes(b"fake")
+    res = CliRunner().invoke(main, [str(video)])
+    assert res.exit_code != 0
+    assert paused == []
+
+
+def test_group_passes_none_args_through_for_windows_expansion(monkeypatch):
+    """Click only glob-expands on Windows when main() receives args=None."""
+    received = []
+
+    def spy_main(self, args=None, *pargs, **extra):
+        received.append(args)
+        raise SystemExit(0)
+
+    monkeypatch.setattr("click.Group.main", spy_main)
+    monkeypatch.setattr(sys, "argv", ["dji-embed", "--help"])
+    try:
+        main()
+    except SystemExit:
+        pass
+    assert received == [None]

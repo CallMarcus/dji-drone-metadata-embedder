@@ -26,6 +26,7 @@ from .geo import (
     convert_to_html,
     convert_to_cot,
     PhotomapError,
+    folder_has_photos,
     redact_photo_points,
     scan_flights,
     scan_photos,
@@ -37,7 +38,6 @@ from .geo import (
     write_photos_html,
     write_photos_kml,
 )
-from .geo.photomap import _PHOTO_EXTS
 from .mp4_telemetry import Mp4TelemetryError
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
@@ -68,13 +68,29 @@ def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> N
     ctx.exit(ExitCode.SUCCESS)
 
 
-def _dragdrop_pause() -> None:
-    """Hold the console open on a frozen EXE so the message stays readable.
+def _launched_from_explorer() -> bool:
+    """True when this process is the sole owner of its console window.
 
-    Double-clicking (or dragging onto) dji-embed.exe opens a console window
-    that vanishes the instant the process exits.
+    That is the double-click / drag-and-drop launch shape on Windows:
+    Explorer spawns a fresh console holding only this process, and it
+    vanishes the instant the process exits. Started from cmd/PowerShell,
+    the shell also owns the console, so the count is >= 2.
     """
-    if getattr(sys, "frozen", False) and sys.stdin is not None and sys.stdin.isatty():
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+
+        process_ids = (ctypes.c_uint32 * 2)()
+        count = ctypes.windll.kernel32.GetConsoleProcessList(process_ids, 2)
+        return count <= 1
+    except Exception:  # no console at all, or a non-standard runtime
+        return False
+
+
+def _dragdrop_pause() -> None:
+    """Hold an Explorer-spawned console open so the message stays readable."""
+    if getattr(sys, "frozen", False) and _launched_from_explorer():
         click.echo()
         click.pause("Press any key to close this window ...")
 
@@ -90,7 +106,6 @@ def _echo_dragdrop_hint() -> None:
     )
     click.echo()
     click.echo("For everything else, open a terminal and run: dji-embed --help")
-    _dragdrop_pause()
 
 
 class DragDropGroup(click.Group):
@@ -104,11 +119,23 @@ class DragDropGroup(click.Group):
     def main(
         self, args: Sequence[str] | None = None, *pargs: Any, **extra: Any
     ) -> Any:
-        argv = list(sys.argv[1:]) if args is None else [str(a) for a in args]
-        if not argv and getattr(sys, "frozen", False):
+        # args must be passed through untouched: click only applies its
+        # Windows glob/~/env expansion when it receives args=None.
+        argv = sys.argv[1:] if args is None else args
+        if not argv and getattr(sys, "frozen", False) and _launched_from_explorer():
             _echo_dragdrop_hint()
+            _dragdrop_pause()
             return None
-        return super().main(argv, *pargs, **extra)
+        try:
+            return super().main(
+                None if args is None else list(args), *pargs, **extra
+            )
+        except SystemExit as e:
+            if e.code not in (0, None):
+                # Errors on a double-click launch print into a console that
+                # closes instantly; hold it open (no-op elsewhere).
+                _dragdrop_pause()
+            raise
 
     def resolve_command(
         self, ctx: click.Context, args: list[str]
@@ -116,14 +143,22 @@ class DragDropGroup(click.Group):
         try:
             return super().resolve_command(ctx, args)
         except click.UsageError:
-            if all(Path(a).is_dir() for a in args):
-                cmd = self.get_command(ctx, "dragdrop")
-                assert cmd is not None  # registered below in this module
-                return "dragdrop", cmd, args
-            if Path(args[0]).is_file():
+            paths = [Path(a) for a in args]
+            if all(p.exists() for p in paths):
+                if any(p.is_dir() for p in paths):
+                    cmd = self.get_command(ctx, "dragdrop")
+                    assert cmd is not None  # registered below in this module
+                    return "dragdrop", cmd, args
                 raise click.UsageError(
                     f"'{args[0]}' is a file. To make a map, drag the folder "
                     "that contains your footage instead."
+                )
+            if paths and paths[0].is_dir():
+                raise click.UsageError(
+                    f"'{args[0]}' is a folder, and bare-folder mapping takes "
+                    "no other arguments. For options, name the command: "
+                    f"dji-embed flightmap {args[0]} ... or "
+                    f"dji-embed photomap {args[0]} ..."
                 )
             raise
 
@@ -679,58 +714,67 @@ def flightmap(
             raise click.ClickException(f"Could not write {out}: {e}")
 
 
-def _contains_photos(src: Path) -> bool:
-    """Cheap suffix check so a folder with no stills never runs ExifTool."""
-    photo_suffixes = {f".{ext}" for ext in _PHOTO_EXTS}
-    return any(
-        p.suffix.lower() in photo_suffixes
-        for p in src.rglob("*")
-        if p.is_file()
-    )
-
-
 @main.command(hidden=True)
 @click.argument(
-    "directories",
+    "paths",
     nargs=-1,
     required=True,
-    type=click.Path(exists=True, file_okay=False),
+    type=click.Path(exists=True),
 )
 @click.pass_context
-def dragdrop(ctx: click.Context, directories: tuple[str, ...]) -> None:
+def dragdrop(ctx: click.Context, paths: tuple[str, ...]) -> None:
     """Map folders dropped onto the EXE and open the results in the browser.
 
-    This runs when dji-embed is invoked with bare directory arguments (the
-    shape Windows Explorer produces for drag-and-drop): flightmap over the
-    .SRT logs and, when the folder holds stills, photomap too — both
-    recursive — then every written HTML map opens in the default browser.
+    This runs when dji-embed is invoked with bare path arguments (the shape
+    Windows Explorer produces for drag-and-drop): flightmap over each
+    folder's .SRT logs and, when the folder holds stills, photomap too —
+    both recursive — then every written HTML map opens in the default
+    browser. Files in the selection are skipped with a note.
     """
     setup_logging(verbose=False, quiet=False)
-    opened_any = False
-    for directory in directories:
-        src = Path(directory)
+    unmapped: list[str] = []
+    for target in paths:
+        src = Path(target)
+        if not src.is_dir():
+            click.echo(
+                f"Skipping {src.name}: drag folders to map, not single files",
+                err=True,
+            )
+            continue
         maps: list[Path] = []
+        flight_out = src / "flightmap.html"
         try:
-            ctx.invoke(flightmap, directory=directory, recursive=True)
-            maps.append(src / "flightmap.html")
+            ctx.invoke(
+                flightmap,
+                directory=target,
+                recursive=True,
+                output=str(flight_out),
+            )
+            maps.append(flight_out)
         except click.ClickException as e:
             click.echo(f"No flight map for {src}: {e.message}", err=True)
-        if _contains_photos(src):
+        if folder_has_photos(src):
+            photo_out = src / "photomap.html"
             try:
-                ctx.invoke(photomap, directory=directory, recursive=True)
-                maps.append(src / "photomap.html")
+                ctx.invoke(
+                    photomap,
+                    directory=target,
+                    recursive=True,
+                    output=str(photo_out),
+                )
+                maps.append(photo_out)
             except click.ClickException as e:
                 click.echo(f"No photo map for {src}: {e.message}", err=True)
         for out in maps:
             webbrowser.open(out.resolve().as_uri())
-            opened_any = True
-    if not opened_any:
+        if not maps:
+            unmapped.append(str(src))
+    if unmapped:
         click.echo(
             "Nothing to map: no DJI .SRT flight logs or geotagged photos "
-            f"found in {', '.join(directories)}",
+            f"found in {', '.join(unmapped)}",
             err=True,
         )
-        _dragdrop_pause()
         sys.exit(ExitCode.GENERAL_ERROR)
 
 

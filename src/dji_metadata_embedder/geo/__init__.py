@@ -16,6 +16,7 @@ from .kml import convert_to_kml, track_to_kml
 from .photomap import (
     PhotomapError,
     PhotoPoint,
+    folder_has_photos,
     photos_to_geojson,
     photos_to_kml,
     redact_photo_points,
@@ -31,6 +32,7 @@ from .track import Track, TrackPoint, build_track
 __all__ = [
     "Track",
     "TrackPoint",
+    "folder_has_photos",
     "build_track",
     "sun_position",
     "track_to_cot",
