@@ -254,9 +254,30 @@ def test_html_layer_control_gated_on_both_types():
     assert "photoMarkers.length && panoMarkers.length" in html
 
 
-def test_html_pano_clusters_tinted():
-    # Pano-only cluster blobs are tinted to match the pano pin color.
+def test_html_both_cluster_types_tinted():
+    # Both groups override markercluster's default color ramp: its "large"
+    # orange is nearly identical to the pano tint, so photo clusters are
+    # tinted blue and pano clusters orange to keep the legend truthful.
     html = photos_to_html(PANO_POINTS, title="t")
     assert "iconCreateFunction" in html
-    assert "pano-cluster" in html
+    assert ".photo-cluster div" in html
     assert ".pano-cluster div" in html
+
+
+def test_html_pin_colors_defined_once():
+    # The two type colors live in CSS custom properties; every other use
+    # (pins, cluster tints) derives from them, so a recolor is a 1-line edit.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "--pin-photo:" in html
+    assert "--pin-pano:" in html
+    assert "color-mix(" in html
+    assert "rgba(246" not in html  # no parallel hand-converted copy
+
+
+def test_html_pano_cluster_anchor_offset_against_occlusion():
+    # Coincident photo and pano clusters (routine under --redact fuzz, which
+    # rounds both types to the same 3-decimal grid) must not fully occlude
+    # each other: the pano blob anchors slightly off-center so the photo blob
+    # underneath stays visible and clickable.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "PANO_CLUSTER_ANCHOR" in html
