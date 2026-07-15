@@ -252,6 +252,7 @@ _progress_option = click.option(
     help="Opt-in: extract the HOME/launch point (operator location) into the "
     "JSON sidecar. Never written to the MP4. Subject to --redact.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress progress output")
 def embed(
@@ -265,28 +266,57 @@ def embed(
     redact: str,
     container: str,
     extract_home: bool,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
     """Embed telemetry from SRT files into MP4 videos."""
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet)
+    progress.start("embed")
+    try:
+        deps_ok, missing = check_dependencies()
+        if not deps_ok:
+            raise click.ClickException(
+                f"Missing dependencies: {', '.join(missing)}"
+            )
 
-    deps_ok, missing = check_dependencies()
-    if not deps_ok:
-        raise click.ClickException(f"Missing dependencies: {', '.join(missing)}")
-
-    embedder = DJIMetadataEmbedder(
-        directory,
-        output,
-        overwrite=overwrite,
-        dat_path=dat,
-        dat_autoscan=dat_auto,
-        redact=redact,
-        container=container.lower(),
-        extract_home=extract_home,
-        audio_sidecar=audio_sidecar,
-    )
-    embedder.process_directory(use_exiftool=exiftool)
+        embedder = DJIMetadataEmbedder(
+            directory,
+            output,
+            overwrite=overwrite,
+            dat_path=dat,
+            dat_autoscan=dat_auto,
+            redact=redact,
+            container=container.lower(),
+            extract_home=extract_home,
+            audio_sidecar=audio_sidecar,
+        )
+        result = embedder.process_directory(
+            use_exiftool=exiftool,
+            on_progress=progress.advance if progress.active else None,
+        )
+    except click.ClickException as e:
+        progress.error(e.format_message())
+        raise
+    if progress.active:
+        for message in result["warnings"] + result["errors"]:
+            progress.warning(message)
+        progress.result(
+            # Per-file failures keep the existing exit-0 behaviour; ok=false
+            # is the machine-readable signal (see docs/PROGRESS_JSONL.md).
+            ok=not result["errors"],
+            outputs=[result["output_directory"]],
+            summary={
+                "processed": result["processed"],
+                "total": result["total_files"],
+                "warnings": len(result["warnings"]),
+                "errors": len(result["errors"]),
+                "output_directory": result["output_directory"],
+            },
+        )
 
 
 @main.command()

@@ -167,6 +167,100 @@ def test_check_jsonl_events(monkeypatch, tmp_path):
     assert last["summary"]["files"] == {str(a): canned, str(b): canned}
 
 
+def test_embed_jsonl_events(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    monkeypatch.setattr(cli_mod, "check_dependencies", lambda: (True, []))
+    canned = {
+        "processed": 1,
+        "total_files": 2,
+        "warnings": ["No SRT file found for: DJI_0002.MP4"],
+        "errors": [],
+        "output_directory": str(tmp_path / "processed"),
+    }
+
+    def fake_process(self, use_exiftool=False, on_progress=None):
+        if on_progress is not None:
+            on_progress(1, 2, "DJI_0001.MP4")
+            on_progress(2, 2, "DJI_0002.MP4")
+        return canned
+
+    monkeypatch.setattr(
+        cli_mod.DJIMetadataEmbedder, "process_directory", fake_process
+    )
+    res = CliRunner().invoke(
+        main, ["embed", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    kinds = [e["event"] for e in events]
+    assert events[0]["command"] == "embed"
+    assert kinds.count("progress") == 2
+    assert kinds.count("warning") == 1
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["outputs"] == [canned["output_directory"]]
+    assert last["summary"] == {
+        "processed": 1,
+        "total": 2,
+        "warnings": 1,
+        "errors": 0,
+        "output_directory": canned["output_directory"],
+    }
+
+
+def test_embed_jsonl_per_file_errors_mean_ok_false(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    monkeypatch.setattr(cli_mod, "check_dependencies", lambda: (True, []))
+    canned = {
+        "processed": 0,
+        "total_files": 1,
+        "warnings": [],
+        "errors": ["FFmpeg failed for DJI_0001.MP4"],
+        "output_directory": str(tmp_path / "processed"),
+    }
+    monkeypatch.setattr(
+        cli_mod.DJIMetadataEmbedder,
+        "process_directory",
+        lambda self, use_exiftool=False, on_progress=None: canned,
+    )
+    res = CliRunner().invoke(
+        main, ["embed", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output  # exit semantics unchanged in v1
+    events = _events(res.stdout)
+    assert events[-1]["event"] == "result" and events[-1]["ok"] is False
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert any("FFmpeg failed" in w["message"] for w in warnings)
+
+
+def test_embed_jsonl_missing_dependencies_is_error_event(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    monkeypatch.setattr(
+        cli_mod, "check_dependencies", lambda: (False, ["ffmpeg"])
+    )
+    res = CliRunner().invoke(
+        main, ["embed", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code != 0
+    events = _events(res.stdout)
+    assert events[-1]["event"] == "error"
+    assert "ffmpeg" in events[-1]["message"]
+
+
+def test_process_directory_accepts_on_progress_callback(tmp_path):
+    """Real plumbing: empty dir returns early, callback stays uncalled."""
+    from dji_metadata_embedder.embedder import DJIMetadataEmbedder
+
+    calls: list[tuple] = []
+    embedder = DJIMetadataEmbedder(str(tmp_path))
+    result = embedder.process_directory(on_progress=lambda *a: calls.append(a))
+    assert result["total_files"] == 0
+    assert calls == []
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
