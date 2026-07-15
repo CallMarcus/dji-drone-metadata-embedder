@@ -274,7 +274,7 @@ def embed(
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
-    setup_logging(verbose, quiet)
+    setup_logging(verbose, quiet, stderr=progress.active)
     progress.start("embed")
     try:
         deps_ok, missing = check_dependencies()
@@ -332,7 +332,7 @@ def check(
 ) -> None:
     """Check media files for embedded metadata."""
     progress = make_progress(progress_mode)
-    setup_logging(verbose, quiet)
+    setup_logging(verbose, quiet, stderr=progress.active)
     progress.start("check", total=len(paths))
     try:
         if not paths:
@@ -573,7 +573,7 @@ def photomap(
                 "--serve cannot be combined with --progress jsonl (serving "
                 "blocks; open the written HTML yourself instead)"
             )
-    setup_logging(verbose, quiet)
+    setup_logging(verbose, quiet, stderr=progress.active)
     if serve_map:
         if fmt.lower() not in ("html", "all"):
             raise click.UsageError(
@@ -743,7 +743,7 @@ def flightmap(
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
-    setup_logging(verbose, quiet)
+    setup_logging(verbose, quiet, stderr=progress.active)
     progress.start("flightmap")
     try:
         try:

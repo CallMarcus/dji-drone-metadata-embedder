@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Tuple
 import subprocess
 
+from rich.console import Console
 from rich.logging import RichHandler
 
 
@@ -351,8 +352,18 @@ def apply_redaction(telemetry: dict, mode: str) -> None:
             telemetry["avg_gps"] = (round(lat, 3), round(lon, 3))
 
 
-def setup_logging(verbose: bool = False, quiet: bool = False, json_logs: bool = False) -> None:
-    """Configure application wide logging."""
+def setup_logging(
+    verbose: bool = False,
+    quiet: bool = False,
+    json_logs: bool = False,
+    stderr: bool = False,
+) -> None:
+    """Configure application wide logging.
+
+    ``stderr`` routes the pretty Rich output to stderr instead of stdout —
+    required whenever stdout carries machine-readable data (--progress
+    jsonl). The json_logs branch already logs to stderr (logging's default).
+    """
     level = logging.INFO
     if verbose:
         level = logging.DEBUG
@@ -372,7 +383,12 @@ def setup_logging(verbose: bool = False, quiet: bool = False, json_logs: bool = 
             level=level,
             format="%(message)s",
             datefmt="[%X]",
-            handlers=[RichHandler(rich_tracebacks=True)],
+            handlers=[
+                RichHandler(
+                    rich_tracebacks=True,
+                    console=Console(stderr=True) if stderr else None,
+                )
+            ],
         )
 
 

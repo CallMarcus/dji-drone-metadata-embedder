@@ -272,6 +272,50 @@ def test_jsonl_stdout_stays_pure_even_with_verbose(tmp_path):
     assert "Skipped" in res.stderr  # the -v detail went to stderr
 
 
+def test_jsonl_stdout_survives_logger_warnings_in_real_process(tmp_path):
+    """logging output (RichHandler) must not leak into the event stream.
+
+    Must run in a subprocess: under pytest the logging plugin already owns
+    the root logger, so setup_logging's basicConfig no-ops and the leak is
+    invisible to CliRunner. An SRT with absolute datetimes plus a rewritten
+    mtime triggers the aggregated timezone logger.warning in scan_flights.
+    """
+    import os
+    import subprocess
+    import sys
+
+    srt = (
+        "1\n00:00:00,000 --> 00:00:01,000\n"
+        '<font size="28">FrameCnt: 1, DiffTime: 1000ms\n'
+        "2026-06-15 12:00:00.000\n"
+        "[latitude: 34.0] [longitude: -84.0] "
+        "[rel_alt: 1.000 abs_alt: 100.0]</font>\n"
+    )
+    path = tmp_path / "DJI_0001.SRT"
+    path.write_text(srt, encoding="utf-8")
+    os.utime(path, (946684800.0, 946684800.0))  # mtime a transfer rewrote
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from dji_metadata_embedder.cli import main; main()",
+            "flightmap",
+            str(tmp_path),
+            "--progress",
+            "jsonl",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stderr
+    events = [json.loads(line) for line in proc.stdout.splitlines()]
+    for e in events:
+        jsonschema.validate(e, SCHEMA)
+    assert events[-1]["event"] == "result"
+    assert "Timezone" in proc.stderr  # the warning still reaches the user
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
