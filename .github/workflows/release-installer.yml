@@ -134,10 +134,13 @@ jobs:
       - name: Compile installer
         shell: pwsh
         run: |
+          # ISCC resolves relative paths against the .iss file's directory,
+          # so the output dir must be absolute to land in the workspace.
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
             /DAppVersion=${{ steps.meta.outputs.version }} `
             /DStagingDir=..\staging\app `
-            /O..\dist-installer installer\DjiMetadataEmbedder.iss
+            "/O$env:GITHUB_WORKSPACE\dist-installer" `
+            installer\DjiMetadataEmbedder.iss
           Get-ChildItem dist-installer
 
       - name: Smoke test - installer runs silently
