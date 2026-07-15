@@ -1,6 +1,7 @@
 # `--progress jsonl` — machine-readable progress events
 
-`photomap`, `flightmap`, `embed`, and `check` accept `--progress jsonl`. In
+`photomap`, `flightmap`, `embed`, `check`, and `doctor` accept
+`--progress jsonl`. In
 this mode a command writes **one JSON object per line to stdout** and nothing
 else — human/informational output is suppressed, and warnings and log
 messages go to stderr. A non-zero exit code always means the run failed;
@@ -92,11 +93,22 @@ field, never by arrival order.
   `warning` event (`"Not found or unreadable"`) — the run still ends in
   `result` with `"ok": true`.
 
+### `doctor`
+- No `progress` events. One `warning` per missing tool (`item` = tool
+  name). `outputs` is empty. `summary`: `{"ok": bool, "tools":
+  {"ffmpeg": {"present": bool}, "exiftool": {"present": bool, "version",
+  "source", "path", "decode"}}, "system": {...}}` — the exiftool extras
+  appear only when it is present and its version is readable.
+- Missing dependencies are a report, not a crash: `"ok": false` with exit
+  code 0 (same reading rule as `embed`).
+- The opt-in online update check **never** runs under `--progress jsonl`;
+  consent for going online stays interactive-only.
+
 ## Relation to `--log-json`
 
 `--log-json` (env `DJIEMBED_LOG_JSON`) is an older, separate feature: it
 formats *log lines* as JSON for the commands that read it (e.g. `doctor`)
-and is independent of this event stream. The four progress-wired commands
+and is independent of this event stream. The progress-wired commands
 do not change their logging format based on it; logs are human-readable
 text on stderr for every command, with or without `--progress jsonl`.
 Parse stdout events, treat stderr as free-form diagnostics.
