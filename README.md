@@ -48,7 +48,13 @@ installs all of it for you.
 
 ### Windows
 
-Open PowerShell and paste:
+Download the installer (`dji-metadata-embedder-setup-<version>.exe`) from the
+[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest)
+and run it — you get the **DJI Metadata Embedder** desktop app in the Start
+menu plus the full `dji-embed` command line in any terminal, with FFmpeg and
+ExifTool bundled. No admin rights needed.
+
+Prefer a script? Open PowerShell and paste:
 
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
