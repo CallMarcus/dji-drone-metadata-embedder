@@ -112,3 +112,7 @@ docs/superpowers/plans/
 # Windows shortcuts (e.g. "samples - Shortcut.lnk")
 *.lnk
 # Release v1.1.2 - Windows EXE build retry
+
+# .NET build output (gui/)
+gui/**/bin/
+gui/**/obj/

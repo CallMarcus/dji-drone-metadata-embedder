@@ -78,3 +78,21 @@ jobs:
           uv run dji-embed convert gpx examples/DJI_sample.SRT -o test_smoke.gpx
           uv run dji-embed convert csv examples/DJI_sample.SRT -o test_smoke.csv
           ls -la test_smoke.*
+
+  # Desktop GUI (issue #264 stage 3): Avalonia app in gui/. Kept as its own
+  # job so the Python matrix is untouched; ubuntu is enough for compile +
+  # headless UI tests, Windows-specific packaging is exercised at release.
+  gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build
+        run: dotnet build gui/DjiEmbed.Gui.sln --configuration Release
+      - name: Test (headless)
+        run: >
+          dotnet test gui/DjiEmbed.Gui.sln --configuration Release
+          --no-build --verbosity normal
