@@ -161,11 +161,16 @@ def test_html_no_pannellum_without_panos():
 
 
 def test_html_no_pannellum_without_links():
-    # A pano without --link-originals has nothing the viewer could load.
+    # A pano without --link-originals has nothing the viewer could load, but
+    # the pano flag itself is still embedded for marker styling (#283).
     html = photos_to_html(PANO_POINTS, title="t")
     assert "pannellum" not in html
-    data = _embedded_geojson(html)
-    assert all("pano" not in f["properties"] for f in data["features"])
+    by_name = {
+        f["properties"]["name"]: f["properties"]
+        for f in _embedded_geojson(html)["features"]
+    }
+    assert by_name["pano.jpg"]["pano"] is True
+    assert all("link" not in p for p in by_name.values())
 
 
 def test_html_pano_with_links_embeds_pinned_viewer():
