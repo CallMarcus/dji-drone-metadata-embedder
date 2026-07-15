@@ -261,6 +261,17 @@ def test_process_directory_accepts_on_progress_callback(tmp_path):
     assert calls == []
 
 
+def test_jsonl_stdout_stays_pure_even_with_verbose(tmp_path):
+    (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
+    (tmp_path / "movie.srt").write_text(NOT_TELEMETRY, encoding="utf-8")
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "-v", "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    _events(res.stdout)  # every stdout line must be a valid schema event
+    assert "Skipped" in res.stderr  # the -v detail went to stderr
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
