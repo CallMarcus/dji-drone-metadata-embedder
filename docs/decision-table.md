@@ -16,6 +16,7 @@ This guide helps you choose the right command and approach for your specific use
 | **Drive it from a browser** | `dji-embed ui` | You prefer a GUI; requires the `[ui]` extra |
 | **Map a whole folder of flights** | `dji-embed flightmap` | You want every flight's track on one combined map (experimental) |
 | **Map your still photos** | `dji-embed photomap` | You shot geotagged photos and want them on a map |
+| **No terminal at all** | drag the folder onto `dji-embed.exe` | Maps the folder's flight logs and photos, then opens the result in your browser (same as `dji-embed <folder>`) |
 
 ---
 

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import sys
+import webbrowser
 import click
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
@@ -23,6 +26,7 @@ from .geo import (
     convert_to_html,
     convert_to_cot,
     PhotomapError,
+    folder_has_photos,
     redact_photo_points,
     scan_flights,
     scan_photos,
@@ -64,7 +68,105 @@ def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> N
     ctx.exit(ExitCode.SUCCESS)
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+def _launched_from_explorer() -> bool:
+    """True when this process is the sole owner of its console window.
+
+    That is the double-click / drag-and-drop launch shape on Windows:
+    Explorer spawns a fresh console holding only this process, and it
+    vanishes the instant the process exits. Started from cmd/PowerShell,
+    the shell also owns the console, so the count is >= 2.
+    """
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+
+        process_ids = (ctypes.c_uint32 * 2)()
+        count = ctypes.windll.kernel32.GetConsoleProcessList(process_ids, 2)
+        return count <= 1
+    except Exception:  # no console at all, or a non-standard runtime
+        return False
+
+
+def _dragdrop_pause() -> None:
+    """Hold an Explorer-spawned console open so the message stays readable."""
+    if getattr(sys, "frozen", False) and _launched_from_explorer():
+        click.echo()
+        click.pause("Press any key to close this window ...")
+
+
+def _echo_dragdrop_hint() -> None:
+    """Friendly double-click message instead of the full CLI help dump."""
+    click.echo(f"dji-embed {__version__}")
+    click.echo()
+    click.echo(
+        "To make a map of your drone footage: drag the folder that holds\n"
+        "your videos or photos onto dji-embed.exe, and the map will open\n"
+        "in your browser."
+    )
+    click.echo()
+    click.echo("For everything else, open a terminal and run: dji-embed --help")
+
+
+class DragDropGroup(click.Group):
+    """Click group that also accepts a bare directory argument.
+
+    Windows Explorer passes a dragged folder as ``argv[1]`` with no
+    subcommand; routing that to the hidden ``dragdrop`` command is the whole
+    no-command-line story of issue #264 stage 1.
+    """
+
+    def main(
+        self, args: Sequence[str] | None = None, *pargs: Any, **extra: Any
+    ) -> Any:
+        # args must be passed through untouched: click only applies its
+        # Windows glob/~/env expansion when it receives args=None.
+        argv = sys.argv[1:] if args is None else args
+        if not argv and getattr(sys, "frozen", False) and _launched_from_explorer():
+            _echo_dragdrop_hint()
+            _dragdrop_pause()
+            return None
+        try:
+            return super().main(
+                None if args is None else list(args), *pargs, **extra
+            )
+        except SystemExit as e:
+            if e.code not in (0, None):
+                # Errors on a double-click launch print into a console that
+                # closes instantly; hold it open (no-op elsewhere).
+                _dragdrop_pause()
+            raise
+
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str, click.Command, list[str]]:
+        try:
+            return super().resolve_command(ctx, args)
+        except click.UsageError:
+            paths = [Path(a) for a in args]
+            if all(p.exists() for p in paths):
+                if any(p.is_dir() for p in paths):
+                    cmd = self.get_command(ctx, "dragdrop")
+                    assert cmd is not None  # registered below in this module
+                    return "dragdrop", cmd, args
+                raise click.UsageError(
+                    f"'{args[0]}' is a file. To make a map, drag the folder "
+                    "that contains your footage instead."
+                )
+            if paths and paths[0].is_dir():
+                raise click.UsageError(
+                    f"'{args[0]}' is a folder, and bare-folder mapping takes "
+                    "no other arguments. For options, name the command: "
+                    f"dji-embed flightmap {args[0]} ... or "
+                    f"dji-embed photomap {args[0]} ..."
+                )
+            raise
+
+
+@click.group(
+    cls=DragDropGroup,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.option(
     "--version",
     is_flag=True,
@@ -610,6 +712,70 @@ def flightmap(
                 write_flights_geojson(tracks, out)
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
+
+
+@main.command(hidden=True)
+@click.argument(
+    "paths",
+    nargs=-1,
+    required=True,
+    type=click.Path(exists=True),
+)
+@click.pass_context
+def dragdrop(ctx: click.Context, paths: tuple[str, ...]) -> None:
+    """Map folders dropped onto the EXE and open the results in the browser.
+
+    This runs when dji-embed is invoked with bare path arguments (the shape
+    Windows Explorer produces for drag-and-drop): flightmap over each
+    folder's .SRT logs and, when the folder holds stills, photomap too —
+    both recursive — then every written HTML map opens in the default
+    browser. Files in the selection are skipped with a note.
+    """
+    setup_logging(verbose=False, quiet=False)
+    unmapped: list[str] = []
+    for target in paths:
+        src = Path(target)
+        if not src.is_dir():
+            click.echo(
+                f"Skipping {src.name}: drag folders to map, not single files",
+                err=True,
+            )
+            continue
+        maps: list[Path] = []
+        flight_out = src / "flightmap.html"
+        try:
+            ctx.invoke(
+                flightmap,
+                directory=target,
+                recursive=True,
+                output=str(flight_out),
+            )
+            maps.append(flight_out)
+        except click.ClickException as e:
+            click.echo(f"No flight map for {src}: {e.message}", err=True)
+        if folder_has_photos(src):
+            photo_out = src / "photomap.html"
+            try:
+                ctx.invoke(
+                    photomap,
+                    directory=target,
+                    recursive=True,
+                    output=str(photo_out),
+                )
+                maps.append(photo_out)
+            except click.ClickException as e:
+                click.echo(f"No photo map for {src}: {e.message}", err=True)
+        for out in maps:
+            webbrowser.open(out.resolve().as_uri())
+        if not maps:
+            unmapped.append(str(src))
+    if unmapped:
+        click.echo(
+            "Nothing to map: no DJI .SRT flight logs or geotagged photos "
+            f"found in {', '.join(unmapped)}",
+            err=True,
+        )
+        sys.exit(ExitCode.GENERAL_ERROR)
 
 
 @main.command()

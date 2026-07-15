@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import subprocess
 from dataclasses import dataclass, replace
@@ -258,6 +259,20 @@ def _run_exiftool_scan(directory: Path, recursive: bool) -> list[dict]:
     if not isinstance(data, list):
         raise PhotomapError("Unexpected ExifTool JSON shape (expected a list)")
     return data
+
+
+def folder_has_photos(directory: Path | str) -> bool:
+    """Cheap recursive suffix check: does the tree hold any photo files?
+
+    Lets callers skip the ExifTool scan entirely for photo-less folders;
+    os.walk avoids a stat call per entry and short-circuits on the first hit.
+    """
+    suffixes = {f".{ext}" for ext in _PHOTO_EXTS}
+    for _root, _dirs, filenames in os.walk(directory):
+        for name in filenames:
+            if os.path.splitext(name)[1].lower() in suffixes:
+                return True
+    return False
 
 
 def scan_photos(
