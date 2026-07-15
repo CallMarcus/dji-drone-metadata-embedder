@@ -39,6 +39,7 @@ from .geo import (
     write_photos_kml,
 )
 from .mp4_telemetry import Mp4TelemetryError
+from .progress import make_progress
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -197,6 +198,18 @@ def main(ctx: click.Context, log_json: bool) -> None:
     """
     ctx.ensure_object(dict)
     ctx.obj['log_json'] = log_json
+
+
+# Shared by photomap/flightmap/embed/check. Contract: docs/PROGRESS_JSONL.md.
+_progress_option = click.option(
+    "--progress",
+    "progress_mode",
+    type=click.Choice(["jsonl"]),
+    default=None,
+    help="Emit machine-readable progress events on stdout, one JSON object "
+    "per line (see docs/PROGRESS_JSONL.md). Suppresses human output on "
+    "stdout; warnings and logs still go to stderr.",
+)
 
 
 @main.command()
@@ -628,6 +641,7 @@ def photomap(
     "detects it from each file's mtime; pass it explicitly when the files "
     "were copied through zip/cloud transfers that rewrote the mtimes.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def flightmap(
@@ -639,6 +653,7 @@ def flightmap(
     redact: str,
     join_gap: float,
     tz_offset: str,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -651,67 +666,88 @@ def flightmap(
     models whose telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, ...)
     need 'dji-embed convert html VIDEO.MP4' per clip instead.
     """
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet)
+    progress.start("flightmap")
     try:
-        offset = parse_utc_offset(tz_offset)
-    except ValueError as e:
-        raise click.BadParameter(str(e), param_hint="--tz-offset")
-    src = Path(directory)
-    tracks, skipped = scan_flights(
-        src,
-        recursive=recursive,
-        redact=redact.lower(),
-        join_gap=join_gap,
-        tz_offset=offset,
-    )
-    total = len(tracks) + len(skipped)
-    if total == 0:
-        raise click.ClickException(
-            f"No .SRT telemetry files found in {src}"
-            + ("" if recursive else " (use -r to scan subdirectories)")
-        )
-    if not tracks:
-        raise click.ClickException(
-            f"None of the {total} SRT files in {src} contain GPS telemetry"
-        )
-    if verbose:
-        for name in skipped:
-            click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
-    if not quiet:
-        if skipped:
-            click.echo(
-                f"Mapped {len(tracks)} of {total} flights; "
-                f"{len(skipped)} had no GPS telemetry (use -v to list them)"
-            )
-        else:
-            click.echo(
-                f"Mapped {len(tracks)} flight{'s' if len(tracks) != 1 else ''}"
-            )
-        joined = [t for t in tracks if t.segments]
-        if joined:
-            files_joined = sum(len(t.segments or []) for t in joined)
-            click.echo(
-                f"Joined {files_joined} files into "
-                f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
-            )
-    map_title = title or src.resolve().name
-    if fmt.lower() == "all":
-        base = Path(output) if output else src / "flightmap.html"
-        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
-    else:
-        f = fmt.lower()
-        out = Path(output) if output else src / f"flightmap.{f}"
-        targets = [(f, out)]
-    for f, out in targets:
         try:
-            if f == "html":
-                write_flights_html(tracks, out, map_title)
-            elif f == "kml":
-                write_flights_kml(tracks, out, map_title)
+            offset = parse_utc_offset(tz_offset)
+        except ValueError as e:
+            raise click.BadParameter(str(e), param_hint="--tz-offset")
+        src = Path(directory)
+        tracks, skipped = scan_flights(
+            src,
+            recursive=recursive,
+            redact=redact.lower(),
+            join_gap=join_gap,
+            tz_offset=offset,
+            on_file=progress.advance if progress.active else None,
+        )
+        total = len(tracks) + len(skipped)
+        if total == 0:
+            raise click.ClickException(
+                f"No .SRT telemetry files found in {src}"
+                + ("" if recursive else " (use -r to scan subdirectories)")
+            )
+        if not tracks:
+            raise click.ClickException(
+                f"None of the {total} SRT files in {src} contain GPS telemetry"
+            )
+        for name in skipped:
+            progress.warning("No GPS telemetry", item=name)
+            if verbose:
+                click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
+        joined = [t for t in tracks if t.segments]
+        files_joined = sum(len(t.segments or []) for t in joined)
+        if not quiet:
+            if skipped:
+                click.echo(
+                    f"Mapped {len(tracks)} of {total} flights; "
+                    f"{len(skipped)} had no GPS telemetry (use -v to list them)"
+                )
             else:
-                write_flights_geojson(tracks, out)
-        except OSError as e:
-            raise click.ClickException(f"Could not write {out}: {e}")
+                click.echo(
+                    f"Mapped {len(tracks)} flight{'s' if len(tracks) != 1 else ''}"
+                )
+            if joined:
+                click.echo(
+                    f"Joined {files_joined} files into "
+                    f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
+                )
+        map_title = title or src.resolve().name
+        if fmt.lower() == "all":
+            base = Path(output) if output else src / "flightmap.html"
+            targets = [
+                (f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")
+            ]
+        else:
+            f = fmt.lower()
+            out = Path(output) if output else src / f"flightmap.{f}"
+            targets = [(f, out)]
+        for f, out in targets:
+            try:
+                if f == "html":
+                    write_flights_html(tracks, out, map_title)
+                elif f == "kml":
+                    write_flights_kml(tracks, out, map_title)
+                else:
+                    write_flights_geojson(tracks, out)
+            except OSError as e:
+                raise click.ClickException(f"Could not write {out}: {e}")
+    except click.ClickException as e:
+        progress.error(e.format_message())
+        raise
+    progress.result(
+        ok=True,
+        outputs=[str(out.resolve()) for _f, out in targets],
+        summary={
+            "flights": len(tracks),
+            "skipped": len(skipped),
+            "joined_files": files_joined,
+        },
+    )
 
 
 @main.command(hidden=True)
