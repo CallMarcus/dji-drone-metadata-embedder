@@ -291,18 +291,37 @@ def embed(
 
 @main.command()
 @click.argument("paths", nargs=-1, type=click.Path())
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
-def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
+def check(
+    paths: tuple[str, ...],
+    progress_mode: str | None,
+    verbose: bool,
+    quiet: bool,
+) -> None:
     """Check media files for embedded metadata."""
+    progress = make_progress(progress_mode)
     setup_logging(verbose, quiet)
-
-    if not paths:
-        raise click.ClickException("No file or directory specified")
-
-    for target in paths:
-        result = check_metadata(target)
-        click.echo(f"{target}: {result}")
+    progress.start("check", total=len(paths))
+    try:
+        if not paths:
+            raise click.ClickException("No file or directory specified")
+        files: dict[str, dict] = {}
+        for index, target in enumerate(paths, start=1):
+            progress.advance(index, len(paths), item=target)
+            result = check_metadata(target)
+            files[target] = result
+            if not progress.active:
+                click.echo(f"{target}: {result}")
+    except click.ClickException as e:
+        progress.error(e.format_message())
+        raise
+    progress.result(
+        ok=True,
+        outputs=[],
+        summary={"checked": len(paths), "files": files},
+    )
 
 
 @main.command()

@@ -144,6 +144,29 @@ def test_photomap_jsonl_rejects_serve(tmp_path):
     assert "--serve" in res.output and "--progress" in res.output
 
 
+def test_check_jsonl_events(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    canned = {"subtitle_telemetry": True, "gps_metadata": False}
+    monkeypatch.setattr(cli_mod, "check_metadata", lambda target: dict(canned))
+    a = tmp_path / "DJI_0001.MP4"
+    b = tmp_path / "DJI_0002.MP4"
+    a.write_bytes(b"fake")
+    b.write_bytes(b"fake")
+    res = CliRunner().invoke(
+        main, ["check", str(a), str(b), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["command"] == "check" and events[0]["total"] == 2
+    progress = [e for e in events if e["event"] == "progress"]
+    assert [p["item"] for p in progress] == [str(a), str(b)]
+    last = events[-1]
+    assert last["ok"] is True and last["outputs"] == []
+    assert last["summary"]["checked"] == 2
+    assert last["summary"]["files"] == {str(a): canned, str(b): canned}
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
