@@ -69,6 +69,10 @@ which switches stdout to machine-readable progress events (one JSON object
 per line) for scripts and GUI frontends. The event contract is documented
 in [Progress Events (JSONL)](PROGRESS_JSONL.md).
 
+Log messages always go to stderr, so redirecting stdout (`dji-embed convert
+gpx flight.SRT > out.gpx` style pipelines) captures only real output, never
+log lines.
+
 ### Sidecar-less footage (MP4 with embedded telemetry)
 
 Newer DJI models record telemetry inside the MP4 instead of a `.SRT`. Pass the

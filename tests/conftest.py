@@ -41,8 +41,8 @@ if "rich" not in sys.modules:
             # Honours an explicit console's stream; without one it defaults
             # to stderr (StreamHandler's default). NOTE: the real RichHandler
             # defaults to STDOUT, so in-process tests cannot catch logging
-            # polluting jsonl stdout — that guarantee is covered by the
-            # subprocess test in test_progress_jsonl.py.
+            # polluting stdout — stream routing is covered by subprocess
+            # tests in test_progress_jsonl.py and test_cli_logging.py.
             super().__init__(console.file if console is not None else None)
 
     setattr(progress, "Progress", _StubProgress)

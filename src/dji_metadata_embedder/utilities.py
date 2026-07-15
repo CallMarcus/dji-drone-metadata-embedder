@@ -356,13 +356,14 @@ def setup_logging(
     verbose: bool = False,
     quiet: bool = False,
     json_logs: bool = False,
-    stderr: bool = False,
 ) -> None:
     """Configure application wide logging.
 
-    ``stderr`` routes the pretty Rich output to stderr instead of stdout —
-    required whenever stdout carries machine-readable data (--progress
-    jsonl). The json_logs branch already logs to stderr (logging's default).
+    All log output goes to stderr (issue #282): stdout is reserved for real
+    command output — summaries, exported data, ``--progress jsonl`` events.
+    The json_logs branch already logs to stderr (logging's default); the
+    Rich branch needs an explicit stderr console because RichHandler's
+    default console writes to stdout.
     """
     level = logging.INFO
     if verbose:
@@ -386,7 +387,7 @@ def setup_logging(
             handlers=[
                 RichHandler(
                     rich_tracebacks=True,
-                    console=Console(stderr=True) if stderr else None,
+                    console=Console(stderr=True),
                 )
             ],
         )
