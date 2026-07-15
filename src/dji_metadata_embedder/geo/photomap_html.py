@@ -61,6 +61,17 @@ _TEMPLATE = """<!DOCTYPE html>
   #map {{ height: 100%; }}
   .photo-popup img {{ max-width: 260px; display: block; margin-bottom: 4px; }}
   .photo-tooltip img {{ max-width: 160px; display: block; margin-bottom: 2px; }}
+  /* Per-type markers (issue #283): blue dot = photo, orange dot = 360 pano.
+     The same classes render the swatches in the layer-control legend. */
+  .photo-pin {{ display: block; width: 14px; height: 14px; border-radius: 50%;
+               border: 2.5px solid #fff; box-shadow: 0 0 4px rgba(0,0,0,.5);
+               box-sizing: content-box; }}
+  .pin-photo {{ background: #2a81cb; }}
+  .pin-pano  {{ background: #f69730; }}
+  .pin-swatch {{ display: inline-block; vertical-align: -3px;
+                margin-right: 2px; }}
+  .pano-cluster {{ background-color: rgba(246, 151, 48, .4); }}
+  .pano-cluster div {{ background-color: rgba(246, 151, 48, .8); }}
 </style>
 </head>
 <body>
@@ -164,8 +175,34 @@ const esc = s => String(s).replace(/[&<>"']/g,
 
 const points = (data.features || []).filter(
   f => f.geometry && f.geometry.type === 'Point');
-const cluster = L.markerClusterGroup({ chunkedLoading: true });
-const markers = [];
+
+// Per-type markers (issue #283): photos and 360 panoramas get their own
+// colored pin and their own cluster group, so clusters stay type-pure and
+// each type can be toggled independently.
+const isPano = f => (f.properties || {}).pano === true;
+const pinIcon = cls => L.divIcon({
+  className: '', html: `<span class="photo-pin ${cls}"></span>`,
+  iconSize: [19, 19], iconAnchor: [9, 9], popupAnchor: [0, -9],
+  tooltipAnchor: [0, -11]
+});
+const photoIcon = pinIcon('pin-photo');
+const panoIcon = pinIcon('pin-pano');
+// Mirrors markercluster's default icon (count + small/medium/large sizing)
+// with a pano-tinted color scheme.
+const panoClusterIcon = c => {
+  const n = c.getChildCount();
+  const size = n < 10 ? 'small' : n < 100 ? 'medium' : 'large';
+  return L.divIcon({
+    html: `<div><span>${n}</span></div>`,
+    className: `marker-cluster marker-cluster-${size} pano-cluster`,
+    iconSize: L.point(40, 40)
+  });
+};
+const photoCluster = L.markerClusterGroup({ chunkedLoading: true });
+const panoCluster = L.markerClusterGroup({
+  chunkedLoading: true, iconCreateFunction: panoClusterIcon });
+const photoMarkers = [];
+const panoMarkers = [];
 const latlngs = [];
 
 function buildPopup(f) {
@@ -212,13 +249,25 @@ function buildTooltip(f) {
 for (const f of points) {
   const c = f.geometry.coordinates;                  // [lon, lat, alt]
   latlngs.push([c[1], c[0]]);
-  markers.push(
-    L.marker([c[1], c[0]])
+  const pano = isPano(f);
+  (pano ? panoMarkers : photoMarkers).push(
+    L.marker([c[1], c[0]], { icon: pano ? panoIcon : photoIcon })
       .bindPopup(() => buildPopup(f), { maxWidth: 300 })
       .bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' }));
 }
-cluster.addLayers(markers);
-map.addLayer(cluster);
+photoCluster.addLayers(photoMarkers);
+panoCluster.addLayers(panoMarkers);
+if (photoMarkers.length) map.addLayer(photoCluster);
+if (panoMarkers.length) map.addLayer(panoCluster);
+if (photoMarkers.length && panoMarkers.length) {
+  // Expanded control doubles as the legend: the labels reuse the pin CSS as
+  // colored swatches. Only shown when the folder actually mixes types.
+  L.control.layers(null, {
+    '<span class="photo-pin pin-photo pin-swatch"></span>Photos': photoCluster,
+    '<span class="photo-pin pin-pano pin-swatch"></span>360° panoramas':
+      panoCluster
+  }, { collapsed: false }).addTo(map);
+}
 if (latlngs.length > 1) {
   map.fitBounds(L.latLngBounds(latlngs).pad(0.1), { maxZoom: 17 });
 } else if (latlngs.length === 1) {

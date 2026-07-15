@@ -63,7 +63,8 @@ def test_html_popup_js_escapes_text_fields():
 def test_html_uses_cluster_bulk_path():
     html = photos_to_html(POINTS, title="t")
     assert "chunkedLoading: true" in html
-    assert "cluster.addLayers(markers)" in html
+    assert "photoCluster.addLayers(photoMarkers)" in html
+    assert "panoCluster.addLayers(panoMarkers)" in html
 
 
 def test_html_empty_points_still_valid_document():
@@ -220,3 +221,42 @@ def test_html_file_protocol_help_absent_without_panos():
     html = photos_to_html(POINTS, title="t", link_base="")
     assert "pano-blocked" not in html
     assert "location.protocol" not in html
+
+
+# Per-type markers (issue #283): photos and 360° panoramas get distinct,
+# individually toggleable markers so mixed folders stay readable.
+
+
+def test_html_markers_use_type_colored_divicons():
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "L.divIcon" in html
+    # Shared dot CSS plus one color class per type; the JS picks the icon
+    # from the feature's pano property.
+    assert ".photo-pin" in html
+    assert "pin-photo" in html and "pin-pano" in html
+
+
+def test_html_type_pure_cluster_groups():
+    # One markerClusterGroup per type, so cluster blobs never mix types and
+    # each type can be toggled as a whole.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "photoCluster.addLayers(photoMarkers)" in html
+    assert "panoCluster.addLayers(panoMarkers)" in html
+
+
+def test_html_layer_control_gated_on_both_types():
+    # The expanded layer control doubles as the legend; it only appears when
+    # the folder actually mixes types (runtime check on the embedded data).
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "L.control.layers" in html
+    assert "collapsed: false" in html
+    assert "Photos" in html and "panoramas" in html
+    assert "photoMarkers.length && panoMarkers.length" in html
+
+
+def test_html_pano_clusters_tinted():
+    # Pano-only cluster blobs are tinted to match the pano pin color.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "iconCreateFunction" in html
+    assert "pano-cluster" in html
+    assert ".pano-cluster div" in html
