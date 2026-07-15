@@ -46,9 +46,12 @@ jobs:
       - name: Install ExifTool (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libimage-exiftool-perl
+      # Dogfoods our own pinned, checksum-verified provisioning instead of
+      # chocolatey (whose community feed outages kept breaking this leg);
+      # the shared resolver (env -> provisioned -> PATH) finds the copy.
       - name: Install ExifTool (Windows)
         if: runner.os == 'Windows'
-        run: choco install exiftool --no-progress -y
+        run: uv run dji-embed doctor --install exiftool
       - name: Pytest
         run: uv run pytest
       - name: Build package
