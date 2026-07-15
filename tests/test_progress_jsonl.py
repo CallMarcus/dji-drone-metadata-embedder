@@ -385,3 +385,70 @@ def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     events = _events(res.stdout)
     outputs = events[-1]["outputs"]
     assert [Path(o).suffix for o in outputs] == [".html", ".kml", ".geojson"]
+
+
+# --- doctor (issue #264 stage 3d: the GUI's "Check my setup" screen) ------
+
+
+def _patch_doctor_env(monkeypatch, *, ffmpeg=True, exiftool=True):
+    from dji_metadata_embedder import cli
+    from dji_metadata_embedder.utils import exiftool as exiftool_utils
+
+    missing = [
+        t for t, ok in (("ffmpeg", ffmpeg), ("exiftool", exiftool)) if not ok
+    ]
+    monkeypatch.setattr(cli, "check_dependencies", lambda: (not missing, missing))
+    if exiftool:
+        monkeypatch.setattr(exiftool_utils, "exiftool_version", lambda: "13.30")
+        monkeypatch.setattr(exiftool_utils, "exiftool_source", lambda: "path")
+        monkeypatch.setattr(
+            exiftool_utils, "exiftool_exe", lambda: "/usr/bin/exiftool"
+        )
+        monkeypatch.setattr(
+            exiftool_utils, "describe_decode_capability", lambda v: "full"
+        )
+
+
+def test_doctor_jsonl_all_present(monkeypatch):
+    _patch_doctor_env(monkeypatch)
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl"])
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["event"] == "start"
+    assert events[0]["command"] == "doctor"
+    result = events[-1]
+    assert result["event"] == "result"
+    assert result["ok"] is True
+    tools = result["summary"]["tools"]
+    assert tools["ffmpeg"]["present"] is True
+    assert tools["exiftool"]["present"] is True
+    assert tools["exiftool"]["version"] == "13.30"
+
+
+def test_doctor_jsonl_missing_tool_warns_but_exits_zero(monkeypatch):
+    # Missing dependencies are a report, not a crash: ok=false + exit 0,
+    # mirroring embed's per-file-failure nuance.
+    _patch_doctor_env(monkeypatch, ffmpeg=False)
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl"])
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert [w["item"] for w in warnings] == ["ffmpeg"]
+    result = events[-1]
+    assert result["ok"] is False
+    assert result["summary"]["tools"]["ffmpeg"]["present"] is False
+
+
+def test_doctor_jsonl_never_runs_the_online_update_check(monkeypatch):
+    # Consent for going online is interactive-only; a machine consumer of
+    # the event stream must never trigger the network path.
+    _patch_doctor_env(monkeypatch)
+    from dji_metadata_embedder.utils import update_check
+
+    def _boom(*a, **k):
+        raise AssertionError("update check must not run under --progress jsonl")
+
+    monkeypatch.setattr(update_check, "update_report", _boom)
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl", "--online"])
+    assert res.exit_code == 0, res.output
+    assert _events(res.stdout)[-1]["event"] == "result"

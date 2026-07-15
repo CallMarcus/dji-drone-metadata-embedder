@@ -4,9 +4,9 @@ using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Views;
 
-public partial class MakeMapView : UserControl
+public partial class EmbedTelemetryView : UserControl
 {
-    public MakeMapView()
+    public EmbedTelemetryView()
     {
         InitializeComponent();
         FolderPicking.EnableDrop(this, StartAsync);
@@ -16,7 +16,7 @@ public partial class MakeMapView : UserControl
         await FolderPicking.ChooseAsync(this, StartAsync);
 
     private System.Threading.Tasks.Task StartAsync(string folder) =>
-        DataContext is MakeMapViewModel vm
+        DataContext is EmbedTelemetryViewModel vm
             ? vm.StartCommand.ExecuteAsync(folder)
             : System.Threading.Tasks.Task.CompletedTask;
 }

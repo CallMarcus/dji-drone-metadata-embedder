@@ -18,6 +18,25 @@ public class RealCliE2ETests
         + "[rel_alt: 1.000 abs_alt: 100.0]</font>\n";
 
     [Fact]
+    public async Task Doctor_run_through_the_real_cli_yields_a_tools_summary()
+    {
+        var cli = Environment.GetEnvironmentVariable(EnvVar);
+        Assert.SkipWhen(string.IsNullOrEmpty(cli),
+            $"set {EnvVar} to a dji-embed executable to run this test");
+
+        var result = await new DjiEmbedRunner().RunAsync(
+            cli!, ["doctor"], ct: TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.MalformedLines);
+        Assert.NotNull(result.Terminal);
+        Assert.Equal(ProgressEventKind.Result, result.Terminal!.Kind);
+        Assert.True(result.Terminal.Summary!.Value
+            .GetProperty("tools").GetProperty("exiftool")
+            .TryGetProperty("present", out _));
+    }
+
+    [Fact]
     public async Task Flightmap_run_through_the_real_cli_succeeds()
     {
         var cli = Environment.GetEnvironmentVariable(EnvVar);

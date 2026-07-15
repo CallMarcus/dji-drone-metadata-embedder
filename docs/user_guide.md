@@ -64,7 +64,7 @@ For detailed how-to guides such as creating Windows bundles or redacting locatio
 
 ## Scripting and frontends
 
-`photomap`, `flightmap`, `embed`, and `check` accept `--progress jsonl`,
+`photomap`, `flightmap`, `embed`, `check`, and `doctor` accept `--progress jsonl`,
 which switches stdout to machine-readable progress events (one JSON object
 per line) for scripts and GUI frontends. The event contract is documented
 in [Progress Events (JSONL)](PROGRESS_JSONL.md).

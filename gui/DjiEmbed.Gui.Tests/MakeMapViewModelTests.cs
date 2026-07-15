@@ -38,7 +38,7 @@ public class MakeMapViewModelTests : IDisposable
     [Fact]
     public void Starts_on_the_pick_step()
     {
-        Assert.Equal(MakeMapStep.Pick, Vm("unused").Step);
+        Assert.Equal(FlowStep.Pick, Vm("unused").Step);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class MakeMapViewModelTests : IDisposable
     {
         var vm = Vm(null);
         await vm.StartCommand.ExecuteAsync(MakeFolder(srt: true));
-        Assert.Equal(MakeMapStep.Failed, vm.Step);
+        Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Contains("engine", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -56,7 +56,7 @@ public class MakeMapViewModelTests : IDisposable
         // A CLI path that would explode if executed proves nothing ran.
         var vm = Vm(Path.Combine(_dir, "does-not-exist"));
         await vm.StartCommand.ExecuteAsync(MakeFolder());
-        Assert.Equal(MakeMapStep.Failed, vm.Step);
+        Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Contains("folder", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -69,7 +69,7 @@ public class MakeMapViewModelTests : IDisposable
         });
         var vm = Vm(cli);
         await vm.StartCommand.ExecuteAsync(MakeFolder(srt: true));
-        Assert.Equal(MakeMapStep.Done, vm.Step);
+        Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(["flightmap.html"], vm.Outputs);
     }
 
@@ -83,7 +83,7 @@ public class MakeMapViewModelTests : IDisposable
         });
         var vm = Vm(cli);
         await vm.StartCommand.ExecuteAsync(MakeFolder(srt: true, photos: true));
-        Assert.Equal(MakeMapStep.Done, vm.Step);
+        Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(["flightmap.html", "photomap.html"], vm.Outputs);
     }
 
@@ -97,7 +97,7 @@ public class MakeMapViewModelTests : IDisposable
         ], exitCode: 1, stderrLine: "detail line");
         var vm = Vm(cli);
         await vm.StartCommand.ExecuteAsync(MakeFolder(srt: true));
-        Assert.Equal(MakeMapStep.Failed, vm.Step);
+        Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Contains("GPS telemetry", vm.ErrorMessage);
         Assert.Contains("detail line", vm.ErrorDetails);
     }
@@ -115,7 +115,7 @@ public class MakeMapViewModelTests : IDisposable
         {
             if (e.PropertyName == nameof(vm.CurrentItem) && vm.CurrentItem is not null)
             {
-                sawRunning = vm.Step == MakeMapStep.Running;
+                sawRunning = vm.Step == FlowStep.Running;
             }
         };
         await vm.StartCommand.ExecuteAsync(MakeFolder(srt: true));
@@ -132,12 +132,12 @@ public class MakeMapViewModelTests : IDisposable
             sleepSeconds: 30);
         var vm = Vm(cli);
         var run = vm.StartCommand.ExecuteAsync(MakeFolder(srt: true));
-        while (vm.Step != MakeMapStep.Running)
+        while (vm.Step != FlowStep.Running)
         {
             await Task.Delay(20, TestContext.Current.CancellationToken);
         }
         vm.CancelCommand.Execute(null);
         await run;
-        Assert.Equal(MakeMapStep.Pick, vm.Step);
+        Assert.Equal(FlowStep.Pick, vm.Step);
     }
 }

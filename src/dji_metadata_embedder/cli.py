@@ -901,6 +901,28 @@ def dragdrop(ctx: click.Context, paths: tuple[str, ...]) -> None:
         sys.exit(ExitCode.GENERAL_ERROR)
 
 
+def _doctor_summary() -> dict:
+    """Structured equivalent of run_doctor's report for --progress jsonl."""
+    from .utils import exiftool as exiftool_utils
+    from .utils.system_info import get_system_summary
+
+    deps_ok, missing = check_dependencies()
+    tools: dict = {
+        "ffmpeg": {"present": "ffmpeg" not in missing},
+        "exiftool": {"present": "exiftool" not in missing},
+    }
+    if tools["exiftool"]["present"]:
+        version = exiftool_utils.exiftool_version()
+        if version:
+            tools["exiftool"].update(
+                version=version,
+                source=exiftool_utils.exiftool_source(),
+                path=str(exiftool_utils.exiftool_exe()),
+                decode=exiftool_utils.describe_decode_capability(version),
+            )
+    return {"ok": deps_ok, "tools": tools, "system": get_system_summary()}
+
+
 @main.command()
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
@@ -924,6 +946,7 @@ def dragdrop(ctx: click.Context, paths: tuple[str, ...]) -> None:
     "this run and remember the choice. Default: remembered choice, asked "
     "once on interactive terminals. DJIEMBED_NO_UPDATE_CHECK=1 hard-disables.",
 )
+@_progress_option
 @click.pass_context
 def doctor(
     ctx: click.Context,
@@ -932,10 +955,31 @@ def doctor(
     install_tool: str | None,
     force: bool,
     online: bool | None,
+    progress_mode: str | None,
 ) -> None:
     """Show system information and verify dependencies."""
     log_json = ctx.obj.get('log_json', False)
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet, log_json)
+
+    if progress.active:
+        # Machine consumers get a structured report. The online update
+        # check never runs here: consent is interactive-only, and a GUI or
+        # script must not trigger the network path as a side effect.
+        with _jsonl_terminal(progress, "doctor"):
+            if install_tool == "exiftool":
+                exe = provision_exiftool(force=force)
+                click.echo(
+                    f"ExifTool {EXIFTOOL_VERSION} installed: {exe}", err=True
+                )
+            summary = _doctor_summary()
+            for tool, info in summary["tools"].items():
+                if not info["present"]:
+                    progress.warning("Not found", item=tool)
+            progress.result(ok=summary["ok"], outputs=[], summary=summary)
+        sys.exit(ExitCode.SUCCESS)
 
     try:
         if install_tool == "exiftool":

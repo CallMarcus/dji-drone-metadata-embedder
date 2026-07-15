@@ -28,6 +28,39 @@ public class NavigationTests
     }
 
     [AvaloniaFact]
+    public void Embed_card_navigates_to_the_embed_flow()
+    {
+        var main = new MainViewModel();
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        main.StartTask(TaskKind.EmbedTelemetry);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        Assert.IsType<EmbedTelemetryViewModel>(main.CurrentPage);
+        Assert.NotNull(window.GetVisualDescendants()
+            .OfType<EmbedTelemetryView>().FirstOrDefault());
+    }
+
+    [AvaloniaFact]
+    public void Check_setup_view_resolves_and_autostarts()
+    {
+        // A null CLI path makes autostart fail fast without spawning
+        // anything — proving the Loaded wiring fired.
+        var vm = new CheckSetupViewModel(
+            null, new Services.DjiEmbedRunner(), () => { });
+        var window = new MainWindow { DataContext = new MainViewModel() };
+        window.Show();
+        ((MainViewModel)window.DataContext!).CurrentPage = vm;
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        Assert.NotNull(window.GetVisualDescendants()
+            .OfType<CheckSetupView>().FirstOrDefault());
+        Assert.Equal(FlowStep.Failed, vm.Step);
+    }
+
+    [AvaloniaFact]
     public void Map_flow_back_button_returns_home()
     {
         var main = new MainViewModel();
