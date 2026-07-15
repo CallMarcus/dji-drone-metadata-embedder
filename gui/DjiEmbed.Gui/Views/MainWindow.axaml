@@ -8,6 +8,7 @@
         x:DataType="vm:MainViewModel"
         Width="560" Height="520" MinWidth="480" MinHeight="460"
         WindowStartupLocation="CenterScreen"
+        Icon="/Assets/app-icon.ico"
         Title="DJI Metadata Embedder">
 
     <Design.DataContext>
