@@ -6,7 +6,8 @@ import json
 import sys
 import webbrowser
 import click
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ from .geo import (
     write_photos_kml,
 )
 from .mp4_telemetry import Mp4TelemetryError
+from .progress import NullProgress, make_progress
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -199,6 +201,40 @@ def main(ctx: click.Context, log_json: bool) -> None:
     ctx.obj['log_json'] = log_json
 
 
+@contextmanager
+def _jsonl_terminal(
+    progress: NullProgress, command: str, total: int | None = None
+) -> Iterator[None]:
+    """Enforce the contract's terminal rule around a command body.
+
+    Emits ``start`` on entry; any exception escaping the body — Click or
+    not — emits an ``error`` event before propagating, so a jsonl stream
+    always ends with exactly one terminal event (the body emits ``result``
+    as its last statement on success).
+    """
+    progress.start(command, total=total)
+    try:
+        yield
+    except click.ClickException as e:
+        progress.error(e.format_message())
+        raise
+    except BaseException as e:  # PermissionError, KeyboardInterrupt, bugs...
+        progress.error(f"{type(e).__name__}: {e}")
+        raise
+
+
+# Shared by photomap/flightmap/embed/check. Contract: docs/PROGRESS_JSONL.md.
+_progress_option = click.option(
+    "--progress",
+    "progress_mode",
+    type=click.Choice(["jsonl"]),
+    default=None,
+    help="Emit machine-readable progress events on stdout, one JSON object "
+    "per line (see docs/PROGRESS_JSONL.md). Suppresses human output on "
+    "stdout; warnings and logs still go to stderr.",
+)
+
+
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
@@ -239,6 +275,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
     help="Opt-in: extract the HOME/launch point (operator location) into the "
     "JSON sidecar. Never written to the MP4. Subject to --redact.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress progress output")
 def embed(
@@ -252,44 +289,90 @@ def embed(
     redact: str,
     container: str,
     extract_home: bool,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
     """Embed telemetry from SRT files into MP4 videos."""
-    setup_logging(verbose, quiet)
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+    setup_logging(verbose, quiet, stderr=progress.active)
+    with _jsonl_terminal(progress, "embed"):
+        deps_ok, missing = check_dependencies()
+        if not deps_ok:
+            raise click.ClickException(
+                f"Missing dependencies: {', '.join(missing)}"
+            )
 
-    deps_ok, missing = check_dependencies()
-    if not deps_ok:
-        raise click.ClickException(f"Missing dependencies: {', '.join(missing)}")
-
-    embedder = DJIMetadataEmbedder(
-        directory,
-        output,
-        overwrite=overwrite,
-        dat_path=dat,
-        dat_autoscan=dat_auto,
-        redact=redact,
-        container=container.lower(),
-        extract_home=extract_home,
-        audio_sidecar=audio_sidecar,
-    )
-    embedder.process_directory(use_exiftool=exiftool)
+        embedder = DJIMetadataEmbedder(
+            directory,
+            output,
+            overwrite=overwrite,
+            dat_path=dat,
+            dat_autoscan=dat_auto,
+            redact=redact,
+            container=container.lower(),
+            extract_home=extract_home,
+            audio_sidecar=audio_sidecar,
+        )
+        result = embedder.process_directory(
+            use_exiftool=exiftool,
+            on_progress=progress.advance if progress.active else None,
+        )
+        if progress.active:
+            for message in result["warnings"] + result["errors"]:
+                progress.warning(message)
+            out_dir = str(Path(result["output_directory"]).resolve())
+            progress.result(
+                # Per-file failures keep the existing exit-0 behaviour;
+                # ok=false is the machine-readable signal (see
+                # docs/PROGRESS_JSONL.md).
+                ok=not result["errors"],
+                outputs=[out_dir],
+                summary={
+                    "processed": result["processed"],
+                    "total": result["total_files"],
+                    "warnings": len(result["warnings"]),
+                    "errors": len(result["errors"]),
+                    "output_directory": out_dir,
+                },
+            )
 
 
 @main.command()
 @click.argument("paths", nargs=-1, type=click.Path())
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
-def check(paths: tuple[str, ...], verbose: bool, quiet: bool) -> None:
+def check(
+    paths: tuple[str, ...],
+    progress_mode: str | None,
+    verbose: bool,
+    quiet: bool,
+) -> None:
     """Check media files for embedded metadata."""
-    setup_logging(verbose, quiet)
-
-    if not paths:
-        raise click.ClickException("No file or directory specified")
-
-    for target in paths:
-        result = check_metadata(target)
-        click.echo(f"{target}: {result}")
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+    setup_logging(verbose, quiet, stderr=progress.active)
+    with _jsonl_terminal(progress, "check", total=len(paths)):
+        if not paths:
+            raise click.ClickException("No file or directory specified")
+        files: dict[str, dict] = {}
+        for index, target in enumerate(paths, start=1):
+            progress.advance(index, len(paths), item=target)
+            result = check_metadata(target)
+            files[target] = result
+            if not result:
+                progress.warning("Not found or unreadable", item=target)
+            if not progress.active:
+                click.echo(f"{target}: {result}")
+        progress.result(
+            ok=True,
+            outputs=[],
+            summary={"checked": len(paths), "files": files},
+        )
 
 
 @main.command()
@@ -476,6 +559,7 @@ def convert(
          "browsers block when the map is opened straight from disk. "
          "With -v, each HTTP request is logged.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def photomap(
@@ -488,6 +572,7 @@ def photomap(
     link_base: str | None,
     redact: str,
     serve_map: bool,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -501,7 +586,15 @@ def photomap(
     map over local HTTP — required for the 360° viewer, which browsers block
     on maps opened straight from disk.
     """
-    setup_logging(verbose, quiet)
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+        if serve_map:
+            raise click.UsageError(
+                "--serve cannot be combined with --progress jsonl (serving "
+                "blocks; open the written HTML yourself instead)"
+            )
+    setup_logging(verbose, quiet, stderr=progress.active)
     if serve_map:
         if fmt.lower() not in ("html", "all"):
             raise click.UsageError(
@@ -526,59 +619,70 @@ def photomap(
     # HTML; otherwise the user-supplied prefix.
     html_link_base = (link_base or "") if link_originals else None
     src = Path(directory)
-    try:
-        points, skipped = scan_photos(src, recursive=recursive)
-    except PhotomapError as e:
-        raise click.ClickException(str(e))
-    if redact.lower() == "fuzz":
-        points = redact_photo_points(points, "fuzz")
-        if link_originals:
-            click.echo(
-                "Note: --redact fuzz coarsens the map coordinates, but the "
-                "linked original photos still carry exact GPS in their EXIF",
-                err=True,
-            )
-    total = len(points) + len(skipped)
-    if total == 0:
-        raise click.ClickException(
-            f"No photos (JPG/JPEG/DNG) found in {src}"
-            + ("" if recursive else " (use -r to scan subdirectories)")
-        )
-    if not points:
-        raise click.ClickException(
-            f"None of the {total} photos in {src} carry GPS coordinates"
-        )
-    if verbose:
-        for name in skipped:
-            click.echo(f"Skipped (no GPS): {name}", err=True)
-    if not quiet:
-        if skipped:
-            click.echo(
-                f"Mapped {len(points)} of {total} photos; "
-                f"{len(skipped)} had no GPS data (use -v to list them)"
-            )
-        else:
-            click.echo(
-                f"Mapped {len(points)} photo{'s' if len(points) != 1 else ''}"
-            )
-    map_title = title or src.resolve().name
-    if fmt.lower() == "all":
-        base = Path(output) if output else src / "photomap.html"
-        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
-    else:
-        f = fmt.lower()
-        out = Path(output) if output else src / f"photomap.{f}"
-        targets = [(f, out)]
-    for f, out in targets:
+    with _jsonl_terminal(progress, "photomap"):
         try:
-            if f == "html":
-                write_photos_html(points, out, map_title, link_base=html_link_base)
-            elif f == "kml":
-                write_photos_kml(points, out, map_title)
+            points, skipped = scan_photos(src, recursive=recursive)
+        except PhotomapError as e:
+            raise click.ClickException(str(e))
+        if redact.lower() == "fuzz":
+            points = redact_photo_points(points, "fuzz")
+            if link_originals:
+                click.echo(
+                    "Note: --redact fuzz coarsens the map coordinates, but the "
+                    "linked original photos still carry exact GPS in their EXIF",
+                    err=True,
+                )
+        total = len(points) + len(skipped)
+        if total == 0:
+            raise click.ClickException(
+                f"No photos (JPG/JPEG/DNG) found in {src}"
+                + ("" if recursive else " (use -r to scan subdirectories)")
+            )
+        if not points:
+            raise click.ClickException(
+                f"None of the {total} photos in {src} carry GPS coordinates"
+            )
+        for name in skipped:
+            progress.warning("No GPS data", item=name)
+            if verbose:
+                click.echo(f"Skipped (no GPS): {name}", err=True)
+        if not quiet:
+            if skipped:
+                click.echo(
+                    f"Mapped {len(points)} of {total} photos; "
+                    f"{len(skipped)} had no GPS data (use -v to list them)"
+                )
             else:
-                write_photos_geojson(points, out)
-        except OSError as e:
-            raise click.ClickException(f"Could not write {out}: {e}")
+                click.echo(
+                    f"Mapped {len(points)} photo{'s' if len(points) != 1 else ''}"
+                )
+        map_title = title or src.resolve().name
+        if fmt.lower() == "all":
+            base = Path(output) if output else src / "photomap.html"
+            targets = [
+                (f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")
+            ]
+        else:
+            f = fmt.lower()
+            out = Path(output) if output else src / f"photomap.{f}"
+            targets = [(f, out)]
+        for f, out in targets:
+            try:
+                if f == "html":
+                    write_photos_html(
+                        points, out, map_title, link_base=html_link_base
+                    )
+                elif f == "kml":
+                    write_photos_kml(points, out, map_title)
+                else:
+                    write_photos_geojson(points, out)
+            except OSError as e:
+                raise click.ClickException(f"Could not write {out}: {e}")
+        progress.result(
+            ok=True,
+            outputs=[str(out.resolve()) for _f, out in targets],
+            summary={"photos": len(points), "skipped": len(skipped)},
+        )
     if serve_map:
         html_out = next(out for f, out in targets if f == "html")
         serve_directory(
@@ -628,6 +732,7 @@ def photomap(
     "detects it from each file's mtime; pass it explicitly when the files "
     "were copied through zip/cloud transfers that rewrote the mtimes.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def flightmap(
@@ -639,6 +744,7 @@ def flightmap(
     redact: str,
     join_gap: float,
     tz_offset: str,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -651,67 +757,84 @@ def flightmap(
     models whose telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, ...)
     need 'dji-embed convert html VIDEO.MP4' per clip instead.
     """
-    setup_logging(verbose, quiet)
-    try:
-        offset = parse_utc_offset(tz_offset)
-    except ValueError as e:
-        raise click.BadParameter(str(e), param_hint="--tz-offset")
-    src = Path(directory)
-    tracks, skipped = scan_flights(
-        src,
-        recursive=recursive,
-        redact=redact.lower(),
-        join_gap=join_gap,
-        tz_offset=offset,
-    )
-    total = len(tracks) + len(skipped)
-    if total == 0:
-        raise click.ClickException(
-            f"No .SRT telemetry files found in {src}"
-            + ("" if recursive else " (use -r to scan subdirectories)")
-        )
-    if not tracks:
-        raise click.ClickException(
-            f"None of the {total} SRT files in {src} contain GPS telemetry"
-        )
-    if verbose:
-        for name in skipped:
-            click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
-    if not quiet:
-        if skipped:
-            click.echo(
-                f"Mapped {len(tracks)} of {total} flights; "
-                f"{len(skipped)} had no GPS telemetry (use -v to list them)"
-            )
-        else:
-            click.echo(
-                f"Mapped {len(tracks)} flight{'s' if len(tracks) != 1 else ''}"
-            )
-        joined = [t for t in tracks if t.segments]
-        if joined:
-            files_joined = sum(len(t.segments or []) for t in joined)
-            click.echo(
-                f"Joined {files_joined} files into "
-                f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
-            )
-    map_title = title or src.resolve().name
-    if fmt.lower() == "all":
-        base = Path(output) if output else src / "flightmap.html"
-        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
-    else:
-        f = fmt.lower()
-        out = Path(output) if output else src / f"flightmap.{f}"
-        targets = [(f, out)]
-    for f, out in targets:
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+    setup_logging(verbose, quiet, stderr=progress.active)
+    with _jsonl_terminal(progress, "flightmap"):
         try:
-            if f == "html":
-                write_flights_html(tracks, out, map_title)
-            elif f == "kml":
-                write_flights_kml(tracks, out, map_title)
+            offset = parse_utc_offset(tz_offset)
+        except ValueError as e:
+            raise click.BadParameter(str(e), param_hint="--tz-offset")
+        src = Path(directory)
+        tracks, skipped = scan_flights(
+            src,
+            recursive=recursive,
+            redact=redact.lower(),
+            join_gap=join_gap,
+            tz_offset=offset,
+            on_file=progress.advance if progress.active else None,
+        )
+        total = len(tracks) + len(skipped)
+        if total == 0:
+            raise click.ClickException(
+                f"No .SRT telemetry files found in {src}"
+                + ("" if recursive else " (use -r to scan subdirectories)")
+            )
+        if not tracks:
+            raise click.ClickException(
+                f"None of the {total} SRT files in {src} contain GPS telemetry"
+            )
+        for name in skipped:
+            progress.warning("No GPS telemetry", item=name)
+            if verbose:
+                click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
+        joined = [t for t in tracks if t.segments]
+        files_joined = sum(len(t.segments or []) for t in joined)
+        if not quiet:
+            if skipped:
+                click.echo(
+                    f"Mapped {len(tracks)} of {total} flights; "
+                    f"{len(skipped)} had no GPS telemetry (use -v to list them)"
+                )
             else:
-                write_flights_geojson(tracks, out)
-        except OSError as e:
-            raise click.ClickException(f"Could not write {out}: {e}")
+                click.echo(
+                    f"Mapped {len(tracks)} flight{'s' if len(tracks) != 1 else ''}"
+                )
+            if joined:
+                click.echo(
+                    f"Joined {files_joined} files into "
+                    f"{len(joined)} flight{'s' if len(joined) != 1 else ''}"
+                )
+        map_title = title or src.resolve().name
+        if fmt.lower() == "all":
+            base = Path(output) if output else src / "flightmap.html"
+            targets = [
+                (f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")
+            ]
+        else:
+            f = fmt.lower()
+            out = Path(output) if output else src / f"flightmap.{f}"
+            targets = [(f, out)]
+        for f, out in targets:
+            try:
+                if f == "html":
+                    write_flights_html(tracks, out, map_title)
+                elif f == "kml":
+                    write_flights_kml(tracks, out, map_title)
+                else:
+                    write_flights_geojson(tracks, out)
+            except OSError as e:
+                raise click.ClickException(f"Could not write {out}: {e}")
+        progress.result(
+            ok=True,
+            outputs=[str(out.resolve()) for _f, out in targets],
+            summary={
+                "flights": len(tracks),
+                "skipped": len(skipped),
+                "joined_files": files_joined,
+            },
+        )
 
 
 @main.command(hidden=True)

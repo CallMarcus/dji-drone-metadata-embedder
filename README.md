@@ -192,7 +192,10 @@ other offensive capabilities.
 ## Command reference
 
 Everything below is also available at the terminal via
-`dji-embed COMMAND --help`.
+`dji-embed COMMAND --help`. Scripting or building a frontend? `photomap`,
+`flightmap`, `embed`, and `check` accept `--progress jsonl` — one JSON
+event per line on stdout, documented in
+[`docs/PROGRESS_JSONL.md`](docs/PROGRESS_JSONL.md).
 
 ```bash
 dji-embed [OPTIONS] COMMAND [ARGS]...
@@ -251,6 +254,8 @@ Options:
                              launch location** — it is off by default, never
                              written to the MP4, and always honours `--redact`
                              (`drop` removes it, `fuzz` coarsens to ~100 m).
+  --progress [jsonl]         Emit machine-readable progress events on stdout,
+                             one JSON object per line (docs/PROGRESS_JSONL.md)
   -v, --verbose              Verbose output
   -q, --quiet                Suppress progress output
 ```
@@ -406,6 +411,9 @@ Options:
                                   file's mtime; pass it explicitly when the
                                   files were copied through zip/cloud transfers
                                   that rewrote the mtimes (default: auto)
+  --progress [jsonl]              Emit machine-readable progress events on
+                                  stdout, one JSON object per line
+                                  (docs/PROGRESS_JSONL.md)
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -476,7 +484,11 @@ Options:
   --redact [none|fuzz]            Coarsen every photo location to ~100 m
                                   before writing (default: none)
   --serve                         Serve the map on 127.0.0.1 and open the
-                                  browser (implies --link-originals)
+                                  browser (implies --link-originals; not
+                                  combinable with --progress jsonl)
+  --progress [jsonl]              Emit machine-readable progress events on
+                                  stdout, one JSON object per line
+                                  (docs/PROGRESS_JSONL.md)
   -v, --verbose                   Verbose output
   -q, --quiet                     Suppress info output
 ```
@@ -525,7 +537,8 @@ dji-embed check /path/to/footage
 
 `check` uses `ffprobe` for QuickTime tags and `exiftool` for EXIF data
 when available. Pass `--verbose` for debug output or `--quiet` to only
-show warnings and errors.
+show warnings and errors. `--progress jsonl` switches stdout to
+machine-readable events (see `docs/PROGRESS_JSONL.md`).
 
 ### `dji-embed verify-sun` - Sun-Position Cross-Check
 

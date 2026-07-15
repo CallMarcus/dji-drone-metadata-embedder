@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -558,9 +559,17 @@ class DJIMetadataEmbedder:
             logger.error("ExifTool error: %s", e)
             return False
 
-    def process_directory(self, use_exiftool: bool = False) -> Dict[str, Any]:
+    def process_directory(
+        self,
+        use_exiftool: bool = False,
+        on_progress: Callable[[int, int, str], None] | None = None,
+    ) -> Dict[str, Any]:
         """Process all MP4/SRT pairs in the directory.
-        
+
+        ``on_progress(index, total, name)`` is called (1-based) as each video
+        is picked up; passing it also disables the interactive progress bar
+        (the caller owns the display).
+
         Returns:
             Dict containing processing results and statistics
         """
@@ -590,9 +599,13 @@ class DJIMetadataEmbedder:
 
         success_count = 0
 
-        with Progress() as progress:
+        # The caller owns the display when it passes a callback.
+        bar = Progress(disable=True) if on_progress is not None else Progress()
+        with bar as progress:
             task = progress.add_task("Processing videos", total=len(video_files))
-            for video_path in video_files:
+            for index, video_path in enumerate(video_files, start=1):
+                if on_progress is not None:
+                    on_progress(index, len(video_files), video_path.name)
                 # Look for corresponding SRT file
                 srt_path = video_path.with_suffix(".srt")
                 if not srt_path.exists():

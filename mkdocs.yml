@@ -24,6 +24,7 @@ nav:
       - API Reference: api.md
       - SRT Formats: SRT_FORMATS.md
       - MP4 Timed Metadata: MP4_TIMED_METADATA.md
+      - Progress Events (JSONL): PROGRESS_JSONL.md
       - Release Process: RELEASE.md
 plugins:
   - search

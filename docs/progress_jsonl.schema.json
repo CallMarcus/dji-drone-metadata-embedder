@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dji-embed --progress jsonl event (v1)",
+  "description": "Validates any single line emitted by a dji-embed command running with --progress jsonl. Consumers must ignore unknown fields; breaking changes bump the per-event 'v' field.",
+  "type": "object",
+  "required": ["v", "event"],
+  "properties": {
+    "v": { "const": 1 }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "event": { "const": "start" },
+        "command": { "type": "string" },
+        "total": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["event", "command"]
+    },
+    {
+      "properties": {
+        "event": { "const": "progress" },
+        "current": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "item": { "type": "string" }
+      },
+      "required": ["event", "current", "total"]
+    },
+    {
+      "properties": {
+        "event": { "const": "warning" },
+        "message": { "type": "string" },
+        "item": { "type": "string" }
+      },
+      "required": ["event", "message"]
+    },
+    {
+      "properties": {
+        "event": { "const": "result" },
+        "ok": { "type": "boolean" },
+        "outputs": { "type": "array", "items": { "type": "string" } },
+        "summary": { "type": "object" }
+      },
+      "required": ["event", "ok", "outputs", "summary"]
+    },
+    {
+      "properties": {
+        "event": { "const": "error" },
+        "message": { "type": "string" },
+        "item": { "type": "string" }
+      },
+      "required": ["event", "message"]
+    },
+    {
+      "description": "Forward-compatibility: event types added later under the same v are legal; consumers ignore ones they do not recognise.",
+      "properties": {
+        "event": {
+          "type": "string",
+          "not": { "enum": ["start", "progress", "warning", "result", "error"] }
+        }
+      },
+      "required": ["event"]
+    }
+  ]
+}

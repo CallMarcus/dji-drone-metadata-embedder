@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import posixpath
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -188,6 +189,7 @@ def scan_flights(
     redact: str = "none",
     join_gap: float = 15.0,
     tz_offset: timedelta | None = None,
+    on_file: Callable[[int, int, str], None] | None = None,
 ) -> tuple[list[Track], list[str]]:
     """Scan *directory* for ``.SRT`` files and return ``(tracks, skipped)``.
 
@@ -202,6 +204,8 @@ def scan_flights(
     fixes the SRT-local -> UTC offset for every file; ``None`` auto-detects it
     per file from the mtime, falling back to mtime-based start times (with one
     aggregated warning) when the mtimes were rewritten by a transfer.
+    ``on_file(index, total, name)`` is called (1-based) as each SRT file is
+    picked up, for progress reporting.
     """
     root = Path(directory)
     files: set[Path] = set()
@@ -213,8 +217,11 @@ def scan_flights(
     util_logger = logging.getLogger(utilities.__name__)
     util_logger.addFilter(tz_warnings)
     try:
-        for path in sorted(files):
+        files_sorted = sorted(files)
+        for index, path in enumerate(files_sorted, start=1):
             name = _display_name(path, root, recursive)
+            if on_file is not None:
+                on_file(index, len(files_sorted), name)
             try:
                 samples = load_samples(path)
                 if not samples:
