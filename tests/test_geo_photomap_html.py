@@ -63,7 +63,8 @@ def test_html_popup_js_escapes_text_fields():
 def test_html_uses_cluster_bulk_path():
     html = photos_to_html(POINTS, title="t")
     assert "chunkedLoading: true" in html
-    assert "cluster.addLayers(markers)" in html
+    assert "photoCluster.addLayers(photoMarkers)" in html
+    assert "panoCluster.addLayers(panoMarkers)" in html
 
 
 def test_html_empty_points_still_valid_document():
@@ -161,11 +162,16 @@ def test_html_no_pannellum_without_panos():
 
 
 def test_html_no_pannellum_without_links():
-    # A pano without --link-originals has nothing the viewer could load.
+    # A pano without --link-originals has nothing the viewer could load, but
+    # the pano flag itself is still embedded for marker styling (#283).
     html = photos_to_html(PANO_POINTS, title="t")
     assert "pannellum" not in html
-    data = _embedded_geojson(html)
-    assert all("pano" not in f["properties"] for f in data["features"])
+    by_name = {
+        f["properties"]["name"]: f["properties"]
+        for f in _embedded_geojson(html)["features"]
+    }
+    assert by_name["pano.jpg"]["pano"] is True
+    assert all("link" not in p for p in by_name.values())
 
 
 def test_html_pano_with_links_embeds_pinned_viewer():
@@ -215,3 +221,63 @@ def test_html_file_protocol_help_absent_without_panos():
     html = photos_to_html(POINTS, title="t", link_base="")
     assert "pano-blocked" not in html
     assert "location.protocol" not in html
+
+
+# Per-type markers (issue #283): photos and 360° panoramas get distinct,
+# individually toggleable markers so mixed folders stay readable.
+
+
+def test_html_markers_use_type_colored_divicons():
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "L.divIcon" in html
+    # Shared dot CSS plus one color class per type; the JS picks the icon
+    # from the feature's pano property.
+    assert ".photo-pin" in html
+    assert "pin-photo" in html and "pin-pano" in html
+
+
+def test_html_type_pure_cluster_groups():
+    # One markerClusterGroup per type, so cluster blobs never mix types and
+    # each type can be toggled as a whole.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "photoCluster.addLayers(photoMarkers)" in html
+    assert "panoCluster.addLayers(panoMarkers)" in html
+
+
+def test_html_layer_control_gated_on_both_types():
+    # The expanded layer control doubles as the legend; it only appears when
+    # the folder actually mixes types (runtime check on the embedded data).
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "L.control.layers" in html
+    assert "collapsed: false" in html
+    assert "Photos" in html and "panoramas" in html
+    assert "photoMarkers.length && panoMarkers.length" in html
+
+
+def test_html_both_cluster_types_tinted():
+    # Both groups override markercluster's default color ramp: its "large"
+    # orange is nearly identical to the pano tint, so photo clusters are
+    # tinted blue and pano clusters orange to keep the legend truthful.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "iconCreateFunction" in html
+    assert ".photo-cluster div" in html
+    assert ".pano-cluster div" in html
+
+
+def test_html_pin_colors_defined_once():
+    # The two type colors live in CSS custom properties; every other use
+    # (pins, cluster tints) derives from them, so a recolor is a 1-line edit.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "--pin-photo:" in html
+    assert "--pin-pano:" in html
+    assert "color-mix(" in html
+    assert "rgba(246" not in html  # no parallel hand-converted copy
+
+
+def test_html_pano_cluster_anchor_offset_against_occlusion():
+    # Coincident photo and pano clusters (routine under --redact fuzz, which
+    # rounds both types to the same 3-decimal grid) must not fully occlude
+    # each other: the pano blob anchors slightly off-center so the photo blob
+    # underneath stays visible and clickable.
+    html = photos_to_html(PANO_POINTS, title="t")
+    assert "PANO_CLUSTER_ANCHOR" in html

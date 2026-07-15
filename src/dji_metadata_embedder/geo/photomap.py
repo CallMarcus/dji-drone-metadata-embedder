@@ -329,16 +329,17 @@ def photos_to_geojson(
     feature gains a ``link`` property pointing at the original photo file
     (``""`` = alongside the map, else a folder/URL prefix). The standalone
     GeoJSON writer never passes it — a shared map must not accumulate fragile
-    file references by default. Panoramic photos additionally get
-    ``"pano": true`` so the HTML viewer can open them in 360°.
+    file references by default. Panoramic photos always carry ``"pano": true``
+    (issue #283: it is type metadata, used for marker styling even when the
+    360° viewer itself is link-gated).
     """
     features: list[dict] = []
     for p in points:
         props: dict = {"name": p.name}
+        if p.is_pano:
+            props["pano"] = True
         if link_base is not None:
             props["link"] = _link_href(p.name, link_base)
-            if p.is_pano:
-                props["pano"] = True
         if p.timestamp:
             props["timestamp"] = p.timestamp
         # Missing altitude is omitted entirely (no property, 2D coordinate)

@@ -21,8 +21,8 @@ it's a handful of copy-paste commands. For a guided tour see
   footage and get a single interactive map with each flight as its own
   coloured track *(experimental)*.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
-  folder of stills on one clustered map, thumbnails included, and opens 360°
-  panoramas in an interactive viewer.
+  folder of stills on one clustered map, thumbnails included; 360° panoramas
+  get their own marker color and toggle, and open in an interactive viewer.
 - **Make videos searchable by location** — `dji-embed embed` writes the GPS
   data into the video files so Windows Photos, Google Photos, and similar apps
   can find them by place. No re-encoding, no quality loss, and the full
@@ -448,7 +448,9 @@ Notes:
 
 Map GPS-tagged still photos (JPG/JPEG/DNG) as an HTML, KML, or GeoJSON map.
 Requires ExifTool (`dji-embed doctor` checks it). Photos without GPS data are
-skipped and counted in a summary; `-v` lists the skipped filenames.
+skipped and counted in a summary; `-v` lists the skipped filenames. On the
+HTML map, regular photos are blue markers and 360° panoramas orange ones,
+with a checkbox to show/hide each type when a folder mixes both.
 
 ```bash
 dji-embed photomap /path/to/photos                                    # -> photos/photomap.html

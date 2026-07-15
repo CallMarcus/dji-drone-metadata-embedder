@@ -243,7 +243,10 @@ folder or an absolute URL) when the originals live elsewhere.
 
 Stitched spherical panoramas (DJI, Insta360, Google Camera, …) carry XMP
 GPano tags. Photomap detects `ProjectionType=equirectangular` during the
-same ExifTool scan; when `--link-originals` is set, clicking such a pin
+same ExifTool scan. Detected panoramas draw as orange markers (regular
+photos are blue), and mixed folders get a checkbox control to show or hide
+each type; the exported GeoJSON marks them with `"pano": true`. When
+`--link-originals` is set, clicking such a pin
 opens the photo in an embedded 360° viewer
 ([Pannellum](https://pannellum.org/), loaded from the CDN like Leaflet)
 instead of a flat, distorted JPEG. An "open original" link stays in the

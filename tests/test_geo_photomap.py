@@ -527,10 +527,14 @@ _PANO_POINT = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="pano.jpg", is_pano=Tr
 _FLAT_POINT = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="flat.jpg")
 
 
-def test_geojson_pano_property_requires_link_base():
-    # Without links the viewer has nothing to load: no pano property at all.
+def test_geojson_pano_property_without_link_base():
+    # #283: the pano flag is type metadata, not viewer plumbing — emitted even
+    # without links so maps (and GIS consumers) can tell panoramas apart.
     data = photos_to_geojson([_PANO_POINT, _FLAT_POINT])
-    assert all("pano" not in f["properties"] for f in data["features"])
+    by_name = {f["properties"]["name"]: f["properties"] for f in data["features"]}
+    assert by_name["pano.jpg"]["pano"] is True
+    assert "pano" not in by_name["flat.jpg"]
+    assert all("link" not in f["properties"] for f in data["features"])
 
 
 def test_geojson_pano_property_with_link_base_only_on_panos():
