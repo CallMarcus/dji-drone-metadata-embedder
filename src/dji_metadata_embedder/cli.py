@@ -489,6 +489,7 @@ def convert(
          "browsers block when the map is opened straight from disk. "
          "With -v, each HTTP request is logged.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 def photomap(
@@ -501,6 +502,7 @@ def photomap(
     link_base: str | None,
     redact: str,
     serve_map: bool,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -514,6 +516,14 @@ def photomap(
     map over local HTTP — required for the 360° viewer, which browsers block
     on maps opened straight from disk.
     """
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+        if serve_map:
+            raise click.UsageError(
+                "--serve cannot be combined with --progress jsonl (serving "
+                "blocks; open the written HTML yourself instead)"
+            )
     setup_logging(verbose, quiet)
     if serve_map:
         if fmt.lower() not in ("html", "all"):
@@ -539,59 +549,74 @@ def photomap(
     # HTML; otherwise the user-supplied prefix.
     html_link_base = (link_base or "") if link_originals else None
     src = Path(directory)
+    progress.start("photomap")
     try:
-        points, skipped = scan_photos(src, recursive=recursive)
-    except PhotomapError as e:
-        raise click.ClickException(str(e))
-    if redact.lower() == "fuzz":
-        points = redact_photo_points(points, "fuzz")
-        if link_originals:
-            click.echo(
-                "Note: --redact fuzz coarsens the map coordinates, but the "
-                "linked original photos still carry exact GPS in their EXIF",
-                err=True,
-            )
-    total = len(points) + len(skipped)
-    if total == 0:
-        raise click.ClickException(
-            f"No photos (JPG/JPEG/DNG) found in {src}"
-            + ("" if recursive else " (use -r to scan subdirectories)")
-        )
-    if not points:
-        raise click.ClickException(
-            f"None of the {total} photos in {src} carry GPS coordinates"
-        )
-    if verbose:
-        for name in skipped:
-            click.echo(f"Skipped (no GPS): {name}", err=True)
-    if not quiet:
-        if skipped:
-            click.echo(
-                f"Mapped {len(points)} of {total} photos; "
-                f"{len(skipped)} had no GPS data (use -v to list them)"
-            )
-        else:
-            click.echo(
-                f"Mapped {len(points)} photo{'s' if len(points) != 1 else ''}"
-            )
-    map_title = title or src.resolve().name
-    if fmt.lower() == "all":
-        base = Path(output) if output else src / "photomap.html"
-        targets = [(f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")]
-    else:
-        f = fmt.lower()
-        out = Path(output) if output else src / f"photomap.{f}"
-        targets = [(f, out)]
-    for f, out in targets:
         try:
-            if f == "html":
-                write_photos_html(points, out, map_title, link_base=html_link_base)
-            elif f == "kml":
-                write_photos_kml(points, out, map_title)
+            points, skipped = scan_photos(src, recursive=recursive)
+        except PhotomapError as e:
+            raise click.ClickException(str(e))
+        if redact.lower() == "fuzz":
+            points = redact_photo_points(points, "fuzz")
+            if link_originals:
+                click.echo(
+                    "Note: --redact fuzz coarsens the map coordinates, but the "
+                    "linked original photos still carry exact GPS in their EXIF",
+                    err=True,
+                )
+        total = len(points) + len(skipped)
+        if total == 0:
+            raise click.ClickException(
+                f"No photos (JPG/JPEG/DNG) found in {src}"
+                + ("" if recursive else " (use -r to scan subdirectories)")
+            )
+        if not points:
+            raise click.ClickException(
+                f"None of the {total} photos in {src} carry GPS coordinates"
+            )
+        for name in skipped:
+            progress.warning("No GPS data", item=name)
+            if verbose:
+                click.echo(f"Skipped (no GPS): {name}", err=True)
+        if not quiet:
+            if skipped:
+                click.echo(
+                    f"Mapped {len(points)} of {total} photos; "
+                    f"{len(skipped)} had no GPS data (use -v to list them)"
+                )
             else:
-                write_photos_geojson(points, out)
-        except OSError as e:
-            raise click.ClickException(f"Could not write {out}: {e}")
+                click.echo(
+                    f"Mapped {len(points)} photo{'s' if len(points) != 1 else ''}"
+                )
+        map_title = title or src.resolve().name
+        if fmt.lower() == "all":
+            base = Path(output) if output else src / "photomap.html"
+            targets = [
+                (f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")
+            ]
+        else:
+            f = fmt.lower()
+            out = Path(output) if output else src / f"photomap.{f}"
+            targets = [(f, out)]
+        for f, out in targets:
+            try:
+                if f == "html":
+                    write_photos_html(
+                        points, out, map_title, link_base=html_link_base
+                    )
+                elif f == "kml":
+                    write_photos_kml(points, out, map_title)
+                else:
+                    write_photos_geojson(points, out)
+            except OSError as e:
+                raise click.ClickException(f"Could not write {out}: {e}")
+    except click.ClickException as e:
+        progress.error(e.format_message())
+        raise
+    progress.result(
+        ok=True,
+        outputs=[str(out.resolve()) for _f, out in targets],
+        summary={"photos": len(points), "skipped": len(skipped)},
+    )
     if serve_map:
         html_out = next(out for f, out in targets if f == "html")
         serve_directory(

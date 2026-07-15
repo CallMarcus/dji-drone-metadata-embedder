@@ -83,6 +83,67 @@ def test_flightmap_jsonl_fatal_error_event(tmp_path):
     assert "No .SRT" in events[-1]["message"]
 
 
+GEOTAGGED = [
+    {
+        "SourceFile": "photos/church1.jpg",
+        "GPSLatitude": 60.170278,
+        "GPSLongitude": 24.952222,
+        "GPSAltitude": 95.3,
+    },
+    {"SourceFile": "photos/no_gps.jpg"},
+]
+
+
+def _mock_photo_scan(monkeypatch, data=None, error=None):
+    from dji_metadata_embedder.geo import photomap as pm
+
+    def fake(directory, recursive):
+        if error is not None:
+            raise error
+        return data
+
+    monkeypatch.setattr(pm, "_run_exiftool_scan", fake)
+
+
+def test_photomap_jsonl_happy_path(monkeypatch, tmp_path):
+    _mock_photo_scan(monkeypatch, data=GEOTAGGED)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["command"] == "photomap"
+    assert "total" not in events[0]  # batch scan: count unknown up front
+    assert not any(e["event"] == "progress" for e in events)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1 and warnings[0]["item"] == "no_gps.jpg"
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["outputs"] == [str((tmp_path / "photomap.html").resolve())]
+    assert last["summary"] == {"photos": 1, "skipped": 1}
+
+
+def test_photomap_jsonl_fatal_error_event(monkeypatch, tmp_path):
+    from dji_metadata_embedder.geo.photomap import PhotomapError
+
+    _mock_photo_scan(monkeypatch, error=PhotomapError("ExifTool not found"))
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code != 0
+    events = _events(res.stdout)
+    assert events[-1]["event"] == "error"
+    assert "ExifTool" in events[-1]["message"]
+
+
+def test_photomap_jsonl_rejects_serve(tmp_path):
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--serve", "--progress", "jsonl"]
+    )
+    assert res.exit_code != 0
+    assert "--serve" in res.output and "--progress" in res.output
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
