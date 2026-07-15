@@ -41,6 +41,7 @@ dev = [
     "ruff==0.15.20",
     "mypy==2.1.0",
     "types-click==7.1.8",
+    "jsonschema==4.26.0",
 ]
 build = [
     "build==1.5.0",
