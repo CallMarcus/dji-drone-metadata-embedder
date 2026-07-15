@@ -114,6 +114,11 @@ Open the resulting `.html` file in any browser — done. The maps embed your
 data but load the background map tiles from the internet, so they need a
 connection to render.
 
+**No terminal at all?** On Windows, drag your footage folder onto
+`dji-embed.exe` — it maps every flight log (and geotagged photos) in the
+folder, including subfolders, and opens the result in your browser. The same
+works in a terminal by passing just a folder: `dji-embed /path/to/footage`.
+
 **Prefer a browser over the terminal?** There's an optional local web UI that
 wraps the main commands:
 

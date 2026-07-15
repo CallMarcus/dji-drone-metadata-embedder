@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import sys
+import webbrowser
 import click
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
@@ -34,6 +37,7 @@ from .geo import (
     write_photos_html,
     write_photos_kml,
 )
+from .geo.photomap import _PHOTO_EXTS
 from .mp4_telemetry import Mp4TelemetryError
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
@@ -64,7 +68,70 @@ def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> N
     ctx.exit(ExitCode.SUCCESS)
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+def _dragdrop_pause() -> None:
+    """Hold the console open on a frozen EXE so the message stays readable.
+
+    Double-clicking (or dragging onto) dji-embed.exe opens a console window
+    that vanishes the instant the process exits.
+    """
+    if getattr(sys, "frozen", False) and sys.stdin is not None and sys.stdin.isatty():
+        click.echo()
+        click.pause("Press any key to close this window ...")
+
+
+def _echo_dragdrop_hint() -> None:
+    """Friendly double-click message instead of the full CLI help dump."""
+    click.echo(f"dji-embed {__version__}")
+    click.echo()
+    click.echo(
+        "To make a map of your drone footage: drag the folder that holds\n"
+        "your videos or photos onto dji-embed.exe, and the map will open\n"
+        "in your browser."
+    )
+    click.echo()
+    click.echo("For everything else, open a terminal and run: dji-embed --help")
+    _dragdrop_pause()
+
+
+class DragDropGroup(click.Group):
+    """Click group that also accepts a bare directory argument.
+
+    Windows Explorer passes a dragged folder as ``argv[1]`` with no
+    subcommand; routing that to the hidden ``dragdrop`` command is the whole
+    no-command-line story of issue #264 stage 1.
+    """
+
+    def main(
+        self, args: Sequence[str] | None = None, *pargs: Any, **extra: Any
+    ) -> Any:
+        argv = list(sys.argv[1:]) if args is None else [str(a) for a in args]
+        if not argv and getattr(sys, "frozen", False):
+            _echo_dragdrop_hint()
+            return None
+        return super().main(argv, *pargs, **extra)
+
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str, click.Command, list[str]]:
+        try:
+            return super().resolve_command(ctx, args)
+        except click.UsageError:
+            if all(Path(a).is_dir() for a in args):
+                cmd = self.get_command(ctx, "dragdrop")
+                assert cmd is not None  # registered below in this module
+                return "dragdrop", cmd, args
+            if Path(args[0]).is_file():
+                raise click.UsageError(
+                    f"'{args[0]}' is a file. To make a map, drag the folder "
+                    "that contains your footage instead."
+                )
+            raise
+
+
+@click.group(
+    cls=DragDropGroup,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.option(
     "--version",
     is_flag=True,
@@ -610,6 +677,61 @@ def flightmap(
                 write_flights_geojson(tracks, out)
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
+
+
+def _contains_photos(src: Path) -> bool:
+    """Cheap suffix check so a folder with no stills never runs ExifTool."""
+    photo_suffixes = {f".{ext}" for ext in _PHOTO_EXTS}
+    return any(
+        p.suffix.lower() in photo_suffixes
+        for p in src.rglob("*")
+        if p.is_file()
+    )
+
+
+@main.command(hidden=True)
+@click.argument(
+    "directories",
+    nargs=-1,
+    required=True,
+    type=click.Path(exists=True, file_okay=False),
+)
+@click.pass_context
+def dragdrop(ctx: click.Context, directories: tuple[str, ...]) -> None:
+    """Map folders dropped onto the EXE and open the results in the browser.
+
+    This runs when dji-embed is invoked with bare directory arguments (the
+    shape Windows Explorer produces for drag-and-drop): flightmap over the
+    .SRT logs and, when the folder holds stills, photomap too — both
+    recursive — then every written HTML map opens in the default browser.
+    """
+    setup_logging(verbose=False, quiet=False)
+    opened_any = False
+    for directory in directories:
+        src = Path(directory)
+        maps: list[Path] = []
+        try:
+            ctx.invoke(flightmap, directory=directory, recursive=True)
+            maps.append(src / "flightmap.html")
+        except click.ClickException as e:
+            click.echo(f"No flight map for {src}: {e.message}", err=True)
+        if _contains_photos(src):
+            try:
+                ctx.invoke(photomap, directory=directory, recursive=True)
+                maps.append(src / "photomap.html")
+            except click.ClickException as e:
+                click.echo(f"No photo map for {src}: {e.message}", err=True)
+        for out in maps:
+            webbrowser.open(out.resolve().as_uri())
+            opened_any = True
+    if not opened_any:
+        click.echo(
+            "Nothing to map: no DJI .SRT flight logs or geotagged photos "
+            f"found in {', '.join(directories)}",
+            err=True,
+        )
+        _dragdrop_pause()
+        sys.exit(ExitCode.GENERAL_ERROR)
 
 
 @main.command()

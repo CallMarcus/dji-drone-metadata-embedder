@@ -7,10 +7,21 @@ This guide shows the basics of processing DJI footage with `dji-embed`.
 Process a directory of videos and matching SRT files:
 
 ```bash
-dji-embed /path/to/footage
+dji-embed embed /path/to/footage
 ```
 
 A `processed` folder will be created containing new videos with embedded metadata and telemetry summary files.
+
+## Just want a map? Drag and drop
+
+Passing a bare folder — no command — maps it instead: every `.SRT` flight
+log (and geotagged photos, subfolders included) is drawn and the map opens
+in your browser. On Windows this means you can simply **drag your footage
+folder onto `dji-embed.exe`**:
+
+```bash
+dji-embed /path/to/footage    # -> flightmap.html (and photomap.html) open in the browser
+```
 
 ## Common options
 
