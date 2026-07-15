@@ -15,6 +15,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.21.0] - 2026-07-15
+
+### Added
+
+- **gui**: Avalonia skeleton with home screen and headless tests (#264 stage 3a) (#286) (aa85e3b)
+- **gui**: CLI runner parsing the --progress jsonl contract (#264 stage 3b) (#287) (88ad07d)
+- **gui**: Make a map flow wired to the CLI runner (#264 stage 3c) (#288) (03ed164)
+- **gui**: Embed-telemetry and check-my-setup flows (#264 stage 3d) (#289) (09a9ed3)
+- **gui**: Real app icon replacing the Avalonia placeholder (#264) (#291) (f0596dd)
+- **installer**: One Windows installer for GUI + CLI + bundled tools (#264 stage 3e) (#290) (e91adf0)
+- **logging**: Route all logs to stderr unconditionally (#285) (35c60f9)
+- **photomap**: Distinct marker colors and toggles per media type (#284) (db2ced0)
+
+### Documentation
+
+- Auto-generate changelog for v1.20.0 (189fc2b)
+
+### CI/CD
+
+- **installer**: Absolute ISCC output dir (relative /O resolves against the .iss) (14d1041)
+- **installer**: Bump upload-artifact v4 -> v7 (Node 20 deprecation warning) (da1710d)
+
+### Other
+
+- Prepare version 1.21.0 (6a15c89)
+
+
 ## [1.20.0] - 2026-07-15
 
 ### Added
