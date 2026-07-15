@@ -48,10 +48,20 @@ public class FolderInspectorTests : IDisposable
     [Fact]
     public void Empty_or_unrelated_folder_detects_nothing()
     {
-        Touch("video.mp4");
         Touch("notes.txt");
         var c = FolderInspector.Inspect(_dir);
         Assert.False(c.HasFlightLogs);
+        Assert.False(c.HasPhotos);
+        Assert.False(c.HasVideos);
+    }
+
+    [Fact]
+    public void Detects_videos_for_the_embed_flow()
+    {
+        Touch("clips", "DJI_0001.MP4");
+        Touch("clips", "extra.mov");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasVideos);
         Assert.False(c.HasPhotos);
     }
 }

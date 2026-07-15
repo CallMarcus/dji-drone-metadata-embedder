@@ -23,7 +23,10 @@ public partial class MainViewModel : ViewModelBase
         {
             TaskKind.MakeMap => new MakeMapViewModel(
                 CliLocator.Find(), new DjiEmbedRunner(), GoHome),
-            // Embed and check flows arrive in stage 3d.
+            TaskKind.EmbedTelemetry => new EmbedTelemetryViewModel(
+                CliLocator.Find(), new DjiEmbedRunner(), GoHome),
+            TaskKind.CheckSetup => new CheckSetupViewModel(
+                CliLocator.Find(), new DjiEmbedRunner(), GoHome),
             _ => CurrentPage,
         };
     }

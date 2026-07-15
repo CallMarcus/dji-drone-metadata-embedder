@@ -4,11 +4,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
-             x:Class="DjiEmbed.Gui.Views.MakeMapView"
-             x:DataType="vm:MakeMapViewModel">
+             x:Class="DjiEmbed.Gui.Views.EmbedTelemetryView"
+             x:DataType="vm:EmbedTelemetryViewModel">
 
     <DockPanel Margin="32,28">
-        <TextBlock DockPanel.Dock="Top" Text="Make a map"
+        <TextBlock DockPanel.Dock="Top" Text="Embed telemetry"
                    FontSize="24" FontWeight="SemiBold" Margin="0,0,0,24" />
 
         <!-- Pick -->
@@ -16,18 +16,18 @@
                         Converter={x:Static ObjectConverters.Equal},
                         ConverterParameter={x:Static vm:FlowStep.Pick}}"
                     Spacing="16">
-            <Border Name="DropZone" DragDrop.AllowDrop="True"
+            <Border DragDrop.AllowDrop="True"
                     BorderThickness="2" CornerRadius="10" Padding="32,44"
                     BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
                 <StackPanel Spacing="8" HorizontalAlignment="Center">
-                    <TextBlock Text="Drop a folder of footage here"
+                    <TextBlock Text="Drop a folder of drone videos here"
                                FontSize="16" HorizontalAlignment="Center" />
-                    <TextBlock Text="photos, drone videos with their .SRT flight logs, or both"
-                               Opacity="0.6" HorizontalAlignment="Center" />
+                    <TextBlock Text="MP4 videos with their .SRT flight logs — new copies get the GPS, your originals are never changed"
+                               Opacity="0.6" HorizontalAlignment="Center"
+                               TextWrapping="Wrap" TextAlignment="Center" />
                 </StackPanel>
             </Border>
-            <Button Name="ChooseFolderButton" HorizontalAlignment="Center"
-                    Click="OnChooseFolderClick">
+            <Button HorizontalAlignment="Center" Click="OnChooseFolderClick">
                 <TextBlock Text="Choose a folder…" />
             </Button>
             <Button HorizontalAlignment="Center" Theme="{DynamicResource TransparentButton}"
@@ -58,15 +58,17 @@
                         Converter={x:Static ObjectConverters.Equal},
                         ConverterParameter={x:Static vm:FlowStep.Done}}"
                     Spacing="14" VerticalAlignment="Center">
-            <TextBlock Text="Your map is ready" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="All done" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="New copies with the flight data embedded were written to the folder below. Your original videos were not changed."
+                       TextWrapping="Wrap" />
             <ItemsControl ItemsSource="{Binding Outputs}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
                         <DockPanel Margin="0,4">
                             <Button DockPanel.Dock="Right" Margin="12,0,0,0"
-                                    Command="{Binding $parent[ItemsControl].((vm:MakeMapViewModel)DataContext).OpenOutputCommand}"
+                                    Command="{Binding $parent[ItemsControl].((vm:EmbedTelemetryViewModel)DataContext).OpenOutputCommand}"
                                     CommandParameter="{Binding}">
-                                <TextBlock Text="Open map" />
+                                <TextBlock Text="Open folder" />
                             </Button>
                             <TextBlock Text="{Binding}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" Opacity="0.8" />

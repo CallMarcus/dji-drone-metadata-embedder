@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
+             x:Class="DjiEmbed.Gui.Views.CheckSetupView"
+             x:DataType="vm:CheckSetupViewModel">
+
+    <DockPanel Margin="32,28">
+        <TextBlock DockPanel.Dock="Top" Text="Check my setup"
+                   FontSize="24" FontWeight="SemiBold" Margin="0,0,0,24" />
+
+        <!-- Running -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:FlowStep.Running}}"
+                    Spacing="14" VerticalAlignment="Center">
+            <TextBlock Text="Checking everything this app needs…" FontSize="16" />
+            <ProgressBar IsIndeterminate="True" />
+        </StackPanel>
+
+        <!-- Done: the checklist -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:FlowStep.Done}}"
+                    Spacing="14">
+            <TextBlock FontSize="16"
+                       IsVisible="{Binding AllGood}"
+                       Text="Everything looks good — you're ready to go." />
+            <TextBlock FontSize="16" TextWrapping="Wrap"
+                       IsVisible="{Binding !AllGood}"
+                       Text="Something is missing — see the list below." />
+            <ItemsControl ItemsSource="{Binding Items}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SetupItem">
+                        <DockPanel Margin="0,6">
+                            <Panel DockPanel.Dock="Left" Width="28"
+                                   VerticalAlignment="Top">
+                                <TextBlock FontSize="16" Text="✅"
+                                           IsVisible="{Binding Present}" />
+                                <TextBlock FontSize="16" Text="❌"
+                                           IsVisible="{Binding !Present}" />
+                            </Panel>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Detail}" Opacity="0.7"
+                                           FontSize="12" TextWrapping="Wrap"
+                                           IsVisible="{Binding Detail,
+                                               Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button HorizontalAlignment="Center" Command="{Binding GoHomeCommand}">
+                <TextBlock Text="Back" />
+            </Button>
+        </StackPanel>
+
+        <!-- Failed -->
+        <StackPanel IsVisible="{Binding Step,
+                        Converter={x:Static ObjectConverters.Equal},
+                        ConverterParameter={x:Static vm:FlowStep.Failed}}"
+                    Spacing="14" VerticalAlignment="Center">
+            <TextBlock Text="That didn't work" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+            <Expander Header="Technical details"
+                      IsVisible="{Binding ErrorDetails,
+                          Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{Binding ErrorDetails}" TextWrapping="Wrap"
+                           FontFamily="Consolas,Menlo,monospace" FontSize="12" />
+            </Expander>
+            <Button HorizontalAlignment="Center" Command="{Binding GoHomeCommand}">
+                <TextBlock Text="Back" />
+            </Button>
+        </StackPanel>
+    </DockPanel>
+
+</UserControl>
