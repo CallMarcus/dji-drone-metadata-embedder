@@ -49,6 +49,16 @@
         "item": { "type": "string" }
       },
       "required": ["event", "message"]
+    },
+    {
+      "description": "Forward-compatibility: event types added later under the same v are legal; consumers ignore ones they do not recognise.",
+      "properties": {
+        "event": {
+          "type": "string",
+          "not": { "enum": ["start", "progress", "warning", "result", "error"] }
+        }
+      },
+      "required": ["event"]
     }
   ]
 }

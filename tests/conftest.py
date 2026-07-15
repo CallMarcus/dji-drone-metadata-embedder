@@ -38,8 +38,11 @@ if "rich" not in sys.modules:
         """Minimal RichHandler stub: plain StreamHandler so setup_logging works."""
 
         def __init__(self, *args, console=None, **kwargs):
-            # Like the real RichHandler: honour an explicit console's stream,
-            # default to stderr (StreamHandler's default) otherwise.
+            # Honours an explicit console's stream; without one it defaults
+            # to stderr (StreamHandler's default). NOTE: the real RichHandler
+            # defaults to STDOUT, so in-process tests cannot catch logging
+            # polluting jsonl stdout — that guarantee is covered by the
+            # subprocess test in test_progress_jsonl.py.
             super().__init__(console.file if console is not None else None)
 
     setattr(progress, "Progress", _StubProgress)

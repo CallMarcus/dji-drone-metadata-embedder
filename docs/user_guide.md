@@ -62,6 +62,13 @@ Swap `gpx` for `csv`, `geojson`, `kml`, `html`, or `cot` to pick the format.
 
 For detailed how-to guides such as creating Windows bundles or redacting location data, see the files in `docs/how-to`.
 
+## Scripting and frontends
+
+`photomap`, `flightmap`, `embed`, and `check` accept `--progress jsonl`,
+which switches stdout to machine-readable progress events (one JSON object
+per line) for scripts and GUI frontends. The event contract is documented
+in [Progress Events (JSONL)](PROGRESS_JSONL.md).
+
 ### Sidecar-less footage (MP4 with embedded telemetry)
 
 Newer DJI models record telemetry inside the MP4 instead of a `.SRT`. Pass the

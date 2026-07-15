@@ -61,12 +61,30 @@ def test_false_and_empty_result_fields_are_kept():
     jsonschema.validate(event, SCHEMA)
 
 
-def test_lines_are_compact_single_line_json():
+def test_lines_are_compact_ascii_safe_json():
+    """Events must survive any stdout encoding (Windows pipes are cp1252):
+    non-ASCII is escaped on the wire but round-trips intact."""
     buf = io.StringIO()
-    JsonlProgress(buf).advance(1, 3, item="å.JPG")  # non-ASCII stays literal
+    JsonlProgress(buf).advance(1, 3, item="DJI_東京_café.JPG")
     raw = buf.getvalue()
     assert raw.endswith("\n") and raw.count("\n") == 1
-    assert ": " not in raw and "å" in raw
+    assert ": " not in raw
+    assert raw.encode("ascii")  # pure ASCII on the wire
+    assert json.loads(raw)["item"] == "DJI_東京_café.JPG"
+
+
+def test_broken_pipe_silences_emitter_instead_of_raising():
+    """A consumer closing the pipe (GUI cancel, `| head`) must not turn
+    into a traceback, nor mask a real error being reported."""
+
+    class BrokenStream(io.StringIO):
+        def write(self, s):
+            raise BrokenPipeError
+
+    p = JsonlProgress(BrokenStream())
+    p.start("flightmap")  # first write hits the broken pipe: swallowed
+    p.advance(1, 2, item="a")  # subsequent events silently dropped
+    p.error("the real failure")  # even inside an except handler
 
 
 def test_null_progress_writes_nothing(capsys):
@@ -78,6 +96,23 @@ def test_null_progress_writes_nothing(capsys):
     p.error("e")
     assert capsys.readouterr().out == ""
     assert p.active is False
+
+
+def test_schema_permits_future_additive_event_types():
+    """PROGRESS_JSONL.md promises additive event types without a v bump;
+    the schema must therefore accept events it does not know."""
+    jsonschema.validate(
+        {"v": 1, "event": "output_written", "path": "/x/y.html"}, SCHEMA
+    )
+
+
+def test_schema_still_rejects_malformed_known_events():
+    import pytest
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"v": 1, "event": "progress"}, SCHEMA)  # no current/total
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"event": "start", "command": "x"}, SCHEMA)  # no v
 
 
 def test_make_progress_factory():

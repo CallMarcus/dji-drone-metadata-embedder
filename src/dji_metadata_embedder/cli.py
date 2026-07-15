@@ -6,7 +6,8 @@ import json
 import sys
 import webbrowser
 import click
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,7 @@ from .geo import (
     write_photos_kml,
 )
 from .mp4_telemetry import Mp4TelemetryError
-from .progress import make_progress
+from .progress import NullProgress, make_progress
 from .utilities import check_dependencies, setup_logging, get_tool_versions
 
 
@@ -200,6 +201,28 @@ def main(ctx: click.Context, log_json: bool) -> None:
     ctx.obj['log_json'] = log_json
 
 
+@contextmanager
+def _jsonl_terminal(
+    progress: NullProgress, command: str, total: int | None = None
+) -> Iterator[None]:
+    """Enforce the contract's terminal rule around a command body.
+
+    Emits ``start`` on entry; any exception escaping the body — Click or
+    not — emits an ``error`` event before propagating, so a jsonl stream
+    always ends with exactly one terminal event (the body emits ``result``
+    as its last statement on success).
+    """
+    progress.start(command, total=total)
+    try:
+        yield
+    except click.ClickException as e:
+        progress.error(e.format_message())
+        raise
+    except BaseException as e:  # PermissionError, KeyboardInterrupt, bugs...
+        progress.error(f"{type(e).__name__}: {e}")
+        raise
+
+
 # Shared by photomap/flightmap/embed/check. Contract: docs/PROGRESS_JSONL.md.
 _progress_option = click.option(
     "--progress",
@@ -275,8 +298,7 @@ def embed(
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet, stderr=progress.active)
-    progress.start("embed")
-    try:
+    with _jsonl_terminal(progress, "embed"):
         deps_ok, missing = check_dependencies()
         if not deps_ok:
             raise click.ClickException(
@@ -298,25 +320,24 @@ def embed(
             use_exiftool=exiftool,
             on_progress=progress.advance if progress.active else None,
         )
-    except click.ClickException as e:
-        progress.error(e.format_message())
-        raise
-    if progress.active:
-        for message in result["warnings"] + result["errors"]:
-            progress.warning(message)
-        progress.result(
-            # Per-file failures keep the existing exit-0 behaviour; ok=false
-            # is the machine-readable signal (see docs/PROGRESS_JSONL.md).
-            ok=not result["errors"],
-            outputs=[result["output_directory"]],
-            summary={
-                "processed": result["processed"],
-                "total": result["total_files"],
-                "warnings": len(result["warnings"]),
-                "errors": len(result["errors"]),
-                "output_directory": result["output_directory"],
-            },
-        )
+        if progress.active:
+            for message in result["warnings"] + result["errors"]:
+                progress.warning(message)
+            out_dir = str(Path(result["output_directory"]).resolve())
+            progress.result(
+                # Per-file failures keep the existing exit-0 behaviour;
+                # ok=false is the machine-readable signal (see
+                # docs/PROGRESS_JSONL.md).
+                ok=not result["errors"],
+                outputs=[out_dir],
+                summary={
+                    "processed": result["processed"],
+                    "total": result["total_files"],
+                    "warnings": len(result["warnings"]),
+                    "errors": len(result["errors"]),
+                    "output_directory": out_dir,
+                },
+            )
 
 
 @main.command()
@@ -332,9 +353,10 @@ def check(
 ) -> None:
     """Check media files for embedded metadata."""
     progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet, stderr=progress.active)
-    progress.start("check", total=len(paths))
-    try:
+    with _jsonl_terminal(progress, "check", total=len(paths)):
         if not paths:
             raise click.ClickException("No file or directory specified")
         files: dict[str, dict] = {}
@@ -342,16 +364,15 @@ def check(
             progress.advance(index, len(paths), item=target)
             result = check_metadata(target)
             files[target] = result
+            if not result:
+                progress.warning("Not found or unreadable", item=target)
             if not progress.active:
                 click.echo(f"{target}: {result}")
-    except click.ClickException as e:
-        progress.error(e.format_message())
-        raise
-    progress.result(
-        ok=True,
-        outputs=[],
-        summary={"checked": len(paths), "files": files},
-    )
+        progress.result(
+            ok=True,
+            outputs=[],
+            summary={"checked": len(paths), "files": files},
+        )
 
 
 @main.command()
@@ -598,8 +619,7 @@ def photomap(
     # HTML; otherwise the user-supplied prefix.
     html_link_base = (link_base or "") if link_originals else None
     src = Path(directory)
-    progress.start("photomap")
-    try:
+    with _jsonl_terminal(progress, "photomap"):
         try:
             points, skipped = scan_photos(src, recursive=recursive)
         except PhotomapError as e:
@@ -658,14 +678,11 @@ def photomap(
                     write_photos_geojson(points, out)
             except OSError as e:
                 raise click.ClickException(f"Could not write {out}: {e}")
-    except click.ClickException as e:
-        progress.error(e.format_message())
-        raise
-    progress.result(
-        ok=True,
-        outputs=[str(out.resolve()) for _f, out in targets],
-        summary={"photos": len(points), "skipped": len(skipped)},
-    )
+        progress.result(
+            ok=True,
+            outputs=[str(out.resolve()) for _f, out in targets],
+            summary={"photos": len(points), "skipped": len(skipped)},
+        )
     if serve_map:
         html_out = next(out for f, out in targets if f == "html")
         serve_directory(
@@ -744,8 +761,7 @@ def flightmap(
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet, stderr=progress.active)
-    progress.start("flightmap")
-    try:
+    with _jsonl_terminal(progress, "flightmap"):
         try:
             offset = parse_utc_offset(tz_offset)
         except ValueError as e:
@@ -810,18 +826,15 @@ def flightmap(
                     write_flights_geojson(tracks, out)
             except OSError as e:
                 raise click.ClickException(f"Could not write {out}: {e}")
-    except click.ClickException as e:
-        progress.error(e.format_message())
-        raise
-    progress.result(
-        ok=True,
-        outputs=[str(out.resolve()) for _f, out in targets],
-        summary={
-            "flights": len(tracks),
-            "skipped": len(skipped),
-            "joined_files": files_joined,
-        },
-    )
+        progress.result(
+            ok=True,
+            outputs=[str(out.resolve()) for _f, out in targets],
+            summary={
+                "flights": len(tracks),
+                "skipped": len(skipped),
+                "joined_files": files_joined,
+            },
+        )
 
 
 @main.command(hidden=True)

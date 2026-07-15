@@ -316,6 +316,66 @@ def test_jsonl_stdout_survives_logger_warnings_in_real_process(tmp_path):
     assert "Timezone" in proc.stderr  # the warning still reaches the user
 
 
+def test_unexpected_exception_still_ends_stream_with_error_event(
+    monkeypatch, tmp_path
+):
+    """The terminal rule must hold for non-ClickException failures too
+    (PermissionError from mkdir, UnicodeDecodeError from a corrupt SRT...)."""
+    from dji_metadata_embedder import cli as cli_mod
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(cli_mod, "scan_flights", boom)
+    (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "--progress", "jsonl"],
+        standalone_mode=False,
+    )
+    assert res.exit_code != 0
+    events = _events(res.stdout)
+    assert events[-1]["event"] == "error"
+    assert "disk on fire" in events[-1]["message"]
+
+
+def test_embed_jsonl_outputs_are_absolute(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    monkeypatch.setattr(cli_mod, "check_dependencies", lambda: (True, []))
+    canned = {
+        "processed": 1,
+        "total_files": 1,
+        "warnings": [],
+        "errors": [],
+        "output_directory": "footage/processed",  # relative, as embedder builds it
+    }
+    monkeypatch.setattr(
+        cli_mod.DJIMetadataEmbedder,
+        "process_directory",
+        lambda self, use_exiftool=False, on_progress=None: canned,
+    )
+    res = CliRunner().invoke(
+        main, ["embed", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    (out,) = events[-1]["outputs"]
+    assert Path(out).is_absolute()
+
+
+def test_check_jsonl_warns_on_missing_path(monkeypatch, tmp_path):
+    res = CliRunner().invoke(
+        main,
+        ["check", str(tmp_path / "nope.mp4"), "--progress", "jsonl"],
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert warnings[0]["item"] == str(tmp_path / "nope.mp4")
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
