@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.20.0] - 2026-07-15
+
+### Added
+
+- **cli**: --progress jsonl machine-readable progress contract (#264 stage 2) (#281) (fa378d6)
+- **cli**: Drag a folder onto dji-embed to open its maps (#264 stage 1) (#280) (7a72bcc)
+
+### Documentation
+
+- Auto-generate changelog for v1.19.0 (a4bdd0c)
+
+### Other
+
+- Prepare version 1.20.0 (f3a655c)
+
+
 ## [1.19.0] - 2026-07-14
 
 ### Added
