@@ -97,6 +97,6 @@ field, never by arrival order.
 `--log-json` (env `DJIEMBED_LOG_JSON`) is an older, separate feature: it
 formats *log lines* as JSON for the commands that read it (e.g. `doctor`)
 and is independent of this event stream. The four progress-wired commands
-do not change their logging format based on it; under `--progress jsonl`
-their logs are human-readable text on stderr. Parse stdout events, treat
-stderr as free-form diagnostics.
+do not change their logging format based on it; logs are human-readable
+text on stderr for every command, with or without `--progress jsonl`.
+Parse stdout events, treat stderr as free-form diagnostics.

@@ -297,7 +297,7 @@ def embed(
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
-    setup_logging(verbose, quiet, stderr=progress.active)
+    setup_logging(verbose, quiet)
     with _jsonl_terminal(progress, "embed"):
         deps_ok, missing = check_dependencies()
         if not deps_ok:
@@ -355,7 +355,7 @@ def check(
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
-    setup_logging(verbose, quiet, stderr=progress.active)
+    setup_logging(verbose, quiet)
     with _jsonl_terminal(progress, "check", total=len(paths)):
         if not paths:
             raise click.ClickException("No file or directory specified")
@@ -594,7 +594,7 @@ def photomap(
                 "--serve cannot be combined with --progress jsonl (serving "
                 "blocks; open the written HTML yourself instead)"
             )
-    setup_logging(verbose, quiet, stderr=progress.active)
+    setup_logging(verbose, quiet)
     if serve_map:
         if fmt.lower() not in ("html", "all"):
             raise click.UsageError(
@@ -760,7 +760,7 @@ def flightmap(
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
-    setup_logging(verbose, quiet, stderr=progress.active)
+    setup_logging(verbose, quiet)
     with _jsonl_terminal(progress, "flightmap"):
         try:
             offset = parse_utc_offset(tz_offset)
