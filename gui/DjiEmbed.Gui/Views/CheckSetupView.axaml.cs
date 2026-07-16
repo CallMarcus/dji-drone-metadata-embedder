@@ -21,4 +21,12 @@ public partial class CheckSetupView : UserControl
             await vm.StartCommand.ExecuteAsync(null);
         }
     }
+
+    private async void OnCopyDetailsClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is FlowViewModel vm)
+        {
+            await ClipboardCopy.CopyAsync(this, vm.ErrorDetails);
+        }
+    }
 }

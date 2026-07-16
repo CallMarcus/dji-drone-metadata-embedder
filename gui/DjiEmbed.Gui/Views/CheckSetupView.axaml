@@ -74,8 +74,16 @@
             <Expander Header="Technical details"
                       IsVisible="{Binding ErrorDetails,
                           Converter={x:Static ObjectConverters.IsNotNull}}">
-                <TextBlock Text="{Binding ErrorDetails}" TextWrapping="Wrap"
-                           FontFamily="Consolas,Menlo,monospace" FontSize="12" />
+                <StackPanel Spacing="10">
+                    <ScrollViewer MaxHeight="140"
+                                  VerticalScrollBarVisibility="Auto">
+                        <TextBlock Text="{Binding ErrorDetailsTail}" TextWrapping="Wrap"
+                                   FontFamily="Consolas,Menlo,monospace" FontSize="12" />
+                    </ScrollViewer>
+                    <Button HorizontalAlignment="Left" Click="OnCopyDetailsClick">
+                        <TextBlock Text="Copy details" FontSize="12" />
+                    </Button>
+                </StackPanel>
             </Expander>
             <Button HorizontalAlignment="Center" Margin="0,10,0,0"
                     Command="{Binding GoHomeCommand}">

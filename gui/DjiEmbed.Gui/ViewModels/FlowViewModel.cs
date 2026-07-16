@@ -57,6 +57,31 @@ public abstract partial class FlowViewModel(
         : Total is { } total ? $"{CurrentItem} ({Current} of {total})"
         : CurrentItem;
 
+    private const int DetailTailLines = 15;
+
+    /// <summary>
+    /// Failure details cut to the last lines for on-screen display;
+    /// "Copy details" always gets the full text.
+    /// </summary>
+    public string? ErrorDetailsTail
+    {
+        get
+        {
+            if (ErrorDetails is null)
+            {
+                return null;
+            }
+            var lines = ErrorDetails.Split('\n');
+            return lines.Length <= DetailTailLines
+                ? ErrorDetails
+                : "… (earlier output omitted — Copy details includes everything)\n"
+                  + string.Join('\n', lines[^DetailTailLines..]);
+        }
+    }
+
+    partial void OnErrorDetailsChanged(string? value) =>
+        OnPropertyChanged(nameof(ErrorDetailsTail));
+
     partial void OnCurrentItemChanged(string? value) =>
         OnPropertyChanged(nameof(ProgressDetail));
 
