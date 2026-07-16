@@ -118,3 +118,7 @@ gui/**/bin/
 gui/**/obj/
 # ...but the Avalonia app's Win32 manifest is source, not PyInstaller output
 !gui/**/app.manifest
+
+# Claude Code project instructions stay local (see AGENTS.md for the committed guidance)
+CLAUDE.md
+CLAUDE.local.md

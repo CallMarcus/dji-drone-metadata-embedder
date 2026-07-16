@@ -732,9 +732,18 @@ Run PowerShell as Administrator or use the bootstrap installer:
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
+## Getting help from an AI assistant
+
+Using Claude, ChatGPT, Copilot, or another AI tool? Upload
+[`HELP.md`](HELP.md) to it first — it primes the assistant with accurate,
+current facts about this tool so you can ask questions in your own words
+("how do I map my photos?") and get answers that match how it actually works.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
+Working with an AI coding agent? Point it at [`AGENTS.md`](AGENTS.md) — the
+conventions, test gates, and invariants contributions must follow.
 
 ### Commit Message Format
 
