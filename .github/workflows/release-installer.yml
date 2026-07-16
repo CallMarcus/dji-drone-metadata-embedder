@@ -24,6 +24,9 @@ on:
 
 permissions:
   contents: write
+  # Sigstore build provenance for the installer (verify with `gh attestation verify`).
+  id-token: write
+  attestations: write
 
 env:
   # Pinned FFmpeg build bundled into the installer (gyan.dev release
@@ -165,6 +168,14 @@ jobs:
           cd dist-installer
           sha256sum -- *.exe > SHA256SUMS-installer.txt
           cat SHA256SUMS-installer.txt
+
+      - name: Attest build provenance
+        # Sigstore-signed proof that the setup EXE came from this workflow.
+        # Anyone can check it:
+        #   gh attestation verify dji-metadata-embedder-setup-<ver>.exe -R CallMarcus/dji-drone-metadata-embedder
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist-installer/*.exe
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7

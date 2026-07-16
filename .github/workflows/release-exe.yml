@@ -14,6 +14,9 @@ on:
 
 permissions:
   contents: write
+  # Sigstore build provenance for the EXE (verify with `gh attestation verify`).
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -92,6 +95,15 @@ jobs:
             $hashLines += "$($hash.Hash)  $($_.Name)"
           }
           $hashLines | Out-File -Encoding ascii dist/SHA256SUMS.txt
+      - name: Attest build provenance
+        # Sigstore-signed proof that dji-embed.exe came from this workflow.
+        # Anyone can check it:
+        #   gh attestation verify dji-embed.exe -R CallMarcus/dji-drone-metadata-embedder
+        # The wheel is not attested here - it is downloaded from PyPI, which
+        # already attests it via Trusted Publishing (PEP 740).
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/dji-embed.exe
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v3
         with:

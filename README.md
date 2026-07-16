@@ -87,6 +87,25 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 
 </details>
 
+<details>
+<summary>Verify your download (optional)</summary>
+
+Every release ships `SHA256SUMS` files alongside the binaries. In addition,
+release builds (v1.23.0 onwards) carry [build provenance attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
+— a Sigstore-signed proof that the file you downloaded was produced by this
+repository's public build workflow. With the [GitHub CLI](https://cli.github.com/):
+
+```powershell
+gh attestation verify dji-metadata-embedder-setup-<version>.exe -R CallMarcus/dji-drone-metadata-embedder
+```
+
+The same works for `dji-embed.exe`. PyPI wheels are attested separately by
+PyPI's [Trusted Publishing](https://docs.pypi.org/attestations/) — see the
+"provenance" details on each file at
+[pypi.org](https://pypi.org/project/dji-drone-metadata-embedder/#files).
+
+</details>
+
 ### macOS / Linux
 
 ```bash
