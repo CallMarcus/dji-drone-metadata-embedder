@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing! This project has matured into a production-ready tool with comprehensive documentation and automated processes. We welcome contributions from the DJI drone community.
 
+Working with an AI coding agent (Claude Code, Copilot, Cursor, …)? Point it at [`AGENTS.md`](AGENTS.md) first — it carries the conventions, test gates, and invariants every change must follow.
+
 ## 🎯 **Project Status: Production Ready**
 
 All major milestones (M1-M4) have been completed. The project now features professional documentation, comprehensive testing, and automated release processes. Future contributions should focus on maintenance, new model support, and community enhancements.

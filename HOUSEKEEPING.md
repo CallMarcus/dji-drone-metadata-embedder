@@ -25,7 +25,9 @@ of that cleanup has already happened:
   UI) and the stray `PR_DESCRIPTION.md` (leftover body of an earlier
   housekeeping PR). `docs/superpowers/plans/` was made local-only via
   `.gitignore` + mkdocs `exclude_docs`; the design specs under
-  `docs/superpowers/specs/` and `CLAUDE.md` remain committed.
+  `docs/superpowers/specs/` remain committed. `CLAUDE.md` is local-only
+  (gitignored) since 2026-07-16 — `AGENTS.md` is the committed, generic
+  guidance for contributors and their AI agents.
 
 This document is kept as a living reference for the ongoing "keep it tidy"
 work rather than as a one-shot cleanup plan.
@@ -78,7 +80,7 @@ without checking `.github/workflows/` and the relevant docs first:
 - When a long-lived branch goes cold, run
   `bash scripts/delete-stale-branches.sh` (or the `.ps1` equivalent) in
   dry-run mode first and then actually delete.
-- Keep branch names aligned with the convention in `CLAUDE.md` §4: `feat/`,
+- Keep branch names aligned with the convention in `AGENTS.md`: `feat/`,
   `fix/`, `docs/`, `ci/`, `chore/`, `claude/<session-id>`.
 
 ### Root directory

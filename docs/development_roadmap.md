@@ -60,7 +60,7 @@ from pre-existing environmental gaps.
 - Technical: `docs/SRT_FORMATS.md`, `docs/api.md`,
   `docs/external-tool-versions.md`, `docs/requirements-lock-policy.md`,
   `docs/validation_tests.md`.
-- Contributor: `CONTRIBUTING.md`, `CLAUDE.md`, `docs/RELEASE.md`,
+- Contributor: `CONTRIBUTING.md`, `AGENTS.md`, `docs/RELEASE.md`,
   `docs/CHANGELOG_AUTOMATION.md`, and this roadmap.
 
 ## In progress / near-term
@@ -79,7 +79,7 @@ from pre-existing environmental gaps.
   survey Mini 5 Pro, Air 3S, Mavic 4 Pro, Neo, Avata 3, Mini 4K, Inspire 3,
   Matrice 4 / M30 / M350 RTK, and FPV v2 for SRT documentation and sample
   availability, then spin off per-model parser issues following the "Adding
-  Support for New DJI Models" checklist in `CLAUDE.md` §7.
+  Support for New DJI Models" checklist in `AGENTS.md`.
 - **Geospatial / mapping — SHIPPED.** The three-phase plan in
   [`docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md`](superpowers/specs/2026-06-04-flight-path-mapping-design.md)
   is complete: GeoJSON/KML **track export** (#215/#223, `dji-embed convert
