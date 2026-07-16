@@ -10,6 +10,7 @@
   <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
+    <InternalsVisibleTo Include="DjiEmbed.Gui.Tests" />
   </ItemGroup>
 
   <ItemGroup>

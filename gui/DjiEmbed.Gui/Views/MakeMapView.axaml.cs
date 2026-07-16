@@ -9,7 +9,7 @@ public partial class MakeMapView : UserControl
     public MakeMapView()
     {
         InitializeComponent();
-        FolderPicking.EnableDrop(this, StartAsync);
+        FolderPicking.EnableDrop(this, StartAsync, DropZone);
     }
 
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>
