@@ -465,6 +465,7 @@ dji-embed photomap /path/to/photos -r --title "Churches of Finland"   # recurse 
 dji-embed photomap /path/to/photos --link-originals                   # popups open the original photos
 dji-embed photomap /path/to/photos --link-originals --link-base ../DCIM   # originals live elsewhere
 dji-embed photomap /path/to/photos --redact fuzz                      # ~100 m coarsened pins
+dji-embed photomap /path/to/photos --popup-fields none                # popups show thumbnails only
 dji-embed photomap /path/to/photos --serve                            # serve + open browser (360° viewer works)
 ```
 
@@ -489,6 +490,9 @@ Options:
   --link-base PREFIX              Folder or URL prefix for --link-originals
                                   hrefs, for when the originals do not sit
                                   beside the HTML
+  --popup-fields LIST             Limit what HTML popups show: 'none' or a
+                                  comma list of name, timestamp, camera,
+                                  altitude (default: all of them)
   --redact [none|fuzz]            Coarsen every photo location to ~100 m
                                   before writing (default: none)
   --serve                         Serve the map on 127.0.0.1 and open the

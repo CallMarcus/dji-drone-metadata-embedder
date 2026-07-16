@@ -364,3 +364,48 @@ def test_photomap_no_serve_never_starts_server(monkeypatch, tmp_path):
     res = CliRunner().invoke(main, ["photomap", str(tmp_path)])
     assert res.exit_code == 0, res.output
     assert calls == {}
+
+
+# --popup-fields (issue #296): the user decides what a shared map discloses,
+# without touching the original photos' EXIF.
+
+
+def test_photomap_popup_fields_none_strips_details_from_html(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--popup-fields", "none"])
+    assert res.exit_code == 0, res.output
+    text = (tmp_path / "photomap.html").read_text(encoding="utf-8")
+    assert "church1.jpg" not in text   # filename stripped from embedded data
+    assert "FC8482" not in text        # camera stripped
+    assert "12:30:45" not in text      # timestamp stripped
+    assert "/9j/THUMB1" in text        # the photo itself still shows
+
+
+def test_photomap_popup_fields_selective_list(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--popup-fields", "name,altitude"])
+    assert res.exit_code == 0, res.output
+    text = (tmp_path / "photomap.html").read_text(encoding="utf-8")
+    assert "church1.jpg" in text
+    assert "FC8482" not in text
+
+
+def test_photomap_popup_fields_invalid_value_names_valid_fields(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--popup-fields", "shutter"])
+    assert res.exit_code == 2
+    assert "shutter" in res.output
+    for valid in ("name", "timestamp", "camera", "altitude"):
+        assert valid in res.output
+
+
+def test_photomap_popup_fields_without_html_output_warns(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main,
+        ["photomap", str(tmp_path), "-f", "geojson", "--popup-fields", "none"])
+    assert res.exit_code == 0, res.output
+    assert "only affects HTML" in res.output

@@ -24,7 +24,7 @@ from .photomap import (
     write_photos_geojson,
     write_photos_kml,
 )
-from .photomap_html import photos_to_html, write_photos_html
+from .photomap_html import parse_popup_fields, photos_to_html, write_photos_html
 from .serve import serve_directory
 from .solar import sun_position
 from .track import Track, TrackPoint, build_track
@@ -55,6 +55,7 @@ __all__ = [
     "write_photos_geojson",
     "photos_to_kml",
     "write_photos_kml",
+    "parse_popup_fields",
     "photos_to_html",
     "write_photos_html",
     "scan_flights",

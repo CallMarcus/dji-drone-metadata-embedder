@@ -38,6 +38,59 @@ _PANNELLUM_VERSION = "2.5.6"
 _PANNELLUM_CSS_SRI = "sha256-p/HXuG8QaPIo2S8bCu+VvUHR4uEnhVFlc62/VS7ieT0="
 _PANNELLUM_JS_SRI = "sha256-oosvezOf0KYCxnad8dymrUOvc7yMalvmcglxUonBKpo="
 
+# Popup content control (issue #296): the user-facing field names and the
+# GeoJSON properties they govern. Excluded fields are stripped from the
+# embedded data itself, not merely hidden by the popup JS — a shared map must
+# not leak in its source what it hides in its UI. thumb/link/pano always
+# survive: the thumbnail is the photo itself, the link powers the 360°
+# viewer, and pano is marker-type metadata.
+POPUP_FIELDS = ("name", "timestamp", "camera", "altitude")
+_FIELD_TO_PROP = {
+    "name": "name",
+    "timestamp": "timestamp",
+    "camera": "camera",
+    "altitude": "alt",
+}
+
+
+def parse_popup_fields(spec: str) -> frozenset[str]:
+    """Parse a ``--popup-fields`` value into a field set.
+
+    ``"none"`` selects no fields; anything else must be a comma-separated,
+    case-insensitive subset of :data:`POPUP_FIELDS`. Raises ``ValueError``
+    naming the valid fields otherwise.
+    """
+    value = spec.strip().lower()
+    if value == "none":
+        return frozenset()
+    fields = frozenset(part.strip() for part in value.split(",") if part.strip())
+    unknown = fields - frozenset(POPUP_FIELDS)
+    if unknown or not fields:
+        raise ValueError(
+            "invalid --popup-fields value"
+            + (f" ({', '.join(sorted(unknown))})" if unknown else "")
+            + f"; use 'none' or a comma list of: {', '.join(POPUP_FIELDS)}"
+        )
+    return fields
+
+
+def _apply_popup_fields(geojson: dict, fields: frozenset[str]) -> None:
+    """Strip excluded popup fields from *geojson* in place.
+
+    "altitude" also covers the coordinate's third element, so an excluded
+    altitude is absent from the HTML file entirely.
+    """
+    drop = [prop for field, prop in _FIELD_TO_PROP.items() if field not in fields]
+    for feature in geojson["features"]:
+        props = feature["properties"]
+        for prop in drop:
+            props.pop(prop, None)
+        if "altitude" not in fields:
+            coords = feature["geometry"]["coordinates"]
+            if len(coords) == 3:
+                feature["geometry"]["coordinates"] = coords[:2]
+
+
 _TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -243,7 +296,9 @@ function buildPopup(f) {
   if (p.thumb) {
     inner += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt="">`;
   }
-  inner += `<b>${esc(p.name || '')}</b>`;
+  // Every text line is presence-guarded: --popup-fields (issue #296) strips
+  // properties from the embedded data, so nothing here may assume one exists.
+  if (p.name) inner += `<b>${esc(p.name)}</b>`;
   let html = '<div class="photo-popup">';
   if (p.link && p.pano) {
     // GPano panorama: the thumbnail/name click opens the embedded 360 viewer
@@ -260,7 +315,8 @@ function buildPopup(f) {
   if (p.link && p.pano) {
     html += `<br><a href="${esc(p.link)}" target="_blank" rel="noopener">open original</a>`;
   }
-  html += `<br>altitude: ${Number(p.alt || 0).toFixed(0)} m</div>`;
+  if (p.alt !== undefined) html += `<br>altitude: ${Number(p.alt).toFixed(0)} m`;
+  html += '</div>';
   return html;
 }
 
@@ -313,7 +369,11 @@ if (latlngs.length > 1) {
 
 
 def photos_to_html(
-    points: list[PhotoPoint], title: str, *, link_base: str | None = None
+    points: list[PhotoPoint],
+    title: str,
+    *,
+    link_base: str | None = None,
+    popup_fields: frozenset[str] | None = None,
 ) -> str:
     """Return a complete self-contained HTML photo map.
 
@@ -324,10 +384,16 @@ def photos_to_html(
     fully self-contained. GPano panoramas always render as distinct,
     toggleable orange markers (issue #283); the embedded Pannellum 360°
     viewer additionally activates when links are enabled.
+
+    ``popup_fields`` (issue #296): a set from :func:`parse_popup_fields`
+    limiting which EXIF-derived details the map carries; ``None`` (default)
+    keeps everything. Excluded fields never reach the HTML file.
     """
     geojson = photos_to_geojson(
         points, include_thumbnails=True, link_base=link_base
     )
+    if popup_fields is not None:
+        _apply_popup_fields(geojson, popup_fields)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
@@ -355,10 +421,14 @@ def write_photos_html(
     title: str,
     *,
     link_base: str | None = None,
+    popup_fields: frozenset[str] | None = None,
 ) -> Path:
     """Write *points* as an HTML map to *output_path* and return it."""
     output_path.write_text(
-        photos_to_html(points, title, link_base=link_base), encoding="utf-8"
+        photos_to_html(
+            points, title, link_base=link_base, popup_fields=popup_fields
+        ),
+        encoding="utf-8",
     )
     logger.info("HTML photo map created: %s", output_path)
     return output_path
