@@ -15,6 +15,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.22.0] - 2026-07-16
+
+### Added
+
+- **gui**: Failure screen shows stderr tail with a Copy-details button (#292) (#303) (85716a2)
+- **gui**: Home-screen background image + headless screenshot capture (#294) (7990581)
+- **gui**: Live per-file progress and warning surfacing on the Done screen (#292) (#304) (d9374a9)
+- **gui**: Visual polish round 1 — step layout, spacing, drop-zone affordance (#292) (#301) (1f4e40c)
+- **photomap**: --popup-fields controls what EXIF info the map displays (#298) (dad2276)
+
+### Fixed
+
+- **photomap**: Touch-friendly pins — no hover tooltips, larger tap targets (#297) (0575425)
+
+### Documentation
+
+- Auto-generate changelog for v1.21.0 (6320289)
+- Untrack CLAUDE.md; add AGENTS.md (contributor/agent guide) and HELP.md (AI priming doc for users) (#299) (452ee9d)
+
+### Maintenance
+
+- Remove orphaned scripts, refresh CI baseline, deprecate the ui command (#300) (70a4a10)
+
+### Other
+
+- Prepare version 1.22.0 (f080c84)
+
+
 ## [1.21.0] - 2026-07-15
 
 ### Added
