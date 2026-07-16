@@ -1,8 +1,14 @@
 import json
 import re
 
+import pytest
+
 from dji_metadata_embedder.geo.photomap import PhotoPoint
-from dji_metadata_embedder.geo.photomap_html import photos_to_html, write_photos_html
+from dji_metadata_embedder.geo.photomap_html import (
+    parse_popup_fields,
+    photos_to_html,
+    write_photos_html,
+)
 
 POINTS = [
     PhotoPoint(lat=60.170278, lon=24.952222, alt=95.3, name="church1.jpg",
@@ -305,3 +311,73 @@ def test_html_touch_devices_get_larger_pin_tap_target():
     assert "TOUCH ?" in html
     assert "pin-hit" in html
     assert ".pin-hit" in html  # centering CSS for the dot inside the hit box
+
+
+# Popup content control (issue #296): --popup-fields decides what the HTML
+# discloses. Excluded fields are stripped from the embedded GeoJSON itself,
+# not merely hidden by the popup JS — a shared map must not leak in its
+# source what it hides in its UI.
+
+
+def test_parse_popup_fields_none_and_comma_lists():
+    assert parse_popup_fields("none") == frozenset()
+    assert parse_popup_fields("timestamp, CAMERA") == {"timestamp", "camera"}
+    assert parse_popup_fields("name,timestamp,camera,altitude") == {
+        "name", "timestamp", "camera", "altitude"}
+
+
+def test_parse_popup_fields_rejects_unknown_and_names_valid_ones():
+    with pytest.raises(ValueError) as ei:
+        parse_popup_fields("shutter")
+    msg = str(ei.value)
+    assert "shutter" in msg
+    for valid in ("name", "timestamp", "camera", "altitude"):
+        assert valid in msg
+    with pytest.raises(ValueError):
+        parse_popup_fields("")
+
+
+def test_html_popup_fields_none_strips_exif_from_embedded_data():
+    html = photos_to_html(POINTS, title="t", popup_fields=frozenset())
+    feature = _embedded_geojson(html)["features"][0]
+    props = feature["properties"]
+    for prop in ("name", "timestamp", "camera", "alt"):
+        assert prop not in props
+    # The photo itself still shows: thumbnails survive field filtering.
+    thumbed = _embedded_geojson(html)["features"][1]["properties"]
+    assert thumbed["thumb"] == "/9j/THUMB2"
+    # Altitude leaves the coordinates too, not just the popup text.
+    assert len(feature["geometry"]["coordinates"]) == 2
+
+
+def test_html_popup_fields_selective_keeps_only_requested():
+    html = photos_to_html(
+        POINTS, title="t", popup_fields=frozenset({"timestamp"}))
+    props = _embedded_geojson(html)["features"][0]["properties"]
+    assert props["timestamp"] == "2026-06-15 12:30:45"
+    for prop in ("name", "camera", "alt"):
+        assert prop not in props
+
+
+def test_html_popup_fields_default_none_means_everything():
+    html = photos_to_html(POINTS, title="t", popup_fields=None)
+    props = _embedded_geojson(html)["features"][0]["properties"]
+    for prop in ("name", "timestamp", "camera", "alt"):
+        assert prop in props
+
+
+def test_html_popup_fields_none_keeps_pano_viewer_working():
+    html = photos_to_html(
+        PANO_POINTS, title="t", link_base="", popup_fields=frozenset())
+    data = _embedded_geojson(html)
+    pano = [f for f in data["features"] if f["properties"].get("pano")][0]
+    # pano is type metadata and link powers the viewer — never filtered.
+    assert pano["properties"]["link"]
+    assert "pannellum" in html
+
+
+def test_html_popup_js_guards_every_optional_field():
+    # With fields strippable, no popup line may assume its property exists.
+    html = photos_to_html(POINTS, title="t")
+    assert "if (p.name)" in html
+    assert re.search(r"if \([^)]*p\.alt", html)

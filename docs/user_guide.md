@@ -108,6 +108,9 @@ shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings,
 and hovering a marker previews the thumbnail and filename without clicking.
 On phones and tablets there is no hover, so the map skips the previews and
 gives every pin a larger tap target instead — one tap opens the photo popup.
+Sharing the map? `--popup-fields` chooses what the popups disclose (`none`,
+or a comma list of `name`, `timestamp`, `camera`, `altitude`); excluded
+details are left out of the HTML file entirely.
 KML opens the same thumbnails in Google Earth Pro (Google My Maps import may
 drop the images but keeps the placemarks). GeoJSON is interchange-only — no
 thumbnails, just `name`/`timestamp`/`alt`/`camera` properties (plus

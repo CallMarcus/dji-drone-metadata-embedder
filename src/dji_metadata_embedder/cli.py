@@ -36,6 +36,7 @@ from .geo import (
     write_flights_html,
     write_flights_kml,
     write_photos_geojson,
+    parse_popup_fields,
     write_photos_html,
     write_photos_kml,
 )
@@ -543,6 +544,13 @@ def convert(
          "https://example.com/photos/)",
 )
 @click.option(
+    "--popup-fields", default=None, metavar="LIST",
+    help="Limit what the HTML popups show: 'none' or a comma list of "
+         "name, timestamp, camera, altitude (default: all of them). "
+         "Excluded details are left out of the HTML file entirely; the "
+         "original photos are untouched. Other formats are unchanged.",
+)
+@click.option(
     "--redact",
     type=click.Choice(["none", "fuzz"], case_sensitive=False),
     default="none",
@@ -570,6 +578,7 @@ def photomap(
     title: str | None,
     link_originals: bool,
     link_base: str | None,
+    popup_fields: str | None,
     redact: str,
     serve_map: bool,
     progress_mode: str | None,
@@ -609,6 +618,20 @@ def photomap(
         link_originals = True
     if link_base is not None and not link_originals:
         raise click.UsageError("--link-base requires --link-originals")
+    # --popup-fields (issue #296): parsed up front so a typo fails before the
+    # (potentially long) ExifTool scan. None = default, popups show everything.
+    popup_field_set: frozenset[str] | None = None
+    if popup_fields is not None:
+        try:
+            popup_field_set = parse_popup_fields(popup_fields)
+        except ValueError as e:
+            raise click.BadParameter(str(e), param_hint="'--popup-fields'")
+        if fmt.lower() not in ("html", "all"):
+            click.echo(
+                "Note: --popup-fields only affects HTML output; "
+                f"{fmt.lower()} is unchanged",
+                err=True,
+            )
     if link_originals and fmt.lower() not in ("html", "all"):
         click.echo(
             "Note: --link-originals only affects HTML output; "
@@ -670,7 +693,9 @@ def photomap(
             try:
                 if f == "html":
                     write_photos_html(
-                        points, out, map_title, link_base=html_link_base
+                        points, out, map_title,
+                        link_base=html_link_base,
+                        popup_fields=popup_field_set,
                     )
                 elif f == "kml":
                     write_photos_kml(points, out, map_title)

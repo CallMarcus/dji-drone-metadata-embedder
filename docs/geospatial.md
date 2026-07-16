@@ -239,6 +239,24 @@ download). The links are relative to the HTML file, so they only resolve
 while the map sits next to the photos — pass `--link-base` (a relative
 folder or an absolute URL) when the originals live elsewhere.
 
+### Choosing what the popups show (`--popup-fields`)
+
+A map you share shouldn't have to disclose everything your camera recorded.
+`--popup-fields` limits the popup to the details you pick — `none`, or a
+comma list of `name`, `timestamp`, `camera`, `altitude`:
+
+```bash
+dji-embed photomap ./photos --popup-fields none            # thumbnails only
+dji-embed photomap ./photos --popup-fields name,timestamp  # no camera/altitude
+```
+
+Excluded details are stripped from the HTML file entirely, not merely
+hidden — someone reading the map's source finds nothing either. Your
+original photos are untouched (their EXIF keeps everything; pair with
+`--redact fuzz` if the *locations* need coarsening too). Thumbnails, the
+360° viewer, and marker colors are unaffected, and KML/GeoJSON outputs are
+unchanged — they are data exports, not shared pages.
+
 ### 360° panoramas
 
 Stitched spherical panoramas (DJI, Insta360, Google Camera, …) carry XMP
