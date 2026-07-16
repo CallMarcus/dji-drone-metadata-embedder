@@ -51,6 +51,14 @@ public class HomeScreenTests
     }
 
     [AvaloniaFact]
+    public void Home_screen_has_the_background_image()
+    {
+        var window = ShowMainWindow();
+        var images = window.GetVisualDescendants().OfType<Image>().ToList();
+        Assert.Contains(images, i => i.Source is not null);
+    }
+
+    [AvaloniaFact]
     public void Window_title_names_the_product_not_the_assembly()
     {
         var window = ShowMainWindow();
