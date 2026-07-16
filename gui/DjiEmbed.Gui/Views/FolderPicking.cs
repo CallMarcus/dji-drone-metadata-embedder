@@ -33,14 +33,27 @@ internal static class FolderPicking
         }
     }
 
-    internal static void EnableDrop(Control target, Func<string, Task> onFolder)
+    internal static void EnableDrop(
+        Control target, Func<string, Task> onFolder, Control? dropZone = null)
     {
         target.AddHandler(DragDrop.DragOverEvent, (_, e) =>
             e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
                 ? DragDropEffects.Copy
                 : DragDropEffects.None);
+        if (dropZone is not null)
+        {
+            target.AddHandler(DragDrop.DragEnterEvent, (_, e) =>
+                SetDragOver(dropZone,
+                    e.DataTransfer.Contains(DataFormat.File)));
+            target.AddHandler(DragDrop.DragLeaveEvent, (_, _) =>
+                SetDragOver(dropZone, false));
+        }
         target.AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
+            if (dropZone is not null)
+            {
+                SetDragOver(dropZone, false);
+            }
             var folder = e.DataTransfer.TryGetFiles()
                 ?.Select(f => f.TryGetLocalPath())
                 .FirstOrDefault(p =>
@@ -51,4 +64,8 @@ internal static class FolderPicking
             }
         });
     }
+
+    /// <summary>Toggles the "dragover" style class on the drop zone.</summary>
+    internal static void SetDragOver(Control zone, bool active) =>
+        zone.Classes.Set("dragover", active);
 }

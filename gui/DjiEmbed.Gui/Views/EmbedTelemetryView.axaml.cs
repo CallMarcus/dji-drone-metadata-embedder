@@ -9,7 +9,7 @@ public partial class EmbedTelemetryView : UserControl
     public EmbedTelemetryView()
     {
         InitializeComponent();
-        FolderPicking.EnableDrop(this, StartAsync);
+        FolderPicking.EnableDrop(this, StartAsync, DropZone);
     }
 
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>

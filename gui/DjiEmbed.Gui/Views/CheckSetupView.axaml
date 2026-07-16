@@ -11,11 +11,15 @@
         <TextBlock DockPanel.Dock="Top" Text="Check my setup"
                    FontSize="24" FontWeight="SemiBold" Margin="0,0,0,24" />
 
+        <!-- One step at a time; the panel keeps each one full-width. -->
+        <Panel>
+
         <!-- Running -->
         <StackPanel IsVisible="{Binding Step,
                         Converter={x:Static ObjectConverters.Equal},
                         ConverterParameter={x:Static vm:FlowStep.Running}}"
-                    Spacing="14" VerticalAlignment="Center">
+                    Spacing="14" MaxWidth="440"
+                    VerticalAlignment="Center" Margin="0,0,0,56">
             <TextBlock Text="Checking everything this app needs…" FontSize="16" />
             <ProgressBar IsIndeterminate="True" />
         </StackPanel>
@@ -24,7 +28,7 @@
         <StackPanel IsVisible="{Binding Step,
                         Converter={x:Static ObjectConverters.Equal},
                         ConverterParameter={x:Static vm:FlowStep.Done}}"
-                    Spacing="14">
+                    Spacing="16">
             <TextBlock FontSize="16"
                        IsVisible="{Binding AllGood}"
                        Text="Everything looks good — you're ready to go." />
@@ -53,7 +57,8 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Button HorizontalAlignment="Center" Command="{Binding GoHomeCommand}">
+            <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                    Command="{Binding GoHomeCommand}">
                 <TextBlock Text="Back" />
             </Button>
         </StackPanel>
@@ -62,8 +67,9 @@
         <StackPanel IsVisible="{Binding Step,
                         Converter={x:Static ObjectConverters.Equal},
                         ConverterParameter={x:Static vm:FlowStep.Failed}}"
-                    Spacing="14" VerticalAlignment="Center">
-            <TextBlock Text="That didn't work" FontSize="18" FontWeight="SemiBold" />
+                    Spacing="16" MaxWidth="440"
+                    VerticalAlignment="Center" Margin="0,0,0,56">
+            <TextBlock Text="That didn't work" FontSize="20" FontWeight="SemiBold" />
             <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
             <Expander Header="Technical details"
                       IsVisible="{Binding ErrorDetails,
@@ -71,10 +77,13 @@
                 <TextBlock Text="{Binding ErrorDetails}" TextWrapping="Wrap"
                            FontFamily="Consolas,Menlo,monospace" FontSize="12" />
             </Expander>
-            <Button HorizontalAlignment="Center" Command="{Binding GoHomeCommand}">
+            <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                    Command="{Binding GoHomeCommand}">
                 <TextBlock Text="Back" />
             </Button>
         </StackPanel>
+
+        </Panel>
     </DockPanel>
 
 </UserControl>
