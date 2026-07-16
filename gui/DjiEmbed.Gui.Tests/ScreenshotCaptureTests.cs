@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
 using DjiEmbed.Gui.Views;
@@ -80,11 +81,27 @@ public class ScreenshotCaptureTests
         embed.Step = FlowStep.Failed;
         embed.ErrorMessage = "Something went wrong while embedding the "
             + "flight data. Your original videos were not changed.";
-        embed.ErrorDetails = "Traceback (most recent call last):\n"
+        embed.ErrorDetails = string.Join('\n',
+            Enumerable.Range(1, 30).Select(i => $"ffmpeg: pass {i} …"))
+            + "\nTraceback (most recent call last):\n"
             + "  File \"processor.py\", line 214, in embed\n"
             + "RuntimeError: ffmpeg exited with code 1";
         CaptureView(new EmbedTelemetryView { DataContext = embed },
             Png("embed-failed"));
+
+        var failedOpen = new EmbedTelemetryView { DataContext = embed };
+        var failedWindow = new Window
+        {
+            Width = 560, Height = 520, Content = failedOpen,
+        };
+        failedWindow.Show();
+        Dispatcher.UIThread.RunJobs();
+        foreach (var expander in failedWindow.GetVisualDescendants()
+                     .OfType<Expander>().ToList())
+        {
+            expander.IsExpanded = true;
+        }
+        Capture(failedWindow, Png("embed-failed-details"));
 
         var setup = new CheckSetupViewModel(null, new DjiEmbedRunner(), NoOp());
         setup.Step = FlowStep.Done;
