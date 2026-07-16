@@ -281,3 +281,27 @@ def test_html_pano_cluster_anchor_offset_against_occlusion():
     # underneath stays visible and clickable.
     html = photos_to_html(PANO_POINTS, title="t")
     assert "PANO_CLUSTER_ANCHOR" in html
+
+
+# Touch devices (issue #295): hover tooltips are a mouse concept — on iOS the
+# first tap opened the sticky tooltip, which then covered the pin and swallowed
+# the tap meant for it. Touch gets no tooltips and a larger tap target instead.
+
+
+def test_html_touch_devices_detected_and_skip_hover_tooltips():
+    html = photos_to_html(PANO_POINTS, title="t")
+    # Capability detection, not UA sniffing: no hover / coarse pointer.
+    assert "matchMedia" in html
+    assert "hover: none" in html
+    # Tooltip binding is gated on the touch check; popups stay unconditional.
+    assert re.search(r"if \(!TOUCH\)[\s\S]{0,120}bindTooltip\(", html)
+    assert "bindPopup(" in html
+
+
+def test_html_touch_devices_get_larger_pin_tap_target():
+    html = photos_to_html(PANO_POINTS, title="t")
+    # The divIcon box grows on touch while the visible dot keeps its size:
+    # the dot centers inside a transparent hit area.
+    assert "TOUCH ?" in html
+    assert "pin-hit" in html
+    assert ".pin-hit" in html  # centering CSS for the dot inside the hit box

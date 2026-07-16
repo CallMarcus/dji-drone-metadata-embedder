@@ -106,6 +106,8 @@ The HTML map clusters nearby shots into an expandable numbered marker so a
 dense session doesn't turn into a wall of overlapping pins; clicking a photo
 shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings,
 and hovering a marker previews the thumbnail and filename without clicking.
+On phones and tablets there is no hover, so the map skips the previews and
+gives every pin a larger tap target instead — one tap opens the photo popup.
 KML opens the same thumbnails in Google Earth Pro (Google My Maps import may
 drop the images but keeps the placemarks). GeoJSON is interchange-only — no
 thumbnails, just `name`/`timestamp`/`alt`/`camera` properties (plus

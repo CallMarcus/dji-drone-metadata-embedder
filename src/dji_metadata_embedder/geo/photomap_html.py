@@ -72,6 +72,10 @@ _TEMPLATE = """<!DOCTYPE html>
   .pin-pano  {{ background: var(--pin-pano); }}
   .pin-swatch {{ display: inline-block; vertical-align: -3px;
                 margin-right: 2px; }}
+  /* Touch tap target (issue #295): the visible dot keeps its size but sits
+     centered inside a larger transparent hit box on coarse pointers. */
+  .pin-hit {{ display: flex; width: 100%; height: 100%;
+             align-items: center; justify-content: center; }}
   /* Both cluster tints replace markercluster's default color ramp: its
      "large" (>=100) orange is nearly identical to the pano tint, which would
      contradict the orange-means-panorama legend on dense photo maps. */
@@ -191,9 +195,19 @@ const points = (data.features || []).filter(
 // colored pin and their own cluster group, so clusters stay type-pure and
 // each type can be toggled independently.
 const isPano = f => (f.properties || {}).pano === true;
+// Touch handling (issue #295): hover is a mouse concept. On touch devices the
+// first tap opened the sticky tooltip, which then covered the pin and
+// swallowed the tap meant for it ("huge image of the pin icon" on iPhone).
+// Capability check, not UA sniffing: no hover / coarse pointer → no hover
+// tooltips, and the pin's tap target grows while the dot stays the same size.
+// The click popup (whose thumbnail opens the 360 viewer) is the touch path.
+const TOUCH = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+const PIN_BOX = TOUCH ? 34 : 19;
 const pinIcon = cls => L.divIcon({
-  className: '', html: `<span class="photo-pin ${cls}"></span>`,
-  iconSize: [19, 19], iconAnchor: [9, 9], popupAnchor: [0, -9]
+  className: '',
+  html: `<span class="pin-hit"><span class="photo-pin ${cls}"></span></span>`,
+  iconSize: [PIN_BOX, PIN_BOX], iconAnchor: [PIN_BOX / 2, PIN_BOX / 2],
+  popupAnchor: [0, -PIN_BOX / 2]
 });
 const photoIcon = pinIcon('pin-photo');
 const panoIcon = pinIcon('pin-pano');
@@ -252,8 +266,8 @@ function buildPopup(f) {
 
 // Hover preview (issue #273): thumbnail + filename in a sticky tooltip so a
 // map can be skimmed without clicking every pin. Thumb-less points fall back
-// to a filename-only tooltip. Desktop-only by design: touch devices have no
-// hover and the click popup already covers them.
+// to a filename-only tooltip. Bound only when the device really hovers
+// (issue #295) — on touch the tooltip hijacked the first tap and hid the pin.
 function buildTooltip(f) {
   const p = f.properties || {};
   let html = '<div class="photo-tooltip">';
@@ -268,10 +282,12 @@ for (const f of points) {
   const c = f.geometry.coordinates;                  // [lon, lat, alt]
   latlngs.push([c[1], c[0]]);
   const pano = isPano(f);
-  (pano ? panoMarkers : photoMarkers).push(
-    L.marker([c[1], c[0]], { icon: pano ? panoIcon : photoIcon })
-      .bindPopup(() => buildPopup(f), { maxWidth: 300 })
-      .bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' }));
+  const marker = L.marker([c[1], c[0]], { icon: pano ? panoIcon : photoIcon })
+    .bindPopup(() => buildPopup(f), { maxWidth: 300 });
+  if (!TOUCH) {
+    marker.bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' });
+  }
+  (pano ? panoMarkers : photoMarkers).push(marker);
 }
 photoCluster.addLayers(photoMarkers);
 panoCluster.addLayers(panoMarkers);
