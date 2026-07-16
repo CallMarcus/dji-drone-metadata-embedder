@@ -9,7 +9,10 @@ namespace DjiEmbed.Gui.Tests;
 
 public class TestAppBuilder
 {
+    // Skia-backed headless drawing so tests can capture real rendered frames
+    // (screenshots for design review); input/lifetime behaviour is unchanged.
     public static AppBuilder BuildAvaloniaApp() => AppBuilder
         .Configure<App>()
-        .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+        .UseSkia()
+        .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
 }

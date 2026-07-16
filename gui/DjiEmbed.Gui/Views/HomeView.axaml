@@ -8,11 +8,19 @@
              x:DataType="vm:HomeViewModel">
 
     <UserControl.Styles>
+        <!-- The photo behind the home screen is dark, so foregrounds are pinned
+             light regardless of the Fluent light/dark theme. -->
         <Style Selector="Button.card">
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Padding" Value="20,16" />
             <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="#C217222F" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.card:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#DB22303F" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="TextBlock.cardTitle">
             <Setter Property="FontSize" Value="17" />
@@ -25,16 +33,30 @@
         </Style>
     </UserControl.Styles>
 
+    <Panel>
+        <Image Source="avares://DjiEmbed.Gui/Assets/home-background.png"
+               Stretch="UniformToFill" />
+        <!-- Scrim keeps text readable over the busy parts of the photo. -->
+        <Border>
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#990B121C" />
+                    <GradientStop Offset="1" Color="#660B121C" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
     <DockPanel Margin="32,28">
         <TextBlock DockPanel.Dock="Top"
                    Text="What do you want to do?"
                    FontSize="24" FontWeight="SemiBold"
+                   Foreground="White"
                    Margin="0,0,0,24" />
 
         <!-- The escape hatch is a sentence, not a pane. -->
         <TextBlock DockPanel.Dock="Bottom"
                    Text="Need more control? The dji-embed command line has every option."
-                   Opacity="0.6" FontSize="12"
+                   Foreground="White" Opacity="0.75" FontSize="12"
                    Margin="0,20,0,0" TextWrapping="Wrap" />
 
         <StackPanel Spacing="14" VerticalAlignment="Top">
@@ -61,5 +83,6 @@
             </Button>
         </StackPanel>
     </DockPanel>
+    </Panel>
 
 </UserControl>
