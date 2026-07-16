@@ -1,6 +1,6 @@
 # CI Baseline – Known Good Expectations
 
-_Last verified: 2026-06-21 on Linux with Python 3.12.3 and `uv` 0.11.19._
+_Last verified: 2026-07-16 on Linux with Python 3.12 (repo v1.21.0)._
 
 The project's roadmap expects contributors to run validation before adding new
 work. This page records the "known good" pass/fail baseline so you can tell a
@@ -11,6 +11,7 @@ real regression from a pre-existing environmental gap.
 ```bash
 uv sync --extra dev --extra ui
 uv run ruff check src/ tests/
+uv run mypy
 uv run pytest -q
 uv run python validation_tests/run_all_tests.py   # requires FFmpeg + samples
 ```
@@ -20,7 +21,8 @@ uv run python validation_tests/run_all_tests.py   # requires FFmpeg + samples
 | Suite | Command | Expected result |
 |-------|---------|-----------------|
 | Lint | `uv run ruff check src/ tests/` | `All checks passed!` |
-| Unit tests | `uv run pytest -q` | **264 passed, 2 skipped** (fast, ~11 s) |
+| Types | `uv run mypy` | `Success: no issues found` |
+| Unit tests | `uv run pytest -q` | **583 passed, 4 skipped** (fast, ~12 s; counts grow — treat "0 failed" as the invariant) |
 | CLI smoke | `uv run dji-embed --version` | Prints version plus availability of FFmpeg/ExifTool |
 | Validation – Installation & Dependencies | `validation_tests/test_installation_and_dependencies.py` | Passes only when FFmpeg + ExifTool are on `PATH`. FFmpeg/ExifTool missing ⇒ expected failure outside release CI |
 | Validation – SRT Parsing | `validation_tests/test_srt_parsing.py` | Passes against the bundled `samples/` fixtures |
@@ -34,10 +36,9 @@ with FFmpeg, ExifTool, and private MP4 fixtures installed. In a clean clone
 
 - `ffmpeg not available` and `exiftool not available` in `dji-embed doctor`
   and `--version` output.
-- `validation_tests/run_all_tests.py` reporting **1/5 suites passing** (only
-  the `Error Handling` subset of the End-to-End integration runner green),
-  because the other suites bail out on missing binaries or missing `.MP4`
-  inputs.
+- `validation_tests/run_all_tests.py` reporting **0/5 suites passing**,
+  because every suite bails out on missing binaries (FFmpeg and a
+  current ExifTool) or missing real `.MP4` inputs.
 
 None of these are regressions. Treat them as blocking only when you are
 testing a build that is supposed to ship FFmpeg (e.g. the PyInstaller
@@ -47,15 +48,17 @@ artifact or the Docker image).
 
 GitHub Actions workflows in `.github/workflows/`:
 
-- `ci.yml` – runs `ruff` + `pytest` on Windows and Linux across Python
-  3.10–3.12. This is the authoritative gate for PRs.
-- `release-pypi.yml`, `release-exe.yml`, `release-winget.yml` – triggered on
-  `vX.Y.Z` tags. These stages install FFmpeg/ExifTool as needed.
+- `ci.yml` – runs `ruff` + `mypy` + `pytest` on Windows and Linux across
+  Python 3.10–3.12, plus the desktop-app test suite (`gui` job,
+  `dotnet test gui/DjiEmbed.Gui.sln`). This is the authoritative PR gate.
+- `release-pypi.yml`, `release-exe.yml`, `release-installer.yml`,
+  `release-winget.yml` – triggered on `vX.Y.Z` tags (winget is dispatched
+  manually). These stages install FFmpeg/ExifTool as needed.
 - `auto-changelog.yml` – updates `CHANGELOG.md` from Conventional Commits.
 - `docs.yml` – builds the MkDocs site.
 
-If `uv run pytest -q` is green and `uv run ruff check` is clean, your branch
-matches the PR gate. Run the validation suite before cutting a release or
+If `uv run pytest -q`, `uv run ruff check`, and `uv run mypy` are green,
+your branch matches the PR gate (plus `dotnet test` if you touched `gui/`). Run the validation suite before cutting a release or
 whenever you change parsing / FFmpeg command assembly; otherwise the unit
 tests and golden fixtures are sufficient for day-to-day development.
 

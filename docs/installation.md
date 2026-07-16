@@ -82,7 +82,9 @@ dji-embed ui
 ```
 
 The UI binds to `127.0.0.1` only and opens in your default browser.
-See the [User Guide](user_guide.md#web-ui) for details.
+**Deprecated:** superseded by the Windows desktop app and
+`dji-embed photomap --serve`; it will be removed in a future release.
+See the [User Guide](user_guide.md#web-ui-deprecated) for details.
 
 <details>
 <summary>Advanced</summary>

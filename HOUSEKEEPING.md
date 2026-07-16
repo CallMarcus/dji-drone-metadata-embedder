@@ -42,7 +42,6 @@ work rather than as a one-shot cleanup plan.
 |------|---------|
 | `process_drone_footage.bat` | Windows double-click wrapper around `dji-embed embed` |
 | `process_drone_footage.sh` | macOS/Linux shell wrapper around `dji-embed embed` |
-| `run_diagnostic.bat` | Windows shortcut for `tools/diagnostic_script.py` |
 
 If you add another script, put it in `scripts/` (developer tooling) or
 `tools/` (release/packaging tooling) unless it is intended to be invoked by
@@ -64,10 +63,8 @@ without checking `.github/workflows/` and the relevant docs first:
 - `tools/sync_version.py` – single-source version sync across package,
   bootstrap, spec, and winget manifests.
 - `tools/build_exe.py` – PyInstaller build wrapper.
-- `tools/diagnostic_script.py` – user-facing diagnostics (`run_diagnostic.bat`).
+- `tools/diagnostic_script.py` – user-facing diagnostics.
 - `tools/test_exe.py` – post-build smoke checks for the EXE.
-- `tools/cleanup_and_restructure.ps1` – retained as a historical cleanup
-  helper; review before use.
 
 ---
 
