@@ -73,6 +73,7 @@ public class ScreenshotCaptureTests
 
         embed.Step = FlowStep.Done;
         embed.Outputs.Add(@"C:\Users\demo\Videos\flight\processed");
+        embed.Warnings.Add("DJI_0007.MP4: skipped — no matching .SRT flight log");
         CaptureView(new EmbedTelemetryView { DataContext = embed },
             Png("embed-done"));
 

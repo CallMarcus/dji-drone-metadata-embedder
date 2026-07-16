@@ -49,6 +49,23 @@ public abstract partial class FlowViewModel(
 
     public ObservableCollection<string> Outputs { get; } = [];
 
+    public ObservableCollection<string> Warnings { get; } = [];
+
+    /// <summary>The Running screen's one-liner: "file (n of total)".</summary>
+    public string? ProgressDetail =>
+        CurrentItem is null ? null
+        : Total is { } total ? $"{CurrentItem} ({Current} of {total})"
+        : CurrentItem;
+
+    partial void OnCurrentItemChanged(string? value) =>
+        OnPropertyChanged(nameof(ProgressDetail));
+
+    partial void OnCurrentChanged(int value) =>
+        OnPropertyChanged(nameof(ProgressDetail));
+
+    partial void OnTotalChanged(int? value) =>
+        OnPropertyChanged(nameof(ProgressDetail));
+
     private CancellationTokenSource? _cts;
 
     /// <summary>Fails fast when the bundled CLI is missing.</summary>
@@ -70,6 +87,7 @@ public abstract partial class FlowViewModel(
     protected async Task ExecuteFlowAsync(Func<Task<bool>> body)
     {
         Outputs.Clear();
+        Warnings.Clear();
         Step = FlowStep.Running;
         _cts = new CancellationTokenSource();
         try
@@ -137,6 +155,12 @@ public abstract partial class FlowViewModel(
             Current = e.Current ?? 0;
             Total = e.Total;
             CurrentItem = e.Item;
+        }
+        else if (e.Kind == ProgressEventKind.Warning
+                 && (e.Message ?? e.Item) is { } text)
+        {
+            Warnings.Add(e.Item is null || e.Message is null
+                ? text : $"{e.Item}: {e.Message}");
         }
     }
 
