@@ -188,7 +188,11 @@ dji-embed convert gpx flight.SRT --extract-home      # HOME waypoint in the GPX
 dji-embed convert geojson flight.SRT --extract-home --redact fuzz   # HOME coarsened ~100 m
 ```
 
-## Web UI
+## Web UI (deprecated)
+
+> **Deprecated:** use the Windows desktop app (bundled with the installer)
+> or `dji-embed photomap <folder> --serve` for maps. The `ui` command will
+> be removed in a future release.
 
 If you'd rather click buttons than type commands, install the `[ui]` extra
 and launch the browser-based UI:

@@ -125,16 +125,11 @@ connection to render.
 folder, including subfolders, and opens the result in your browser. The same
 works in a terminal by passing just a folder: `dji-embed /path/to/footage`.
 
-**Prefer a browser over the terminal?** There's an optional local web UI that
-wraps the main commands:
-
-```bash
-pip install 'dji-drone-metadata-embedder[ui]'
-dji-embed ui
-```
-
-It runs entirely on your own machine (`127.0.0.1`) — details under
-[`dji-embed ui`](#dji-embed-ui---local-web-ui) below.
+**Prefer clicking over typing?** On Windows, install the **desktop app**
+(see above) — folder in, map or telemetry out, no terminal. For viewing
+maps there's also `dji-embed photomap <folder> --serve`. (The older
+`dji-embed ui` local web UI is deprecated and will be removed in a future
+release.)
 
 > **Privacy note:** maps and exports reveal where you fly. Share them
 > deliberately, or add `--redact fuzz` to coarsen every position to ~100 m.
@@ -214,7 +209,7 @@ Commands:
   photomap   Map GPS-tagged still photos to an HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
   doctor     Show system information and verify dependencies
-  ui         Launch the local web UI in your browser
+  ui         Launch the legacy local web UI (deprecated)
   verify-sun Summarise the sun's position over a clip for shadow cross-checking
 
 Global Options:
@@ -613,7 +608,11 @@ remembered choice. Non-interactive runs (no terminal, or `CI` set) never
 prompt and never check. The ExifTool-vs-pin comparison needs no network and
 is always shown when your ExifTool is older than the pinned release.
 
-### `dji-embed ui` - Local Web UI
+### `dji-embed ui` - Local Web UI (deprecated)
+
+> **Deprecated:** superseded by the Windows desktop app and
+> `dji-embed photomap --serve`; this command will be removed in a future
+> release.
 
 Launch the local web UI in your browser (requires the `[ui]` extra). It runs
 entirely on `127.0.0.1` and uses your installed browser, so there is no

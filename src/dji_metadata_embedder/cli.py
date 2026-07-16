@@ -196,7 +196,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
-      ui        Launch the local web UI in your browser
+      ui        Launch the legacy local web UI (deprecated)
     """
     ctx.ensure_object(dict)
     ctx.obj['log_json'] = log_json
@@ -1164,7 +1164,9 @@ def verify_sun(
     sys.exit(ExitCode.SUCCESS)
 
 
-@main.command()
+# Deprecated 2026-07 in favour of the desktop app (Windows installer) and
+# `photomap --serve`; slated for removal in a future minor release.
+@main.command(deprecated=True)
 @click.option(
     "--host",
     default="127.0.0.1",
@@ -1183,7 +1185,11 @@ def verify_sun(
     help="Do not open the browser automatically.",
 )
 def ui(host: str, port: int | None, no_browser: bool) -> None:
-    """Launch the local web UI in your default browser.
+    """Launch the legacy local web UI in your default browser.
+
+    Deprecated: use the Windows desktop app (bundled with the installer)
+    or 'dji-embed photomap <folder> --serve' for maps. This command will
+    be removed in a future release.
 
     Requires the ``[ui]`` extra:
 

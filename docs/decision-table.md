@@ -13,7 +13,7 @@ This guide helps you choose the right command and approach for your specific use
 | **Check what's already there** | `dji-embed check` | Verify if videos already have metadata |
 | **Validate file quality** | `dji-embed validate` | Check for timing drift or file issues |
 | **System diagnostics** | `dji-embed doctor` | Troubleshoot installation or dependencies |
-| **Drive it from a browser** | `dji-embed ui` | You prefer a GUI; requires the `[ui]` extra |
+| **Point and click instead of typing** | the desktop app (Windows installer) | Folder in, map/telemetry out — no terminal. (`dji-embed ui` is deprecated) |
 | **Map a whole folder of flights** | `dji-embed flightmap` | You want every flight's track on one combined map (experimental) |
 | **Map your still photos** | `dji-embed photomap` | You shot geotagged photos and want them on a map |
 | **No terminal at all** | drag the folder onto `dji-embed.exe` | Maps the folder's flight logs and photos, then opens the result in your browser (same as `dji-embed <folder>`) |
