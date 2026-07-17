@@ -182,10 +182,13 @@ sudo chmod -R 755 /path/to/output/directory
 
 ### My antivirus blocked the EXE
 
-Some security tools may flag downloaded executables. Verify the
-download source and allow the file if you trust it, or contact your
-administrator. A code-signed release is planned for a future version
-to reduce these warnings.
+Some security tools may flag downloaded executables. Releases from
+v1.23.0 onwards are Authenticode code-signed (publisher: "Open Source
+Developer, Marcus Westermark" — check the file's **Properties → Digital
+Signatures** tab), which reduces these warnings over time as the
+certificate accrues reputation. Verify the download source and allow
+the file if you trust it, or contact your administrator. Releases
+before v1.23.0 are unsigned.
 
 ---
 

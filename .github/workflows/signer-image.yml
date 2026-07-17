@@ -1,0 +1,40 @@
+---
+name: Build signer image
+
+# Builds and pushes the Certum SimplySign signing container used by the
+# release sign jobs (see docker/certum-signer/Dockerfile). Run manually after
+# changing the Dockerfile or bumping the pinned SimplySign/jsign versions,
+# then re-run sign-test.yml to confirm the headless login still works.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  # Version-coded tag: bump alongside the ARGs in the Dockerfile, and update
+  # the image references in release-exe.yml / release-installer.yml /
+  # sign-test.yml to match.
+  IMAGE: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/certum-signer
+          push: true
+          tags: ${{ env.IMAGE }}
+      - name: Summary
+        run: echo "Pushed \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"

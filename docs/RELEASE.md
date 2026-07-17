@@ -16,9 +16,36 @@ and changelog workflows; the winget submission is a separate manual step.
 6. Generate `SHA256SUMS.txt` for verification
 
 ### 2. Windows EXE Build (`release-exe.yml`)
-1. Build a standalone `dji-embed.exe` using PyInstaller
-2. Sign the executable and upload to GitHub Releases
-3. Update release assets with the Windows executable
+Three jobs: `build` → `sign` → `publish`.
+1. Build a standalone `dji-embed.exe` using PyInstaller and download the
+   just-published wheel from PyPI (windows runner)
+2. Authenticode-sign the exe via the reusable `certum-sign.yml` workflow
+   (see "Code signing" below)
+3. Generate `SHA256SUMS.txt`, attest build provenance (Sigstore), and attach
+   everything to the GitHub release — both happen **after** signing because
+   signing changes the file hashes
+
+### 2b. Windows Installer (`release-installer.yml`)
+Five jobs: `build` → `sign-app` → `assemble` → `sign-installer` → `publish`.
+1. Build `dji-embed.exe`, publish the Avalonia GUI, stage pinned
+   FFmpeg/ExifTool + licenses (windows runner)
+2. Sign `dji-embed.exe` and `DjiEmbed.Gui.exe`
+3. Compile the Inno Setup installer over the signed binaries and smoke-test
+   a silent install (also asserts both signatures are valid); the
+   Inno-generated uninstaller is knowingly unsigned (compile-time-only)
+4. Sign the setup EXE
+5. Checksums + attestation + release upload
+
+### Code signing (Certum SimplySign)
+Signing runs headlessly on Linux inside the pinned
+`ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer` container
+(built by `signer-image.yml`, sources in `docker/certum-signer/`), driven by
+the `.github/actions/certum-sign` composite action through the reusable
+`certum-sign.yml` workflow. Repository secrets: `CERTUM_USER_ID`,
+`CERTUM_OTP_URI`, and optionally `CERTUM_CERT_FINGERPRINT` (SHA-256 pin).
+After changing any signing piece or bumping the pinned SimplySign version,
+run the manual **Sign test** workflow (`sign-test.yml`) — it signs an
+existing release exe end-to-end without cutting a release.
 
 ### 3. Winget Submission (`release-winget.yml`) — manual
 This workflow is **not** triggered by the release tag. It only runs via

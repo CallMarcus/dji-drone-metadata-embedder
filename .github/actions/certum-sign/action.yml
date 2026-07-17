@@ -1,0 +1,251 @@
+name: Certum SimplySign Authenticode signing
+description: |
+  Authenticode-sign Windows executables with a Certum "Code Signing in the
+  Cloud" (SimplySign) certificate, headlessly.
+
+  Certum SimplySign has no headless signing API: the cloud key is reachable
+  only through the SimplySign Desktop GUI, which exposes it as a PKCS#11
+  token. This action runs that GUI headlessly (Xvfb + xdotool), logs in with
+  the TOTP derived from the otpauth URI, signs each file with jsign over
+  PKCS#11 (RFC3161-timestamped), and verifies the result with osslsigncode.
+
+  MUST run inside the certum-signer image (see docker/certum-signer), which
+  bakes in SimplySign Desktop, jsign, osslsigncode and the X11/PKCS#11 stack
+  and exports $SS_DIST / $JSIGN_JAR. Credentials are read from the
+  environment - composite actions cannot declare secret-typed inputs - so map
+  these secrets into env on the calling job:
+    CERTUM_USER_ID            SimplySign login id
+    CERTUM_OTP_URI            otpauth:// URI for the SimplySign TOTP
+    CERTUM_CERT_FINGERPRINT   (optional) SHA-256 fingerprint the signing
+                              certificate chain must contain
+
+  Adapted from reactiveui/actions-common certum-sign (MIT); their NuGet
+  signing is swapped for .exe Authenticode, and the login step avoids bash
+  xtrace so the one-time password never reaches the public job log.
+
+inputs:
+  files-glob:
+    description: 'Glob of files to sign (relative to the working directory).'
+    required: false
+    default: 'dist/*.exe'
+  timestamp-url:
+    description: 'RFC3161 timestamp authority URL.'
+    required: false
+    default: 'http://time.certum.pl'
+  display-name:
+    description: 'Program name embedded in the signature (shown in UAC).'
+    required: false
+    default: 'DJI Metadata Embedder'
+  display-url:
+    description: 'Program URL embedded in the signature.'
+    required: false
+    default: 'https://github.com/CallMarcus/dji-drone-metadata-embedder'
+  launch-seconds:
+    description: 'Seconds to wait after launching SimplySign before driving the UI.'
+    required: false
+    default: '20'
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve SimplySign paths
+      shell: bash
+      run: |
+        set -euxo pipefail
+        # The signer image sets SS_DIST and JSIGN_JAR (Dockerfile ENV). Derive
+        # the exe/wrapper/PKCS#11 paths and export them for the later steps.
+        : "${SS_DIST:?must run inside the certum-signer image (SS_DIST unset)}"
+        {
+          echo "SS_DIST=$SS_DIST"
+          echo "SS_START=$(find "$SS_DIST/" -name 'SimplySignDesktop_start' -type f | head -1)"
+          echo "SS_EXE=$(find "$SS_DIST/" -name 'SimplySignDesktop' -type f | head -1)"
+          echo "SS_PKCS11=$(find "$SS_DIST/" -name 'SimplySignPKCS*.so' | head -1)"
+        } >> "$GITHUB_ENV"
+
+    - name: Start headless display
+      shell: bash
+      run: |
+        set -euxo pipefail
+        Xvfb :99 -screen 0 1280x1024x24 >"$RUNNER_TEMP/xvfb.log" 2>&1 &
+        sleep 3
+        # Stop fluxbox running fbsetbg (missing default wallpaper -> an
+        # xmessage that steals focus from the login form).
+        mkdir -p "$HOME/.fluxbox"
+        printf 'session.screen0.rootCommand: /bin/true\n' > "$HOME/.fluxbox/init"
+        DISPLAY=:99 fluxbox >"$RUNNER_TEMP/fluxbox.log" 2>&1 &
+        sleep 2
+        DISPLAY=:99 xdpyinfo >/dev/null && echo "X display :99 up"
+
+    - name: Connect SimplySign (headless login)
+      shell: bash
+      env:
+        DISPLAY: ':99'
+        LAUNCH_SECONDS: ${{ inputs.launch-seconds }}
+      run: |
+        # No xtrace in this step: it would print the computed OTP (and every
+        # xdotool keystroke) into the public job log. The OTP is only valid
+        # for ~30 s, but the log is forever.
+        set -euo pipefail
+        : "${CERTUM_USER_ID:?map the CERTUM_USER_ID secret into the job env}"
+        : "${CERTUM_OTP_URI:?map the CERTUM_OTP_URI secret into the job env}"
+
+        # SimplySignDesktop reads $USER at startup and segfaults (NULL deref
+        # in its bundled OpenSSL) when unset. The image bakes USER=root, but
+        # default it here too in case the runner scrubs it.
+        export USER="${USER:-root}"
+
+        # SimplySign needs its config near $HOME + the logon-dialog
+        # preference, otherwise it shows a "Critical error" on launch.
+        cp "$SS_DIST/SimplySignDesktop.xml" "$HOME/" 2>/dev/null || true
+        mkdir -p "$HOME/.config"
+        { echo "[General]"
+          echo "CacheUserIdAtLogon=Yes"
+          echo "ShowLogonDialogAfterApplicationStartup=Yes"
+          echo "ShowLogonDialogWhenAnyAppRequestsAccess=Yes"
+        } > "$HOME/.config/Unknown Organization.conf"
+
+        # Launch via the *_start wrapper (sets LD_LIBRARY_PATH for bundled Qt).
+        export LD_LIBRARY_PATH="$SS_DIST:${LD_LIBRARY_PATH:-}"
+        if [ -n "${SS_START:-}" ]; then "$SS_START" >"$RUNNER_TEMP/simplysign.log" 2>&1 &
+        else "$SS_EXE" >"$RUNNER_TEMP/simplysign.log" 2>&1 & fi
+        echo "SimplySign launched; waiting ${LAUNCH_SECONDS}s"
+        sleep "$LAUNCH_SECONDS"
+
+        # Find the login form: enumerate windows, match getwindowname
+        # (_NET_WM_NAME); `search --name PATTERN` matches the empty legacy
+        # WM_NAME for this app. Retry-wait: the dialog can lag the launch.
+        WID=""; BX=0; BY=0; BW=0; BH=0
+        for attempt in $(seq 1 30); do
+          best=0; WID=""
+          for w in $(xdotool search --name '' 2>/dev/null); do
+            nm="$(xdotool getwindowname "$w" 2>/dev/null || true)"
+            case "$nm" in *implySign*) ;; *) continue ;; esac
+            eval "$(xdotool getwindowgeometry --shell "$w" 2>/dev/null)"
+            area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
+            if [ "$area" -gt "$best" ]; then best=$area; WID=$w; BX=${X:-0}; BY=${Y:-0}; BW=${WIDTH:-0}; BH=${HEIGHT:-0}; fi
+          done
+          [ "${BW:-0}" -ge 400 ] && [ "${BH:-0}" -ge 300 ] && { echo "login window $WID ${BW}x${BH} (attempt $attempt)"; break; }
+          WID=""; sleep 2
+        done
+        [ -z "$WID" ] && { echo "::error::SimplySign login window did not appear"; cat "$RUNNER_TEMP/simplysign.log" || true; exit 1; }
+
+        xdotool windowactivate --sync "$WID" || xdotool windowactivate "$WID" || true
+        xdotool windowraise "$WID" || true
+        sleep 1
+        # Click the E-MAIL field, type id; Tab; type OTP; click Login.
+        xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
+        xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
+        xdotool key Tab; sleep 1
+
+        # Compute the OTP only now, right before typing it - the window
+        # discovery loop above can take up to a minute, which would let an
+        # early-computed code roll over. If the current period has <5s left,
+        # wait for the next one so the code stays valid while it is typed
+        # and submitted. Honours the URI's algorithm/digits/period params.
+        OTP="$(python3 - <<'PY'
+        import os,hmac,hashlib,base64,struct,time
+        from urllib.parse import urlparse,parse_qs
+        q=parse_qs(urlparse(os.environ["CERTUM_OTP_URI"]).query)
+        s=q["secret"][0]
+        digits=int(q.get("digits",["6"])[0]); period=int(q.get("period",["30"])[0])
+        algo={"SHA1":hashlib.sha1,"SHA256":hashlib.sha256,"SHA512":hashlib.sha512}[q.get("algorithm",["SHA1"])[0].upper()]
+        key=base64.b32decode(s+"="*((8-len(s)%8)%8))
+        remaining=period-(time.time()%period)
+        if remaining<5: time.sleep(remaining+0.5)
+        h=hmac.new(key,struct.pack(">Q",int(time.time()//period)),algo).digest(); o=h[-1]&0xF
+        print(str((int.from_bytes(h[o:o+4],"big")&0x7fffffff)%(10**digits)).zfill(digits))
+        PY
+        )"
+        echo "::add-mask::$OTP"
+        xdotool type --clearmodifiers --delay 50 "$OTP"
+        xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
+        sleep 8
+
+        # "Logon successful" dialog: the token does NOT activate until its
+        # Close button (bottom-centre) is clicked. Re-find the window (its
+        # content changed).
+        best=0
+        for w in $(xdotool search --name '' 2>/dev/null); do
+          nm="$(xdotool getwindowname "$w" 2>/dev/null || true)"
+          case "$nm" in *implySign*) ;; *) continue ;; esac
+          eval "$(xdotool getwindowgeometry --shell "$w" 2>/dev/null)"
+          area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
+          if [ "$area" -gt "$best" ]; then best=$area; WID=$w; BX=${X:-0}; BY=${Y:-0}; BW=${WIDTH:-0}; BH=${HEIGHT:-0}; fi
+        done
+        xdotool windowactivate --sync "$WID" || true
+        xdotool mousemove $((BX + BW/2)) $((BY + BH*94/100)) click 1
+        sleep 3
+
+        # Confirm the token is active (fails fast if login didn't take).
+        timeout 60 pkcs11-tool --module "$SS_PKCS11" -L
+
+    - name: Sign with jsign + verify
+      shell: bash
+      env:
+        TS_URL: ${{ inputs.timestamp-url }}
+        FILES_GLOB: ${{ inputs.files-glob }}
+        SIGN_NAME: ${{ inputs.display-name }}
+        SIGN_URL: ${{ inputs.display-url }}
+      run: |
+        set -euxo pipefail
+        : "${JSIGN_JAR:?must run inside the certum-signer image (JSIGN_JAR unset)}"
+        CONF="$RUNNER_TEMP/sunpkcs11.conf"
+        { echo "name = SimplySign"; echo "library = $SS_PKCS11"; echo "slotListIndex = 0"; } > "$CONF"
+
+        shopt -s nullglob
+        files=( $FILES_GLOB )
+        [ "${#files[@]}" -gt 0 ] || { echo "::error::no files matched: $FILES_GLOB"; exit 1; }
+
+        for f in "${files[@]}"; do
+          echo "::group::sign $f"
+          # Single call: the token has one key (jsign auto-selects it).
+          # RFC3161 timestamp so the signature outlives the cert.
+          java -jar "$JSIGN_JAR" --storetype PKCS11 --keystore "$CONF" --storepass "" \
+            --alg SHA-256 --tsmode RFC3161 --tsaurl "$TS_URL" --replace \
+            --name "$SIGN_NAME" --url "$SIGN_URL" "$f"
+          # Structural + chain verification (Certum roots ship in
+          # ca-certificates on the signer image).
+          osslsigncode verify \
+            -CAfile /etc/ssl/certs/ca-certificates.crt \
+            -TSA-CAfile /etc/ssl/certs/ca-certificates.crt \
+            -in "$f"
+          echo "::endgroup::"
+        done
+
+    - name: Check certificate fingerprint pin
+      shell: bash
+      env:
+        FILES_GLOB: ${{ inputs.files-glob }}
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        # List every certificate in each file's signature (leaf + chain) with
+        # its SHA-256 fingerprint - and, when CERTUM_CERT_FINGERPRINT is set,
+        # require the pinned one to be present in EVERY signed file. This
+        # guards against signing with an unexpected certificate if the token
+        # ever carries several.
+        for f in $FILES_GLOB; do
+          echo "--- $f"
+          osslsigncode extract-signature -in "$f" -out "$RUNNER_TEMP/sig.der" >/dev/null
+          openssl pkcs7 -inform DER -in "$RUNNER_TEMP/sig.der" -print_certs > "$RUNNER_TEMP/certs.pem"
+          python3 - "$RUNNER_TEMP/certs.pem" <<'PY'
+        import hashlib, os, re, subprocess, sys
+        pem = open(sys.argv[1]).read()
+        blocks = re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", pem, re.S)
+        pin = re.sub(r"[^0-9A-Fa-f]", "", os.environ.get("CERTUM_CERT_FINGERPRINT", "")).upper()
+        found = False
+        for b in blocks:
+            der = subprocess.run(["openssl", "x509", "-outform", "DER"],
+                                 input=b.encode(), capture_output=True, check=True).stdout
+            fp = hashlib.sha256(der).hexdigest().upper()
+            subj = subprocess.run(["openssl", "x509", "-noout", "-subject"],
+                                  input=b.encode(), capture_output=True, check=True).stdout.decode().strip()
+            print(f"{fp}  {subj}")
+            found = found or (pin and fp == pin)
+        if pin and not found:
+            print("::error::pinned CERTUM_CERT_FINGERPRINT not found in the signature chain")
+            sys.exit(1)
+        print("fingerprint pin OK" if pin else
+              "CERTUM_CERT_FINGERPRINT not set - skipping pin check (fingerprints above)")
+        PY
+        done

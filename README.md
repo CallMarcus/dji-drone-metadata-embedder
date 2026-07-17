@@ -90,7 +90,11 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 <details>
 <summary>Verify your download (optional)</summary>
 
-Every release ships `SHA256SUMS` files alongside the binaries. In addition,
+Windows binaries and the installer are Authenticode code-signed from v1.23.0
+onwards — right-click the file → **Properties → Digital Signatures** and you
+should see "Open Source Developer, Marcus Westermark" (issued by Certum).
+
+Every release also ships `SHA256SUMS` files alongside the binaries, and
 release builds (v1.23.0 onwards) carry [build provenance attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
 — a Sigstore-signed proof that the file you downloaded was produced by this
 repository's public build workflow. With the [GitHub CLI](https://cli.github.com/):

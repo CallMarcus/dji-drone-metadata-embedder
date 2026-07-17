@@ -1,0 +1,71 @@
+---
+name: Sign test
+
+# Manual end-to-end test of the Certum SimplySign signing path WITHOUT
+# cutting a release: downloads dji-embed.exe from an existing GitHub release,
+# signs it via the reusable certum-sign workflow, and verifies the signature.
+# The sign job's log prints the signing certificate's SHA-256 fingerprints -
+# use the leaf (the "Open Source Developer" subject) as the
+# CERTUM_CERT_FINGERPRINT secret. The signed exe is uploaded as a workflow
+# artifact so it can be inspected on a real Windows machine
+# (Properties -> Digital Signatures).
+#
+# Run this after: building the signer image (signer-image.yml), changing the
+# certum-sign action, or bumping the pinned SimplySign version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release tag to take dji-embed.exe from (empty = latest)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download dji-embed.exe from a release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.release-tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TAG" ]; then
+            api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}"
+          else
+            api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
+          fi
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "$api" -o release.json
+          url="$(python3 - <<'PY'
+          import json, sys
+          rel = json.load(open("release.json"))
+          urls = [a["browser_download_url"] for a in rel["assets"] if a["name"] == "dji-embed.exe"]
+          if not urls:
+              sys.stderr.write("::error::release %s has no dji-embed.exe asset\n" % rel.get("tag_name"))
+              raise SystemExit(1)
+          print(urls[0])
+          PY
+          )"
+          mkdir -p dist
+          curl -fsSL -o dist/dji-embed.exe "$url"
+          ls -l dist/
+      - name: Upload exe to sign
+        uses: actions/upload-artifact@v7
+        with:
+          name: sign-test-input
+          path: dist/dji-embed.exe
+          if-no-files-found: error
+
+  sign:
+    needs: fetch
+    uses: ./.github/workflows/certum-sign.yml
+    with:
+      artifact: sign-test-input
+      signed-artifact: signed-dji-embed
+    secrets: inherit
