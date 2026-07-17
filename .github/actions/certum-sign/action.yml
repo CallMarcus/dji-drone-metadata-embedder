@@ -325,7 +325,7 @@ runs:
         done
         [ -z "$WID" ] && { echo "::error::SimplySign login window did not appear"; cat "$RUNNER_TEMP/simplysign.log" || true; exit 1; }
 
-        # The logon dialog is a QtWebEngine page that loads (and sometimes
+        # The logon dialog is a Qt5 WebKit page that loads (and sometimes
         # reloads) asynchronously — the v1.23.0 release runs showed the page
         # rebuilding itself WHILE the old single-shot drive was typing, which
         # lost the credentials and left the token empty. So: settle first,
