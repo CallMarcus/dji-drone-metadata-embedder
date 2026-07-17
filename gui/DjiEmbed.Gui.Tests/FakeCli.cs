@@ -55,6 +55,24 @@ internal static class FakeCli
         return WriteScript(dir, sh);
     }
 
+    /// <summary>
+    /// A fake CLI that appends its argv to <paramref name="argsFile"/>, then
+    /// plays back <paramref name="stdoutLines"/> and exits 0.
+    /// </summary>
+    internal static string WriteArgsRecorder(string dir, string argsFile,
+        IEnumerable<string> stdoutLines)
+    {
+        if (IsWindows)
+        {
+            return WriteScript(dir, "@echo off\r\n"
+                + $"echo %* >> \"{argsFile}\"\r\n"
+                + EchoLinesCmd(stdoutLines) + "exit /b 0\r\n");
+        }
+        return WriteScript(dir, "#!/bin/sh\n"
+            + $"echo \"$@\" >> '{argsFile}'\n"
+            + EchoLinesSh(stdoutLines) + "exit 0\n");
+    }
+
     private static string EchoLinesCmd(IEnumerable<string> lines) =>
         string.Concat(lines.Select(l =>
             "echo " + l.Replace("\"", "\"\"") + "\r\n"));

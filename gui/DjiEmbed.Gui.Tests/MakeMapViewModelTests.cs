@@ -33,7 +33,7 @@ public class MakeMapViewModelTests : IDisposable
     ];
 
     private static MakeMapViewModel Vm(string? cli, bool wentHome = false) =>
-        new(cli, new DjiEmbedRunner(), () => { });
+        new(cli, new DjiEmbedRunner(), new MapServer(), () => { });
 
     [Fact]
     public void Starts_on_the_pick_step()
@@ -85,6 +85,18 @@ public class MakeMapViewModelTests : IDisposable
         await vm.StartCommand.ExecuteAsync(MakeFolder(srt: true, photos: true));
         Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(["flightmap.html", "photomap.html"], vm.Outputs);
+    }
+
+    [Fact]
+    public async Task Photomap_step_links_originals_for_the_pano_viewer()
+    {
+        // #305: without --link-originals the map has no pano viewer at all.
+        var argsFile = Path.Combine(_dir, "args.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, PhotomapStream);
+        var vm = Vm(cli);
+        await vm.StartCommand.ExecuteAsync(MakeFolder(photos: true));
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Contains("--link-originals", File.ReadAllText(argsFile));
     }
 
     [Fact]

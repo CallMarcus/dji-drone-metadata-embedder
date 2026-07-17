@@ -324,6 +324,20 @@ This writes the map, serves its folder at a private local address
 (`http://127.0.0.1:<port>` — reachable only from your own computer), and
 opens it in your browser. Press Ctrl+C in the terminal to stop.
 
+To serve a map that already exists without rebuilding it, use the
+standalone `serve` command:
+
+```bash
+dji-embed serve /path/to/panoramas                       # opens photomap.html
+dji-embed serve ./footage --page flightmap.html
+```
+
+(The desktop app uses this under the hood: maps opened from its Done
+screen are served automatically, so the 360° viewer just works there.)
+Wrapper flags for that kind of integration: `--no-browser`, `--url-only`
+(print the bare URL as the first line), and `--exit-with-stdin` (stop when
+stdin closes, tying the server to the app that started it).
+
 Notes:
 
 - Opened straight from disk (double-clicking `photomap.html`), the 360°

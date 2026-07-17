@@ -119,7 +119,7 @@ public class FlowProgressAndWarningsTests : IDisposable
     [AvaloniaFact]
     public void Makemap_done_screen_shows_warnings()
     {
-        var vm = new MakeMapViewModel(null, new DjiEmbedRunner(), () => { });
+        var vm = new MakeMapViewModel(null, new DjiEmbedRunner(), new MapServer(), () => { });
         vm.Step = FlowStep.Done;
         vm.Warnings.Add("IMG_0001.JPG: no GPS position");
         var window = ShowView(new MakeMapView { DataContext = vm });

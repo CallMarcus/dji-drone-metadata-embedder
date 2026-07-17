@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using DjiEmbed.Gui.Services;
@@ -11,8 +12,8 @@ namespace DjiEmbed.Gui.ViewModels;
 /// through the bundled CLI and collects the map files it names.
 /// </summary>
 public partial class MakeMapViewModel(
-    string? cliPath, DjiEmbedRunner runner, Action goHome)
-    : FlowViewModel(cliPath, runner, goHome)
+    string? cli, DjiEmbedRunner runner, MapServer mapServer, Action goHome)
+    : FlowViewModel(cli, runner, goHome)
 {
     protected override string GenericFailureMessage =>
         "Something went wrong while making the map.";
@@ -39,12 +40,37 @@ public partial class MakeMapViewModel(
             {
                 return false;
             }
+            // --link-originals: the map is written inside the mapped folder,
+            // so the relative links are stable there — and they are what
+            // powers the embedded 360° panorama viewer (#305).
             if (contents.HasPhotos && !await RunStepAsync(
-                    "Mapping your photos…", ["photomap", folder, "-r"]))
+                    "Mapping your photos…",
+                    ["photomap", folder, "-r", "--link-originals"]))
             {
                 return false;
             }
             return true;
         });
+    }
+
+    /// <summary>
+    /// HTML maps open through a managed local server instead of file://,
+    /// which blocks the 360° panorama viewer (#305). A server that fails
+    /// to start falls back to the plain file open — the map minus the
+    /// pano viewer, never nothing.
+    /// </summary>
+    protected override async Task OpenOutputCoreAsync(string path)
+    {
+        if (CliPath is not null
+            && path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = await mapServer.GetUrlAsync(CliPath, path);
+            if (url is not null)
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                return;
+            }
+        }
+        await base.OpenOutputCoreAsync(path);
     }
 }
