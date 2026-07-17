@@ -53,6 +53,9 @@ with a trillion features in irrational navigation paths.
 3. **The escape hatch is a sentence, not a pane.** Power users are pointed at
    the CLI in a footer line ("Need more control? `dji-embed --help`"). "Can the
    GUI also do X?" is answered with documentation, not another checkbox.
+   *Amended 2026-07-17 (#293): the footer sentence became a link to a
+   read-only CLI discovery screen — curated examples, a shell-launch button,
+   the live `--help` output. Still no fourth task card, no settings.*
 
 ## Architecture
 

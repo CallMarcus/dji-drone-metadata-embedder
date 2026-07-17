@@ -103,6 +103,10 @@ public class ScreenshotCaptureTests
         }
         Capture(failedWindow, Png("embed-failed-details"));
 
+        var discovery = new CliDiscoveryViewModel(null, NoOp());
+        CaptureView(new CliDiscoveryView { DataContext = discovery },
+            Png("cli-discovery"));
+
         var setup = new CheckSetupViewModel(null, new DjiEmbedRunner(), NoOp());
         setup.Step = FlowStep.Done;
         setup.AllGood = true;

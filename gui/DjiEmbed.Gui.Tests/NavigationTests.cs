@@ -61,6 +61,35 @@ public class NavigationTests
     }
 
     [AvaloniaFact]
+    public void Footer_link_navigates_to_the_cli_discovery_screen()
+    {
+        var window = new MainWindow { DataContext = new MainViewModel() };
+        window.Show();
+
+        var link = window.GetVisualDescendants().OfType<Button>()
+            .First(b => b.Classes.Contains("footerLink"));
+        link.Focus();
+        window.KeyPressQwerty(Avalonia.Input.PhysicalKey.Enter,
+            Avalonia.Input.RawInputModifiers.None);
+
+        Assert.NotNull(window.GetVisualDescendants()
+            .OfType<CliDiscoveryView>().FirstOrDefault());
+    }
+
+    [AvaloniaFact]
+    public void Cli_discovery_back_button_returns_home()
+    {
+        var main = new MainViewModel();
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        main.StartTask(TaskKind.CliDiscovery);
+
+        var vm = Assert.IsType<CliDiscoveryViewModel>(main.CurrentPage);
+        vm.GoHomeCommand.Execute(null);
+        Assert.IsType<HomeViewModel>(main.CurrentPage);
+    }
+
+    [AvaloniaFact]
     public void Map_flow_back_button_returns_home()
     {
         var main = new MainViewModel();
