@@ -54,6 +54,7 @@ param(
     [Parameter(ParameterSetName = 'Build', Mandatory)] [string] $SignedExeDir,
     [Parameter(ParameterSetName = 'Build', Mandatory)] [string] $AppVersion,
     [Parameter(ParameterSetName = 'Build')] [string] $OutputDir = 'dist-installer',
+    [Parameter(ParameterSetName = 'Build')] [string] $IsccPath,
     [Parameter(ParameterSetName = 'Build')] [switch] $SkipSmokeTest,
     [Parameter(ParameterSetName = 'Verify', Mandatory)] [string] $VerifySetup,
     [Parameter(ParameterSetName = 'Verify')] [string] $VerifyAppVersion
@@ -103,12 +104,22 @@ foreach ($e in $exes) {
 }
 
 Write-Host "== Locating Inno Setup (ISCC) =="
-$iscc = @(
-    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-    "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+# Probe machine-wide AND per-user (winget installs per-user when it can't
+# elevate) roots, with a version-folder wildcard, plus PATH and an explicit
+# override.
+$isccCandidates = @()
+if ($IsccPath) { $isccCandidates += $IsccPath }
+$isccCandidates += (Get-Command ISCC.exe -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty Source)
+$isccCandidates += Get-ChildItem -ErrorAction SilentlyContinue -Path `
+    "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", `
+    "${env:ProgramFiles}\Inno Setup*\ISCC.exe", `
+    "$env:LOCALAPPDATA\Programs\Inno Setup*\ISCC.exe" |
+    Select-Object -ExpandProperty FullName
+$iscc = $isccCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 if (-not $iscc) {
-    throw "Inno Setup 6 not found. Install it (winget install JRSoftware.InnoSetup) and retry."
+    throw "Inno Setup not found. Install it (winget install --id JRSoftware.InnoSetup -e) " +
+          "or pass -IsccPath <path to ISCC.exe>."
 }
 Write-Host "  using: $iscc"
 
