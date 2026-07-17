@@ -80,6 +80,7 @@ runs:
       shell: bash
       env:
         DISPLAY: ':99'
+        LAUNCH_SECONDS: ${{ inputs.launch-seconds }}
       run: |
         # No xtrace in this step: it would print the computed OTP (and every
         # xdotool keystroke) into the public job log. The OTP is only valid
@@ -107,23 +108,8 @@ runs:
         export LD_LIBRARY_PATH="$SS_DIST:${LD_LIBRARY_PATH:-}"
         if [ -n "${SS_START:-}" ]; then "$SS_START" >"$RUNNER_TEMP/simplysign.log" 2>&1 &
         else "$SS_EXE" >"$RUNNER_TEMP/simplysign.log" 2>&1 & fi
-        echo "SimplySign launched; waiting ${{ inputs.launch-seconds }}s"
-        sleep "${{ inputs.launch-seconds }}"
-
-        # Current OTP from the otpauth URI (honours algorithm/digits/period).
-        OTP="$(python3 - <<'PY'
-        import os,hmac,hashlib,base64,struct,time
-        from urllib.parse import urlparse,parse_qs
-        q=parse_qs(urlparse(os.environ["CERTUM_OTP_URI"]).query)
-        s=q["secret"][0]
-        digits=int(q.get("digits",["6"])[0]); period=int(q.get("period",["30"])[0])
-        algo={"SHA1":hashlib.sha1,"SHA256":hashlib.sha256,"SHA512":hashlib.sha512}[q.get("algorithm",["SHA1"])[0].upper()]
-        key=base64.b32decode(s+"="*((8-len(s)%8)%8))
-        h=hmac.new(key,struct.pack(">Q",int(time.time()//period)),algo).digest(); o=h[-1]&0xF
-        print(str((int.from_bytes(h[o:o+4],"big")&0x7fffffff)%(10**digits)).zfill(digits))
-        PY
-        )"
-        echo "::add-mask::$OTP"
+        echo "SimplySign launched; waiting ${LAUNCH_SECONDS}s"
+        sleep "$LAUNCH_SECONDS"
 
         # Find the login form: enumerate windows, match getwindowname
         # (_NET_WM_NAME); `search --name PATTERN` matches the empty legacy
@@ -150,6 +136,27 @@ runs:
         xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
         xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
         xdotool key Tab; sleep 1
+
+        # Compute the OTP only now, right before typing it - the window
+        # discovery loop above can take up to a minute, which would let an
+        # early-computed code roll over. If the current period has <5s left,
+        # wait for the next one so the code stays valid while it is typed
+        # and submitted. Honours the URI's algorithm/digits/period params.
+        OTP="$(python3 - <<'PY'
+        import os,hmac,hashlib,base64,struct,time
+        from urllib.parse import urlparse,parse_qs
+        q=parse_qs(urlparse(os.environ["CERTUM_OTP_URI"]).query)
+        s=q["secret"][0]
+        digits=int(q.get("digits",["6"])[0]); period=int(q.get("period",["30"])[0])
+        algo={"SHA1":hashlib.sha1,"SHA256":hashlib.sha256,"SHA512":hashlib.sha512}[q.get("algorithm",["SHA1"])[0].upper()]
+        key=base64.b32decode(s+"="*((8-len(s)%8)%8))
+        remaining=period-(time.time()%period)
+        if remaining<5: time.sleep(remaining+0.5)
+        h=hmac.new(key,struct.pack(">Q",int(time.time()//period)),algo).digest(); o=h[-1]&0xF
+        print(str((int.from_bytes(h[o:o+4],"big")&0x7fffffff)%(10**digits)).zfill(digits))
+        PY
+        )"
+        echo "::add-mask::$OTP"
         xdotool type --clearmodifiers --delay 50 "$OTP"
         xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
         sleep 8
@@ -212,15 +219,16 @@ runs:
       run: |
         set -euo pipefail
         shopt -s nullglob
-        files=( $FILES_GLOB )
-        first="${files[0]}"
-        osslsigncode extract-signature -in "$first" -out "$RUNNER_TEMP/sig.der" >/dev/null
-        openssl pkcs7 -inform DER -in "$RUNNER_TEMP/sig.der" -print_certs > "$RUNNER_TEMP/certs.pem"
-        # List every certificate in the signature (leaf + chain) with its
-        # SHA-256 fingerprint - and, when CERTUM_CERT_FINGERPRINT is set,
-        # require the pinned one to be present. This guards against signing
-        # with an unexpected certificate if the token ever carries several.
-        python3 - "$RUNNER_TEMP/certs.pem" <<'PY'
+        # List every certificate in each file's signature (leaf + chain) with
+        # its SHA-256 fingerprint - and, when CERTUM_CERT_FINGERPRINT is set,
+        # require the pinned one to be present in EVERY signed file. This
+        # guards against signing with an unexpected certificate if the token
+        # ever carries several.
+        for f in $FILES_GLOB; do
+          echo "--- $f"
+          osslsigncode extract-signature -in "$f" -out "$RUNNER_TEMP/sig.der" >/dev/null
+          openssl pkcs7 -inform DER -in "$RUNNER_TEMP/sig.der" -print_certs > "$RUNNER_TEMP/certs.pem"
+          python3 - "$RUNNER_TEMP/certs.pem" <<'PY'
         import hashlib, os, re, subprocess, sys
         pem = open(sys.argv[1]).read()
         blocks = re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", pem, re.S)
@@ -240,3 +248,4 @@ runs:
         print("fingerprint pin OK" if pin else
               "CERTUM_CERT_FINGERPRINT not set - skipping pin check (fingerprints above)")
         PY
+        done

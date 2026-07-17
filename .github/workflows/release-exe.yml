@@ -105,32 +105,11 @@ jobs:
 
   sign:
     needs: build
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
-      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
-      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: unsigned-dist
-          path: dist
-      - name: Sign dji-embed.exe
-        uses: ./.github/actions/certum-sign
-        with:
-          files-glob: 'dist/*.exe'
-      - name: Upload signed dist
-        uses: actions/upload-artifact@v7
-        with:
-          name: signed-dist
-          path: dist/*
-          if-no-files-found: error
+    uses: ./.github/workflows/certum-sign.yml
+    with:
+      artifact: unsigned-dist
+      signed-artifact: signed-dist
+    secrets: inherit
 
   publish:
     needs: [build, sign]

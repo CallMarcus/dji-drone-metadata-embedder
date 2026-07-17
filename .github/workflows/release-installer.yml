@@ -150,10 +150,16 @@ jobs:
           } > staging/app/licenses/THIRD-PARTY.txt
 
       - name: Upload staging tree
+        # The two app exes are excluded: they always arrive via the signed-app
+        # artifact instead, so shipping the unsigned copies here would only
+        # waste transfer and risk an unsigned binary sneaking into staging.
         uses: actions/upload-artifact@v7
         with:
           name: staging
-          path: staging/app/**
+          path: |
+            staging/app/**
+            !staging/app/dji-embed.exe
+            !staging/app/DjiEmbed.Gui.exe
           if-no-files-found: error
       - name: Upload binaries to sign
         # Uploaded separately so the sign job moves ~2 exes instead of the
@@ -169,32 +175,11 @@ jobs:
 
   sign-app:
     needs: build
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
-      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
-      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: to-sign
-          path: tosign
-      - name: Sign app binaries
-        uses: ./.github/actions/certum-sign
-        with:
-          files-glob: 'tosign/*.exe'
-      - name: Upload signed app binaries
-        uses: actions/upload-artifact@v7
-        with:
-          name: signed-app
-          path: tosign/*.exe
-          if-no-files-found: error
+    uses: ./.github/workflows/certum-sign.yml
+    with:
+      artifact: to-sign
+      signed-artifact: signed-app
+    secrets: inherit
 
   assemble:
     needs: [build, sign-app]
@@ -245,10 +230,16 @@ jobs:
           }
           & "$app\dji-embed.exe" --version
           if ($LASTEXITCODE -ne 0) { throw "bundled CLI failed" }
-          # The staged CLI is Authenticode-signed at this point; make sure
-          # the signature survived staging + install intact.
-          $sig = Get-AuthenticodeSignature "$app\dji-embed.exe"
-          if ($sig.Status -ne 'Valid') { throw "dji-embed.exe signature: $($sig.Status)" }
+          # ExifTool's Perl lib tree (hundreds of nested files) round-tripped
+          # through the staging artifact; running it proves the tree survived.
+          & "$app\tools\exiftool.exe" -ver
+          if ($LASTEXITCODE -ne 0) { throw "bundled ExifTool failed" }
+          # Both staged exes are Authenticode-signed at this point; make sure
+          # the signatures survived staging + install intact.
+          foreach ($exe in @("dji-embed.exe", "DjiEmbed.Gui.exe")) {
+            $sig = Get-AuthenticodeSignature "$app\$exe"
+            if ($sig.Status -ne 'Valid') { throw "${exe} signature: $($sig.Status)" }
+          }
 
       - name: Upload unsigned installer
         uses: actions/upload-artifact@v7
@@ -258,33 +249,12 @@ jobs:
           if-no-files-found: error
 
   sign-installer:
-    needs: [build, assemble]
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
-      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
-      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: unsigned-installer
-          path: dist-installer
-      - name: Sign installer
-        uses: ./.github/actions/certum-sign
-        with:
-          files-glob: 'dist-installer/*.exe'
-      - name: Upload signed installer
-        uses: actions/upload-artifact@v7
-        with:
-          name: signed-installer
-          path: dist-installer/*
-          if-no-files-found: error
+    needs: assemble
+    uses: ./.github/workflows/certum-sign.yml
+    with:
+      artifact: unsigned-installer
+      signed-artifact: signed-installer
+    secrets: inherit
 
   publish:
     needs: [build, sign-installer]

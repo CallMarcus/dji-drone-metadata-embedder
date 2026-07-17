@@ -23,8 +23,13 @@ FROM ubuntu:24.04
 # for Certum's file host, so bump this manually when Certum ships a new
 # version - and re-run sign-test.yml after any bump: a SimplySign UI change
 # can break the xdotool login scripting in the certum-sign action.
+# Checksum-verified pins, matching the repo convention for bundled tooling
+# (FFmpeg in release-installer.yml, ExifTool in utils/provision.py):
+# bumps change the pin AND the checksum, nothing else.
 ARG SIMPLYSIGN_BIN_URL=https://files.certum.eu/software/SimplySignDesktop/Linux-Ubuntu/2.9.14-9.4.3.0/SimplySignDesktop-2.9.14-9.4.3.0-x86_64-prod-ubuntu.bin
+ARG SIMPLYSIGN_SHA256=e462dc83679f9987d4e8419c9b4db30e11884bffd875e85e142ac77aad7233e8
 ARG JSIGN_VERSION=7.5
+ARG JSIGN_SHA256=602a51c3545a6dc4fb99bd2ea7152b26d1345916d0c93ddfbd5936cb735af91c
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -52,6 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # there (mirrors hpvb/certum-container). Extract to a temp dir, then move the
 # dist into place and drop the installer + temp to keep the layer smaller.
 RUN curl -fsSL -o /tmp/ss.bin "$SIMPLYSIGN_BIN_URL" \
+    && echo "$SIMPLYSIGN_SHA256  /tmp/ss.bin" | sha256sum -c \
     && mkdir -p /tmp/ss-extract \
     && (yes yes | sh /tmp/ss.bin --target /tmp/ss-extract || true) \
     && mv "$(find /tmp/ss-extract -maxdepth 1 -type d -name 'SSD-*-dist' | head -1)" /opt/SimplySignDesktop \
@@ -59,7 +65,8 @@ RUN curl -fsSL -o /tmp/ss.bin "$SIMPLYSIGN_BIN_URL" \
     && test -x /opt/SimplySignDesktop/SimplySignDesktop
 
 # jsign (Authenticode signing over PKCS#11).
-RUN curl -fsSL -o /opt/jsign.jar "https://repo1.maven.org/maven2/net/jsign/jsign/${JSIGN_VERSION}/jsign-${JSIGN_VERSION}.jar"
+RUN curl -fsSL -o /opt/jsign.jar "https://repo1.maven.org/maven2/net/jsign/jsign/${JSIGN_VERSION}/jsign-${JSIGN_VERSION}.jar" \
+    && echo "$JSIGN_SHA256  /opt/jsign.jar" | sha256sum -c
 
 # Contract consumed by the certum-sign action.
 #

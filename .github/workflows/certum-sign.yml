@@ -1,0 +1,62 @@
+---
+name: Certum sign (reusable)
+
+# Reusable signing job: downloads an artifact, Authenticode-signs the files
+# matching the glob inside the certum-signer container, and re-uploads the
+# whole tree as a new artifact. Owns the container reference and the secret
+# plumbing so callers (release-exe.yml, release-installer.yml twice,
+# sign-test.yml) don't repeat them - call with `secrets: inherit`.
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: 'Artifact containing the files to sign'
+        required: true
+        type: string
+      signed-artifact:
+        description: 'Artifact name for the signed result (whole tree)'
+        required: true
+        type: string
+      files-glob:
+        description: 'Glob of files to sign, relative to the artifact root'
+        required: false
+        type: string
+        default: '*.exe'
+
+permissions:
+  contents: read
+  # Pull the certum-signer container image from GHCR.
+  packages: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    container:
+      # Version-coded tag: bump alongside the ARGs in
+      # docker/certum-signer/Dockerfile and the IMAGE env in signer-image.yml
+      # (the only other place this tag appears).
+      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact }}
+          path: work
+      - name: Sign and verify
+        uses: ./.github/actions/certum-sign
+        with:
+          files-glob: work/${{ inputs.files-glob }}
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.signed-artifact }}
+          path: work/*
+          if-no-files-found: error
