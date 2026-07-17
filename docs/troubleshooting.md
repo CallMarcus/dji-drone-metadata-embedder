@@ -568,6 +568,35 @@ grep -E "(iso|shutter|fnum)" DJI_0001.SRT | head -3
 
 ---
 
+## 🗺️ Map & Panorama Issues
+
+### 360° Panoramas Open as Flat Images
+
+**Problem:** Clicking a panorama on a `photomap` map shows a stretched flat
+photo instead of the interactive 360° viewer
+
+**Cause:** The map was opened by double-clicking the HTML file. Browsers
+block the viewer's image access on `file://` pages, so it silently falls
+back to a plain image. The map needs to come from a local web server.
+
+**Solutions:**
+```bash
+# Build and serve in one step (opens your browser)
+dji-embed photomap /path/to/photos --link-originals --serve
+
+# Or serve an already-built map folder later
+dji-embed serve /path/to/photos
+```
+
+The server binds to a private local address on your machine only — nothing
+is uploaded. The desktop app's *Make a map* task does this automatically.
+
+Panoramas need their GPano metadata intact to be detected — see
+[Maps & Panoramas](geospatial.md) before resizing or re-exporting them, as
+most editors silently strip it.
+
+---
+
 ## 🐛 Advanced Troubleshooting
 
 ### Debug Mode
