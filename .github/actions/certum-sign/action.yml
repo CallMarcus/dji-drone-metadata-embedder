@@ -179,6 +179,25 @@ runs:
         # Confirm the token is active (fails fast if login didn't take).
         timeout 60 pkcs11-tool --module "$SS_PKCS11" -L
 
+        # The slot enumerates BEFORE the certificate objects finish loading
+        # (v1.23.0 release: jsign hit "No certificate found in the keystore"
+        # right after this gate passed). Poll until the cert is actually
+        # visible so the sign step never races the virtual card.
+        for i in $(seq 1 30); do
+          if timeout 30 pkcs11-tool --module "$SS_PKCS11" \
+               --list-objects --type cert 2>/dev/null \
+               | grep -q "Certificate Object"; then
+            echo "certificate object visible (after ${i} polls)"
+            break
+          fi
+          if [ "$i" -eq 30 ]; then
+            echo "::error::certificate never appeared on the token"
+            cat "$RUNNER_TEMP/simplysign.log" || true
+            exit 1
+          fi
+          sleep 3
+        done
+
     - name: Sign with jsign + verify
       shell: bash
       env:
@@ -199,10 +218,19 @@ runs:
         for f in "${files[@]}"; do
           echo "::group::sign $f"
           # Single call: the token has one key (jsign auto-selects it).
-          # RFC3161 timestamp so the signature outlives the cert.
-          java -jar "$JSIGN_JAR" --storetype PKCS11 --keystore "$CONF" --storepass "" \
-            --alg SHA-256 --tsmode RFC3161 --tsaurl "$TS_URL" --replace \
-            --name "$SIGN_NAME" --url "$SIGN_URL" "$f"
+          # RFC3161 timestamp so the signature outlives the cert. Retried:
+          # the SimplySign PKCS#11 module can hiccup transiently, and
+          # --replace makes a re-sign after any partial attempt safe.
+          for attempt in 1 2 3; do
+            if java -jar "$JSIGN_JAR" --storetype PKCS11 --keystore "$CONF" --storepass "" \
+                 --alg SHA-256 --tsmode RFC3161 --tsaurl "$TS_URL" --replace \
+                 --name "$SIGN_NAME" --url "$SIGN_URL" "$f"; then
+              break
+            fi
+            [ "$attempt" -lt 3 ] || exit 1
+            echo "jsign attempt $attempt failed; retrying in 10s"
+            sleep 10
+          done
           # Structural + chain verification (Certum roots ship in
           # ca-certificates on the signer image).
           osslsigncode verify \
@@ -224,11 +252,25 @@ runs:
         # require the pinned one to be present in EVERY signed file. This
         # guards against signing with an unexpected certificate if the token
         # ever carries several.
+        n=0
         for f in $FILES_GLOB; do
           echo "--- $f"
-          osslsigncode extract-signature -in "$f" -out "$RUNNER_TEMP/sig.der" >/dev/null
-          openssl pkcs7 -inform DER -in "$RUNNER_TEMP/sig.der" -print_certs > "$RUNNER_TEMP/certs.pem"
-          python3 - "$RUNNER_TEMP/certs.pem" <<'PY'
+          # Per-file temp names, output shown, and a short retry:
+          # extract-signature failed instantly (exit 255, no message) on the
+          # second file of the v1.23.0 release run, right after verify had
+          # succeeded on it.
+          n=$((n + 1))
+          sig="$RUNNER_TEMP/sig-$n.der"
+          for attempt in 1 2 3; do
+            if osslsigncode extract-signature -in "$f" -out "$sig"; then
+              break
+            fi
+            [ "$attempt" -lt 3 ] || { echo "::error::extract-signature kept failing on $f"; exit 1; }
+            echo "extract-signature attempt $attempt failed on $f; retrying in 2s"
+            sleep 2
+          done
+          openssl pkcs7 -inform DER -in "$sig" -print_certs > "$RUNNER_TEMP/certs-$n.pem"
+          python3 - "$RUNNER_TEMP/certs-$n.pem" <<'PY'
         import hashlib, os, re, subprocess, sys
         pem = open(sys.argv[1]).read()
         blocks = re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", pem, re.S)
