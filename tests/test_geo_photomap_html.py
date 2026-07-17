@@ -313,6 +313,56 @@ def test_html_touch_devices_get_larger_pin_tap_target():
     assert ".pin-hit" in html  # centering CSS for the dot inside the hit box
 
 
+# Pano initial view (#309) and attribution (#310): the pano anchor carries
+# the viewer-ready values as data- attributes; openPano forwards them to
+# Pannellum. The credit line renders in popups and as the viewer byline.
+
+
+VIEW_POINTS = [
+    PhotoPoint(lat=60.1686, lon=24.9539, alt=None, name="pano.jpg",
+               is_pano=True, pano_yaw=-30.0, pano_pitch=10.0, pano_hfov=90.0,
+               credit="© 2026 Jane"),
+]
+
+
+def test_html_pano_anchor_carries_view_data_attributes():
+    html = photos_to_html(VIEW_POINTS, title="t", link_base="")
+    # Popup template writes the attributes only for numeric values...
+    for snippet in ('data-yaw="${p.yaw}"', 'data-pitch="${p.pitch}"',
+                    'data-hfov="${p.hfov}"', "typeof p.yaw === 'number'"):
+        assert snippet in html
+    # ...and openPano forwards them to the Pannellum config.
+    assert "cfg.yaw = Number(a.dataset.yaw)" in html
+    assert "cfg.pitch = Number(a.dataset.pitch)" in html
+    assert "cfg.hfov = Number(a.dataset.hfov)" in html
+    props = _embedded_geojson(html)["features"][0]["properties"]
+    assert (props["yaw"], props["pitch"], props["hfov"]) == (-30.0, 10.0, 90.0)
+
+
+def test_html_pano_viewer_byline_is_escaped():
+    html = photos_to_html(VIEW_POINTS, title="t", link_base="")
+    # Pannellum renders the author with innerHTML, so the value must pass
+    # through esc() on its way into the config.
+    assert "cfg.author = esc(a.dataset.credit)" in html
+
+
+def test_html_popup_shows_credit_line():
+    html = photos_to_html(VIEW_POINTS, title="t")
+    assert "photo-credit" in html          # popup line + its CSS
+    assert "if (p.credit)" in html         # presence-guarded like every field
+    props = _embedded_geojson(html)["features"][0]["properties"]
+    assert props["credit"] == "© 2026 Jane"
+
+
+def test_html_popup_fields_can_strip_credit():
+    html = photos_to_html(VIEW_POINTS, title="t",
+                          popup_fields=frozenset({"name"}))
+    props = _embedded_geojson(html)["features"][0]["properties"]
+    assert "credit" not in props
+    # View props are configuration, not personal data — never filtered.
+    assert props["yaw"] == -30.0
+
+
 # Popup content control (issue #296): --popup-fields decides what the HTML
 # discloses. Excluded fields are stripped from the embedded GeoJSON itself,
 # not merely hidden by the popup JS — a shared map must not leak in its
@@ -331,7 +381,7 @@ def test_parse_popup_fields_rejects_unknown_and_names_valid_ones():
         parse_popup_fields("shutter")
     msg = str(ei.value)
     assert "shutter" in msg
-    for valid in ("name", "timestamp", "camera", "altitude"):
+    for valid in ("name", "timestamp", "camera", "altitude", "credit"):
         assert valid in msg
     with pytest.raises(ValueError):
         parse_popup_fields("")

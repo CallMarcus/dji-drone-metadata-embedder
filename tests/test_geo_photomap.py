@@ -544,6 +544,156 @@ def test_geojson_pano_property_with_link_base_only_on_panos():
     assert "pano" not in by_name["flat.jpg"]
 
 
+# ---------------------------------------------------------------------------
+# Pano initial view (#309): GPano InitialView* tags are compass-frame; the
+# viewer wants yaw relative to the image center (whose heading is
+# PoseHeadingDegrees). Attribution (#310): Artist/Copyright become one line.
+
+
+def _pano_entry(**extra) -> dict:
+    e = {"SourceFile": "p.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+         "ProjectionType": "equirectangular"}
+    e.update(extra)
+    return e
+
+
+def test_scan_requests_view_and_authorship_tags(monkeypatch, tmp_path):
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        return _Proc(stdout="[]")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    scan_photos(tmp_path)
+    for tag in (
+        "-XMP-GPano:PoseHeadingDegrees",
+        "-XMP-GPano:InitialViewHeadingDegrees",
+        "-XMP-GPano:InitialViewPitchDegrees",
+        "-XMP-GPano:InitialHorizontalFOVDegrees",
+        "-EXIF:Artist",
+        "-EXIF:Copyright",
+        "-XMP-dc:Creator",
+        "-XMP-dc:Rights",
+    ):
+        assert tag in seen["args"]
+
+
+def test_initial_view_heading_maps_to_yaw_relative_to_pose():
+    points, _ = points_from_exiftool_json(
+        [_pano_entry(InitialViewHeadingDegrees=200.0, PoseHeadingDegrees=180.0)]
+    )
+    assert points[0].pano_yaw == 20.0
+
+
+def test_initial_view_yaw_wraps_to_signed_half_turn():
+    # 350° vs pose 20° is 30° to the *left*, not 330° to the right.
+    points, _ = points_from_exiftool_json(
+        [_pano_entry(InitialViewHeadingDegrees=350.0, PoseHeadingDegrees=20.0)]
+    )
+    assert points[0].pano_yaw == -30.0
+
+
+def test_initial_view_without_pose_assumes_center_is_north():
+    points, _ = points_from_exiftool_json(
+        [_pano_entry(InitialViewHeadingDegrees=270.0)]
+    )
+    assert points[0].pano_yaw == -90.0
+
+
+def test_initial_view_pitch_clamped_and_fov_sanity_checked():
+    points, _ = points_from_exiftool_json([
+        _pano_entry(InitialViewPitchDegrees=120.0),
+        _pano_entry(SourceFile="q.jpg", InitialHorizontalFOVDegrees=500.0),
+        _pano_entry(SourceFile="r.jpg", InitialHorizontalFOVDegrees=90.0),
+    ])
+    by_name = {p.name: p for p in points}
+    assert by_name["p.jpg"].pano_pitch == 90.0
+    assert by_name["q.jpg"].pano_hfov is None  # nonsense value dropped
+    assert by_name["r.jpg"].pano_hfov == 90.0
+
+
+def test_view_tags_ignored_on_non_panos():
+    points, _ = points_from_exiftool_json(
+        [{"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+          "InitialViewHeadingDegrees": 90.0}]
+    )
+    assert points[0].pano_yaw is None
+
+
+def test_pano_without_view_tags_has_no_view():
+    points, _ = points_from_exiftool_json([_pano_entry()])
+    p = points[0]
+    assert (p.pano_yaw, p.pano_pitch, p.pano_hfov) == (None, None, None)
+
+
+def _credit_of(**tags) -> str | None:
+    entry = {"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0}
+    entry.update(tags)
+    points, _ = points_from_exiftool_json([entry])
+    return points[0].credit
+
+
+def test_credit_copyright_containing_artist_is_not_repeated():
+    assert _credit_of(Artist="Jane Doe",
+                      Copyright="© 2026 Jane Doe") == "© 2026 Jane Doe"
+
+
+def test_credit_joins_distinct_copyright_and_artist():
+    assert _credit_of(Artist="Jane Doe",
+                      Copyright="All rights reserved") == \
+        "All rights reserved · Jane Doe"
+
+
+def test_credit_single_tags_pass_through():
+    assert _credit_of(Artist="Jane Doe") == "Jane Doe"
+    assert _credit_of(Copyright="© 2026") == "© 2026"
+    assert _credit_of() is None
+
+
+def test_credit_falls_back_to_xmp_dublin_core():
+    # ExifTool returns XMP-dc:Creator as a list.
+    assert _credit_of(Creator=["Jane", "Joe"], Rights="© 2026") == \
+        "© 2026 · Jane, Joe"
+
+
+def test_geojson_carries_view_and_credit_props():
+    pts = [
+        PhotoPoint(lat=1.0, lon=2.0, alt=None, name="pano.jpg", is_pano=True,
+                   pano_yaw=-30.0, pano_pitch=10.0, pano_hfov=90.0,
+                   credit="© 2026 Jane"),
+        PhotoPoint(lat=3.0, lon=4.0, alt=None, name="flat.jpg",
+                   credit="© 2026 Jane"),
+    ]
+    by_name = {
+        f["properties"]["name"]: f["properties"]
+        for f in photos_to_geojson(pts)["features"]
+    }
+    pano = by_name["pano.jpg"]
+    assert (pano["yaw"], pano["pitch"], pano["hfov"]) == (-30.0, 10.0, 90.0)
+    assert pano["credit"] == "© 2026 Jane"
+    flat = by_name["flat.jpg"]
+    assert flat["credit"] == "© 2026 Jane"
+    assert "yaw" not in flat and "pitch" not in flat and "hfov" not in flat
+
+
+def test_geojson_omits_view_props_when_unset():
+    props = photos_to_geojson([_PANO_POINT])["features"][0]["properties"]
+    assert props["pano"] is True
+    for key in ("yaw", "pitch", "hfov", "credit"):
+        assert key not in props
+
+
+def test_kml_description_includes_credit():
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg",
+                      credit="© 2026 <Jane>")]
+    kml = photos_to_kml(pts, title="t")
+    root = ET.fromstring(kml)  # escaped credit keeps the XML well-formed
+    desc = next(root.iter(f"{_KML_NS}Placemark")).find(f"{_KML_NS}description")
+    # Balloons render CDATA as HTML, so the angle brackets must arrive escaped.
+    assert "© 2026 &lt;Jane&gt;" in desc.text
+
+
 def test_redact_photo_points_fuzz_rounds_to_3_decimals():
     from dji_metadata_embedder.geo.photomap import redact_photo_points
 
