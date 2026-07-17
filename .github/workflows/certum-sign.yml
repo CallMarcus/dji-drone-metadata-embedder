@@ -60,3 +60,15 @@ jobs:
           name: ${{ inputs.signed-artifact }}
           path: work/*
           if-no-files-found: error
+      # On login failure the action leaves ENCRYPTED screenshots of the
+      # SimplySign dialog (AES-256, passphrase = the CERTUM_USER_ID secret;
+      # decrypt command in the action). Pixels may show the account id, so
+      # they never ship in the clear.
+      - name: Upload login diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: login-diagnostics-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/login-shots.tgz.enc
+          if-no-files-found: ignore
+          retention-days: 3
