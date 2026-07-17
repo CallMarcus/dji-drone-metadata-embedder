@@ -218,6 +218,22 @@ Details worth knowing:
   the same time, a split flight interleaved with the other drone's files
   is not joined. Rare in practice — open an issue if it bites you.
 
+### Basemap styles (`--tile-style`)
+
+Both `flightmap` and `photomap` can swap the HTML map's basemap between
+keyless OpenStreetMap renders:
+
+```bash
+dji-embed flightmap ./footage --tile-style opentopomap
+dji-embed photomap ./photos --tile-style osm-hot
+```
+
+`osm` (default), `osm-hot` (Humanitarian style, high contrast),
+`opentopomap` (topographic with contour lines — nice for mountain flights),
+and `cyclosm` (cycling-oriented, detailed paths). Each style carries its
+provider's attribution automatically. KML and GeoJSON outputs have no
+basemap and are unchanged.
+
 ## Photo map (`photomap`)
 
 ```bash

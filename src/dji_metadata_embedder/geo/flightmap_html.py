@@ -16,6 +16,7 @@ from html import escape
 from pathlib import Path
 
 from .flightmap import flights_to_geojson
+from .tiles import DEFAULT_TILE_STYLE, tile_layer_js
 from .track import Track
 
 logger = logging.getLogger(__name__)
@@ -60,10 +61,7 @@ _TEMPLATE = """<!DOCTYPE html>
 _APP_JS = """
 const data = JSON.parse(document.getElementById('flight-data').textContent);
 const map = L.map('map');
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+__TILE_LAYER__
 
 const esc = s => String(s).replace(/[&<>"']/g,
   ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -137,8 +135,14 @@ if (Object.keys(overlays).length > 1) {
 """
 
 
-def flights_to_html(tracks: list[Track], title: str) -> str:
-    """Return a complete self-contained HTML flight map."""
+def flights_to_html(
+    tracks: list[Track], title: str, *, tile_style: str = DEFAULT_TILE_STYLE
+) -> str:
+    """Return a complete self-contained HTML flight map.
+
+    ``tile_style`` (issue #311): a :data:`~.tiles.TILE_STYLES` key selecting
+    the basemap drawn under the tracks.
+    """
     geojson = flights_to_geojson(tracks)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
@@ -149,12 +153,20 @@ def flights_to_html(tracks: list[Track], title: str) -> str:
         css_sri=_LEAFLET_CSS_SRI,
         js_sri=_LEAFLET_JS_SRI,
         data=data,
-        app_js=_APP_JS,
+        app_js=_APP_JS.replace("__TILE_LAYER__", tile_layer_js(tile_style)),
     )
 
 
-def write_flights_html(tracks: list[Track], output_path: Path, title: str) -> Path:
+def write_flights_html(
+    tracks: list[Track],
+    output_path: Path,
+    title: str,
+    *,
+    tile_style: str = DEFAULT_TILE_STYLE,
+) -> Path:
     """Write *tracks* as an HTML map to *output_path* and return it."""
-    output_path.write_text(flights_to_html(tracks, title), encoding="utf-8")
+    output_path.write_text(
+        flights_to_html(tracks, title, tile_style=tile_style), encoding="utf-8"
+    )
     logger.info("HTML flight map created: %s", output_path)
     return output_path

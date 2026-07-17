@@ -431,3 +431,21 @@ def test_html_popup_js_guards_every_optional_field():
     html = photos_to_html(POINTS, title="t")
     assert "if (p.name)" in html
     assert re.search(r"if \([^)]*p\.alt", html)
+
+
+# Basemap styles (#311): the tile layer is generated from geo.tiles; the
+# default stays the standard OSM render.
+
+
+def test_html_default_tile_style_is_osm():
+    html = photos_to_html(POINTS, title="t")
+    assert "tile.openstreetmap.org" in html
+    assert "__TILE_LAYER__" not in html
+
+
+def test_html_alternate_tile_style_swaps_provider():
+    html = photos_to_html(POINTS, title="t", tile_style="cyclosm")
+    assert "tile-cyclosm.openstreetmap.fr" in html
+    assert "CyclOSM" in html
+    assert "tile.openstreetmap.org" not in html
+    assert "__TILE_LAYER__" not in html

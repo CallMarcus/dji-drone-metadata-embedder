@@ -26,6 +26,7 @@ from .photomap import (
 )
 from .photomap_html import parse_popup_fields, photos_to_html, write_photos_html
 from .serve import serve_directory
+from .tiles import DEFAULT_TILE_STYLE, TILE_STYLES, TileStyle
 from .solar import sun_position
 from .track import Track, TrackPoint, build_track
 
@@ -58,6 +59,9 @@ __all__ = [
     "parse_popup_fields",
     "photos_to_html",
     "write_photos_html",
+    "DEFAULT_TILE_STYLE",
+    "TILE_STYLES",
+    "TileStyle",
     "scan_flights",
     "flights_to_geojson",
     "write_flights_geojson",

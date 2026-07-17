@@ -128,3 +128,22 @@ def test_write_flights_html(tmp_path):
     result = write_flights_html(TRACKS, out, title="t")
     assert result == out
     assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
+# Basemap styles (#311): the tile layer is generated from geo.tiles; the
+# default stays the standard OSM render.
+
+
+def test_html_default_tile_style_is_osm():
+    html = flights_to_html(TRACKS, title="t")
+    assert "tile.openstreetmap.org" in html
+    assert "__TILE_LAYER__" not in html
+
+
+def test_html_alternate_tile_style_swaps_provider():
+    html = flights_to_html(TRACKS, title="t", tile_style="opentopomap")
+    assert "tile.opentopomap.org" in html
+    assert "OpenTopoMap" in html
+    assert "maxZoom: 17" in html
+    assert "tile.openstreetmap.org" not in html
+    assert "__TILE_LAYER__" not in html
