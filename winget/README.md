@@ -4,9 +4,18 @@ This directory contains Windows Package Manager (winget) manifest files for the 
 
 ## 📦 Manifest Files
 
-- **`CallMarcus.DJIMetadataEmbedder.yaml`** - Version manifest (main entry point)
-- **`CallMarcus.DJIMetadataEmbedder.installer.yaml`** - Installer configuration
-- **`CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml`** - Localized package information
+Two package sets live here (#307):
+
+- **`CallMarcus.DJIMetadataEmbedder`** (this directory) — the ~13 MB portable
+  CLI EXE. `.yaml` version manifest, `.installer.yaml` configuration,
+  `.locale.en-US.yaml` package information.
+- **`CallMarcus.DJIMetadataEmbedder.Desktop`** (`desktop/`) — the full desktop
+  app installer (GUI + bundled FFmpeg/ExifTool, Inno Setup, per-user). Same
+  three-file structure. Kept as a **separate ID** so portable-CLI users are
+  never force-upgraded onto a ~127 MB installer.
+
+Both put `dji-embed` on PATH — the descriptions tell users to install one or
+the other.
 
 ## 🔄 Version Synchronization
 
@@ -58,8 +67,13 @@ Winget submission is **manual**. The `release-winget.yml` workflow is
 with `dji-embed.exe` exists, trigger it by hand:
 
 ```bash
-gh workflow run release-winget.yml -f version=1.11.0
+gh workflow run release-winget.yml -f version=1.11.0                    # portable CLI
+gh workflow run release-winget.yml -f version=1.11.0 -f package=desktop # desktop installer
 ```
+
+The desktop package should only be submitted for releases whose installer is
+code-signed (v1.23.0+): an unsigned 127 MB installer is maximum surface for
+the Defender false-positive class that stalled winget-pkgs#402067.
 
 When run, the workflow:
 

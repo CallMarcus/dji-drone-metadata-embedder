@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+
+PackageIdentifier: CallMarcus.DJIMetadataEmbedder.Desktop
+PackageVersion: 1.22.0
+Platform:
+- Windows.Desktop
+MinimumOSVersion: 10.0.0.0
+InstallerType: inno
+Scope: user
+UpgradeBehavior: install
+AppsAndFeaturesEntries:
+# Inno ARP key = AppId + "_is1"; the AppId is pinned never-change in
+# installer/DjiMetadataEmbedder.iss, so upgrades always find the install.
+- ProductCode: '{A0F2FECD-3BEB-4832-9BC6-4A57B20ED947}_is1'
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/download/v1.22.0/dji-metadata-embedder-setup-1.22.0.exe
+  InstallerSha256: PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE
+ManifestType: installer
+ManifestVersion: 1.12.0
