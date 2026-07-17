@@ -13,6 +13,14 @@ on:
         description: 'Version to submit to winget (e.g., 1.2.0)'
         required: true
         type: string
+      package:
+        description: 'Which package to submit (#307): the portable CLI or the desktop installer'
+        required: true
+        type: choice
+        options:
+          - cli
+          - desktop
+        default: cli
 
 permissions:
   contents: read
@@ -59,42 +67,54 @@ jobs:
             $version = (uv run python -c "import sys; sys.path.insert(0, 'src'); from dji_metadata_embedder import __version__; print(__version__)")
             $tag = "v$version"
           }
+          # Two package sets share this workflow (#307): the portable CLI EXE
+          # and the desktop Inno installer. Same flow, different manifest
+          # directory and release asset.
+          if ('${{ inputs.package }}' -eq 'desktop') {
+            $packageId = 'CallMarcus.DJIMetadataEmbedder.Desktop'
+            $manifestSrc = 'winget/desktop'
+            $asset = "dji-metadata-embedder-setup-$version.exe"
+          } else {
+            $packageId = 'CallMarcus.DJIMetadataEmbedder'
+            $manifestSrc = 'winget'
+            $asset = 'dji-embed.exe'
+          }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/"
           Write-Host "Submitting to winget with version: $version"
           Write-Host "URL: $url"
-          Write-Host "Package ID: CallMarcus.DJIMetadataEmbedder"
-          
+          Write-Host "Package ID: $packageId"
+
           # First verify the release exists and get the actual hash
-          $exeUrl = "${url}dji-embed.exe"
-          Write-Host "Checking EXE URL: $exeUrl"
-          
+          $exeUrl = "${url}${asset}"
+          Write-Host "Checking asset URL: $exeUrl"
+
           try {
             $response = Invoke-WebRequest -Uri $exeUrl -Method Head
-            Write-Host "EXE exists: HTTP $($response.StatusCode)"
+            Write-Host "Asset exists: HTTP $($response.StatusCode)"
           } catch {
-            Write-Host "ERROR: EXE not found at $exeUrl"
-            throw "Release assets not found. Make sure the GitHub release exists with dji-embed.exe"
+            Write-Host "ERROR: asset not found at $exeUrl"
+            throw "Release assets not found. Make sure the GitHub release exists with $asset"
           }
-          
+
           # Download and calculate actual hash
-          Invoke-WebRequest -Uri $exeUrl -OutFile "temp-dji-embed.exe"
-          $actualHash = Get-FileHash "temp-dji-embed.exe" -Algorithm SHA256
-          Write-Host "Actual EXE hash: $($actualHash.Hash)"
-          
+          Invoke-WebRequest -Uri $exeUrl -OutFile "temp-asset.bin"
+          $actualHash = Get-FileHash "temp-asset.bin" -Algorithm SHA256
+          Write-Host "Actual asset hash: $($actualHash.Hash)"
+
           # Inject the real installer hash. The InstallerUrl version is already
           # kept current by tools/sync_version.py at release-prep time.
-          $installerManifest = Get-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" -Raw
+          $installerManifest = Get-Content "$manifestSrc/$packageId.installer.yaml" -Raw
           $installerManifest = $installerManifest -replace "PLACEHOLDER_HASH_WILL_BE_UPDATED_BY_WINGET_CREATE", $actualHash.Hash
-          Set-Content "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $installerManifest
+          Set-Content "$manifestSrc/$packageId.installer.yaml" $installerManifest
 
           # wingetcreate submit takes a SINGLE directory containing exactly the
           # manifest set. winget/ also holds README.md, so stage the three
           # manifests in a clean directory and submit that.
           $manifestDir = Join-Path $env:RUNNER_TEMP "winget-manifests"
           New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
-          Copy-Item "winget/CallMarcus.DJIMetadataEmbedder.yaml" $manifestDir
-          Copy-Item "winget/CallMarcus.DJIMetadataEmbedder.installer.yaml" $manifestDir
-          Copy-Item "winget/CallMarcus.DJIMetadataEmbedder.locale.en-US.yaml" $manifestDir
+          Copy-Item "$manifestSrc/$packageId.yaml" $manifestDir
+          Copy-Item "$manifestSrc/$packageId.installer.yaml" $manifestDir
+          Copy-Item "$manifestSrc/$packageId.locale.en-US.yaml" $manifestDir
 
           # Submit the prepared manifest directory
           try {

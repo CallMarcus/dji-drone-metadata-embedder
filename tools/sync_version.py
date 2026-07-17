@@ -137,14 +137,22 @@ def _update_targets(version: str, root: Path) -> None:
             # current version so the manifest never ships stale release notes.
             _replace_in_file(manifest, r"(releases/tag/v)(?P<ver>\d+\.\d+\.\d+)", rf"\g<1>{version}")
 
-        # Update installer URL version references in installer manifest
-        installer_files = list(winget_dir.glob("*.installer.yaml")) + list(winget_dir.glob("*.installer.yml"))
+        # Update installer URL version references in installer manifests
+        # (rglob: the desktop package set lives in winget/desktop/)
+        installer_files = list(winget_dir.rglob("*.installer.yaml")) + list(winget_dir.rglob("*.installer.yml"))
         for installer_file in installer_files:
             # Update download URLs that contain version numbers
             _replace_in_file(
-                installer_file, 
-                r"(https://github\.com/[^/]+/[^/]+/releases/download/v)(?P<ver>\d+\.\d+\.\d+)/", 
+                installer_file,
+                r"(https://github\.com/[^/]+/[^/]+/releases/download/v)(?P<ver>\d+\.\d+\.\d+)/",
                 rf"\g<1>{version}/"
+            )
+            # The desktop installer asset carries the version in its
+            # filename too (dji-metadata-embedder-setup-X.Y.Z.exe)
+            _replace_in_file(
+                installer_file,
+                r"(dji-metadata-embedder-setup-)(?P<ver>\d+\.\d+\.\d+)(\.exe)",
+                rf"\g<1>{version}\g<3>",
             )
 
 
@@ -190,6 +198,9 @@ def _check_targets(version: str, root: Path) -> bool:
             if ".installer." in manifest.name:
                 url_match = re.search(r"https://github\.com/[^/]+/[^/]+/releases/download/v(?P<ver>\d+\.\d+\.\d+)/", text)
                 if url_match and url_match.group("ver") != version:
+                    mismatches.append(manifest)
+                setup_match = re.search(r"dji-metadata-embedder-setup-(?P<ver>\d+\.\d+\.\d+)\.exe", text)
+                if setup_match and setup_match.group("ver") != version:
                     mismatches.append(manifest)
 
     if mismatches:
