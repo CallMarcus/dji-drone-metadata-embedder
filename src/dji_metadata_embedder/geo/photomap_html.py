@@ -42,14 +42,16 @@ _PANNELLUM_JS_SRI = "sha256-oosvezOf0KYCxnad8dymrUOvc7yMalvmcglxUonBKpo="
 # GeoJSON properties they govern. Excluded fields are stripped from the
 # embedded data itself, not merely hidden by the popup JS — a shared map must
 # not leak in its source what it hides in its UI. thumb/link/pano always
-# survive: the thumbnail is the photo itself, the link powers the 360°
-# viewer, and pano is marker-type metadata.
-POPUP_FIELDS = ("name", "timestamp", "camera", "altitude")
+# survive (the thumbnail is the photo itself, the link powers the 360°
+# viewer, and pano is marker-type metadata), as do the pano initial-view
+# props (yaw/pitch/hfov, #309 — view configuration, not personal data).
+POPUP_FIELDS = ("name", "timestamp", "camera", "altitude", "credit")
 _FIELD_TO_PROP = {
     "name": "name",
     "timestamp": "timestamp",
     "camera": "camera",
     "altitude": "alt",
+    "credit": "credit",
 }
 
 
@@ -113,6 +115,7 @@ _TEMPLATE = """<!DOCTYPE html>
   html, body {{ height: 100%; margin: 0; }}
   #map {{ height: 100%; }}
   .photo-popup img {{ max-width: 260px; display: block; margin-bottom: 4px; }}
+  .photo-popup .photo-credit {{ opacity: .75; font-size: 90%; }}
   .photo-tooltip img {{ max-width: 160px; display: block; margin-bottom: 2px; }}
   /* Per-type markers (issue #283): blue dot = photo, orange dot = 360 pano.
      The same classes render the swatches in the layer-control legend, and
@@ -195,7 +198,8 @@ _PANO_JS = """
 let panoViewer = null;
 const panoOverlay = document.getElementById('pano-overlay');
 const panoContainer = document.getElementById('pano-viewer');
-function openPano(src) {
+function openPano(a) {
+  const src = a.getAttribute('href');
   if (panoViewer) { panoViewer.destroy(); panoViewer = null; }
   panoOverlay.style.display = 'block';
   if (location.protocol === 'file:') {
@@ -213,9 +217,14 @@ function openPano(src) {
   // Lazy: the original file is only fetched here, on first click. Pannellum
   // renders its own error text in the container if the load fails (missing
   // file, WebGL texture limit); the popup's plain link remains the fallback.
-  panoViewer = pannellum.viewer('pano-viewer', {
-    type: 'equirectangular', panorama: src, autoLoad: true
-  });
+  const cfg = { type: 'equirectangular', panorama: src, autoLoad: true };
+  // Initial view (#309) and credit (#310) arrive as data- attributes.
+  if (a.dataset.yaw !== undefined) cfg.yaw = Number(a.dataset.yaw);
+  if (a.dataset.pitch !== undefined) cfg.pitch = Number(a.dataset.pitch);
+  if (a.dataset.hfov !== undefined) cfg.hfov = Number(a.dataset.hfov);
+  // Pannellum renders the author byline with innerHTML — esc() is mandatory.
+  if (a.dataset.credit) cfg.author = esc(a.dataset.credit);
+  panoViewer = pannellum.viewer('pano-viewer', cfg);
 }
 function closePano() {
   panoOverlay.style.display = 'none';
@@ -225,7 +234,7 @@ document.getElementById('pano-close').addEventListener('click', closePano);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePano(); });
 document.addEventListener('click', e => {
   const a = e.target.closest && e.target.closest('a.pano-open');
-  if (a) { e.preventDefault(); openPano(a.getAttribute('href')); }
+  if (a) { e.preventDefault(); openPano(a); }
 });
 """
 
@@ -302,8 +311,16 @@ function buildPopup(f) {
   let html = '<div class="photo-popup">';
   if (p.link && p.pano) {
     // GPano panorama: the thumbnail/name click opens the embedded 360 viewer
-    // (see _PANO_JS); a plain "open original" link is appended below.
-    html += `<a href="${esc(p.link)}" class="pano-open">${inner}</a>`;
+    // (see _PANO_JS); a plain "open original" link is appended below. The
+    // pano's initial view (#309) and credit (#310) ride along as data-
+    // attributes for openPano. yaw/pitch/hfov are numbers straight from the
+    // embedded JSON, never strings.
+    let attrs = '';
+    if (typeof p.yaw === 'number') attrs += ` data-yaw="${p.yaw}"`;
+    if (typeof p.pitch === 'number') attrs += ` data-pitch="${p.pitch}"`;
+    if (typeof p.hfov === 'number') attrs += ` data-hfov="${p.hfov}"`;
+    if (p.credit) attrs += ` data-credit="${esc(p.credit)}"`;
+    html += `<a href="${esc(p.link)}" class="pano-open"${attrs}>${inner}</a>`;
   } else if (p.link) {
     // Opt-in (--link-originals): thumbnail + filename open the original file.
     html += `<a href="${esc(p.link)}" target="_blank" rel="noopener">${inner}</a>`;
@@ -316,6 +333,7 @@ function buildPopup(f) {
     html += `<br><a href="${esc(p.link)}" target="_blank" rel="noopener">open original</a>`;
   }
   if (p.alt !== undefined) html += `<br>altitude: ${Number(p.alt).toFixed(0)} m`;
+  if (p.credit) html += `<br><span class="photo-credit">${esc(p.credit)}</span>`;
   html += '</div>';
   return html;
 }

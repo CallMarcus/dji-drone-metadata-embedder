@@ -546,7 +546,7 @@ def convert(
 @click.option(
     "--popup-fields", default=None, metavar="LIST",
     help="Limit what the HTML popups show: 'none' or a comma list of "
-         "name, timestamp, camera, altitude (default: all of them). "
+         "name, timestamp, camera, altitude, credit (default: all of them). "
          "Excluded details are left out of the HTML file entirely; the "
          "original photos are untouched. Other formats are unchanged.",
 )

@@ -230,8 +230,10 @@ Where `flightmap` plots video flight tracks, `photomap` plots individual
 GPS-tagged still photos (JPG/JPEG/DNG). ExifTool scans the whole directory in
 one pass (`dji-embed doctor` checks it's installed); the HTML map clusters
 nearby shots into an expandable marker, and clicking a pin shows the EXIF
-thumbnail, filename, timestamp, altitude, and camera settings. Photos with no
-GPS are skipped and counted in a summary; `-v` lists them.
+thumbnail, filename, timestamp, altitude, and camera settings — plus an
+attribution line when the photo carries `Artist`/`Copyright` metadata (see
+below). Photos with no GPS are skipped and counted in a summary; `-v` lists
+them.
 
 With `--link-originals`, a popup's thumbnail and filename become a
 click-through to the full-resolution original (JPGs open inline, DNGs
@@ -243,7 +245,7 @@ folder or an absolute URL) when the originals live elsewhere.
 
 A map you share shouldn't have to disclose everything your camera recorded.
 `--popup-fields` limits the popup to the details you pick — `none`, or a
-comma list of `name`, `timestamp`, `camera`, `altitude`:
+comma list of `name`, `timestamp`, `camera`, `altitude`, `credit`:
 
 ```bash
 dji-embed photomap ./photos --popup-fields none            # thumbnails only
@@ -273,6 +275,27 @@ popup as a fallback.
 ```bash
 dji-embed photomap /path/to/panoramas --link-originals
 ```
+
+The viewer honors the standard GPano *initial view* tags, so you can choose
+each panorama's opening direction and zoom once, in the photo itself, with
+ExifTool:
+
+```bash
+exiftool -XMP-GPano:InitialViewHeadingDegrees=210 \
+         -XMP-GPano:InitialHorizontalFOVDegrees=90 pano.jpg
+```
+
+The heading is compass degrees (`PoseHeadingDegrees`, written by the
+stitcher, records where the image center points; without it the center is
+assumed to face North). `InitialViewPitchDegrees` tilts the opening view
+above/below the horizon.
+
+Photos that carry `Artist`/`Copyright` EXIF (or the XMP Dublin Core
+equivalents) get an attribution line in their popup, and the 360° viewer
+shows it as a byline — add it once with
+`exiftool -Artist="Name" -Copyright="© 2026 Name" -overwrite_original DIR`
+and every map you generate credits you. Drop it from a particular map with
+`--popup-fields` if you prefer.
 
 The simplest way to use the viewer is `--serve` (it implies
 `--link-originals`):

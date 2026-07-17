@@ -53,6 +53,20 @@ _SCAN_TAGS = [
     # XMP GPano marks stitched panoramas (DJI, Insta360, Google Camera, ...).
     # equirectangular => the HTML map can open the photo in a 360 viewer.
     "-XMP-GPano:ProjectionType",
+    # Initial view (#309): the author's chosen opening direction/zoom for the
+    # 360 viewer. Headings are compass degrees; PoseHeadingDegrees (the
+    # heading of the image center, written by the stitcher) anchors them to
+    # the image frame.
+    "-XMP-GPano:PoseHeadingDegrees",
+    "-XMP-GPano:InitialViewHeadingDegrees",
+    "-XMP-GPano:InitialViewPitchDegrees",
+    "-XMP-GPano:InitialHorizontalFOVDegrees",
+    # Attribution (#310): shown as a credit line in popups and the 360
+    # viewer. EXIF first; XMP Dublin Core is the per-field fallback.
+    "-EXIF:Artist",
+    "-EXIF:Copyright",
+    "-XMP-dc:Creator",
+    "-XMP-dc:Rights",
 ]
 _PHOTO_EXTS = ("jpg", "jpeg", "dng")
 
@@ -73,7 +87,10 @@ class PhotoPoint:
     has no ``GPSAltitude``), source filename, and optional capture metadata for
     popups. ``None`` altitude is kept distinct from a real 0 m fix so writers
     can clamp such placemarks to the ground rather than burying them.
-    ``is_pano`` marks GPano equirectangular panoramas (360 viewer candidates)."""
+    ``is_pano`` marks GPano equirectangular panoramas (360 viewer candidates);
+    ``pano_yaw``/``pano_pitch``/``pano_hfov`` are their viewer-ready initial
+    view (#309). ``credit`` is the authorship line from Artist/Copyright
+    metadata (#310)."""
 
     lat: float
     lon: float
@@ -86,6 +103,10 @@ class PhotoPoint:
     fnum: float | None = None
     thumbnail_b64: str | None = None
     is_pano: bool = False
+    pano_yaw: float | None = None
+    pano_pitch: float | None = None
+    pano_hfov: float | None = None
+    credit: str | None = None
 
 
 def _display_datetime(value: object) -> str | None:
@@ -112,6 +133,48 @@ def _maybe_float(value: object) -> float | None:
 
 def _maybe_str(value: object) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _credit_line(entry: dict) -> str | None:
+    """Combine authorship tags into one display line (#310).
+
+    EXIF ``Artist``/``Copyright`` win; XMP Dublin Core (``Creator``, a list,
+    and ``Rights``) is the per-field fallback. When the copyright text
+    already names the artist, the artist is not repeated.
+    """
+    creator = entry.get("Creator")
+    if isinstance(creator, list):
+        creator = ", ".join(s for c in creator if (s := str(c).strip()))
+    artist = _maybe_str(entry.get("Artist")) or _maybe_str(creator)
+    rights = _maybe_str(entry.get("Copyright")) or _maybe_str(entry.get("Rights"))
+    artist = artist.strip() if artist else None
+    rights = rights.strip() if rights else None
+    if rights and artist:
+        return rights if artist.lower() in rights.lower() else f"{rights} · {artist}"
+    return rights or artist or None
+
+
+def _pano_view(entry: dict) -> tuple[float | None, float | None, float | None]:
+    """Map GPano initial-view tags to viewer-ready ``(yaw, pitch, hfov)`` (#309).
+
+    ``InitialViewHeadingDegrees`` is a compass heading; the viewer wants yaw
+    relative to the image center, whose compass heading is
+    ``PoseHeadingDegrees`` (assumed North when the stitcher wrote none).
+    Pitch is clamped to a physical range; a nonsensical FoV is dropped
+    rather than handed to the viewer.
+    """
+    yaw = None
+    heading = _maybe_float(entry.get("InitialViewHeadingDegrees"))
+    if heading is not None:
+        pose = _maybe_float(entry.get("PoseHeadingDegrees")) or 0.0
+        yaw = (heading - pose + 180.0) % 360.0 - 180.0
+    pitch = _maybe_float(entry.get("InitialViewPitchDegrees"))
+    if pitch is not None:
+        pitch = max(-90.0, min(90.0, pitch))
+    hfov = _maybe_float(entry.get("InitialHorizontalFOVDegrees"))
+    if hfov is not None and not (10.0 <= hfov <= 170.0):
+        hfov = None
+    return yaw, pitch, hfov
 
 
 def _clean_base64(raw: object) -> str | None:
@@ -203,6 +266,7 @@ def points_from_exiftool_json(
         thumb_b64 = _extract_thumbnail_b64(entry)
         proj = entry.get("ProjectionType")
         is_pano = isinstance(proj, str) and proj.strip().lower() == "equirectangular"
+        yaw, pitch, hfov = _pano_view(entry) if is_pano else (None, None, None)
         points.append(
             PhotoPoint(
                 lat=lat,
@@ -216,6 +280,10 @@ def points_from_exiftool_json(
                 fnum=_maybe_float(entry.get("FNumber")),
                 thumbnail_b64=thumb_b64,
                 is_pano=is_pano,
+                pano_yaw=yaw,
+                pano_pitch=pitch,
+                pano_hfov=hfov,
+                credit=_credit_line(entry),
             )
         )
     points.sort(key=lambda p: p.name)
@@ -331,13 +399,21 @@ def photos_to_geojson(
     GeoJSON writer never passes it — a shared map must not accumulate fragile
     file references by default. Panoramic photos always carry ``"pano": true``
     (issue #283: it is type metadata, used for marker styling even when the
-    360° viewer itself is link-gated).
+    360° viewer itself is link-gated); their initial view (``yaw``/``pitch``/
+    ``hfov``, #309) and the ``credit`` line (#310) ride along the same way —
+    photo metadata, not viewer plumbing.
     """
     features: list[dict] = []
     for p in points:
         props: dict = {"name": p.name}
         if p.is_pano:
             props["pano"] = True
+            if p.pano_yaw is not None:
+                props["yaw"] = round(p.pano_yaw, 2)
+            if p.pano_pitch is not None:
+                props["pitch"] = round(p.pano_pitch, 2)
+            if p.pano_hfov is not None:
+                props["hfov"] = round(p.pano_hfov, 2)
         if link_base is not None:
             props["link"] = _link_href(p.name, link_base)
         if p.timestamp:
@@ -350,6 +426,8 @@ def photos_to_geojson(
         camera = camera_summary(p)
         if camera:
             props["camera"] = camera
+        if p.credit:
+            props["credit"] = p.credit
         if include_thumbnails and p.thumbnail_b64:
             props["thumb"] = p.thumbnail_b64
         features.append(
@@ -401,6 +479,8 @@ def photos_to_kml(points: list[PhotoPoint], title: str) -> str:
         camera = camera_summary(p)
         if camera:
             desc.append(escape(camera))
+        if p.credit:
+            desc.append(escape(p.credit))
         # No EXIF altitude -> clamp to terrain (a 0 m absolute placemark buries
         # the pin below ground in Google Earth); the altitude value is ignored
         # in that mode, so emit a placeholder 0.
