@@ -78,8 +78,10 @@ Every command accepts `--help` for its options.
   folder; open it in a browser. Videos' flights: `dji-embed flightmap D:\Footage`.
 - **"My 360° panoramas won't open / black viewer":** browsers block the 360°
   viewer on maps opened straight from disk (`file://`). Rebuild with
-  `dji-embed photomap <folder> --serve` — it serves the map at a private
-  local address (`127.0.0.1`, your computer only) and opens the browser.
+  `dji-embed photomap <folder> --serve`, or serve an existing map with
+  `dji-embed serve <folder>` — both serve at a private local address
+  (`127.0.0.1`, your computer only) and open the browser. The desktop app
+  does this automatically when you open a map from its Done screen.
 - **"Get GPS into my videos so photo apps sort them":**
   `dji-embed embed D:\Footage` — needs the `.SRT` flight logs next to the
   MP4s with matching names (enable video captions/subtitles in the DJI app

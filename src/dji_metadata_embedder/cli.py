@@ -882,6 +882,63 @@ def flightmap(
         )
 
 
+@main.command()
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--page", default="photomap.html", show_default=True, metavar="FILE",
+    help="Map file to open, relative to DIRECTORY.",
+)
+@click.option(
+    "--no-browser", is_flag=True,
+    help="Do not open the browser; just print the URL and serve.",
+)
+@click.option(
+    "--url-only", is_flag=True,
+    help="Print the bare URL as the first output line — a stable contract "
+         "for wrapper apps that parse it.",
+)
+@click.option(
+    "--exit-with-stdin", is_flag=True,
+    help="Stop serving when stdin closes, tying the server's lifetime to "
+         "the app that started it.",
+)
+@click.option("-v", "--verbose", is_flag=True, help="Log each HTTP request")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+def serve(
+    directory: str,
+    page: str,
+    no_browser: bool,
+    url_only: bool,
+    exit_with_stdin: bool,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Serve a generated map folder at a private local address (this computer only).
+
+    Maps open fine straight from disk except the 360° panorama viewer,
+    which browsers block on file:// pages; serving over local HTTP
+    (http://127.0.0.1, loopback only) unblocks it. Serves DIRECTORY until
+    Ctrl+C. Equivalent to the server behind 'photomap --serve', without
+    rebuilding the map first.
+    """
+    setup_logging(verbose, quiet)
+    src = Path(directory)
+    if not (src / page).is_file():
+        raise click.ClickException(
+            f"{page} not found in {src} — run 'dji-embed photomap' or "
+            "'dji-embed flightmap' first, or point --page at the map file"
+        )
+    serve_directory(
+        src,
+        page,
+        quiet=quiet,
+        log_requests=verbose,
+        open_browser=not no_browser,
+        bare_url=url_only,
+        stop_on_stdin_eof=exit_with_stdin,
+    )
+
+
 @main.command(hidden=True)
 @click.argument(
     "paths",

@@ -12,6 +12,11 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial ViewModelBase CurrentPage { get; set; }
 
+    // App-lifetime map server pool: revisiting "Make a map" reuses running
+    // servers. No dispose hook needed — each server child exits when its
+    // stdin pipe closes, i.e. when this process ends (MapServer docs).
+    private readonly MapServer _mapServer = new();
+
     public MainViewModel()
     {
         CurrentPage = new HomeViewModel(StartTask);
@@ -22,7 +27,7 @@ public partial class MainViewModel : ViewModelBase
         CurrentPage = kind switch
         {
             TaskKind.MakeMap => new MakeMapViewModel(
-                CliLocator.Find(), new DjiEmbedRunner(), GoHome),
+                CliLocator.Find(), new DjiEmbedRunner(), _mapServer, GoHome),
             TaskKind.EmbedTelemetry => new EmbedTelemetryViewModel(
                 CliLocator.Find(), new DjiEmbedRunner(), GoHome),
             TaskKind.CheckSetup => new CheckSetupViewModel(

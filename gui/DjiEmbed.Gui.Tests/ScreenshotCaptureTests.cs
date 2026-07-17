@@ -45,7 +45,7 @@ public class ScreenshotCaptureTests
         Capture(new MainWindow { DataContext = new MainViewModel() },
             Png("home"));
 
-        var makeMap = new MakeMapViewModel(null, new DjiEmbedRunner(), NoOp());
+        var makeMap = new MakeMapViewModel(null, new DjiEmbedRunner(), new MapServer(), NoOp());
         CaptureView(new MakeMapView { DataContext = makeMap },
             Png("makemap-pick"));
 

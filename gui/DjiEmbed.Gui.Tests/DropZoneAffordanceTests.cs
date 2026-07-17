@@ -30,7 +30,7 @@ public class DropZoneAffordanceTests
         "makemap" => new MakeMapView
         {
             DataContext = new MakeMapViewModel(
-                null, new DjiEmbedRunner(), () => { }),
+                null, new DjiEmbedRunner(), new MapServer(), () => { }),
         },
         _ => new EmbedTelemetryView
         {

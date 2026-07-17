@@ -93,6 +93,10 @@ public abstract partial class FlowViewModel(
 
     private CancellationTokenSource? _cts;
 
+    /// <summary>The bundled CLI path, for subclasses that spawn beyond
+    /// <see cref="RunCliAsync"/> (null when the CLI is missing).</summary>
+    protected string? CliPath => cliPath;
+
     /// <summary>Fails fast when the bundled CLI is missing.</summary>
     protected bool EnsureCli()
     {
@@ -200,8 +204,14 @@ public abstract partial class FlowViewModel(
     private void Cancel() => _cts?.Cancel();
 
     [RelayCommand]
-    private void OpenOutput(string path) =>
+    private Task OpenOutput(string path) => OpenOutputCoreAsync(path);
+
+    /// <summary>Opens one Done-screen output; subclasses may redirect.</summary>
+    protected virtual Task OpenOutputCoreAsync(string path)
+    {
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        return Task.CompletedTask;
+    }
 
     [RelayCommand]
     private void GoHome() => goHome();
