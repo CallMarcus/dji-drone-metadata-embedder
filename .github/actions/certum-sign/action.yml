@@ -111,38 +111,12 @@ runs:
         echo "SimplySign launched; waiting ${LAUNCH_SECONDS}s"
         sleep "$LAUNCH_SECONDS"
 
-        # Find the login form: enumerate windows, match getwindowname
-        # (_NET_WM_NAME); `search --name PATTERN` matches the empty legacy
-        # WM_NAME for this app. Retry-wait: the dialog can lag the launch.
-        WID=""; BX=0; BY=0; BW=0; BH=0
-        for attempt in $(seq 1 30); do
-          best=0; WID=""
-          for w in $(xdotool search --name '' 2>/dev/null); do
-            nm="$(xdotool getwindowname "$w" 2>/dev/null || true)"
-            case "$nm" in *implySign*) ;; *) continue ;; esac
-            eval "$(xdotool getwindowgeometry --shell "$w" 2>/dev/null)"
-            area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
-            if [ "$area" -gt "$best" ]; then best=$area; WID=$w; BX=${X:-0}; BY=${Y:-0}; BW=${WIDTH:-0}; BH=${HEIGHT:-0}; fi
-          done
-          [ "${BW:-0}" -ge 400 ] && [ "${BH:-0}" -ge 300 ] && { echo "login window $WID ${BW}x${BH} (attempt $attempt)"; break; }
-          WID=""; sleep 2
-        done
-        [ -z "$WID" ] && { echo "::error::SimplySign login window did not appear"; cat "$RUNNER_TEMP/simplysign.log" || true; exit 1; }
-
-        xdotool windowactivate --sync "$WID" || xdotool windowactivate "$WID" || true
-        xdotool windowraise "$WID" || true
-        sleep 1
-        # Click the E-MAIL field, type id; Tab; type OTP; click Login.
-        xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
-        xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
-        xdotool key Tab; sleep 1
-
-        # Compute the OTP only now, right before typing it - the window
-        # discovery loop above can take up to a minute, which would let an
-        # early-computed code roll over. If the current period has <5s left,
-        # wait for the next one so the code stays valid while it is typed
-        # and submitted. Honours the URI's algorithm/digits/period params.
-        OTP="$(python3 - <<'PY'
+        # TOTP helper written to a file so the retry loop below can call it
+        # (a heredoc inside the loop would break YAML de-indentation).
+        # Honours the URI's algorithm/digits/period params. The OTP is
+        # computed BEFORE the form is driven, so the guard keeps >=12s of
+        # validity — enough for the whole type-and-submit sequence.
+        cat > "$RUNNER_TEMP/otp.py" <<'PY'
         import os,hmac,hashlib,base64,struct,time
         from urllib.parse import urlparse,parse_qs
         q=parse_qs(urlparse(os.environ["CERTUM_OTP_URI"]).query)
@@ -151,52 +125,101 @@ runs:
         algo={"SHA1":hashlib.sha1,"SHA256":hashlib.sha256,"SHA512":hashlib.sha512}[q.get("algorithm",["SHA1"])[0].upper()]
         key=base64.b32decode(s+"="*((8-len(s)%8)%8))
         remaining=period-(time.time()%period)
-        if remaining<5: time.sleep(remaining+0.5)
+        if remaining<12: time.sleep(remaining+0.5)
         h=hmac.new(key,struct.pack(">Q",int(time.time()//period)),algo).digest(); o=h[-1]&0xF
         print(str((int.from_bytes(h[o:o+4],"big")&0x7fffffff)%(10**digits)).zfill(digits))
         PY
-        )"
-        echo "::add-mask::$OTP"
-        xdotool type --clearmodifiers --delay 50 "$OTP"
-        xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
-        sleep 8
 
-        # "Logon successful" dialog: the token does NOT activate until its
-        # Close button (bottom-centre) is clicked. Re-find the window (its
-        # content changed).
-        best=0
-        for w in $(xdotool search --name '' 2>/dev/null); do
-          nm="$(xdotool getwindowname "$w" 2>/dev/null || true)"
-          case "$nm" in *implySign*) ;; *) continue ;; esac
-          eval "$(xdotool getwindowgeometry --shell "$w" 2>/dev/null)"
-          area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
-          if [ "$area" -gt "$best" ]; then best=$area; WID=$w; BX=${X:-0}; BY=${Y:-0}; BW=${WIDTH:-0}; BH=${HEIGHT:-0}; fi
+        # Largest SimplySign window: enumerate windows, match getwindowname
+        # (_NET_WM_NAME); `search --name PATTERN` matches the empty legacy
+        # WM_NAME for this app. Sets WID/BX/BY/BW/BH.
+        find_window() {
+          local w nm area best=0
+          WID=""; BX=0; BY=0; BW=0; BH=0
+          for w in $(xdotool search --name '' 2>/dev/null); do
+            nm="$(xdotool getwindowname "$w" 2>/dev/null || true)"
+            case "$nm" in *implySign*) ;; *) continue ;; esac
+            eval "$(xdotool getwindowgeometry --shell "$w" 2>/dev/null)"
+            area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
+            if [ "$area" -gt "$best" ]; then best=$area; WID=$w; BX=${X:-0}; BY=${Y:-0}; BW=${WIDTH:-0}; BH=${HEIGHT:-0}; fi
+          done
+        }
+
+        cert_visible() {
+          timeout 30 pkcs11-tool --module "$SS_PKCS11" \
+            --list-objects --type cert 2>/dev/null \
+            | grep -q "Certificate Object"
+        }
+
+        # Wait for the login dialog after launch (it can lag).
+        for attempt in $(seq 1 30); do
+          find_window
+          [ "${BW:-0}" -ge 400 ] && [ "${BH:-0}" -ge 300 ] && { echo "login window $WID ${BW}x${BH} (attempt $attempt)"; break; }
+          WID=""; sleep 2
         done
-        xdotool windowactivate --sync "$WID" || true
-        xdotool mousemove $((BX + BW/2)) $((BY + BH*94/100)) click 1
-        sleep 3
+        [ -z "$WID" ] && { echo "::error::SimplySign login window did not appear"; cat "$RUNNER_TEMP/simplysign.log" || true; exit 1; }
 
-        # Confirm the token is active (fails fast if login didn't take).
-        timeout 60 pkcs11-tool --module "$SS_PKCS11" -L
+        # The logon dialog is a QtWebEngine page that loads (and sometimes
+        # reloads) asynchronously — the v1.23.0 release runs showed the page
+        # rebuilding itself WHILE the old single-shot drive was typing, which
+        # lost the credentials and left the token empty. So: settle first,
+        # compute the OTP up front, clear each field before typing, and
+        # verify the certificate actually appears — retrying the whole
+        # login when it does not.
+        LOGIN_OK=""
+        for login_attempt in 1 2 3; do
+          # Let the embedded web page finish loading/reloading + autofill.
+          sleep 10
 
-        # The slot enumerates BEFORE the certificate objects finish loading
-        # (v1.23.0 release: jsign hit "No certificate found in the keystore"
-        # right after this gate passed). Poll until the cert is actually
-        # visible so the sign step never races the virtual card.
-        for i in $(seq 1 30); do
-          if timeout 30 pkcs11-tool --module "$SS_PKCS11" \
-               --list-objects --type cert 2>/dev/null \
-               | grep -q "Certificate Object"; then
-            echo "certificate object visible (after ${i} polls)"
-            break
-          fi
-          if [ "$i" -eq 30 ]; then
-            echo "::error::certificate never appeared on the token"
-            cat "$RUNNER_TEMP/simplysign.log" || true
-            exit 1
-          fi
+          find_window
+          [ -n "$WID" ] || { echo "no SimplySign window on attempt $login_attempt"; sleep 5; continue; }
+          xdotool windowactivate --sync "$WID" || xdotool windowactivate "$WID" || true
+          xdotool windowraise "$WID" || true
+          sleep 1
+
+          OTP="$(python3 "$RUNNER_TEMP/otp.py")"
+          echo "::add-mask::$OTP"
+
+          # E-MAIL field: click, clear (may hold a cached/autofilled or
+          # half-typed value from a previous attempt), retype.
+          xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
+          xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
+          xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
+          xdotool key Tab; sleep 1
+          xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
+          xdotool type --clearmodifiers --delay 50 "$OTP"
+          xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
+          sleep 8
+
+          # "Logon successful" dialog: the token does NOT activate until its
+          # Close button (bottom-centre) is clicked. Re-find the window (its
+          # content changed).
+          find_window
+          xdotool windowactivate --sync "$WID" || true
+          xdotool mousemove $((BX + BW/2)) $((BY + BH*94/100)) click 1
           sleep 3
+
+          # Token slots (diagnostic only — the slot can enumerate before the
+          # certificate objects load, so it proves nothing by itself).
+          timeout 60 pkcs11-tool --module "$SS_PKCS11" -L || true
+
+          # The real gate: the certificate object must be visible.
+          for i in $(seq 1 20); do
+            if cert_visible; then
+              echo "certificate object visible (login attempt $login_attempt, poll $i)"
+              LOGIN_OK=1
+              break
+            fi
+            sleep 3
+          done
+          [ -n "$LOGIN_OK" ] && break
+          echo "login attempt $login_attempt did not activate the token; retrying"
         done
+        if [ -z "$LOGIN_OK" ]; then
+          echo "::error::certificate never appeared on the token"
+          cat "$RUNNER_TEMP/simplysign.log" || true
+          exit 1
+        fi
 
     - name: Sign with jsign + verify
       shell: bash
