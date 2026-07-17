@@ -5,6 +5,15 @@ name: Build Windows Installer
 # (Start menu entry), dji-embed.exe beside it, and pinned FFmpeg + ExifTool
 # in tools\ — with both directories added to the user PATH so the full CLI
 # works from any terminal with no extra steps.
+#
+# Signing (Certum SimplySign, Linux container) happens in two rounds:
+#   build (windows)  -> sign-app (dji-embed.exe + DjiEmbed.Gui.exe)
+#   -> assemble (windows: ISCC + smoke test over the SIGNED binaries)
+#   -> sign-installer (the setup EXE) -> publish
+# Checksums + the Sigstore attestation run AFTER signing - signing changes
+# the hashes. The Inno-generated uninstaller is knowingly NOT signed: it can
+# only be signed at ISCC compile time on Windows (SignTool= directive), which
+# the Linux signing route cannot reach. Revisit if it ever matters.
 
 on:
   workflow_run:
@@ -27,6 +36,8 @@ permissions:
   # Sigstore build provenance for the installer (verify with `gh attestation verify`).
   id-token: write
   attestations: write
+  # Pull the certum-signer container image from GHCR.
+  packages: read
 
 env:
   # Pinned FFmpeg build bundled into the installer (gyan.dev release
@@ -35,12 +46,16 @@ env:
   FFMPEG_SHA256: 'db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec'
 
 jobs:
-  installer:
+  build:
     if: ${{ (github.event_name == 'workflow_dispatch') || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: windows-latest
     defaults:
       run:
         shell: bash
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      upload: ${{ steps.meta.outputs.upload }}
     steps:
       - uses: actions/checkout@v7
       - name: Determine release version
@@ -134,13 +149,81 @@ jobs:
             echo "  folder for its license files."
           } > staging/app/licenses/THIRD-PARTY.txt
 
+      - name: Upload staging tree
+        uses: actions/upload-artifact@v7
+        with:
+          name: staging
+          path: staging/app/**
+          if-no-files-found: error
+      - name: Upload binaries to sign
+        # Uploaded separately so the sign job moves ~2 exes instead of the
+        # whole ~200 MB staging tree. Artifact root is their common parent
+        # (staging/app), so they download flat.
+        uses: actions/upload-artifact@v7
+        with:
+          name: to-sign
+          path: |
+            staging/app/dji-embed.exe
+            staging/app/DjiEmbed.Gui.exe
+          if-no-files-found: error
+
+  sign-app:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: to-sign
+          path: tosign
+      - name: Sign app binaries
+        uses: ./.github/actions/certum-sign
+        with:
+          files-glob: 'tosign/*.exe'
+      - name: Upload signed app binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-app
+          path: tosign/*.exe
+          if-no-files-found: error
+
+  assemble:
+    needs: [build, sign-app]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: staging
+          path: staging/app
+      - uses: actions/download-artifact@v8
+        with:
+          name: signed-app
+          path: signed
+      - name: Swap in signed binaries
+        run: |
+          cp -f signed/dji-embed.exe signed/DjiEmbed.Gui.exe staging/app/
+          rm -rf signed
+
       - name: Compile installer
         shell: pwsh
         run: |
           # ISCC resolves relative paths against the .iss file's directory,
           # so the output dir must be absolute to land in the workspace.
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
-            /DAppVersion=${{ steps.meta.outputs.version }} `
+            /DAppVersion=${{ needs.build.outputs.version }} `
             /DStagingDir=..\staging\app `
             "/O$env:GITHUB_WORKSPACE\dist-installer" `
             installer\DjiMetadataEmbedder.iss
@@ -162,7 +245,55 @@ jobs:
           }
           & "$app\dji-embed.exe" --version
           if ($LASTEXITCODE -ne 0) { throw "bundled CLI failed" }
+          # The staged CLI is Authenticode-signed at this point; make sure
+          # the signature survived staging + install intact.
+          $sig = Get-AuthenticodeSignature "$app\dji-embed.exe"
+          if ($sig.Status -ne 'Valid') { throw "dji-embed.exe signature: $($sig.Status)" }
 
+      - name: Upload unsigned installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-installer
+          path: dist-installer/*
+          if-no-files-found: error
+
+  sign-installer:
+    needs: [build, assemble]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: unsigned-installer
+          path: dist-installer
+      - name: Sign installer
+        uses: ./.github/actions/certum-sign
+        with:
+          files-glob: 'dist-installer/*.exe'
+      - name: Upload signed installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-installer
+          path: dist-installer/*
+          if-no-files-found: error
+
+  publish:
+    needs: [build, sign-installer]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: signed-installer
+          path: dist-installer
       - name: Generate checksum
         run: |
           cd dist-installer
@@ -180,15 +311,15 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: installer-${{ steps.meta.outputs.version }}
+          name: installer-${{ needs.build.outputs.version }}
           path: dist-installer/*
 
       - name: Attach to GitHub release
-        if: ${{ steps.meta.outputs.upload == 'true' }}
+        if: ${{ needs.build.outputs.upload == 'true' }}
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.tag }}
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
           files: dist-installer/*
           generate_release_notes: true
           fail_on_unmatched_files: true

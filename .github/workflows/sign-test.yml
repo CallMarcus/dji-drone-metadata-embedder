@@ -1,0 +1,66 @@
+---
+name: Sign test
+
+# Manual end-to-end test of the Certum SimplySign signing path WITHOUT
+# cutting a release: downloads dji-embed.exe from an existing GitHub release,
+# signs it in the certum-signer container, verifies the signature, and prints
+# the signing certificate's SHA-256 fingerprint (use the leaf - the "Open
+# Source Developer" subject - as the CERTUM_CERT_FINGERPRINT secret).
+# The signed exe is uploaded as a workflow artifact so it can be inspected on
+# a real Windows machine (Properties -> Digital Signatures).
+#
+# Run this after: building the signer image (signer-image.yml), changing the
+# certum-sign action, or bumping the pinned SimplySign version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release tag to take dji-embed.exe from (empty = latest)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  sign-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download dji-embed.exe from a release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.release-tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TAG" ]; then
+            api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}"
+          else
+            api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
+          fi
+          url="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "$api" \
+                 | python3 -c 'import json,sys; a=[x["browser_download_url"] for x in json.load(sys.stdin)["assets"] if x["name"]=="dji-embed.exe"]; print(a[0])')"
+          mkdir -p dist
+          curl -fsSL -o dist/dji-embed.exe "$url"
+          ls -l dist/
+      - name: Sign and verify
+        uses: ./.github/actions/certum-sign
+        with:
+          files-glob: 'dist/*.exe'
+      - name: Upload signed exe
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-dji-embed
+          path: dist/dji-embed.exe

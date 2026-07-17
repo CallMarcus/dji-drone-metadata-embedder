@@ -1,6 +1,11 @@
 ---
 name: Build Windows EXE
 
+# build (windows) -> sign (linux, Certum SimplySign container) -> publish.
+# Checksums and the Sigstore attestation are generated AFTER signing:
+# Authenticode signing changes the file hash, so they would not match the
+# released binary otherwise.
+
 on:
   workflow_run:
     workflows: ["Release to PyPI"]
@@ -17,11 +22,16 @@ permissions:
   # Sigstore build provenance for the EXE (verify with `gh attestation verify`).
   id-token: write
   attestations: write
+  # Pull the certum-signer container image from GHCR.
+  packages: read
 
 jobs:
   build:
     if: ${{ (github.event_name == 'workflow_dispatch') || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -86,15 +96,55 @@ jobs:
           }
           Write-Error "Wheel for $ver not on PyPI after $max attempts (~6 min)."
           exit 1
+      - name: Upload unsigned dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-dist
+          path: dist/*
+          if-no-files-found: error
+
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/callmarcus/dji-drone-metadata-embedder/certum-signer:2.9.14-jsign7.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: unsigned-dist
+          path: dist
+      - name: Sign dji-embed.exe
+        uses: ./.github/actions/certum-sign
+        with:
+          files-glob: 'dist/*.exe'
+      - name: Upload signed dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-dist
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: [build, sign]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: signed-dist
+          path: dist
       - name: Generate SHA256SUMS.txt
-        shell: pwsh
         run: |
-          $hashLines = @()
-          Get-ChildItem dist -File | ForEach-Object {
-            $hash = Get-FileHash $_.FullName -Algorithm SHA256
-            $hashLines += "$($hash.Hash)  $($_.Name)"
-          }
-          $hashLines | Out-File -Encoding ascii dist/SHA256SUMS.txt
+          cd dist
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Attest build provenance
         # Sigstore-signed proof that dji-embed.exe came from this workflow.
         # Anyone can check it:
@@ -107,13 +157,13 @@ jobs:
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.tag }}
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
           files: dist/*
           generate_release_notes: true
           fail_on_unmatched_files: true
       - name: Summary
-        shell: pwsh
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
-          $tag = '${{ steps.meta.outputs.tag }}'
-          echo "Windows binaries attached to [release $tag](https://github.com/${{ github.repository }}/releases/tag/$tag)" >> $env:GITHUB_STEP_SUMMARY
+          echo "Signed Windows binaries attached to [release $TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
