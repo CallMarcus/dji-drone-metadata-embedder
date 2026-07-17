@@ -53,8 +53,13 @@ This workflow is **not** triggered by the release tag. It only runs via
 release has completed:
 
 ```bash
-gh workflow run release-winget.yml -f version=X.Y.Z
+gh workflow run release-winget.yml -f version=X.Y.Z                    # portable CLI
+gh workflow run release-winget.yml -f version=X.Y.Z -f package=desktop # desktop installer
 ```
+
+The `desktop` run submits the separate `CallMarcus.DJIMetadataEmbedder.Desktop`
+package (manifests in `winget/desktop/`). Only submit it for releases whose
+installer is code-signed (v1.23.0+) — see `winget/README.md`.
 
 When run it will:
 1. Verify version sync using `python tools/sync_version.py --check`
@@ -116,14 +121,19 @@ The `tools/sync_version.py` script keeps version numbers consistent across:
 
 ## Winget Integration
 
-The project maintains local winget manifests in the `/winget` directory:
+The project maintains local winget manifests in the `/winget` directory —
+two package sets (see `winget/README.md`):
 
-- **Package ID**: `CallMarcus.DJIMetadataEmbedder`
-- **Moniker**: `dji-embed`
-- **Submission**: Manual via `gh workflow run release-winget.yml -f version=X.Y.Z` (not auto-triggered by the release tag)
+- **Package IDs**: `CallMarcus.DJIMetadataEmbedder` (portable CLI, moniker
+  `dji-embed`) and `CallMarcus.DJIMetadataEmbedder.Desktop` (desktop
+  installer, `winget/desktop/`, v1.23.0+ signed releases only)
+- **Submission**: Manual via `gh workflow run release-winget.yml -f version=X.Y.Z`
+  (add `-f package=desktop` for the installer; not auto-triggered by the
+  release tag)
 - **Community review**: PRs created in microsoft/winget-pkgs
 
 Users can install via:
 ```powershell
-winget install CallMarcus.DJIMetadataEmbedder
+winget install CallMarcus.DJIMetadataEmbedder          # portable CLI
+winget install CallMarcus.DJIMetadataEmbedder.Desktop  # desktop app + tools
 ```

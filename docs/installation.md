@@ -18,7 +18,9 @@ and run it. One installer carries everything:
 - pinned FFmpeg and ExifTool builds, so nothing else needs installing.
 
 No admin rights needed — it installs per-user. The uninstaller removes the
-PATH entries again.
+PATH entries again. From v1.23.0 the installer and every binary inside it
+are Authenticode code-signed, so Windows shows a verified publisher instead
+of an "unknown publisher" warning.
 
 ### Windows – bootstrap script
 
@@ -41,6 +43,16 @@ script above, which bundles everything. For MP4 timed-metadata support you can
 also let the tool install its own pinned ExifTool: `dji-embed doctor --install
 exiftool` (any OS, no admin rights).
 
+The full desktop-app installer is also on winget as a separate package
+(from v1.23.0, appearing shortly after each release once the winget
+moderators approve it):
+
+```powershell
+winget install CallMarcus.DJIMetadataEmbedder.Desktop
+```
+
+Install one or the other — both put `dji-embed` on PATH.
+
 ### Windows – manual path
 
 ```powershell
@@ -50,9 +62,15 @@ pip install dji-drone-metadata-embedder
 ### macOS
 
 ```bash
-brew install ffmpeg exiftool
-pip install dji-drone-metadata-embedder
+brew install ffmpeg exiftool pipx
+pipx install dji-drone-metadata-embedder
 ```
+
+Homebrew's Python is [externally managed](https://peps.python.org/pep-0668/),
+so a bare `pip install` is refused with an `externally-managed-environment`
+error — `pipx` installs the tool into its own isolated environment and puts
+`dji-embed` on your PATH (run `pipx ensurepath` once if the command isn't
+found in a new terminal).
 
 ### Linux
 

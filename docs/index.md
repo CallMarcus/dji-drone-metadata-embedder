@@ -6,6 +6,7 @@ Use the guides in this site to embed GPS data in your footage, redact sensitive 
 
 - [Installation](installation.md)
 - [User Guide](user_guide.md)
+- [Maps & Panoramas](geospatial.md) — photo maps, flight maps, the 360° viewer
 - [Decision Table](decision-table.md)
 - [Recipes](recipes.md)
 - [Troubleshooting](troubleshooting.md)
