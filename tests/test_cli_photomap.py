@@ -409,3 +409,14 @@ def test_photomap_popup_fields_without_html_output_warns(monkeypatch, tmp_path):
         ["photomap", str(tmp_path), "-f", "geojson", "--popup-fields", "none"])
     assert res.exit_code == 0, res.output
     assert "only affects HTML" in res.output
+
+
+def test_photomap_tile_style_selects_basemap(monkeypatch, tmp_path):
+    _mock_scan(monkeypatch)
+    res = CliRunner().invoke(
+        main, ["photomap", str(tmp_path), "--tile-style", "osm-hot"]
+    )
+    assert res.exit_code == 0, res.output
+    text = (tmp_path / "photomap.html").read_text(encoding="utf-8")
+    assert "tile.openstreetmap.fr/hot" in text
+    assert "Humanitarian" in text

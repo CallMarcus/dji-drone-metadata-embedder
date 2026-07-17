@@ -22,6 +22,8 @@ from .telemetry_converter import (
     summarize_sun,
 )
 from .geo import (
+    DEFAULT_TILE_STYLE,
+    TILE_STYLES,
     convert_to_geojson,
     convert_to_kml,
     convert_to_html,
@@ -233,6 +235,17 @@ _progress_option = click.option(
     help="Emit machine-readable progress events on stdout, one JSON object "
     "per line (see docs/PROGRESS_JSONL.md). Suppresses human output on "
     "stdout; warnings and logs still go to stderr.",
+)
+
+# Shared by photomap and flightmap (#311). Keyless OpenStreetMap-data styles
+# only; the choice affects the HTML basemap, other formats carry no basemap.
+_tile_style_option = click.option(
+    "--tile-style",
+    type=click.Choice(list(TILE_STYLES), case_sensitive=False),
+    default=DEFAULT_TILE_STYLE,
+    show_default=True,
+    help="Basemap style for the HTML map: standard OSM, Humanitarian "
+    "(osm-hot), topographic (opentopomap), or cycling (cyclosm).",
 )
 
 
@@ -567,6 +580,7 @@ def convert(
          "browsers block when the map is opened straight from disk. "
          "With -v, each HTTP request is logged.",
 )
+@_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
@@ -581,6 +595,7 @@ def photomap(
     popup_fields: str | None,
     redact: str,
     serve_map: bool,
+    tile_style: str,
     progress_mode: str | None,
     verbose: bool,
     quiet: bool,
@@ -696,6 +711,7 @@ def photomap(
                         points, out, map_title,
                         link_base=html_link_base,
                         popup_fields=popup_field_set,
+                        tile_style=tile_style.lower(),
                     )
                 elif f == "kml":
                     write_photos_kml(points, out, map_title)
@@ -757,6 +773,7 @@ def photomap(
     "detects it from each file's mtime; pass it explicitly when the files "
     "were copied through zip/cloud transfers that rewrote the mtimes.",
 )
+@_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
@@ -769,6 +786,7 @@ def flightmap(
     redact: str,
     join_gap: float,
     tz_offset: str,
+    tile_style: str,
     progress_mode: str | None,
     verbose: bool,
     quiet: bool,
@@ -844,7 +862,9 @@ def flightmap(
         for f, out in targets:
             try:
                 if f == "html":
-                    write_flights_html(tracks, out, map_title)
+                    write_flights_html(
+                        tracks, out, map_title, tile_style=tile_style.lower()
+                    )
                 elif f == "kml":
                     write_flights_kml(tracks, out, map_title)
                 else:

@@ -18,6 +18,7 @@ from html import escape
 from pathlib import Path
 
 from .photomap import PhotoPoint, photos_to_geojson
+from .tiles import DEFAULT_TILE_STYLE, tile_layer_js
 
 logger = logging.getLogger(__name__)
 
@@ -242,10 +243,7 @@ document.addEventListener('click', e => {
 _APP_JS = """
 const data = JSON.parse(document.getElementById('photo-data').textContent);
 const map = L.map('map');
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+__TILE_LAYER__
 
 const esc = s => String(s).replace(/[&<>"']/g,
   ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -392,6 +390,7 @@ def photos_to_html(
     *,
     link_base: str | None = None,
     popup_fields: frozenset[str] | None = None,
+    tile_style: str = DEFAULT_TILE_STYLE,
 ) -> str:
     """Return a complete self-contained HTML photo map.
 
@@ -406,6 +405,9 @@ def photos_to_html(
     ``popup_fields`` (issue #296): a set from :func:`parse_popup_fields`
     limiting which EXIF-derived details the map carries; ``None`` (default)
     keeps everything. Excluded fields never reach the HTML file.
+
+    ``tile_style`` (issue #311): a :data:`~.tiles.TILE_STYLES` key selecting
+    the basemap drawn under the markers.
     """
     geojson = photos_to_geojson(
         points, include_thumbnails=True, link_base=link_base
@@ -429,7 +431,9 @@ def photos_to_html(
         pano_head=_PANO_HEAD if pano_enabled else "",
         pano_overlay=_PANO_OVERLAY if pano_enabled else "",
         pano_scripts=_PANO_SCRIPT if pano_enabled else "",
-        app_js=_APP_JS + (_PANO_JS if pano_enabled else ""),
+        app_js=(_APP_JS + (_PANO_JS if pano_enabled else "")).replace(
+            "__TILE_LAYER__", tile_layer_js(tile_style)
+        ),
     )
 
 
@@ -440,11 +444,13 @@ def write_photos_html(
     *,
     link_base: str | None = None,
     popup_fields: frozenset[str] | None = None,
+    tile_style: str = DEFAULT_TILE_STYLE,
 ) -> Path:
     """Write *points* as an HTML map to *output_path* and return it."""
     output_path.write_text(
         photos_to_html(
-            points, title, link_base=link_base, popup_fields=popup_fields
+            points, title, link_base=link_base, popup_fields=popup_fields,
+            tile_style=tile_style,
         ),
         encoding="utf-8",
     )

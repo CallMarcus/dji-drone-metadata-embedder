@@ -189,3 +189,23 @@ def test_flightmap_join_gap_zero_disables(tmp_path):
     assert res.exit_code == 0, res.output
     assert "Mapped 2 flights" in res.output
     assert "Joined" not in res.output
+
+
+def test_flightmap_tile_style_selects_basemap(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--tile-style", "opentopomap"]
+    )
+    assert res.exit_code == 0, res.output
+    text = (tmp_path / "flightmap.html").read_text(encoding="utf-8")
+    assert "tile.opentopomap.org" in text
+    assert "tile.openstreetmap.org" not in text
+
+
+def test_flightmap_tile_style_rejects_unknown(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--tile-style", "watercolor"]
+    )
+    assert res.exit_code != 0
+    assert "watercolor" in res.output
