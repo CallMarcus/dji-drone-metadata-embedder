@@ -105,22 +105,25 @@ runs:
         } > "$HOME/.config/Unknown Organization.conf"
 
         # Launch via the *_start wrapper (sets LD_LIBRARY_PATH for bundled Qt).
-        # The logon dialog is QtWebEngine; expose the Chrome DevTools
-        # protocol so a login failure can report what the page ACTUALLY
-        # shows (the xdotool drive is blind).
+        # The logon dialog is Qt5 WebKit (libQt5WebKit.so.5.9 in the dist -
+        # NOT WebEngine); its remote inspector lets us read the page and
+        # even drive the login form with JavaScript instead of blind
+        # geometry clicks.
         export LD_LIBRARY_PATH="$SS_DIST:${LD_LIBRARY_PATH:-}"
-        export QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:9222
+        export QTWEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
         if [ -n "${SS_START:-}" ]; then "$SS_START" >"$RUNNER_TEMP/simplysign.log" 2>&1 &
         else "$SS_EXE" >"$RUNNER_TEMP/simplysign.log" 2>&1 & fi
         echo "SimplySign launched; waiting ${LAUNCH_SECONDS}s"
         sleep "$LAUNCH_SECONDS"
 
-        # Minimal CDP client (stdlib-only websocket) for diagnostics:
+        # Minimal WebKit-inspector/CDP client (stdlib-only websocket):
         # `pageinfo` prints the login page's structure (URL host/path,
-        # title, input/button/iframe inventory - no field values), and
-        # `screenshot FILE` captures the dialog as PNG.
+        # title, input/button/iframe inventory - no field values),
+        # `screenshot FILE` captures the dialog as PNG where the protocol
+        # supports it, and `login` fills + submits the logon form with
+        # JavaScript (deterministic, unlike geometry clicks).
         cat > "$RUNNER_TEMP/cdp.py" <<'CDPPY'
-        import base64, json, os, socket, struct, sys, urllib.request
+        import base64, json, os, re, socket, struct, sys, urllib.request
 
         def ws_connect(url):
             hostport, path = url[5:].split("/", 1)
@@ -200,18 +203,78 @@ runs:
         })()
         """
 
-        targets = json.load(urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=15))
-        pages = [t for t in targets if t.get("type") == "page"]
+        LOGIN_JS_TMPL = """
+        (function(){
+          var user = %USER%; var otp = %OTP%;
+          function vis(e){ return !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length); }
+          function fire(el){ ['input','change','keyup'].forEach(function(t){
+            var ev = document.createEvent('HTMLEvents'); ev.initEvent(t, true, false); el.dispatchEvent(ev); }); }
+          var ins = [].filter.call(document.querySelectorAll('input'), function(i){
+            return vis(i) && ['text','email','password','tel','number'].indexOf(i.type) >= 0; });
+          if (ins.length < 2) return 'FAIL inputs=' + ins.length;
+          ins[0].value = user; fire(ins[0]);
+          ins[1].value = otp;  fire(ins[1]);
+          var btns = [].filter.call(document.querySelectorAll(
+            'button,input[type=submit],input[type=button]'), vis);
+          var btn = null;
+          btns.forEach(function(b){
+            var t = (b.innerText || b.value || '');
+            if (/log|sign|zalog/i.test(t)) btn = btn || b; });
+          btn = btn || (btns.length ? btns[btns.length - 1] : null);
+          if (btn) { btn.click(); return 'CLICKED ' + (btn.innerText || btn.value || '').trim().slice(0, 30); }
+          if (ins[0].form) { ins[0].form.submit(); return 'SUBMITTED'; }
+          return 'FAIL nobutton';
+        })()
+        """
+
+        def list_targets():
+            base = "http://127.0.0.1:9222"
+            # WebEngine-style /json first, then QtWebKit's /pagelist.json
+            # (whose entries carry inspectorUrl "...?page=N" instead of a
+            # webSocketDebuggerUrl).
+            try:
+                data = json.load(urllib.request.urlopen(base + "/json", timeout=15))
+            except Exception:
+                data = json.load(urllib.request.urlopen(base + "/pagelist.json", timeout=15))
+            out = []
+            for t in data:
+                if t.get("type") not in (None, "page"):
+                    continue
+                ws = t.get("webSocketDebuggerUrl")
+                if not ws:
+                    m = re.search(r"page=(\d+)", t.get("inspectorUrl", ""))
+                    if m:
+                        ws = "ws://127.0.0.1:9222/devtools/page/" + m.group(1)
+                if ws:
+                    out.append(ws)
+            return out
+
+        pages = list_targets()
         if not pages:
-            sys.exit("no CDP page targets: " + json.dumps(targets)[:300])
-        s = ws_connect(pages[0]["webSocketDebuggerUrl"])
+            sys.exit("no inspectable pages")
+        s = ws_connect(pages[0])
+        try:
+            cdp(s, 1, "Runtime.enable")
+        except Exception:
+            pass  # optional on some protocol generations
+        def evaluate(expr):
+            r = cdp(s, 2, "Runtime.evaluate",
+                    {"expression": expr, "returnByValue": True})
+            res = r.get("result", {})
+            return res.get("value", res.get("result", {}).get("value", res))
         if sys.argv[1] == "pageinfo":
-            r = cdp(s, 1, "Runtime.evaluate", {"expression": INFO_JS, "returnByValue": True})
-            print(r["result"].get("value", r))
+            print(evaluate(INFO_JS))
+        elif sys.argv[1] == "login":
+            js = LOGIN_JS_TMPL.replace("%USER%", json.dumps(os.environ["CERTUM_USER_ID"])) \
+                              .replace("%OTP%", json.dumps(os.environ["OTP"]))
+            print(evaluate(js))
         elif sys.argv[1] == "screenshot":
-            r = cdp(s, 1, "Page.captureScreenshot", {})
-            with open(sys.argv[2], "wb") as fh:
-                fh.write(base64.b64decode(r["data"]))
+            try:
+                r = cdp(s, 3, "Page.captureScreenshot", {})
+                with open(sys.argv[2], "wb") as fh:
+                    fh.write(base64.b64decode(r["data"]))
+            except Exception as e:
+                sys.exit("screenshot unsupported: %s" % e)
         CDPPY
 
         # TOTP helper written to a file so the retry loop below can call it
@@ -283,16 +346,30 @@ runs:
           OTP="$(python3 "$RUNNER_TEMP/otp.py")"
           echo "::add-mask::$OTP"
 
-          # E-MAIL field: click, clear (may hold a cached/autofilled or
-          # half-typed value from a previous attempt), retype.
-          xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
-          xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
-          xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
-          xdotool key Tab; sleep 1
-          xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
-          xdotool type --clearmodifiers --delay 50 "$OTP"
-          xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
-          sleep 8
+          # Preferred: fill + submit the form with JavaScript through the
+          # WebKit inspector - immune to focus, layout, and page-reload
+          # races. Falls back to the xdotool drive when the inspector is
+          # unreachable (e.g. developer extras disabled in this build).
+          RES="$(OTP="$OTP" timeout 30 python3 "$RUNNER_TEMP/cdp.py" login 2>&1 || true)"
+          echo "js login: ${RES:-no result}"
+          case "$RES" in
+            CLICKED*|SUBMITTED*)
+              sleep 8
+              ;;
+            *)
+              echo "falling back to xdotool drive"
+              # E-MAIL field: click, clear (may hold a cached/autofilled or
+              # half-typed value from a previous attempt), retype.
+              xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
+              xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
+              xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
+              xdotool key Tab; sleep 1
+              xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
+              xdotool type --clearmodifiers --delay 50 "$OTP"
+              xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
+              sleep 8
+              ;;
+          esac
 
           # "Logon successful" dialog: the token does NOT activate until its
           # Close button (bottom-centre) is clicked. Re-find the window (its
