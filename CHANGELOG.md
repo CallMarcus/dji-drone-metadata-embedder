@@ -15,6 +15,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.23.0] - 2026-07-17
+
+### Added
+
+- **gui**: 360° panoramas open in the real viewer from Make a map (#314) (a9a60bc)
+- **gui**: CLI discovery screen — a soft landing into the command line (#293) (#316) (4e213a0)
+- **maps**: --tile-style option for photomap and flightmap basemaps (#313) (13bdbfd)
+- **photomap**: Pano initial view from GPano tags + EXIF attribution line (#312) (6833043)
+- **winget**: Manifest set + workflow support for the desktop installer package (#315) (ba9b882)
+
+### Documentation
+
+- Auto-generate changelog for v1.22.0 (752cc63)
+- Pre-v1.23.0 release pass (#317) (56395a7)
+
+### CI/CD
+
+- Attest build provenance for the EXE and installer (Sigstore) (#306) (3d263a0)
+- Sign Windows binaries with Certum SimplySign (Authenticode) (#308) (00e880a)
+
+### Other
+
+- Prepare version 1.23.0 (4131ffb)
+
+
 ## [1.22.0] - 2026-07-16
 
 ### Added
