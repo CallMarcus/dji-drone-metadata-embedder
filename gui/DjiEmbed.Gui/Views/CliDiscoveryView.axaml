@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
+             x:Class="DjiEmbed.Gui.Views.CliDiscoveryView"
+             x:DataType="vm:CliDiscoveryViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="32,28">
+        <TextBlock DockPanel.Dock="Top" Text="The command line"
+                   FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+        <Button DockPanel.Dock="Bottom" HorizontalAlignment="Center"
+                Margin="0,14,0,0" Command="{Binding GoHomeCommand}">
+            <TextBlock Text="Back" />
+        </Button>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16" Margin="0,0,12,0">
+
+                <!-- The key revelation: the CLI is already installed. -->
+                <TextBlock TextWrapping="Wrap" FontSize="14">
+                    Everything this app does — and a lot more — runs on the
+                    dji-embed command line, and it is already installed:
+                    the app's installer put it on your PATH. Open any
+                    terminal, type dji-embed, and it just works.
+                </TextBlock>
+
+                <Button HorizontalAlignment="Left"
+                        Command="{Binding OpenTerminalCommand}">
+                    <TextBlock Text="Open PowerShell and try it" />
+                </Button>
+
+                <TextBlock Text="A few things only the command line can do:"
+                           FontWeight="SemiBold" Margin="0,4,0,0" />
+
+                <ItemsControl ItemsSource="{Binding StarterCommands}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:StarterCommand">
+                            <StackPanel Margin="0,0,0,12">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right"
+                                            VerticalAlignment="Center"
+                                            Margin="8,0,0,0"
+                                            Click="OnCopyCommandClick">
+                                        <TextBlock Text="Copy" FontSize="12" />
+                                    </Button>
+                                    <Border Background="#20808080"
+                                            CornerRadius="4" Padding="10,6">
+                                        <TextBlock Classes="mono"
+                                                   Text="{Binding Command}"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </DockPanel>
+                                <TextBlock Text="{Binding Description}"
+                                           Opacity="0.7" FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Expander Header="Every command (live from dji-embed --help)"
+                          IsExpanded="{Binding HelpExpanded, Mode=TwoWay}">
+                    <ScrollViewer MaxHeight="220"
+                                  VerticalScrollBarVisibility="Auto">
+                        <TextBlock Classes="mono"
+                                   Text="{Binding HelpText}"
+                                   TextWrapping="Wrap" Margin="0,6" />
+                    </ScrollViewer>
+                </Expander>
+
+                <Button HorizontalAlignment="Left" Padding="0"
+                        Background="Transparent" Cursor="Hand"
+                        Command="{Binding OpenDocsCommand}">
+                    <TextBlock Text="Read the full guide online →"
+                               FontSize="13"
+                               TextDecorations="Underline" />
+                </Button>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+
+</UserControl>

@@ -31,6 +31,18 @@
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+        <!-- The footer link reads as a sentence, not a fourth card. -->
+        <Style Selector="Button.footerLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.footerLink:pointerover TextBlock">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -53,11 +65,15 @@
                    Foreground="White"
                    Margin="0,0,0,24" />
 
-        <!-- The escape hatch is a sentence, not a pane. -->
-        <TextBlock DockPanel.Dock="Bottom"
-                   Text="Need more control? The dji-embed command line has every option."
-                   Foreground="White" Opacity="0.75" FontSize="12"
-                   Margin="0,20,0,0" TextWrapping="Wrap" />
+        <!-- The escape hatch is a sentence, not a pane — since #293 the
+             sentence links to the read-only CLI discovery screen. -->
+        <Button DockPanel.Dock="Bottom" Classes="footerLink"
+                HorizontalAlignment="Left" Margin="0,20,0,0"
+                Command="{Binding CliDiscoveryCommand}">
+            <TextBlock Text="Want more? Everything here runs on the dji-embed command line →"
+                       Foreground="White" Opacity="0.75" FontSize="12"
+                       TextWrapping="Wrap" TextDecorations="Underline" />
+        </Button>
 
         <StackPanel Spacing="14" VerticalAlignment="Top">
             <Button Classes="card" Command="{Binding MakeMapCommand}">

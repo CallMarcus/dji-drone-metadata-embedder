@@ -32,6 +32,8 @@ public partial class MainViewModel : ViewModelBase
                 CliLocator.Find(), new DjiEmbedRunner(), GoHome),
             TaskKind.CheckSetup => new CheckSetupViewModel(
                 CliLocator.Find(), new DjiEmbedRunner(), GoHome),
+            TaskKind.CliDiscovery => new CliDiscoveryViewModel(
+                CliLocator.Find(), GoHome),
             _ => CurrentPage,
         };
     }
