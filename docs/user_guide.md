@@ -132,6 +132,12 @@ each type independently. With `--link-originals`, clicking a panorama opens an
 embedded interactive 360° viewer instead of a flat, distorted JPEG — an
 "open original" link stays in the popup as a fallback.
 
+This is not DJI-specific: any camera whose software exports GPS-tagged
+equirectangular JPEGs — including 360° action cameras like the GoPro Max and
+Insta360 — produces files `photomap` can place and open in the viewer today.
+(GPS *video* telemetry from action cameras is a separate exploration, tracked
+in [issue #276](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/276).)
+
 ```bash
 dji-embed photomap /path/to/photos --serve
 ```
