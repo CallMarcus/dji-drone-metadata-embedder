@@ -21,8 +21,9 @@ public class WorkspaceViewModelTests : IDisposable
         return folder;
     }
 
-    private static WorkspaceViewModel Vm(string? cli) =>
-        new(cli, new DjiEmbedRunner(), new MapServer(), () => { });
+    private static WorkspaceViewModel Vm(
+        string? cli, Func<string?>? cliResolver = null) =>
+        new(cli, new DjiEmbedRunner(), new MapServer(), () => { }, cliResolver);
 
     [Fact]
     public void Starts_idle_with_flight_map_selected_and_no_folder()
@@ -137,6 +138,30 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Contains("engine", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Missing_cli_reprobes_via_resolver_and_recovers()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["doctor"] = (DoctorStream, 0),
+        });
+        var vm = new WorkspaceViewModel(null, new DjiEmbedRunner(),
+            new MapServer(), () => { }, () => cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+    }
+
+    [Fact]
+    public async Task Missing_cli_without_resolver_still_fails_cleanly()
+    {
+        var vm = new WorkspaceViewModel(null, new DjiEmbedRunner(),
+            new MapServer(), () => { }, null);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
     }
 
     [Fact]

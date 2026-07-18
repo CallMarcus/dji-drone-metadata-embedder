@@ -18,13 +18,16 @@ public partial class WorkspaceViewModel : FlowViewModel
 {
     private readonly MapServer _mapServer;
     private readonly Action _openCliDiscovery;
+    private readonly Func<string?>? _cliResolver;
 
     public WorkspaceViewModel(string? cli, DjiEmbedRunner runner,
-        MapServer mapServer, Action openCliDiscovery)
+        MapServer mapServer, Action openCliDiscovery,
+        Func<string?>? cliResolver = null)
         : base(cli, runner, static () => { })
     {
         _mapServer = mapServer;
         _openCliDiscovery = openCliDiscovery;
+        _cliResolver = cliResolver;
     }
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
@@ -102,6 +105,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
+        CliPath ??= _cliResolver?.Invoke();
         if (!EnsureCli())
         {
             return;
