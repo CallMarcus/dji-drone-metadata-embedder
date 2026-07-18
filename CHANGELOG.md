@@ -15,6 +15,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.24.0] - 2026-07-18
+
+### Added
+
+- **flightmap**: Flight playback animation in the HTML viewer (#267) (#320) (8361d57)
+- **geo**: Oblique view-frustum camera footprints from gimbal attitude (#265) (#321) (a49dc13)
+- **sign**: CDP diagnostics for SimplySign login failures (2b1176b)
+- **sign**: Drive the SimplySign login via the WebKit inspector (c6376b2)
+
+### Fixed
+
+- **sign**: Close the two flakes the first production signing run exposed (8ad0c52)
+- **sign**: Gate on the authenticated keystore path, not public PKCS#11 objects (6f45bdb)
+- **sign**: Retry the whole SimplySign login until the certificate appears (afef944)
+
+### Documentation
+
+- 360° action-cam photo exports already work in photomap (#276 cheap win) (e4fb63d)
+- Auto-generate changelog for v1.23.0 (e3067f4)
+
+### Maintenance
+
+- **sign**: Strip the dead WebKit-inspector drive and its diagnostics (c45ebe4)
+
+### Other
+
+- **installer-local**: Find ISCC in per-user + versioned install dirs (decef59)
+- Local installer assemble+verify for when CI signing is down (7a05f3f)
+- Prepare version 1.24.0 (9586375)
+
+
 ## [1.23.0] - 2026-07-17
 
 ### Added
