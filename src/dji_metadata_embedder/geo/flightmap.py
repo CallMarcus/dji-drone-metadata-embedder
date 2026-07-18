@@ -21,7 +21,7 @@ from xml.sax.saxutils import escape
 from .. import utilities
 from ..utilities import load_samples, redact_coords
 from .geometry import haversine_m
-from .track import Track, TrackPoint, build_track_from_samples
+from .track import Track, TrackPoint, _cue_seconds, build_track_from_samples
 
 logger = logging.getLogger(__name__)
 
@@ -297,27 +297,53 @@ def _flight_properties(track: Track) -> dict:
     return props
 
 
+def _relative_times(points: list[TrackPoint]) -> list[float]:
+    """Per-point seconds since the flight start, for playback (#267).
+
+    UTC datetimes are the preferred clock; if any point lacks one, the whole
+    flight falls back to SRT cue times so a single flight never mixes two
+    time bases. Clamped non-decreasing so a corrupt cue cannot run the
+    animation backwards.
+    """
+    if all(p.utc is not None for p in points):
+        base = points[0].utc
+        assert base is not None
+        raw = [(p.utc - base).total_seconds() for p in points if p.utc is not None]
+    else:
+        base_cue = _cue_seconds(points[0].timestamp)
+        raw = [_cue_seconds(p.timestamp) - base_cue for p in points]
+    times: list[float] = []
+    for t in raw:
+        t = round(t, 1)
+        times.append(max(t, times[-1]) if times else t)
+    return times
+
+
 def flights_to_geojson(tracks: list[Track]) -> dict:
     """Return a GeoJSON ``FeatureCollection`` with one feature per flight.
 
     Each flight is a ``LineString`` carrying name/start/duration/altitude
-    summary properties; a single-fix clip degrades to a ``Point`` because
-    RFC 7946 §3.1.4 requires two or more positions in a LineString. Unlike
-    the single-track exporter no per-sample Point features are emitted — at
+    summary properties plus ``times_s`` — per-point seconds relative to the
+    flight start — which drives the HTML viewer's playback animation (#267).
+    A single-fix clip degrades to a ``Point`` (RFC 7946 §3.1.4 requires two
+    or more positions in a LineString) and carries no times. Unlike the
+    single-track exporter no per-sample Point features are emitted — at
     archive scale they would swamp the map and the file.
     """
     features: list[dict] = []
     for track in tracks:
         coords = [[p.lon, p.lat, p.alt] for p in track.points]
+        properties = _flight_properties(track)
         if len(coords) >= 2:
             geometry: dict = {"type": "LineString", "coordinates": coords}
+            properties["times_s"] = _relative_times(track.points)
         else:
             geometry = {"type": "Point", "coordinates": coords[0]}
         features.append(
             {
                 "type": "Feature",
                 "geometry": geometry,
-                "properties": _flight_properties(track),
+                "properties": properties,
             }
         )
     return {"type": "FeatureCollection", "features": features}

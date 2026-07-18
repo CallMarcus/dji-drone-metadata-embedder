@@ -100,6 +100,46 @@ def test_flights_to_geojson_one_feature_per_flight():
     assert "start" not in point["properties"]  # no UTC -> no start/duration
 
 
+def test_flights_to_geojson_embeds_relative_times_from_utc():
+    # Playback (#267): every LineString carries times_s — per-point seconds
+    # relative to the flight start — so viewers can animate the flight.
+    line, point = flights_to_geojson(_tracks())["features"]
+    assert line["properties"]["times_s"] == [0.0, 243.0]
+    assert "times_s" not in point["properties"]  # a Point cannot animate
+
+
+def test_times_fall_back_to_cue_seconds_without_utc():
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:01,000"),
+        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:03,500"),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["times_s"] == [0.0, 2.5]
+
+
+def test_times_use_cues_when_any_utc_missing():
+    # Mixed UTC availability must not mix two time bases inside one flight.
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000",
+                   utc=datetime(2026, 6, 15, 12, 0, 0)),
+        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:02,000"),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["times_s"] == [0.0, 2.0]
+
+
+def test_times_clamped_monotonic():
+    # A cue that jumps backwards (corrupt SRT) must not run the animation
+    # backwards; the offending sample pins to the previous time.
+    track = Track(name="f", points=[
+        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:05,000"),
+        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:04,000"),
+        TrackPoint(lat=1.002, lon=2.002, alt=5.0, timestamp="00:00:06,000"),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["times_s"] == [0.0, 0.0, 1.0]
+
+
 def test_flights_to_kml_one_placemark_per_flight():
     kml = flights_to_kml(_tracks(), title="My flights")
     assert kml.count("<Placemark>") == 2
