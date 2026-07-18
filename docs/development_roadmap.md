@@ -89,13 +89,14 @@ from pre-existing environmental gaps.
   v1.9.0). Every renderer consumes the same GeoJSON. Remaining follow-ups are
   now tracked as issues:
   [#265](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/265)
-  oblique-trapezoid / view-frustum footprints — unblocked, since gimbal
-  attitude is already parsed from SRT (`gb_yaw`/`gb_pitch`) and the djmd MP4
-  track (DAT logs are *not* required, contrary to earlier assumptions);
+  oblique-trapezoid / view-frustum footprints — **shipped**: frames with
+  gimbal pitch project as ground trapezoids (clamped near the horizon),
+  nadir rectangles remain the attitude-less fallback;
   [#266](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/266)
   terrain/DEM support via an optional `[terrain]` extra;
   [#267](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/267)
-  flight playback animation in the flightmap viewer; and
+  flight playback animation in the flightmap viewer — **shipped** (play/
+  pause, speed, scrubbing; per-point `times_s` in the flight GeoJSON); and
   [#268](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/268)
   a 3D terrain view (MapLibre `--3d` template, deliberately parked).
 - **Richer web UI.** Incremental improvements to the Flask UI

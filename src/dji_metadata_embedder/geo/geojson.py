@@ -20,20 +20,26 @@ logger = logging.getLogger(__name__)
 
 
 def _footprint_feature(fp: Footprint) -> dict:
+    properties = {
+        "kind": "footprint",
+        "index": fp.index,
+        "timestamp": fp.timestamp,
+        "agl": round(fp.agl, 3),
+        "hfov": round(fp.hfov, 1),
+        "vfov": round(fp.vfov, 1),
+        # Oblique frustum trapezoids (#265) can be styled apart from nadir
+        # rectangles; pitch rides along when a frustum projection was used.
+        "oblique": fp.oblique,
+    }
+    if fp.pitch is not None:
+        properties["pitch"] = fp.pitch
     return {
         "type": "Feature",
         "geometry": {
             "type": "Polygon",
             "coordinates": [[[lon, lat] for lon, lat in fp.ring]],
         },
-        "properties": {
-            "kind": "footprint",
-            "index": fp.index,
-            "timestamp": fp.timestamp,
-            "agl": round(fp.agl, 3),
-            "hfov": round(fp.hfov, 1),
-            "vfov": round(fp.vfov, 1),
-        },
+        "properties": properties,
     }
 
 

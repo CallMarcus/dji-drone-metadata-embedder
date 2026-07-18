@@ -90,3 +90,46 @@ def test_build_footprints_uses_gimbal_yaw_when_present():
     lat_extent_90 = max(lat for _, lat in fp90.ring) - min(lat for _, lat in fp90.ring)
     # Default lens HFOV != VFOV, so a 90 deg yaw changes the N-S extent.
     assert abs(lat_extent_0 - lat_extent_90) > 1e-7
+
+
+# Oblique view-frustum footprints (#265): frames with real gimbal pitch keep
+# a footprint (a ground trapezoid) instead of being skipped; only frames at
+# or above the horizon are dropped. Without attitude the nadir rectangle
+# remains, flagged non-oblique.
+
+
+def test_build_footprints_oblique_pitch_now_projected():
+    pts = [_pt(0.0, 0.0, 0, rel_alt=100.0, gimbal_pitch=-45.0, gimbal_yaw=0.0)]
+    fps = build_footprints(Track("t", pts), interval=0.0)
+    assert len(fps) == 1
+    fp = fps[0]
+    assert fp.oblique is True
+    assert fp.pitch == -45.0
+    # Far edge (north, heading 0) reaches beyond the nadir half-height.
+    assert max(lat for _, lat in fp.ring) > 56.25 / M_PER_DEG
+
+
+def test_build_footprints_still_skips_horizon_pitch():
+    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=0.0),
+           _pt(0.0001, 0.0, 1, rel_alt=50.0, gimbal_pitch=5.0)]
+    assert build_footprints(Track("t", pts), interval=0.0) == []
+
+
+def test_build_footprints_nadir_fallback_is_not_oblique():
+    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0), _pt(0.0001, 0.0, 1, rel_alt=50.0)]
+    fps = build_footprints(Track("t", pts), interval=0.0)
+    assert fps and all(fp.oblique is False for fp in fps)
+    assert all(fp.pitch is None for fp in fps)
+
+
+def test_build_footprints_near_nadir_pitch_matches_rectangle():
+    # A -90 deg gimbal frame goes through the frustum path but must land on
+    # the same rectangle the nadir model draws.
+    from dji_metadata_embedder.geo.footprint import fov_degrees as _fov
+    pts = [_pt(0.0, 0.0, 0, rel_alt=100.0, gimbal_pitch=-90.0, gimbal_yaw=0.0)]
+    fp = build_footprints(Track("t", pts), interval=0.0)[0]
+    hfov, vfov = _fov(DEFAULT_LENS, None)
+    expected = ground_footprint(0.0, 0.0, 100.0, hfov, vfov, 0.0)
+    got = {(round(lon, 9), round(lat, 9)) for lon, lat in fp.ring}
+    want = {(round(lon, 9), round(lat, 9)) for lon, lat in expected}
+    assert got == want
