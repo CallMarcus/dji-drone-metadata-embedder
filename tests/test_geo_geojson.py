@@ -74,3 +74,22 @@ def test_geojson_without_footprints_unchanged():
     gj = track_to_geojson(track)
     assert not [f for f in gj["features"]
                 if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+
+
+def test_geojson_footprint_carries_oblique_flag():
+    # Oblique frustum footprints (#265): consumers can style trapezoids
+    # differently, so the feature says how it was projected.
+    from dji_metadata_embedder.geo.footprint import build_footprints
+    from dji_metadata_embedder.geo.geojson import track_to_geojson
+    from dji_metadata_embedder.geo.track import Track, TrackPoint
+    from datetime import datetime
+
+    pts = [TrackPoint(lat=0.0, lon=0.0, alt=100.0, timestamp="0",
+                      utc=datetime(2026, 1, 1), rel_alt=100.0,
+                      gimbal_pitch=-45.0, gimbal_yaw=0.0)]
+    fps = build_footprints(Track("t", pts), interval=0.0)
+    gj = track_to_geojson(Track("t", pts), footprints=fps)
+    poly = [f for f in gj["features"]
+            if f["geometry"] and f["geometry"]["type"] == "Polygon"][0]
+    assert poly["properties"]["oblique"] is True
+    assert poly["properties"]["pitch"] == -45.0

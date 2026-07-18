@@ -27,8 +27,9 @@ flight path in Google Earth.
 ## Camera footprints
 
 Add `--footprint` to a `geojson` or `kml` conversion to include camera
-ground-footprint polygons in the output — one rectangle per sampled frame
-showing the area imaged by the lens at that moment.
+ground-footprint polygons in the output — one polygon per sampled frame
+showing the area imaged by the lens at that moment (a rectangle under a
+straight-down camera, a trapezoid when the gimbal is tilted — see below).
 
 ```bash
 dji-embed convert geojson DJI_0001.SRT --footprint --model air3
@@ -66,17 +67,28 @@ default. On the **Avata 360** format, which carries `gb_yaw` in the SRT, the
 real gimbal yaw is used instead, so the footprint follows where the lens
 actually points.
 
-### Oblique frames are skipped
+### Oblique frames become trapezoids
 
-If the SRT carries gimbal pitch (`gb_pitch`) and the camera is more than ~30°
-off nadir, no footprint is drawn for that frame. Full oblique projection is
-deferred future work. When gimbal pitch is absent (most formats), nadir is
-assumed for every frame.
+If the SRT carries gimbal pitch (`gb_pitch`), each footprint is a true
+view-frustum projection: the four camera-corner rays are intersected with the
+ground plane, so a tilted camera yields a ground **trapezoid** instead of a
+rectangle (wider at the far edge, exactly as the lens sees it). In GeoJSON
+these polygons carry `"oblique": true` and a `"pitch"` property so they can
+be styled apart from nadir rectangles.
+
+Two guard rails keep near-horizon frames sane: frames with the camera at or
+above the horizon (pitch ≥ 0°) are skipped outright, and corner rays that
+miss the ground — or would land implausibly far away — are clamped to 8× the
+height above ground, so a slightly-tilted frame degrades to a capped
+trapezoid instead of stretching to the horizon.
+
+When gimbal pitch is absent (most formats), nadir is assumed for every frame
+and the original rectangle model applies; `-v` logs a note that footprints
+assume a straight-down camera.
 
 The bundled `samples/Avata360/clip.SRT` is a horizon-pointing (gimbal pitch ≈ 0°)
-360 capture — the nadir model intentionally skips every frame and produces no
-footprints. Gimbal yaw is used for footprint rotation only when the camera is
-near-nadir (pitch below the ~30° threshold).
+360 capture — every frame sits at the horizon gate and produces no
+footprints.
 
 ### Privacy — footprints suppressed under `--redact`
 
