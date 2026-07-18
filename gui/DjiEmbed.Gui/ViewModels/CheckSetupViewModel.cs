@@ -1,15 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Text.Json;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DjiEmbed.Gui.Services;
 
 namespace DjiEmbed.Gui.ViewModels;
-
-/// <summary>One row of the setup checklist.</summary>
-public sealed record SetupItem(string Label, bool Present, string? Detail);
 
 /// <summary>
 /// "Check my setup": doctor as a novice-worded checklist. Missing tools
@@ -47,37 +43,12 @@ public partial class CheckSetupViewModel(
                 return false;
             }
             Items.Clear();
-            ParseTools(t.Summary);
+            foreach (var item in DoctorReport.Parse(t.Summary))
+            {
+                Items.Add(item);
+            }
             AllGood = t.Ok == true;
             return true;
         });
     }
-
-    private void ParseTools(JsonElement? summary)
-    {
-        if (summary is not { ValueKind: JsonValueKind.Object } s
-            || !s.TryGetProperty("tools", out var tools)
-            || tools.ValueKind != JsonValueKind.Object)
-        {
-            return;
-        }
-        foreach (var tool in tools.EnumerateObject())
-        {
-            var present = tool.Value.TryGetProperty("present", out var p)
-                          && p.ValueKind == JsonValueKind.True;
-            var detail = present
-                ? tool.Value.TryGetProperty("version", out var v)
-                  && v.ValueKind == JsonValueKind.String
-                    ? $"version {v.GetString()}" : null
-                : "Reinstalling the application should restore this.";
-            Items.Add(new SetupItem(FriendlyName(tool.Name), present, detail));
-        }
-    }
-
-    private static string FriendlyName(string tool) => tool switch
-    {
-        "ffmpeg" => "Video tools (FFmpeg)",
-        "exiftool" => "Photo tools (ExifTool)",
-        _ => tool,
-    };
 }

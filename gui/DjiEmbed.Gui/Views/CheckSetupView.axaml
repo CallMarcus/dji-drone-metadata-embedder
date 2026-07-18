@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:svc="using:DjiEmbed.Gui.Services"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
@@ -37,7 +38,7 @@
                        Text="Something is missing — see the list below." />
             <ItemsControl ItemsSource="{Binding Items}">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:SetupItem">
+                    <DataTemplate x:DataType="svc:SetupItem">
                         <DockPanel Margin="0,6">
                             <Panel DockPanel.Dock="Left" Width="28"
                                    VerticalAlignment="Top">
