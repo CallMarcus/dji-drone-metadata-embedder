@@ -109,4 +109,176 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Null(vm.SelectedFolder);
         Assert.Equal(FlowStep.Running, vm.Step);
     }
+
+    private static readonly string[] FlightmapStream =
+    [
+        """{"v": 1, "event": "start", "command": "flightmap", "total": 1}""",
+        """{"v": 1, "event": "progress", "current": 1, "total": 1, "item": "DJI_0001.SRT"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": ["flightmap.html"], "summary": {}}""",
+    ];
+
+    private static readonly string[] PhotomapStream =
+    [
+        """{"v": 1, "event": "start", "command": "photomap", "total": 1}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": ["photomap.html"], "summary": {}}""",
+    ];
+
+    private static readonly string[] DoctorStream =
+    [
+        """{"v": 1, "event": "start", "command": "doctor"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"tools": {"ffmpeg": {"present": true, "version": "7.1"}}}}""",
+    ];
+
+    [Fact]
+    public async Task Missing_cli_fails_with_novice_wording()
+    {
+        var vm = Vm(null);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("engine", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Flight_map_mode_runs_flightmap_recursively()
+    {
+        var argsFile = Path.Combine(_dir, "args-fm.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal(["flightmap.html"], vm.Outputs);
+        var argv = File.ReadAllText(argsFile);
+        Assert.StartsWith("flightmap", argv.TrimStart());
+        Assert.Contains("-r", argv);
+    }
+
+    [Fact]
+    public async Task Photo_map_mode_links_originals_for_the_pano_viewer()
+    {
+        // #305: without --link-originals the map has no pano viewer at all.
+        var argsFile = Path.Combine(_dir, "args-pm.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, PhotomapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Contains("--link-originals", File.ReadAllText(argsFile));
+    }
+
+    [Fact]
+    public async Task Wrong_content_for_the_mode_fails_before_launching_anything()
+    {
+        // A CLI path that would explode if executed proves nothing ran.
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("folder", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Setup_mode_parses_the_doctor_checklist()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["doctor"] = (DoctorStream, 0),
+        });
+        var vm = Vm(cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.True(vm.AllGood);
+        var item = Assert.Single(vm.SetupItems);
+        Assert.Equal("Video tools (FFmpeg)", item.Label);
+    }
+
+    [Fact]
+    public async Task Cli_error_shows_its_message_and_stderr_details()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "flightmap"}""",
+            """{"v": 1, "event": "error", "message": "None of the 3 SRT files contain GPS telemetry"}""",
+        ], exitCode: 1, stderrLine: "detail line");
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("GPS telemetry", vm.ErrorMessage);
+        Assert.Contains("detail line", vm.ErrorDetails);
+    }
+
+    [Fact]
+    public async Task Cancel_returns_to_the_idle_pane()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+            ["""{"v": 1, "event": "start", "command": "flightmap"}"""],
+            sleepSeconds: 30);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        var run = vm.RunCommand.ExecuteAsync(null);
+        while (vm.Step != FlowStep.Running)
+        {
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+        vm.CancelCommand.Execute(null);
+        await run;
+        Assert.Equal(FlowStep.Pick, vm.Step);
+    }
+
+    [Fact]
+    public async Task Process_another_resets_to_idle_keeping_the_folder()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli);
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        vm.GoHomeCommand.Execute(null);
+        Assert.Equal(FlowStep.Pick, vm.Step);
+        Assert.Equal(folder, vm.SelectedFolder);
+    }
+
+    [Fact]
+    public async Task Map_run_after_setup_shows_no_stale_checklist_state()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["doctor"] = (DoctorStream, 0),
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.True(vm.AllGood);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Empty(vm.SetupItems);
+        Assert.False(vm.AllGood);
+        Assert.Equal(["flightmap.html"], vm.Outputs);
+    }
+
+    [Fact]
+    public async Task Second_run_replaces_outputs_instead_of_appending()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        vm.GoHomeCommand.Execute(null);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal(["flightmap.html"], vm.Outputs);
+    }
 }

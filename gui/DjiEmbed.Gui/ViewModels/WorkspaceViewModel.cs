@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -45,11 +46,17 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
 
-    partial void OnSelectedFolderChanged(string? value) =>
+    partial void OnSelectedFolderChanged(string? value)
+    {
         OnPropertyChanged(nameof(CanRun));
+        RunCommand.NotifyCanExecuteChanged();
+    }
 
-    partial void OnSelectedModeChanged(WorkspaceMode value) =>
+    partial void OnSelectedModeChanged(WorkspaceMode value)
+    {
         OnPropertyChanged(nameof(CanRun));
+        RunCommand.NotifyCanExecuteChanged();
+    }
 
     protected override string GenericFailureMessage =>
         SelectedMode.FailureMessage;
@@ -91,4 +98,99 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     /// <summary>"Process another": back to idle, keep folder and mode.</summary>
     protected override void GoHomeCore() => Step = FlowStep.Pick;
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task RunAsync()
+    {
+        if (!EnsureCli())
+        {
+            return;
+        }
+        SetupItems.Clear();
+        AllGood = false;
+        if (SelectedMode.Kind == WorkspaceModeKind.Setup)
+        {
+            await RunSetupAsync();
+            return;
+        }
+        if (SelectedFolder is not { } folder)
+        {
+            return;
+        }
+        var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        switch (SelectedMode.Kind)
+        {
+            case WorkspaceModeKind.FlightMap when !contents.HasFlightLogs:
+                Fail("No drone flight logs (.SRT) were found in that folder. "
+                     + "Pick the folder that contains your footage — "
+                     + "subfolders are included automatically.");
+                return;
+            case WorkspaceModeKind.FlightMap:
+                await ExecuteFlowAsync(() => RunStepAsync(
+                    "Mapping your flights…", ["flightmap", folder, "-r"]));
+                return;
+            case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
+                Fail("No photos were found in that folder. Pick the folder "
+                     + "that contains your pictures — subfolders are "
+                     + "included automatically.");
+                return;
+            case WorkspaceModeKind.PhotoMap:
+                // --link-originals: the map is written inside the mapped
+                // folder, so the relative links are stable there — and they
+                // power the embedded 360° panorama viewer (#305).
+                await ExecuteFlowAsync(() => RunStepAsync(
+                    "Mapping your photos…",
+                    ["photomap", folder, "-r", "--link-originals"]));
+                return;
+            case WorkspaceModeKind.Embed when !contents.HasVideos:
+                Fail("No videos (.MP4) were found in that folder. Pick the "
+                     + "folder that holds the drone videos together with "
+                     + "their .SRT flight logs.");
+                return;
+            case WorkspaceModeKind.Embed:
+                await ExecuteFlowAsync(() => RunStepAsync(
+                    "Embedding flight data into new copies…",
+                    ["embed", folder]));
+                return;
+        }
+    }
+
+    private Task RunSetupAsync() => ExecuteFlowAsync(async () =>
+    {
+        var result = await RunCliAsync("Checking…", ["doctor"]);
+        if (result.ExitCode != 0
+            || result.Terminal is not { Kind: ProgressEventKind.Result } t)
+        {
+            Fail(result.Terminal?.Message ?? GenericFailureMessage,
+                string.IsNullOrWhiteSpace(result.StderrText)
+                    ? null : result.StderrText);
+            return false;
+        }
+        foreach (var item in DoctorReport.Parse(t.Summary))
+        {
+            SetupItems.Add(item);
+        }
+        AllGood = t.Ok == true;
+        return true;
+    });
+
+    /// <summary>
+    /// HTML maps open through the managed local server instead of file://,
+    /// which blocks the 360° panorama viewer (#305). A server that fails to
+    /// start falls back to the plain file open.
+    /// </summary>
+    protected override async Task OpenOutputCoreAsync(string path)
+    {
+        if (CliPath is not null
+            && path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = await _mapServer.GetUrlAsync(CliPath, path);
+            if (url is not null)
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                return;
+            }
+        }
+        await base.OpenOutputCoreAsync(path);
+    }
 }
