@@ -42,6 +42,14 @@ _TEMPLATE = """<!DOCTYPE html>
   html, body {{ height: 100%; margin: 0; }}
   #map {{ height: 100%; }}
   .flight-popup {{ font: 13px/1.5 sans-serif; }}
+  /* Playback control (issue #267) */
+  .playback {{ background: #fff; border-radius: 4px; padding: 6px 10px;
+              box-shadow: 0 1px 5px rgba(0,0,0,.4); display: flex;
+              gap: 8px; align-items: center; font: 13px/1 sans-serif; }}
+  .playback button {{ border: none; background: none; cursor: pointer;
+                     font-size: 15px; padding: 0; }}
+  .playback input[type=range] {{ width: 140px; }}
+  .playback span {{ font-variant-numeric: tabular-nums; }}
 </style>
 </head>
 <body>
@@ -99,6 +107,7 @@ function popupHtml(p) {
 
 const overlays = {};
 const allLatLngs = [];
+const runs = [];   // playback (#267): flights with usable per-point times
 (data.features || []).forEach((f, i) => {
   if (!f.geometry) return;
   const color = PALETTE[i % PALETTE.length];
@@ -109,6 +118,11 @@ const allLatLngs = [];
     latlngs = f.geometry.coordinates.map(c => [c[1], c[0]]);
     L.polyline(latlngs, { color, weight: 3 })
       .bindPopup(popupHtml(p)).addTo(group);
+    const times = p.times_s;
+    if (Array.isArray(times) && times.length === latlngs.length &&
+        times[times.length - 1] > 0) {
+      runs.push({ latlngs, times, color, group, cursor: 0, marker: null });
+    }
   } else {                                             // single-fix clip
     const c = f.geometry.coordinates;
     latlngs = [[c[1], c[0]]];
@@ -131,6 +145,89 @@ if (allLatLngs.length > 1) {
 }
 if (Object.keys(overlays).length > 1) {
   L.control.layers(null, overlays).addTo(map);
+}
+
+// Flight playback (issue #267): a hand-rolled requestAnimationFrame animator
+// — no plugin, no new pinned assets. Every flight replays on a shared
+// relative clock (each from its own takeoff), so a folder of flights can be
+// compared side by side. The control is inert until Play is pressed; the
+// default map costs nothing extra. Each flight's dot lives in that flight's
+// layer group, so the layer control hides it together with the track.
+const maxT = Math.max(0, ...runs.map(r => r.times[r.times.length - 1]));
+if (runs.length && maxT > 0) {
+  const ctl = L.control({ position: 'bottomleft' });
+  ctl.onAdd = () => {
+    const div = L.DomUtil.create('div', 'playback');
+    div.innerHTML =
+      '<button id="pb-play" type="button" title="Play flights">&#9654;</button>' +
+      '<button id="pb-speed" type="button" title="Playback speed">1&times;</button>' +
+      `<input id="pb-slider" type="range" min="0" max="${maxT}" step="0.1" value="0">` +
+      `<span id="pb-time">0:00 / ${fmtDuration(Math.round(maxT))}</span>`;
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  };
+  ctl.addTo(map);
+  const playBtn = document.getElementById('pb-play');
+  const speedBtn = document.getElementById('pb-speed');
+  const slider = document.getElementById('pb-slider');
+  const timeEl = document.getElementById('pb-time');
+  const SPEEDS = [1, 5, 20, 60];
+  const pb = { t: 0, playing: false, speed: 1, raf: null, last: 0 };
+
+  function positionAt(run, t) {
+    const times = run.times, lls = run.latlngs;
+    if (t <= times[0]) return lls[0];
+    if (t >= times[times.length - 1]) return lls[lls.length - 1];
+    let i = run.cursor;
+    if (times[i] > t) i = 0;                       // seeked backwards
+    while (times[i + 1] < t) i++;
+    run.cursor = i;
+    const t0 = times[i], t1 = times[i + 1];
+    const f = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
+    const a = lls[i], b = lls[i + 1];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  }
+  function render() {
+    for (const run of runs) {
+      const pos = positionAt(run, pb.t);
+      if (!run.marker) {
+        run.marker = L.circleMarker(pos, { radius: 7, color: '#fff', weight: 2,
+          fillColor: run.color, fillOpacity: 1 }).addTo(run.group);
+      } else run.marker.setLatLng(pos);
+    }
+    slider.value = pb.t;
+    timeEl.textContent =
+      `${fmtDuration(Math.round(pb.t))} / ${fmtDuration(Math.round(maxT))}`;
+  }
+  function pause() {
+    pb.playing = false;
+    playBtn.innerHTML = '&#9654;';
+    if (pb.raf) cancelAnimationFrame(pb.raf);
+  }
+  function tick(now) {
+    if (!pb.playing) return;
+    pb.t = Math.min(maxT, pb.t + (now - pb.last) / 1000 * pb.speed);
+    pb.last = now;
+    render();
+    if (pb.t >= maxT) { pause(); return; }
+    pb.raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (pb.t >= maxT) pb.t = 0;
+    pb.playing = true;
+    playBtn.innerHTML = '&#10074;&#10074;';
+    pb.last = performance.now();
+    pb.raf = requestAnimationFrame(tick);
+  }
+  playBtn.addEventListener('click', () => pb.playing ? pause() : play());
+  speedBtn.addEventListener('click', () => {
+    pb.speed = SPEEDS[(SPEEDS.indexOf(pb.speed) + 1) % SPEEDS.length];
+    speedBtn.innerHTML = `${pb.speed}&times;`;
+  });
+  slider.addEventListener('input', () => {
+    pb.t = Number(slider.value);
+    render();
+  });
 }
 """
 

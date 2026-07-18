@@ -112,6 +112,25 @@ def test_html_draws_tracks_with_layer_control():
     assert "PALETTE" in html
 
 
+# Flight playback (#267): a hand-rolled requestAnimationFrame animator moves
+# a marker along each track, driven by the embedded per-point times.
+
+
+def test_html_embeds_playback_times():
+    data = _embedded_geojson(flights_to_html(TRACKS, title="t"))
+    assert data["features"][0]["properties"]["times_s"] == [0.0, 60.0]
+    assert data["features"][1]["properties"]["times_s"] == [0.0, 1.0]
+
+
+def test_html_has_playback_control_without_new_dependencies():
+    html = flights_to_html(TRACKS, title="t")
+    assert "requestAnimationFrame" in html
+    assert "playback" in html
+    # Hand-rolled animator, not a plugin: the SRI-pinned asset count is
+    # unchanged (leaflet css + js only).
+    assert html.count('integrity="sha256-') == 2
+
+
 def test_html_empty_tracks_still_valid_document():
     html = flights_to_html([], title="t")
     assert html.lstrip().startswith("<!DOCTYPE html>")
