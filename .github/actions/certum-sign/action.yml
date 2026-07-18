@@ -105,177 +105,11 @@ runs:
         } > "$HOME/.config/Unknown Organization.conf"
 
         # Launch via the *_start wrapper (sets LD_LIBRARY_PATH for bundled Qt).
-        # The logon dialog is Qt5 WebKit (libQt5WebKit.so.5.9 in the dist -
-        # NOT WebEngine); its remote inspector lets us read the page and
-        # even drive the login form with JavaScript instead of blind
-        # geometry clicks.
         export LD_LIBRARY_PATH="$SS_DIST:${LD_LIBRARY_PATH:-}"
-        export QTWEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
         if [ -n "${SS_START:-}" ]; then "$SS_START" >"$RUNNER_TEMP/simplysign.log" 2>&1 &
         else "$SS_EXE" >"$RUNNER_TEMP/simplysign.log" 2>&1 & fi
         echo "SimplySign launched; waiting ${LAUNCH_SECONDS}s"
         sleep "$LAUNCH_SECONDS"
-
-        # Minimal WebKit-inspector/CDP client (stdlib-only websocket):
-        # `pageinfo` prints the login page's structure (URL host/path,
-        # title, input/button/iframe inventory - no field values),
-        # `screenshot FILE` captures the dialog as PNG where the protocol
-        # supports it, and `login` fills + submits the logon form with
-        # JavaScript (deterministic, unlike geometry clicks).
-        cat > "$RUNNER_TEMP/cdp.py" <<'CDPPY'
-        import base64, json, os, re, socket, struct, sys, urllib.request
-
-        def ws_connect(url):
-            hostport, path = url[5:].split("/", 1)
-            host, port = hostport.split(":")
-            s = socket.create_connection((host, int(port)), timeout=15)
-            key = base64.b64encode(os.urandom(16)).decode()
-            s.sendall((f"GET /{path} HTTP/1.1\r\nHost: {hostport}\r\n"
-                       "Upgrade: websocket\r\nConnection: Upgrade\r\n"
-                       f"Sec-WebSocket-Key: {key}\r\n"
-                       "Sec-WebSocket-Version: 13\r\n\r\n").encode())
-            buf = b""
-            while b"\r\n\r\n" not in buf:
-                buf += s.recv(4096)
-            assert b" 101 " in buf.split(b"\r\n", 1)[0], buf[:200]
-            return s
-
-        def read_n(s, n):
-            b = b""
-            while len(b) < n:
-                c = s.recv(n - len(b))
-                if not c:
-                    raise ConnectionError("ws closed")
-                b += c
-            return b
-
-        def ws_send(s, payload):
-            data = payload.encode()
-            n = len(data)
-            if n < 126:
-                head = b"\x81" + bytes([n | 0x80])
-            elif n < 65536:
-                head = b"\x81" + bytes([126 | 0x80]) + struct.pack(">H", n)
-            else:
-                head = b"\x81" + bytes([127 | 0x80]) + struct.pack(">Q", n)
-            mask = os.urandom(4)
-            s.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
-
-        def ws_recv(s):
-            while True:
-                h = read_n(s, 2)
-                op, n = h[0] & 0xF, h[1] & 0x7F
-                if n == 126:
-                    n = struct.unpack(">H", read_n(s, 2))[0]
-                elif n == 127:
-                    n = struct.unpack(">Q", read_n(s, 8))[0]
-                data = read_n(s, n)
-                if op == 1:
-                    return data.decode()
-                if op == 9:  # ping -> pong
-                    mask = os.urandom(4)
-                    s.sendall(b"\x8a" + bytes([len(data) | 0x80]) + mask
-                              + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
-
-        def cdp(s, mid, method, params=None):
-            ws_send(s, json.dumps({"id": mid, "method": method, "params": params or {}}))
-            while True:
-                m = json.loads(ws_recv(s))
-                if m.get("id") == mid:
-                    if "error" in m:
-                        raise RuntimeError(m["error"])
-                    return m.get("result", {})
-
-        INFO_JS = """
-        (function(){
-          const inv = e => e.offsetParent !== null;
-          return JSON.stringify({
-            host: location.host, path: location.pathname, title: document.title,
-            inputs: [...document.querySelectorAll('input')].map(i => ({
-              type: i.type, name: i.name, id: i.id, ph: i.placeholder,
-              visible: inv(i), len: (i.value||'').length })),
-            buttons: [...document.querySelectorAll('button,input[type=submit],a[role=button]')]
-              .map(b => ({ text: (b.innerText||b.value||'').trim().slice(0,40), visible: inv(b) })),
-            iframes: [...document.querySelectorAll('iframe')].map(f => {
-              try { return new URL(f.src, location.href).host } catch(e) { return '?' } }),
-            bodyText: (document.body.innerText||'').replace(/\\s+/g,' ').slice(0, 600)
-          });
-        })()
-        """
-
-        LOGIN_JS_TMPL = """
-        (function(){
-          var user = %USER%; var otp = %OTP%;
-          function vis(e){ return !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length); }
-          function fire(el){ ['input','change','keyup'].forEach(function(t){
-            var ev = document.createEvent('HTMLEvents'); ev.initEvent(t, true, false); el.dispatchEvent(ev); }); }
-          var ins = [].filter.call(document.querySelectorAll('input'), function(i){
-            return vis(i) && ['text','email','password','tel','number'].indexOf(i.type) >= 0; });
-          if (ins.length < 2) return 'FAIL inputs=' + ins.length;
-          ins[0].value = user; fire(ins[0]);
-          ins[1].value = otp;  fire(ins[1]);
-          var btns = [].filter.call(document.querySelectorAll(
-            'button,input[type=submit],input[type=button]'), vis);
-          var btn = null;
-          btns.forEach(function(b){
-            var t = (b.innerText || b.value || '');
-            if (/log|sign|zalog/i.test(t)) btn = btn || b; });
-          btn = btn || (btns.length ? btns[btns.length - 1] : null);
-          if (btn) { btn.click(); return 'CLICKED ' + (btn.innerText || btn.value || '').trim().slice(0, 30); }
-          if (ins[0].form) { ins[0].form.submit(); return 'SUBMITTED'; }
-          return 'FAIL nobutton';
-        })()
-        """
-
-        def list_targets():
-            base = "http://127.0.0.1:9222"
-            # WebEngine-style /json first, then QtWebKit's /pagelist.json
-            # (whose entries carry inspectorUrl "...?page=N" instead of a
-            # webSocketDebuggerUrl).
-            try:
-                data = json.load(urllib.request.urlopen(base + "/json", timeout=15))
-            except Exception:
-                data = json.load(urllib.request.urlopen(base + "/pagelist.json", timeout=15))
-            out = []
-            for t in data:
-                if t.get("type") not in (None, "page"):
-                    continue
-                ws = t.get("webSocketDebuggerUrl")
-                if not ws:
-                    m = re.search(r"page=(\d+)", t.get("inspectorUrl", ""))
-                    if m:
-                        ws = "ws://127.0.0.1:9222/devtools/page/" + m.group(1)
-                if ws:
-                    out.append(ws)
-            return out
-
-        pages = list_targets()
-        if not pages:
-            sys.exit("no inspectable pages")
-        s = ws_connect(pages[0])
-        try:
-            cdp(s, 1, "Runtime.enable")
-        except Exception:
-            pass  # optional on some protocol generations
-        def evaluate(expr):
-            r = cdp(s, 2, "Runtime.evaluate",
-                    {"expression": expr, "returnByValue": True})
-            res = r.get("result", {})
-            return res.get("value", res.get("result", {}).get("value", res))
-        if sys.argv[1] == "pageinfo":
-            print(evaluate(INFO_JS))
-        elif sys.argv[1] == "login":
-            js = LOGIN_JS_TMPL.replace("%USER%", json.dumps(os.environ["CERTUM_USER_ID"])) \
-                              .replace("%OTP%", json.dumps(os.environ["OTP"]))
-            print(evaluate(js))
-        elif sys.argv[1] == "screenshot":
-            try:
-                r = cdp(s, 3, "Page.captureScreenshot", {})
-                with open(sys.argv[2], "wb") as fh:
-                    fh.write(base64.b64decode(r["data"]))
-            except Exception as e:
-                sys.exit("screenshot unsupported: %s" % e)
-        CDPPY
 
         # TOTP helper written to a file so the retry loop below can call it
         # (a heredoc inside the loop would break YAML de-indentation).
@@ -359,30 +193,21 @@ runs:
           OTP="$(python3 "$RUNNER_TEMP/otp.py")"
           echo "::add-mask::$OTP"
 
-          # Preferred: fill + submit the form with JavaScript through the
-          # WebKit inspector - immune to focus, layout, and page-reload
-          # races. Falls back to the xdotool drive when the inspector is
-          # unreachable (e.g. developer extras disabled in this build).
-          RES="$(OTP="$OTP" timeout 30 python3 "$RUNNER_TEMP/cdp.py" login 2>&1 || true)"
-          echo "js login: ${RES:-no result}"
-          case "$RES" in
-            CLICKED*|SUBMITTED*)
-              sleep 8
-              ;;
-            *)
-              echo "falling back to xdotool drive"
-              # E-MAIL field: click, clear (may hold a cached/autofilled or
-              # half-typed value from a previous attempt), retype.
-              xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
-              xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
-              xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
-              xdotool key Tab; sleep 1
-              xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
-              xdotool type --clearmodifiers --delay 50 "$OTP"
-              xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
-              sleep 8
-              ;;
-          esac
+          # E-MAIL field: click, clear (may hold a cached/autofilled or
+          # half-typed value from a previous attempt), retype. (A WebKit
+          # remote-inspector JS drive was tried and removed: the app never
+          # opened the QTWEBKIT_INSPECTOR_SERVER port in CI - developer
+          # extras look disabled - so geometry clicks are the only drive
+          # that works. It was also never the weak spot: see the outage
+          # post-mortem above.)
+          xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
+          xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
+          xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
+          xdotool key Tab; sleep 1
+          xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
+          xdotool type --clearmodifiers --delay 50 "$OTP"
+          xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
+          sleep 8
 
           # "Logon successful" dialog: the token does NOT activate until its
           # Close button (bottom-centre) is clicked. Re-find the window (its
@@ -407,12 +232,6 @@ runs:
           done
           [ -n "$LOGIN_OK" ] && break
           echo "login attempt $login_attempt did not activate the token; retrying"
-          # What is the dialog actually showing? Structure to the log
-          # (GitHub masks secret values), pixels to an encrypted artifact.
-          echo "--- login page state after attempt $login_attempt"
-          timeout 30 python3 "$RUNNER_TEMP/cdp.py" pageinfo || echo "(pageinfo unavailable)"
-          timeout 30 python3 "$RUNNER_TEMP/cdp.py" screenshot \
-            "$RUNNER_TEMP/login-shot-$login_attempt.png" || true
         done
         if [ -z "$LOGIN_OK" ]; then
           echo "::error::certificate never appeared on the token"
@@ -420,15 +239,6 @@ runs:
           timeout 60 keytool -list -keystore NONE -storetype PKCS11 \
             -providerClass sun.security.pkcs11.SunPKCS11 \
             -providerArg "$SUNPKCS11_CONF" -storepass "" || true
-          # Screenshots may show the account id - encrypt with a value only
-          # the maintainer holds (decrypt: openssl enc -d -aes-256-cbc
-          # -pbkdf2 -pass pass:<CERTUM_USER_ID> -in login-shots.tgz.enc | tar xz)
-          if ls "$RUNNER_TEMP"/login-shot-*.png >/dev/null 2>&1; then
-            tar cz -C "$RUNNER_TEMP" $(cd "$RUNNER_TEMP" && ls login-shot-*.png) \
-              | openssl enc -aes-256-cbc -pbkdf2 -pass env:CERTUM_USER_ID \
-                  -out "$RUNNER_TEMP/login-shots.tgz.enc"
-            echo "encrypted screenshots at RUNNER_TEMP/login-shots.tgz.enc"
-          fi
           cat "$RUNNER_TEMP/simplysign.log" || true
           exit 1
         fi
