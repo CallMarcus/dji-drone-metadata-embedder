@@ -15,4 +15,8 @@ public static class WorkspaceConverters
     public static readonly IValueConverter SuggestedModeHint =
         new FuncValueConverter<WorkspaceMode?, string?>(
             mode => mode is null ? null : $"Suggested for this folder: {mode.Title}");
+
+    /// <summary>Renders a setup-row's presence as a checkmark or cross glyph.</summary>
+    public static readonly FuncValueConverter<bool, string> PresentGlyph =
+        new(present => present ? "✓" : "✗");
 }

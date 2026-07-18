@@ -198,24 +198,31 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <ItemsControl ItemsSource="{Binding SetupItems}"
-                                  IsVisible="{Binding !!SetupItems.Count}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="svc:SetupItem">
-                                <DockPanel Margin="0,3">
-                                    <!-- Plain bool for M1; glyph polish is M5. -->
-                                    <TextBlock DockPanel.Dock="Left" Width="40"
-                                               Opacity="0.7" FontSize="12"
-                                               Text="{Binding Present}" />
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Label}" />
-                                        <TextBlock Text="{Binding Detail}" Opacity="0.6"
-                                                   FontSize="12" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Spacing="10" IsVisible="{Binding !!SetupItems.Count}">
+                        <TextBlock FontSize="16"
+                                   IsVisible="{Binding AllGood}"
+                                   Text="Everything looks good — you're ready to go." />
+                        <TextBlock FontSize="16" TextWrapping="Wrap"
+                                   IsVisible="{Binding !AllGood}"
+                                   Text="Something is missing — see the list below." />
+                        <ItemsControl ItemsSource="{Binding SetupItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="svc:SetupItem">
+                                    <DockPanel Margin="0,3">
+                                        <TextBlock DockPanel.Dock="Left" Width="40"
+                                                   Opacity="0.7" FontSize="12"
+                                                   Text="{Binding Present,
+                                                       Converter={x:Static views:WorkspaceConverters.PresentGlyph}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Label}" />
+                                            <TextBlock Text="{Binding Detail}" Opacity="0.6"
+                                                       FontSize="12" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                     <ItemsControl ItemsSource="{Binding Warnings}"
                                   IsVisible="{Binding !!Warnings.Count}">
                         <ItemsControl.ItemTemplate>
