@@ -114,8 +114,19 @@ test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
 
 ## GUI design constraints (binding)
 
-The desktop app is deliberately minimal: three task flows, no settings
-screen, no Python interop, no webview — it shells out to the bundled CLI
-and renders its JSONL. The home-screen contract is locked by headless
-tests. Read `docs/superpowers/specs/2026-07-14-desktop-gui-design.md`
-before extending it.
+The binding spec is now `docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md`
+("GUI 2.0") — read it before extending the desktop app. It amends the
+original 2026-07-14 design: a single window, split into a source/mode/action
+column on the left and a preview pane on the right, replaces the three
+task-flow pages. The mode strip tops out at six modes (Embed, Flight map,
+Photo map, Convert, Verify, Setup); M1 wires up four (Flight map, Photo map,
+Embed, Setup), with Convert and Verify joining in M4. Options stay curated,
+not exhaustive: they arrive in M3+, one *Advanced* expander per mode for the
+long tail, exotic flags remain CLI-only. A WebView is now allowed, but
+solely for the preview pane (arrives M2) — no other embedded browser
+surface. There is still no settings dialog; the only state the app persists
+is MRU folders and window bounds. The thin-frontend architecture is
+unchanged: it shells out to the bundled CLI over the `--progress jsonl`
+contract, users' original files are never modified, and no logic is
+reimplemented in C#. The CLI remains fully supported and documented as a
+first-class interface, not a fallback.

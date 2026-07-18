@@ -17,6 +17,9 @@
             <Setter Property="Opacity" Value="0.55" />
             <Setter Property="Margin" Value="2,14,0,6" />
         </Style>
+        <Style Selector="Rectangle.dropOutline">
+            <Setter Property="Stroke" Value="#809aa7c8" />
+        </Style>
         <Style Selector="Border#DropZone.dragover Rectangle.dropOutline">
             <Setter Property="Stroke" Value="#6366f1" />
         </Style>
@@ -53,7 +56,6 @@
                                     CornerRadius="10">
                                 <Panel>
                                     <Rectangle Classes="dropOutline"
-                                               Stroke="#809aa7c8"
                                                StrokeThickness="2" StrokeDashArray="5,3"
                                                RadiusX="10" RadiusY="10" />
                                     <StackPanel Margin="20,26" Spacing="6"

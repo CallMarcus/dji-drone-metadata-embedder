@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DjiEmbed.Gui.Services;
@@ -58,5 +59,29 @@ public class DropZoneAffordanceTests
         Assert.Contains("dragover", zone.Classes);
         FolderPicking.SetDragOver(zone, false);
         Assert.DoesNotContain("dragover", zone.Classes);
+    }
+
+    // Carried from Task 9 review: the dragover style used to be beaten by a
+    // local Stroke= value on the Rectangle, so the highlight never rendered.
+    // This proves the Stroke brush itself changes, not just the class.
+    [AvaloniaFact]
+    public void Drag_over_changes_the_drop_zone_outline_stroke()
+    {
+        var window = ShowView(PickView());
+        var dropZone = window.GetVisualDescendants().OfType<Border>()
+            .First(b => b.Name == "DropZone");
+        var outline = window.GetVisualDescendants().OfType<Rectangle>()
+            .First(r => r.Classes.Contains("dropOutline"));
+
+        var before = Assert.IsAssignableFrom<ISolidColorBrush>(outline.Stroke);
+        var beforeColor = before.Color;
+
+        FolderPicking.SetDragOver(dropZone, true);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var after = Assert.IsAssignableFrom<ISolidColorBrush>(outline.Stroke);
+        Assert.NotEqual(beforeColor, after.Color);
+        Assert.Equal(Color.Parse("#6366f1"), after.Color);
     }
 }
