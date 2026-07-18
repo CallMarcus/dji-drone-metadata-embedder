@@ -311,10 +311,23 @@ runs:
           done
         }
 
+        # Probe through jsign's own access path: SunPKCS11 with the empty
+        # storepass, which performs C_Login. pkcs11-tool without --login only
+        # lists PUBLIC objects and SimplySign exposes the certificate only
+        # inside a logged-in session, so the old "pkcs11-tool --list-objects
+        # --type cert" probe could never see it - every run since that gate
+        # was added failed here even though the login itself had succeeded
+        # (the token showed "initialized" each time). The cert also loads
+        # asynchronously a few seconds after logon WITHIN the authenticated
+        # session (the v1.23.0 release run lost exactly that race), hence
+        # probe + poll.
+        SUNPKCS11_CONF="$RUNNER_TEMP/sunpkcs11.conf"
+        { echo "name = SimplySign"; echo "library = $SS_PKCS11"; echo "slotListIndex = 0"; } > "$SUNPKCS11_CONF"
         cert_visible() {
-          timeout 30 pkcs11-tool --module "$SS_PKCS11" \
-            --list-objects --type cert 2>/dev/null \
-            | grep -q "Certificate Object"
+          timeout 60 keytool -list -keystore NONE -storetype PKCS11 \
+            -providerClass sun.security.pkcs11.SunPKCS11 \
+            -providerArg "$SUNPKCS11_CONF" -storepass "" 2>/dev/null \
+            | grep -q "PrivateKeyEntry"
         }
 
         # Wait for the login dialog after launch (it can lag).
@@ -325,13 +338,13 @@ runs:
         done
         [ -z "$WID" ] && { echo "::error::SimplySign login window did not appear"; cat "$RUNNER_TEMP/simplysign.log" || true; exit 1; }
 
-        # The logon dialog is a QtWebEngine page that loads (and sometimes
-        # reloads) asynchronously — the v1.23.0 release runs showed the page
-        # rebuilding itself WHILE the old single-shot drive was typing, which
-        # lost the credentials and left the token empty. So: settle first,
-        # compute the OTP up front, clear each field before typing, and
-        # verify the certificate actually appears — retrying the whole
-        # login when it does not.
+        # The logon dialog is an embedded web page that loads asynchronously:
+        # settle first, compute the OTP up front, clear each field before
+        # typing, and verify the certificate actually appears - retrying the
+        # whole login when it does not. (v1.23.0 outage post-mortem: the
+        # xdotool drive itself never failed - every "failed" run reached
+        # "token initialized" - the old cert probe just couldn't see the
+        # certificate; see cert_visible above.)
         LOGIN_OK=""
         for login_attempt in 1 2 3; do
           # Let the embedded web page finish loading/reloading + autofill.
@@ -403,6 +416,10 @@ runs:
         done
         if [ -z "$LOGIN_OK" ]; then
           echo "::error::certificate never appeared on the token"
+          # What does the authenticated keystore path actually report?
+          timeout 60 keytool -list -keystore NONE -storetype PKCS11 \
+            -providerClass sun.security.pkcs11.SunPKCS11 \
+            -providerArg "$SUNPKCS11_CONF" -storepass "" || true
           # Screenshots may show the account id - encrypt with a value only
           # the maintainer holds (decrypt: openssl enc -d -aes-256-cbc
           # -pbkdf2 -pass pass:<CERTUM_USER_ID> -in login-shots.tgz.enc | tar xz)
