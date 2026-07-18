@@ -1,6 +1,6 @@
 # Development Roadmap
 
-_Last updated: 2026-06-21 · Current version: **v1.23.0** · Status: **Production Ready**_
+_Last updated: 2026-06-21 · Current version: **v1.24.0** · Status: **Production Ready**_
 
 This roadmap tracks the evolution of **DJI Drone Metadata Embedder**. The
 original Phase 1–6 plan (standalone Windows GUI, dependency bootstrap,
