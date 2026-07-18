@@ -306,4 +306,111 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(["flightmap.html"], vm.Outputs);
     }
+
+    // The switch in RunAsync gives Embed mode its own wrong-content message
+    // and its own args — neither is exercised above (those tests all drive
+    // FlightMap/PhotoMap), so cover them explicitly here.
+    [Fact]
+    public async Task Embed_mode_without_videos_fails_before_launching_anything()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("video", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Embed_mode_runs_embed_and_reports_done_with_outputs()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
+            """{"v": 1, "event": "progress", "current": 1, "total": 1, "item": "DJI_0001.MP4"}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["/footage/processed"], "summary": {"processed": 1}}""",
+        ]);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal(["/footage/processed"], vm.Outputs);
+    }
+
+    // RunSetupAsync has its own success/failure handling, separate from the
+    // shared RunStepAsync path the map/embed modes use above — cover its
+    // ok:false-but-exit-0 (red checklist item) and crashed-exit branches.
+    [Fact]
+    public async Task Setup_mode_missing_tool_still_lands_on_done_with_a_red_item()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "doctor"}""",
+            """{"v": 1, "event": "warning", "message": "Not found", "item": "ffmpeg"}""",
+            """{"v": 1, "event": "result", "ok": false, "outputs": [], "summary": {"ok": false, "tools": {"ffmpeg": {"present": false}, "exiftool": {"present": true}}, "system": {}}}""",
+        ]);
+        var vm = Vm(cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.False(vm.AllGood);
+        var ffmpeg = Assert.Single(vm.SetupItems, i => i.Label.Contains("FFmpeg"));
+        Assert.False(ffmpeg.Present);
+    }
+
+    [Fact]
+    public async Task Setup_mode_crashed_doctor_lands_on_failed()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+            ["""{"v": 1, "event": "start", "command": "doctor"}"""],
+            exitCode: 3, stderrLine: "Traceback");
+        var vm = Vm(cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("Traceback", vm.ErrorDetails);
+    }
+
+    [Fact]
+    public async Task Partial_failure_ok_false_lands_on_failed_with_details()
+    {
+        // Embed contract nuance: per-file failures are exit 0 + result ok:false
+        // with no message — Fail() must fall back to the mode's generic copy.
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": false, "outputs": [], "summary": {}}""",
+        ], exitCode: 0, stderrLine: "boom detail");
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal("Something went wrong while embedding the flight data.",
+            vm.ErrorMessage);
+        Assert.Contains("boom detail", vm.ErrorDetails);
+    }
+
+    [Fact]
+    public async Task Progress_events_update_the_running_state()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli);
+        var sawRunning = false;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(vm.CurrentItem) && vm.CurrentItem is not null)
+            {
+                sawRunning = vm.Step == FlowStep.Running;
+            }
+        };
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.True(sawRunning, "expected a progress item while running");
+        Assert.Equal(1, vm.Current);
+        Assert.Equal(1, vm.Total);
+    }
 }

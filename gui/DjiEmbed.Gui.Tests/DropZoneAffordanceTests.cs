@@ -11,49 +11,40 @@ using Xunit;
 namespace DjiEmbed.Gui.Tests;
 
 // #292: the drop zone needs a visible dashed outline and a drag-over
-// highlight so it's obvious a folder can be dropped.
+// highlight so it's obvious a folder can be dropped. GUI 2.0's single
+// WorkspaceView replaced the per-task pick screens, so the old two-view
+// theory (makemap/embed) collapses to one — there's only one drop zone
+// to check now, regardless of the selected mode.
 public class DropZoneAffordanceTests
 {
     private static Window ShowView(Control view)
     {
-        var window = new Window { Width = 560, Height = 520, Content = view };
+        var window = new Window { Width = 1140, Height = 720, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
         return window;
     }
 
-    public static TheoryData<string> PickViews() => new() { "makemap", "embed" };
-
-    private static Control PickView(string kind) => kind switch
+    private static WorkspaceView PickView() => new()
     {
-        "makemap" => new MakeMapView
-        {
-            DataContext = new MakeMapViewModel(
-                null, new DjiEmbedRunner(), new MapServer(), () => { }),
-        },
-        _ => new EmbedTelemetryView
-        {
-            DataContext = new EmbedTelemetryViewModel(
-                null, new DjiEmbedRunner(), () => { }),
-        },
+        DataContext = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new MapServer(), () => { }),
     };
 
-    [AvaloniaTheory]
-    [MemberData(nameof(PickViews))]
-    public void Pick_screen_drop_zone_has_a_dashed_outline(string kind)
+    [AvaloniaFact]
+    public void Pick_screen_drop_zone_has_a_dashed_outline()
     {
-        var window = ShowView(PickView(kind));
+        var window = ShowView(PickView());
         var outlines = window.GetVisualDescendants().OfType<Rectangle>()
             .Where(r => r.StrokeDashArray is { Count: > 0 });
         Assert.NotEmpty(outlines);
     }
 
-    [AvaloniaTheory]
-    [MemberData(nameof(PickViews))]
-    public void Pick_screen_names_its_drop_zone(string kind)
+    [AvaloniaFact]
+    public void Pick_screen_names_its_drop_zone()
     {
-        var window = ShowView(PickView(kind));
+        var window = ShowView(PickView());
         var zone = window.GetVisualDescendants().OfType<Border>()
             .FirstOrDefault(b => b.Name == "DropZone");
         Assert.NotNull(zone);

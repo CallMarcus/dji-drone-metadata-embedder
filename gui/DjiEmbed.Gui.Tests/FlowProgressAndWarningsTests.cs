@@ -28,8 +28,8 @@ public class FlowProgressAndWarningsTests : IDisposable
         return folder;
     }
 
-    private static EmbedTelemetryViewModel Vm(string? cli) =>
-        new(cli, new DjiEmbedRunner(), () => { });
+    private static WorkspaceViewModel Vm(string? cli) =>
+        new(cli, new DjiEmbedRunner(), new MapServer(), () => { });
 
     [Fact]
     public void Progress_detail_names_the_file_and_the_count()
@@ -69,7 +69,12 @@ public class FlowProgressAndWarningsTests : IDisposable
             """{"v": 1, "event": "result", "ok": true, "outputs": ["/footage/processed"], "summary": {}}""",
         ]);
         var vm = Vm(cli);
-        await vm.StartCommand.ExecuteAsync(MakeFolder());
+        // The folder has both a video and a flight log, so it would suggest
+        // flight-map mode — force Embed to keep this test's intent (an
+        // embed run collecting warnings) unambiguous.
+        await vm.SetFolderAsync(MakeFolder());
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(
             ["DJI_0002.MP4: no matching SRT", "2 files skipped"],
@@ -87,8 +92,10 @@ public class FlowProgressAndWarningsTests : IDisposable
         ]);
         var vm = Vm(cli);
         var folder = MakeFolder();
-        await vm.StartCommand.ExecuteAsync(folder);
-        await vm.StartCommand.ExecuteAsync(folder);
+        await vm.SetFolderAsync(folder);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        await vm.RunCommand.ExecuteAsync(null);
+        await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(["one warning"], vm.Warnings);
     }
 
@@ -101,35 +108,27 @@ public class FlowProgressAndWarningsTests : IDisposable
         vm.CurrentItem = "DJI_0042.MP4";
         vm.Current = 3;
         vm.Total = 12;
-        var window = ShowView(new EmbedTelemetryView { DataContext = vm });
+        var window = ShowView(new WorkspaceView { DataContext = vm });
         Assert.Contains(Texts(window), t => t == "DJI_0042.MP4 (3 of 12)");
     }
 
     [AvaloniaFact]
-    public void Embed_done_screen_shows_warnings()
+    public void Done_screen_shows_warnings()
     {
         var vm = Vm(null);
         vm.Step = FlowStep.Done;
         vm.Warnings.Add("DJI_0002.MP4: no matching SRT");
-        var window = ShowView(new EmbedTelemetryView { DataContext = vm });
+        vm.Warnings.Add("IMG_0001.JPG: no GPS position");
+        var window = ShowView(new WorkspaceView { DataContext = vm });
         Assert.Contains(Texts(window),
             t => t?.Contains("no matching SRT") == true);
-    }
-
-    [AvaloniaFact]
-    public void Makemap_done_screen_shows_warnings()
-    {
-        var vm = new MakeMapViewModel(null, new DjiEmbedRunner(), new MapServer(), () => { });
-        vm.Step = FlowStep.Done;
-        vm.Warnings.Add("IMG_0001.JPG: no GPS position");
-        var window = ShowView(new MakeMapView { DataContext = vm });
         Assert.Contains(Texts(window),
             t => t?.Contains("no GPS position") == true);
     }
 
     private static Window ShowView(Control view)
     {
-        var window = new Window { Width = 560, Height = 520, Content = view };
+        var window = new Window { Width = 1140, Height = 720, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();

@@ -45,54 +45,58 @@ public class ScreenshotCaptureTests
         Capture(new MainWindow { DataContext = new MainViewModel() },
             Png("home"));
 
-        var makeMap = new MakeMapViewModel(null, new DjiEmbedRunner(), new MapServer(), NoOp());
-        CaptureView(new MakeMapView { DataContext = makeMap },
-            Png("makemap-pick"));
+        var workspace = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+        CaptureView(new WorkspaceView { DataContext = workspace },
+            Png("workspace-pick"));
 
-        makeMap.Step = FlowStep.Done;
-        makeMap.Outputs.Add(@"C:\Users\demo\Videos\flight\photo_map.html");
-        makeMap.Outputs.Add(@"C:\Users\demo\Videos\flight\flight_map.html");
-        CaptureView(new MakeMapView { DataContext = makeMap },
-            Png("makemap-done"));
-
-        var embed = new EmbedTelemetryViewModel(
-            null, new DjiEmbedRunner(), NoOp());
-        CaptureView(new EmbedTelemetryView { DataContext = embed },
-            Png("embed-pick"));
-
-        var dragged = new EmbedTelemetryView { DataContext = embed };
+        var dragged = new WorkspaceView { DataContext = workspace };
         FolderPicking.SetDragOver(dragged.FindControl<Border>("DropZone")!, true);
-        CaptureView(dragged, Png("embed-pick-dragover"));
+        CaptureView(dragged, Png("workspace-pick-dragover"));
 
-        embed.Step = FlowStep.Running;
-        embed.StatusText = "Embedding your flight data…";
-        embed.CurrentItem = "DJI_0042.MP4";
-        embed.Current = 3;
-        embed.Total = 12;
-        CaptureView(new EmbedTelemetryView { DataContext = embed },
-            Png("embed-running"));
+        workspace.Step = FlowStep.Running;
+        workspace.StatusText = "Embedding your flight data…";
+        workspace.CurrentItem = "DJI_0042.MP4";
+        workspace.Current = 3;
+        workspace.Total = 12;
+        CaptureView(new WorkspaceView { DataContext = workspace },
+            Png("workspace-running"));
 
-        embed.Step = FlowStep.Done;
-        embed.Outputs.Add(@"C:\Users\demo\Videos\flight\processed");
-        embed.Warnings.Add("DJI_0007.MP4: skipped — no matching .SRT flight log");
-        CaptureView(new EmbedTelemetryView { DataContext = embed },
-            Png("embed-done"));
+        workspace.Step = FlowStep.Done;
+        workspace.Outputs.Add(@"C:\Users\demo\Videos\flight\photo_map.html");
+        workspace.Outputs.Add(@"C:\Users\demo\Videos\flight\flight_map.html");
+        workspace.Warnings.Add("DJI_0007.MP4: skipped — no matching .SRT flight log");
+        CaptureView(new WorkspaceView { DataContext = workspace },
+            Png("workspace-done"));
 
-        embed.Step = FlowStep.Failed;
-        embed.ErrorMessage = "Something went wrong while embedding the "
+        var setupDone = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+        setupDone.Step = FlowStep.Done;
+        setupDone.AllGood = true;
+        setupDone.SetupItems.Add(new SetupItem(
+            "Video tools (FFmpeg)", true, "version 7.1"));
+        setupDone.SetupItems.Add(new SetupItem(
+            "Photo tools (ExifTool)", true, "version 13.29"));
+        CaptureView(new WorkspaceView { DataContext = setupDone },
+            Png("workspace-setup-done"));
+
+        var failed = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+        failed.Step = FlowStep.Failed;
+        failed.ErrorMessage = "Something went wrong while embedding the "
             + "flight data. Your original videos were not changed.";
-        embed.ErrorDetails = string.Join('\n',
+        failed.ErrorDetails = string.Join('\n',
             Enumerable.Range(1, 30).Select(i => $"ffmpeg: pass {i} …"))
             + "\nTraceback (most recent call last):\n"
             + "  File \"processor.py\", line 214, in embed\n"
             + "RuntimeError: ffmpeg exited with code 1";
-        CaptureView(new EmbedTelemetryView { DataContext = embed },
-            Png("embed-failed"));
+        CaptureView(new WorkspaceView { DataContext = failed },
+            Png("workspace-failed"));
 
-        var failedOpen = new EmbedTelemetryView { DataContext = embed };
+        var failedOpen = new WorkspaceView { DataContext = failed };
         var failedWindow = new Window
         {
-            Width = 560, Height = 520, Content = failedOpen,
+            Width = 1140, Height = 720, Content = failedOpen,
         };
         failedWindow.Show();
         Dispatcher.UIThread.RunJobs();
@@ -101,25 +105,16 @@ public class ScreenshotCaptureTests
         {
             expander.IsExpanded = true;
         }
-        Capture(failedWindow, Png("embed-failed-details"));
+        Capture(failedWindow, Png("workspace-failed-details"));
 
         var discovery = new CliDiscoveryViewModel(null, NoOp());
         CaptureView(new CliDiscoveryView { DataContext = discovery },
-            Png("cli-discovery"));
-
-        var setup = new CheckSetupViewModel(null, new DjiEmbedRunner(), NoOp());
-        setup.Step = FlowStep.Done;
-        setup.AllGood = true;
-        setup.Items.Add(new SetupItem(
-            "Video tools (FFmpeg)", true, "version 7.1"));
-        setup.Items.Add(new SetupItem(
-            "Photo tools (ExifTool)", true, "version 13.29"));
-        CaptureView(new CheckSetupView { DataContext = setup },
-            Png("checksetup-done"));
+            Png("cli-discovery"), width: 560, height: 520);
     }
 
-    private static void CaptureView(Control view, string outPath) =>
-        Capture(new Window { Width = 560, Height = 520, Content = view },
+    private static void CaptureView(
+        Control view, string outPath, double width = 1140, double height = 720) =>
+        Capture(new Window { Width = width, Height = height, Content = view },
             outPath);
 
     private static void Capture(Window window, string outPath)
