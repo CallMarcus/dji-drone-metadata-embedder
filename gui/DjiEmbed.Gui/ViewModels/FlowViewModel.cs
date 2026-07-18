@@ -214,7 +214,11 @@ public abstract partial class FlowViewModel(
     }
 
     [RelayCommand]
-    private void GoHome() => goHome();
+    private void GoHome() => GoHomeCore();
+
+    /// <summary>Default: leave the flow. The workspace overrides this to
+    /// reset to the idle pane instead of navigating.</summary>
+    protected virtual void GoHomeCore() => goHome();
 
     /// <summary>
     /// Reports inline on the runner's read loop. Started from the UI
