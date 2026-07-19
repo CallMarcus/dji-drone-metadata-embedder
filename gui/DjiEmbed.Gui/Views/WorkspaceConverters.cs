@@ -1,3 +1,4 @@
+using System.IO;
 using Avalonia.Data.Converters;
 using DjiEmbed.Gui.ViewModels;
 
@@ -19,4 +20,8 @@ public static class WorkspaceConverters
     /// <summary>Renders a setup-row's presence as a checkmark or cross glyph.</summary>
     public static readonly FuncValueConverter<bool, string> PresentGlyph =
         new(present => present ? "✓" : "✗");
+
+    /// <summary>Toolbar label: just the map's file name.</summary>
+    public static readonly FuncValueConverter<string?, string?> FileNameOnly =
+        new(static p => p is null ? null : Path.GetFileName(p));
 }

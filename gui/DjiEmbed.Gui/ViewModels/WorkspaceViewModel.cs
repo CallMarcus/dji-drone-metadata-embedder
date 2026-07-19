@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,18 +17,22 @@ namespace DjiEmbed.Gui.ViewModels;
 /// </summary>
 public partial class WorkspaceViewModel : FlowViewModel
 {
-    private readonly MapServer _mapServer;
+    private readonly IMapServer _mapServer;
     private readonly Action _openCliDiscovery;
     private readonly Func<string?>? _cliResolver;
+    private readonly Func<bool> _previewAvailable;
 
     public WorkspaceViewModel(string? cli, DjiEmbedRunner runner,
-        MapServer mapServer, Action openCliDiscovery,
-        Func<string?>? cliResolver = null)
+        IMapServer mapServer, Action openCliDiscovery,
+        Func<string?>? cliResolver = null,
+        Func<bool>? previewAvailable = null)
         : base(cli, runner, static () => { })
     {
         _mapServer = mapServer;
         _openCliDiscovery = openCliDiscovery;
         _cliResolver = cliResolver;
+        _previewAvailable = previewAvailable
+            ?? (static () => WebViewSupport.IsLikelyAvailable);
     }
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
@@ -45,6 +50,35 @@ public partial class WorkspaceViewModel : FlowViewModel
     public partial bool AllGood { get; set; }
 
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
+
+    [ObservableProperty]
+    public partial string? PreviewUrl { get; set; }
+
+    [ObservableProperty]
+    public partial string? PreviewPath { get; set; }
+
+    /// <summary>A map was made but the inline preview can't render here —
+    /// the done-card explains once, calmly.</summary>
+    [ObservableProperty]
+    public partial bool PreviewUnavailable { get; set; }
+
+    /// <summary>Done pane, card flavour (setup, embed, degraded maps).</summary>
+    public bool ShowDoneCard => Step == FlowStep.Done && PreviewUrl is null;
+
+    /// <summary>Done pane, inline-map flavour.</summary>
+    public bool ShowPreview => Step == FlowStep.Done && PreviewUrl is not null;
+
+    protected override void OnStepChangedCore(FlowStep value)
+    {
+        OnPropertyChanged(nameof(ShowDoneCard));
+        OnPropertyChanged(nameof(ShowPreview));
+    }
+
+    partial void OnPreviewUrlChanged(string? value)
+    {
+        OnPropertyChanged(nameof(ShowDoneCard));
+        OnPropertyChanged(nameof(ShowPreview));
+    }
 
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
@@ -86,6 +120,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             SelectedMode = SuggestedMode;
         }
+        ResetPreview();
         Step = FlowStep.Pick;
     }
 
@@ -99,8 +134,76 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void OpenCliDiscovery() => _openCliDiscovery();
 
+    [RelayCommand]
+    private void ShowInFolder()
+    {
+        if (PreviewPath is not null)
+        {
+            Reveal.InFolder(PreviewPath);
+        }
+    }
+
     /// <summary>"Process another": back to idle, keep folder and mode.</summary>
-    protected override void GoHomeCore() => Step = FlowStep.Pick;
+    protected override void GoHomeCore()
+    {
+        ResetPreview();
+        Step = FlowStep.Pick;
+    }
+
+    private void ResetPreview()
+    {
+        PreviewUrl = null;
+        PreviewPath = null;
+        PreviewUnavailable = false;
+    }
+
+    /// <summary>
+    /// After a successful map run: point the pane's WebView at the first
+    /// HTML output over the local server (#305 — file:// blocks the pano
+    /// viewer). Runs inside the flow so Done appears with the URL already
+    /// in hand; a preview that can't happen never fails the run.
+    /// </summary>
+    private async Task<bool> PrimePreviewAsync()
+    {
+        string? html = null;
+        foreach (var output in Outputs)
+        {
+            if (output.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            {
+                html = output;
+                break;
+            }
+        }
+        if (html is null)
+        {
+            return true;
+        }
+        try
+        {
+            if (!_previewAvailable() || CliPath is null)
+            {
+                PreviewUnavailable = true;
+                return true;
+            }
+            var url = await _mapServer.GetUrlAsync(CliPath, html, FlowToken);
+            if (url is null)
+            {
+                PreviewUnavailable = true;
+                return true;
+            }
+            PreviewPath = html;      // path first: the view reads it when the URL lands
+            PreviewUrl = url;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;   // ExecuteFlowAsync maps this to Step = Pick.
+        }
+        catch (Exception)
+        {
+            PreviewUnavailable = true;
+        }
+        return true;
+    }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
@@ -114,6 +217,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         AllGood = false;
         if (SelectedMode.Kind == WorkspaceModeKind.Setup)
         {
+            ResetPreview();
             await RunSetupAsync();
             return;
         }
@@ -122,6 +226,9 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        // Reset only now, past the awaited scan: clearing the preview any
+        // earlier flashes the stale done card while a live map is still up.
+        ResetPreview();
         switch (SelectedMode.Kind)
         {
             case WorkspaceModeKind.FlightMap when !contents.HasFlightLogs:
@@ -130,8 +237,10 @@ public partial class WorkspaceViewModel : FlowViewModel
                      + "subfolders are included automatically.");
                 return;
             case WorkspaceModeKind.FlightMap:
-                await ExecuteFlowAsync(() => RunStepAsync(
-                    "Mapping your flights…", ["flightmap", folder, "-r"]));
+                await ExecuteFlowAsync(async () =>
+                    await RunStepAsync(
+                        "Mapping your flights…", ["flightmap", folder, "-r"])
+                    && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
                 Fail("No photos were found in that folder. Pick the folder "
@@ -142,9 +251,11 @@ public partial class WorkspaceViewModel : FlowViewModel
                 // --link-originals: the map is written inside the mapped
                 // folder, so the relative links are stable there — and they
                 // power the embedded 360° panorama viewer (#305).
-                await ExecuteFlowAsync(() => RunStepAsync(
-                    "Mapping your photos…",
-                    ["photomap", folder, "-r", "--link-originals"]));
+                await ExecuteFlowAsync(async () =>
+                    await RunStepAsync(
+                        "Mapping your photos…",
+                        ["photomap", folder, "-r", "--link-originals"])
+                    && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.Embed when !contents.HasVideos:
                 Fail("No videos (.MP4) were found in that folder. Pick the "
@@ -188,7 +299,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         if (CliPath is not null
             && path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
         {
-            var url = await _mapServer.GetUrlAsync(CliPath, path);
+            // Opening an output isn't part of a flow — nothing cancels it.
+            var url = await _mapServer.GetUrlAsync(
+                CliPath, path, CancellationToken.None);
             if (url is not null)
             {
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });

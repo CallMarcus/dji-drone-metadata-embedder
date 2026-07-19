@@ -46,7 +46,8 @@ public class ScreenshotCaptureTests
             Png("home"));
 
         var workspace = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+            null, new DjiEmbedRunner(), new FakeMapServer(null), NoOp(),
+            previewAvailable: static () => false);
         CaptureView(new WorkspaceView { DataContext = workspace },
             Png("workspace-pick"));
 
@@ -70,7 +71,8 @@ public class ScreenshotCaptureTests
             Png("workspace-done"));
 
         var setupDone = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+            null, new DjiEmbedRunner(), new FakeMapServer(null), NoOp(),
+            previewAvailable: static () => false);
         setupDone.Step = FlowStep.Done;
         setupDone.AllGood = true;
         setupDone.SetupItems.Add(new SetupItem(
@@ -81,7 +83,8 @@ public class ScreenshotCaptureTests
             Png("workspace-setup-done"));
 
         var failed = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+            null, new DjiEmbedRunner(), new FakeMapServer(null), NoOp(),
+            previewAvailable: static () => false);
         failed.Step = FlowStep.Failed;
         failed.ErrorMessage = "Something went wrong while embedding the "
             + "flight data. Your original videos were not changed.";
@@ -110,6 +113,69 @@ public class ScreenshotCaptureTests
         var discovery = new CliDiscoveryViewModel(null, NoOp());
         CaptureView(new CliDiscoveryView { DataContext = discovery },
             Png("cli-discovery"), width: 560, height: 520);
+    }
+
+    /// <summary>
+    /// Done step with an inline map preview: toolbar plus the preview
+    /// inset. The view's WebView gate is pinned false, so the pane shows
+    /// the calm fallback note instead of a NativeWebView — deterministic
+    /// on every host (constructing the control headlessly would fail
+    /// asynchronously on display-less CI), and better for layout review
+    /// than the blank pane it used to render. Deliberately a separate
+    /// method rather than part of
+    /// Captures_every_screen_to_dir_when_requested: this one exercises
+    /// the attach path, and that is kept isolated from the main matrix
+    /// run — don't merge them.
+    /// </summary>
+    [AvaloniaFact]
+    public void Captures_preview_state_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the preview state.");
+        Directory.CreateDirectory(dir!);
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        // Forward slashes, unlike the other fake paths: the toolbar shows
+        // Path.GetFileName(PreviewPath), and on the Linux capture host
+        // that only splits on '/' — backslashes would render whole.
+        vm.PreviewPath = "C:/Users/demo/Videos/flight/flight_map.html";
+        vm.PreviewUrl = "http://127.0.0.1:1/flight_map.html";
+        vm.Step = FlowStep.Done;
+        // Gate before DataContext: assigning the DataContext fires
+        // SyncPreview immediately, which would otherwise probe for real.
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        CaptureView(view, Path.Combine(dir!, "workspace-preview.png"));
+    }
+
+    /// <summary>
+    /// Done step on a machine without a usable WebView2: the done card
+    /// with the WebView2-unavailable note visible instead of the inline
+    /// map, above the output row whose Open button the note points at.
+    /// </summary>
+    [AvaloniaFact]
+    public void Captures_degraded_done_state_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the degraded state.");
+        Directory.CreateDirectory(dir!);
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        vm.Outputs.Add(@"C:\Users\demo\Videos\flight\flight_map.html");
+        vm.PreviewUnavailable = true;
+        vm.Step = FlowStep.Done;
+        // No PreviewUrl is set, so nothing attaches — but pin the gate
+        // anyway so this capture can never construct a WebView on any host.
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        CaptureView(view,
+            Path.Combine(dir!, "workspace-done-degraded.png"));
     }
 
     private static void CaptureView(

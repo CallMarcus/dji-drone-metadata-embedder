@@ -91,7 +91,19 @@ public abstract partial class FlowViewModel(
     partial void OnTotalChanged(int? value) =>
         OnPropertyChanged(nameof(ProgressDetail));
 
+    partial void OnStepChanged(FlowStep value) => OnStepChangedCore(value);
+
+    /// <summary>Hook for subclasses whose derived state depends on
+    /// <see cref="Step"/> — source-generated partials can only live here.</summary>
+    protected virtual void OnStepChangedCore(FlowStep value)
+    {
+    }
+
     private CancellationTokenSource? _cts;
+
+    /// <summary>The running flow's cancellation token, for subclass steps
+    /// that await outside <see cref="RunCliAsync"/> yet must stay cancelable.</summary>
+    protected CancellationToken FlowToken => _cts?.Token ?? CancellationToken.None;
 
     /// <summary>The bundled CLI path, for subclasses that spawn beyond
     /// <see cref="RunCliAsync"/> (null when the CLI is missing).

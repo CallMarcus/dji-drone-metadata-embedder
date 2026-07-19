@@ -29,7 +29,8 @@ public class FlowProgressAndWarningsTests : IDisposable
     }
 
     private static WorkspaceViewModel Vm(string? cli) =>
-        new(cli, new DjiEmbedRunner(), new MapServer(), () => { });
+        new(cli, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
 
     [Fact]
     public void Progress_detail_names_the_file_and_the_count()
