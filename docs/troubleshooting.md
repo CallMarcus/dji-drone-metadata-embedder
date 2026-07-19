@@ -596,6 +596,15 @@ Panoramas need their GPano metadata intact to be detected — see
 [Maps & Panoramas](geospatial.md) before resizing or re-exporting them, as
 most editors silently strip it.
 
+### Maps open in the browser instead of inside the app
+
+The inline map preview uses **Microsoft Edge WebView2**, which ships
+preinstalled on Windows 11 and later. On machines without it (typically
+older Windows 10 installs), the app quietly falls back to opening maps in
+your default browser — every map feature works there too. To get the
+inline preview, install the
+[WebView2 runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
 ---
 
 ## 🐛 Advanced Troubleshooting

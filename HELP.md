@@ -35,7 +35,8 @@ Two ways to use it — same engine:
 
 1. **Windows app** ("DJI Metadata Embedder"): install, open, drop a folder,
    pick a mode (*Flight map*, *Photo map*, *Embed telemetry*, *Setup*), and
-   press the action button. No terminal.
+   press the action button; finished maps render right in the app's preview
+   pane, with an *Open in browser* pop-out. No terminal.
 2. **`dji-embed` command line**: every feature, all platforms. The Windows
    app's installer puts `dji-embed` on your PATH automatically.
 
