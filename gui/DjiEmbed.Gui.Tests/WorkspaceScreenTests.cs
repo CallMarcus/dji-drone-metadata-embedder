@@ -64,8 +64,12 @@ public class WorkspaceScreenTests
     public void Cli_escape_hatch_footer_link_survives()
     {
         var window = ShowWorkspace();
+        // The M3a transparency strip's Copy button reuses the footerLink
+        // style too, so identify the escape hatch by its "dji-embed" text.
         var link = window.GetVisualDescendants().OfType<Button>()
-            .Single(b => b.Classes.Contains("footerLink"));
+            .Single(b => b.Classes.Contains("footerLink")
+                && b.GetVisualDescendants().OfType<TextBlock>()
+                    .Any(t => (t.Text ?? "").Contains("dji-embed")));
         var text = string.Join(" ", link.GetVisualDescendants()
             .OfType<TextBlock>().Select(t => t.Text ?? ""));
         Assert.Contains("dji-embed", text);
@@ -163,5 +167,18 @@ public class WorkspaceScreenTests
         vm.PreviewUnavailable = false;   // a healthy Done never shows the tip
         Dispatcher.UIThread.RunJobs();
         Assert.False(tip.IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Cli_transparency_strip_shows_the_live_command()
+    {
+        var window = ShowWorkspace();   // default mode Flight map, no folder
+        var strip = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "CommandPreviewText");
+        Assert.Contains("dji-embed flightmap", strip.Text);
+        Assert.Contains("<folder>", strip.Text);          // no folder picked yet
+        Assert.DoesNotContain("--progress", strip.Text);  // teaching form, not the machine flag
+        Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+            b => b.Name == "CopyCommandButton");
     }
 }
