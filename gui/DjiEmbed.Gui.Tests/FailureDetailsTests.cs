@@ -15,10 +15,10 @@ namespace DjiEmbed.Gui.Tests;
 // with the full error output.
 public class FailureDetailsTests
 {
-    private static EmbedTelemetryViewModel FailedVm(string details)
+    private static WorkspaceViewModel FailedVm(string details)
     {
-        var vm = new EmbedTelemetryViewModel(
-            null, new DjiEmbedRunner(), () => { });
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new MapServer(), () => { });
         vm.Step = FlowStep.Failed;
         vm.ErrorMessage = "Something went wrong.";
         vm.ErrorDetails = details;
@@ -27,7 +27,7 @@ public class FailureDetailsTests
 
     private static Window ShowView(Control view)
     {
-        var window = new Window { Width = 560, Height = 520, Content = view };
+        var window = new Window { Width = 1140, Height = 720, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
@@ -65,8 +65,8 @@ public class FailureDetailsTests
     [Fact]
     public void No_details_means_no_tail()
     {
-        var vm = new EmbedTelemetryViewModel(
-            null, new DjiEmbedRunner(), () => { });
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new MapServer(), () => { });
         Assert.Null(vm.ErrorDetailsTail);
     }
 
@@ -75,7 +75,7 @@ public class FailureDetailsTests
     {
         var lines = Enumerable.Range(1, 40).Select(i => $"line {i}");
         var vm = FailedVm(string.Join('\n', lines));
-        var window = ShowView(new EmbedTelemetryView { DataContext = vm });
+        var window = ShowView(new WorkspaceView { DataContext = vm });
         var texts = window.GetVisualDescendants().OfType<TextBlock>()
             .Select(t => t.Text ?? "").ToList();
         Assert.Contains(texts, t => t.Contains("line 40"));
@@ -87,7 +87,7 @@ public class FailureDetailsTests
     {
         var lines = Enumerable.Range(1, 40).Select(i => $"line {i}");
         var vm = FailedVm(string.Join('\n', lines));
-        var window = ShowView(new EmbedTelemetryView { DataContext = vm });
+        var window = ShowView(new WorkspaceView { DataContext = vm });
 
         var copy = window.GetVisualDescendants().OfType<Button>()
             .First(b => b.GetVisualDescendants().OfType<TextBlock>()

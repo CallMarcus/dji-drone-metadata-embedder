@@ -589,7 +589,8 @@ dji-embed serve /path/to/photos
 ```
 
 The server binds to a private local address on your machine only — nothing
-is uploaded. The desktop app's *Make a map* task does this automatically.
+is uploaded. The desktop app's *Flight map* / *Photo map* modes do this
+automatically.
 
 Panoramas need their GPano metadata intact to be detected — see
 [Maps & Panoramas](geospatial.md) before resizing or re-exporting them, as

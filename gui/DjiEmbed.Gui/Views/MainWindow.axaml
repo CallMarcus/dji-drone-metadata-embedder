@@ -3,10 +3,10 @@
         xmlns:vm="using:DjiEmbed.Gui.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
+        mc:Ignorable="d" d:DesignWidth="1140" d:DesignHeight="720"
         x:Class="DjiEmbed.Gui.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Width="560" Height="520" MinWidth="480" MinHeight="460"
+        Width="1140" Height="720" MinWidth="980" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/app-icon.ico"
         Title="DJI Metadata Embedder">

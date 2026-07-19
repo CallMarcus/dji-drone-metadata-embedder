@@ -1,0 +1,278 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+             xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:svc="using:DjiEmbed.Gui.Services"
+             xmlns:views="using:DjiEmbed.Gui.Views"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1140" d:DesignHeight="720"
+             x:Class="DjiEmbed.Gui.Views.WorkspaceView"
+             x:DataType="vm:WorkspaceViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.zone">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="Margin" Value="2,14,0,6" />
+        </Style>
+        <Style Selector="Rectangle.dropOutline">
+            <Setter Property="Stroke" Value="#809aa7c8" />
+        </Style>
+        <Style Selector="Border#DropZone.dragover Rectangle.dropOutline">
+            <Setter Property="Stroke" Value="#6366f1" />
+        </Style>
+        <Style Selector="Button.footerLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="420,*" Margin="16">
+
+        <!-- Left column: Source → Mode → Action -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                      Padding="0,0,12,0">
+            <DockPanel>
+                <!-- Footer: the CLI escape hatch, now a teaching link. -->
+                <Button DockPanel.Dock="Bottom" Classes="footerLink"
+                        HorizontalAlignment="Left" Margin="2,18,0,0"
+                        Command="{Binding OpenCliDiscoveryCommand}">
+                    <TextBlock Text="Everything here runs on the dji-embed command line →"
+                               Opacity="0.7" FontSize="12"
+                               TextWrapping="Wrap" TextDecorations="Underline" />
+                </Button>
+
+                <StackPanel>
+                    <TextBlock Classes="zone" Text="SOURCE" Margin="2,0,0,6" />
+                    <suki:GlassCard Padding="14">
+                        <StackPanel Spacing="10">
+                            <Border Name="DropZone" DragDrop.AllowDrop="True"
+                                    CornerRadius="10">
+                                <Panel>
+                                    <Rectangle Classes="dropOutline"
+                                               StrokeThickness="2" StrokeDashArray="5,3"
+                                               RadiusX="10" RadiusY="10" />
+                                    <StackPanel Margin="20,26" Spacing="6"
+                                                HorizontalAlignment="Center">
+                                        <TextBlock Text="Drop a folder of footage here"
+                                                   FontSize="15"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="photos, drone videos with their .SRT flight logs, or both"
+                                                   Opacity="0.6" FontSize="12"
+                                                   HorizontalAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center" />
+                                    </StackPanel>
+                                </Panel>
+                            </Border>
+                            <DockPanel IsVisible="{Binding SelectedFolder,
+                                           Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <Button DockPanel.Dock="Right"
+                                        Command="{Binding ClearFolderCommand}"
+                                        AutomationProperties.Name="Remove folder"
+                                        ToolTip.Tip="Remove folder">
+                                    <TextBlock Text="✕" FontSize="12" />
+                                </Button>
+                                <TextBlock Text="{Binding SelectedFolder}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Opacity="0.8" FontSize="12" />
+                            </DockPanel>
+                            <Button Name="ChooseFolderButton"
+                                    HorizontalAlignment="Center"
+                                    Click="OnChooseFolderClick">
+                                <TextBlock Text="Choose a folder…" />
+                            </Button>
+                        </StackPanel>
+                    </suki:GlassCard>
+
+                    <TextBlock Classes="zone" Text="MODE" />
+                    <suki:GlassCard Padding="8">
+                        <StackPanel Spacing="6">
+                            <ListBox Name="ModeStrip"
+                                     ItemsSource="{Binding Modes}"
+                                     SelectedItem="{Binding SelectedMode, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:WorkspaceMode">
+                                        <TextBlock Text="{Binding Title}" Margin="4,2" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock FontSize="11" Opacity="0.65" Margin="6,0,0,4"
+                                       IsVisible="{Binding SuggestedMode,
+                                           Converter={x:Static ObjectConverters.IsNotNull}}"
+                                       Text="{Binding SuggestedMode,
+                                           Converter={x:Static views:WorkspaceConverters.SuggestedModeHint}}" />
+                        </StackPanel>
+                    </suki:GlassCard>
+
+                    <TextBlock Classes="zone" Text="ACTION" />
+                    <Button Name="RunButton" Classes="Flat"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Padding="0,12"
+                            Command="{Binding RunCommand}">
+                        <TextBlock Text="{Binding SelectedMode.Verb}"
+                                   FontSize="15" FontWeight="SemiBold" />
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </ScrollViewer>
+
+        <!-- Right column: the preview pane's four states -->
+        <suki:GlassCard Grid.Column="1" Margin="4,0,0,0" Padding="0">
+            <Panel>
+
+                <!-- Idle: the home screen reborn as the empty state. -->
+                <Panel IsVisible="{Binding Step,
+                          Converter={x:Static ObjectConverters.Equal},
+                          ConverterParameter={x:Static vm:FlowStep.Pick}}">
+                    <Image Source="avares://DjiEmbed.Gui/Assets/home-background.png"
+                           Stretch="UniformToFill" />
+                    <Border>
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                <GradientStop Offset="0" Color="#990B121C" />
+                                <GradientStop Offset="1" Color="#660B121C" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                    <StackPanel VerticalAlignment="Bottom" Margin="28,0,28,28"
+                                Spacing="8">
+                        <TextBlock Text="What do you want to make today?"
+                                   FontSize="22" FontWeight="SemiBold"
+                                   Foreground="White" />
+                        <TextBlock Text="Drop a folder on the left — the likely mode is picked for you. Everything stays on this computer."
+                                   Foreground="White" Opacity="0.75"
+                                   TextWrapping="Wrap" FontSize="13" />
+                    </StackPanel>
+                </Panel>
+
+                <!-- Running -->
+                <StackPanel IsVisible="{Binding Step,
+                                Converter={x:Static ObjectConverters.Equal},
+                                ConverterParameter={x:Static vm:FlowStep.Running}}"
+                            Spacing="14" MaxWidth="440"
+                            VerticalAlignment="Center" Margin="28,0">
+                    <TextBlock Text="{Binding StatusText}" FontSize="16" />
+                    <ProgressBar Minimum="0"
+                                 Maximum="{Binding Total, FallbackValue=1, TargetNullValue=1}"
+                                 Value="{Binding Current}"
+                                 IsIndeterminate="{Binding Total,
+                                     Converter={x:Static ObjectConverters.IsNull}}" />
+                    <TextBlock Text="{Binding ProgressDetail}" Opacity="0.6"
+                               FontSize="12" />
+                    <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                            Command="{Binding CancelCommand}">
+                        <TextBlock Text="Cancel" />
+                    </Button>
+                </StackPanel>
+
+                <!-- Done: outputs (map/embed) and/or the setup checklist -->
+                <StackPanel IsVisible="{Binding Step,
+                                Converter={x:Static ObjectConverters.Equal},
+                                ConverterParameter={x:Static vm:FlowStep.Done}}"
+                            Spacing="16" MaxWidth="480"
+                            VerticalAlignment="Center" Margin="28,0">
+                    <TextBlock Text="✅ Done" FontSize="20" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding Outputs}"
+                                  IsVisible="{Binding !!Outputs.Count}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <DockPanel Margin="0,4">
+                                    <Button DockPanel.Dock="Right" Margin="12,0,0,0"
+                                            Command="{Binding $parent[ItemsControl].((vm:WorkspaceViewModel)DataContext).OpenOutputCommand}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="Open" />
+                                    </Button>
+                                    <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Opacity="0.8" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Spacing="10" IsVisible="{Binding !!SetupItems.Count}">
+                        <TextBlock FontSize="16"
+                                   IsVisible="{Binding AllGood}"
+                                   Text="Everything looks good — you're ready to go." />
+                        <TextBlock FontSize="16" TextWrapping="Wrap"
+                                   IsVisible="{Binding !AllGood}"
+                                   Text="Something is missing — see the list below." />
+                        <ItemsControl ItemsSource="{Binding SetupItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="svc:SetupItem">
+                                    <DockPanel Margin="0,3">
+                                        <TextBlock DockPanel.Dock="Left" Width="40"
+                                                   Opacity="0.7" FontSize="12"
+                                                   Text="{Binding Present,
+                                                       Converter={x:Static views:WorkspaceConverters.PresentGlyph}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Label}" />
+                                            <TextBlock Text="{Binding Detail}" Opacity="0.6"
+                                                       FontSize="12" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Warnings}"
+                                  IsVisible="{Binding !!Warnings.Count}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{Binding StringFormat='⚠️ {0}'}"
+                                           TextWrapping="Wrap" Opacity="0.85"
+                                           FontSize="12" Margin="0,2" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                            Command="{Binding GoHomeCommand}">
+                        <TextBlock Text="Process another" />
+                    </Button>
+                </StackPanel>
+
+                <!-- Failed -->
+                <StackPanel IsVisible="{Binding Step,
+                                Converter={x:Static ObjectConverters.Equal},
+                                ConverterParameter={x:Static vm:FlowStep.Failed}}"
+                            Spacing="16" MaxWidth="480"
+                            VerticalAlignment="Center" Margin="28,0">
+                    <TextBlock Text="That didn't work" FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+                    <Expander Header="Technical details"
+                              IsVisible="{Binding ErrorDetails,
+                                  Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="10">
+                            <ScrollViewer MaxHeight="140"
+                                          VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding ErrorDetailsTail}"
+                                           TextWrapping="Wrap"
+                                           FontFamily="Consolas,Menlo,monospace"
+                                           FontSize="12" />
+                            </ScrollViewer>
+                            <Button HorizontalAlignment="Left"
+                                    Click="OnCopyDetailsClick">
+                                <TextBlock Text="Copy details" FontSize="12" />
+                            </Button>
+                        </StackPanel>
+                    </Expander>
+                    <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                            Command="{Binding GoHomeCommand}">
+                        <TextBlock Text="Back" />
+                    </Button>
+                </StackPanel>
+
+            </Panel>
+        </suki:GlassCard>
+    </Grid>
+
+</UserControl>

@@ -4,16 +4,16 @@ using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Views;
 
-public partial class MakeMapView : UserControl
+public partial class WorkspaceView : UserControl
 {
-    public MakeMapView()
+    public WorkspaceView()
     {
         InitializeComponent();
-        FolderPicking.EnableDrop(this, StartAsync, DropZone);
+        FolderPicking.EnableDrop(this, SetFolderAsync, DropZone);
     }
 
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>
-        await FolderPicking.ChooseAsync(this, StartAsync);
+        await FolderPicking.ChooseAsync(this, SetFolderAsync);
 
     private async void OnCopyDetailsClick(object? sender, RoutedEventArgs e)
     {
@@ -23,8 +23,8 @@ public partial class MakeMapView : UserControl
         }
     }
 
-    private System.Threading.Tasks.Task StartAsync(string folder) =>
-        DataContext is MakeMapViewModel vm
-            ? vm.StartCommand.ExecuteAsync(folder)
+    private System.Threading.Tasks.Task SetFolderAsync(string folder) =>
+        DataContext is WorkspaceViewModel vm
+            ? vm.SetFolderAsync(folder)
             : System.Threading.Tasks.Task.CompletedTask;
 }

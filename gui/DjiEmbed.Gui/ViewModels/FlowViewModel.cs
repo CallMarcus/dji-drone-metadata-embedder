@@ -94,13 +94,14 @@ public abstract partial class FlowViewModel(
     private CancellationTokenSource? _cts;
 
     /// <summary>The bundled CLI path, for subclasses that spawn beyond
-    /// <see cref="RunCliAsync"/> (null when the CLI is missing).</summary>
-    protected string? CliPath => cliPath;
+    /// <see cref="RunCliAsync"/> (null when the CLI is missing).
+    /// Settable so a long-lived flow can re-probe a missing CLI.</summary>
+    protected string? CliPath { get; set; } = cliPath;
 
     /// <summary>Fails fast when the bundled CLI is missing.</summary>
     protected bool EnsureCli()
     {
-        if (cliPath is not null)
+        if (CliPath is not null)
         {
             return true;
         }
@@ -151,7 +152,7 @@ public abstract partial class FlowViewModel(
         CurrentItem = null;
         Current = 0;
         Total = null;
-        return runner.RunAsync(cliPath!, args,
+        return runner.RunAsync(CliPath!, args,
             new DirectProgress<ProgressEvent>(OnEvent), _cts!.Token);
     }
 
@@ -214,7 +215,11 @@ public abstract partial class FlowViewModel(
     }
 
     [RelayCommand]
-    private void GoHome() => goHome();
+    private void GoHome() => GoHomeCore();
+
+    /// <summary>Default: leave the flow. The workspace overrides this to
+    /// reset to the idle pane instead of navigating.</summary>
+    protected virtual void GoHomeCore() => goHome();
 
     /// <summary>
     /// Reports inline on the runner's read loop. Started from the UI
