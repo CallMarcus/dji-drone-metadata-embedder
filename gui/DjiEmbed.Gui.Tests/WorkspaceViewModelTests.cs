@@ -546,4 +546,63 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains(nameof(WorkspaceViewModel.ShowPreview), notified);
         Assert.Contains(nameof(WorkspaceViewModel.ShowDoneCard), notified);
     }
+
+    [Fact]
+    public async Task Photomap_done_primes_the_preview_too()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["photomap"] = (PhotomapStream, 0),
+        });
+        var server = new FakeMapServer("http://127.0.0.1:8/photomap.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal("http://127.0.0.1:8/photomap.html", vm.PreviewUrl);
+        Assert.Equal(["photomap.html"], server.Requests);
+    }
+
+    [Fact]
+    public async Task Failed_map_run_never_asks_for_a_server()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (new[]
+            {
+                """{"v": 1, "event": "start", "command": "flightmap", "total": 1}""",
+                """{"v": 1, "event": "error", "message": "boom"}""",
+            }, 1),
+        });
+        var server = new FakeMapServer("http://127.0.0.1:8/f.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Empty(server.Requests);
+        Assert.False(vm.PreviewUnavailable);
+    }
+
+    [Fact]
+    public async Task Server_exception_degrades_without_failing_the_run()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli, mapServer: new ThrowingMapServer(),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Null(vm.PreviewUrl);
+        Assert.True(vm.PreviewUnavailable);
+    }
+
+    private sealed class ThrowingMapServer : IMapServer
+    {
+        public Task<string?> GetUrlAsync(
+            string cliPath, string htmlPath, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("server exploded");
+    }
 }

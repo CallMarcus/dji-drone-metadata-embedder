@@ -25,7 +25,7 @@ public class MapServerTests : IDisposable
         // The fake stays alive after printing, like a real serve child.
         var cli = FakeCli.WriteEventStream(_dir,
             ["http://127.0.0.1:54321/photomap.html"], sleepSeconds: 30);
-        var url = await server.GetUrlAsync(cli, MapFile());
+        var url = await server.GetUrlAsync(cli, MapFile(), CancellationToken.None);
         Assert.Equal("http://127.0.0.1:54321/photomap.html", url);
     }
 
@@ -35,10 +35,11 @@ public class MapServerTests : IDisposable
         using var server = new MapServer();
         var cli = FakeCli.WriteEventStream(_dir,
             ["http://127.0.0.1:54321/photomap.html"], sleepSeconds: 30);
-        await server.GetUrlAsync(cli, MapFile());
+        await server.GetUrlAsync(cli, MapFile(), CancellationToken.None);
         // Same folder, other map: no second child — the URL is composed
         // from the running server's base address.
-        var url = await server.GetUrlAsync(cli, MapFile("flightmap.html"));
+        var url = await server.GetUrlAsync(
+            cli, MapFile("flightmap.html"), CancellationToken.None);
         Assert.Equal("http://127.0.0.1:54321/flightmap.html", url);
     }
 
@@ -49,7 +50,8 @@ public class MapServerTests : IDisposable
         var cli = FakeCli.WriteEventStream(_dir,
             ["Serving map at http://127.0.0.1:54321/ - press Ctrl+C to stop"],
             sleepSeconds: 30);
-        Assert.Null(await server.GetUrlAsync(cli, MapFile()));
+        Assert.Null(await server.GetUrlAsync(
+            cli, MapFile(), CancellationToken.None));
     }
 
     [Fact]
@@ -59,10 +61,10 @@ public class MapServerTests : IDisposable
         // Exits right after printing — a crashed/killed server.
         var cli = FakeCli.WriteEventStream(_dir,
             ["http://127.0.0.1:54321/photomap.html"]);
-        var first = await server.GetUrlAsync(cli, MapFile());
+        var first = await server.GetUrlAsync(cli, MapFile(), CancellationToken.None);
         Assert.NotNull(first);
         await Task.Delay(500, TestContext.Current.CancellationToken);
-        var second = await server.GetUrlAsync(cli, MapFile());
+        var second = await server.GetUrlAsync(cli, MapFile(), CancellationToken.None);
         Assert.NotNull(second);
     }
 
@@ -71,6 +73,7 @@ public class MapServerTests : IDisposable
     {
         using var server = new MapServer();
         var cli = Path.Combine(_dir, "does-not-exist");
-        Assert.Null(await server.GetUrlAsync(cli, MapFile()));
+        Assert.Null(await server.GetUrlAsync(
+            cli, MapFile(), CancellationToken.None));
     }
 }

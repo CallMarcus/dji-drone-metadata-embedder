@@ -11,7 +11,8 @@ internal sealed class FakeMapServer(string? url) : IMapServer
 {
     public List<string> Requests { get; } = [];
 
-    public Task<string?> GetUrlAsync(string cliPath, string htmlPath)
+    public Task<string?> GetUrlAsync(
+        string cliPath, string htmlPath, CancellationToken cancellationToken)
     {
         Requests.Add(htmlPath);
         return Task.FromResult(url);

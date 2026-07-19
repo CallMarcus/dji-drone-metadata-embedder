@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -119,6 +120,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             SelectedMode = SuggestedMode;
         }
+        ResetPreview();
         Step = FlowStep.Pick;
     }
 
@@ -174,7 +176,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                 PreviewUnavailable = true;
                 return true;
             }
-            var url = await _mapServer.GetUrlAsync(CliPath, html);
+            var url = await _mapServer.GetUrlAsync(CliPath, html, FlowToken);
             if (url is null)
             {
                 PreviewUnavailable = true;
@@ -182,6 +184,10 @@ public partial class WorkspaceViewModel : FlowViewModel
             }
             PreviewPath = html;      // path first: the view reads it when the URL lands
             PreviewUrl = url;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;   // ExecuteFlowAsync maps this to Step = Pick.
         }
         catch (Exception)
         {
@@ -281,7 +287,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         if (CliPath is not null
             && path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
         {
-            var url = await _mapServer.GetUrlAsync(CliPath, path);
+            // Opening an output isn't part of a flow — nothing cancels it.
+            var url = await _mapServer.GetUrlAsync(
+                CliPath, path, CancellationToken.None);
             if (url is not null)
             {
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });

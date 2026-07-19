@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DjiEmbed.Gui.Services;
@@ -29,7 +30,8 @@ public sealed class MapServer : IMapServer, IDisposable
     /// falls back to opening the file directly (the map minus the pano
     /// viewer, never nothing).
     /// </summary>
-    public async Task<string?> GetUrlAsync(string cliPath, string htmlPath)
+    public async Task<string?> GetUrlAsync(
+        string cliPath, string htmlPath, CancellationToken cancellationToken)
     {
         var dir = Path.GetDirectoryName(Path.GetFullPath(htmlPath));
         if (dir is null)
@@ -69,7 +71,7 @@ public sealed class MapServer : IMapServer, IDisposable
         {
             return null;
         }
-        var url = await ReadUrlLineAsync(process);
+        var url = await ReadUrlLineAsync(process, cancellationToken);
         if (url is null)
         {
             TryKill(process);
@@ -80,11 +82,21 @@ public sealed class MapServer : IMapServer, IDisposable
         return url;
     }
 
-    private static async Task<string?> ReadUrlLineAsync(Process process)
+    private static async Task<string?> ReadUrlLineAsync(
+        Process process, CancellationToken cancellationToken)
     {
         var read = process.StandardOutput.ReadLineAsync();
-        if (await Task.WhenAny(read, Task.Delay(StartTimeout)) != read)
+        if (await Task.WhenAny(
+                read, Task.Delay(StartTimeout, cancellationToken)) != read)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // Canceled must not look like "server failed to start":
+                // reap the just-started child, then let the flow unwind.
+                TryKill(process);
+                process.Dispose();
+                throw new OperationCanceledException(cancellationToken);
+            }
             return null;
         }
         var line = (await read)?.Trim();

@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DjiEmbed.Gui.Services;
@@ -10,6 +11,8 @@ namespace DjiEmbed.Gui.Services;
 public interface IMapServer
 {
     /// <summary>Null when no server could be started — callers fall back
-    /// to opening the file directly.</summary>
-    Task<string?> GetUrlAsync(string cliPath, string htmlPath);
+    /// to opening the file directly. Cancellation surfaces as
+    /// OperationCanceledException, never as null.</summary>
+    Task<string?> GetUrlAsync(
+        string cliPath, string htmlPath, CancellationToken cancellationToken);
 }

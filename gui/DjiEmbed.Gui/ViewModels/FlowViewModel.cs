@@ -101,6 +101,10 @@ public abstract partial class FlowViewModel(
 
     private CancellationTokenSource? _cts;
 
+    /// <summary>The running flow's cancellation token, for subclass steps
+    /// that await outside <see cref="RunCliAsync"/> yet must stay cancelable.</summary>
+    protected CancellationToken FlowToken => _cts?.Token ?? CancellationToken.None;
+
     /// <summary>The bundled CLI path, for subclasses that spawn beyond
     /// <see cref="RunCliAsync"/> (null when the CLI is missing).
     /// Settable so a long-lived flow can re-probe a missing CLI.</summary>
