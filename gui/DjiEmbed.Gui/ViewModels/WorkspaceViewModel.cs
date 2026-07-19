@@ -215,9 +215,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
         SetupItems.Clear();
         AllGood = false;
-        ResetPreview();
         if (SelectedMode.Kind == WorkspaceModeKind.Setup)
         {
+            ResetPreview();
             await RunSetupAsync();
             return;
         }
@@ -226,6 +226,9 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        // Reset only now, past the awaited scan: clearing the preview any
+        // earlier flashes the stale done card while a live map is still up.
+        ResetPreview();
         switch (SelectedMode.Kind)
         {
             case WorkspaceModeKind.FlightMap when !contents.HasFlightLogs:

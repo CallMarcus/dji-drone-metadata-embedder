@@ -22,7 +22,6 @@ public static class WorkspaceConverters
         new(present => present ? "✓" : "✗");
 
     /// <summary>Toolbar label: just the map's file name.</summary>
-    public static readonly IValueConverter FileNameOnly =
-        new FuncValueConverter<string?, string?>(static p =>
-            p is null ? null : Path.GetFileName(p));
+    public static readonly FuncValueConverter<string?, string?> FileNameOnly =
+        new(static p => p is null ? null : Path.GetFileName(p));
 }

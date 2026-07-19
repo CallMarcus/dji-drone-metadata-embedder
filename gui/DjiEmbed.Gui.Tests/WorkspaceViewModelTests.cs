@@ -600,6 +600,25 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Canceled_preview_priming_is_cancellation_not_degradation()
+    {
+        // PrimePreviewAsync must rethrow OperationCanceledException BEFORE
+        // its catch-all: cancel during server startup is the Cancel button,
+        // not a broken preview — no note, and back to the idle pane.
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli, mapServer: new CanceledMapServer(),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Pick, vm.Step);
+        Assert.False(vm.PreviewUnavailable);
+        Assert.Null(vm.PreviewUrl);
+    }
+
+    [Fact]
     public void Show_in_folder_without_a_preview_is_a_safe_no_op()
     {
         var vm = Vm("unused");
@@ -612,5 +631,12 @@ public class WorkspaceViewModelTests : IDisposable
         public Task<string?> GetUrlAsync(
             string cliPath, string htmlPath, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("server exploded");
+    }
+
+    private sealed class CanceledMapServer : IMapServer
+    {
+        public Task<string?> GetUrlAsync(
+            string cliPath, string htmlPath, CancellationToken cancellationToken) =>
+            throw new OperationCanceledException();
     }
 }

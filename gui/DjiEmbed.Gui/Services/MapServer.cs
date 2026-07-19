@@ -39,11 +39,15 @@ public sealed class MapServer : IMapServer, IDisposable
             return null;
         }
         var page = Path.GetFileName(htmlPath);
-        if (_running.TryGetValue(dir, out var live) && !live.Process.HasExited)
+        if (_running.TryGetValue(dir, out var live))
         {
-            return live.BaseUrl + page;
+            if (!live.Process.HasExited)
+            {
+                return live.BaseUrl + page;
+            }
+            live.Process.Dispose();   // dead child: reap the handle too
+            _running.Remove(dir);
         }
-        _running.Remove(dir);
 
         var psi = new ProcessStartInfo
         {
