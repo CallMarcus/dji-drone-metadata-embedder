@@ -122,3 +122,6 @@ gui/**/obj/
 # Claude Code project instructions stay local (see AGENTS.md for the committed guidance)
 CLAUDE.md
 CLAUDE.local.md
+
+# Visual-companion brainstorm scratch (local only)
+.superpowers/
