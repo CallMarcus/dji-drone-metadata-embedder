@@ -15,7 +15,14 @@ public class WorkspaceScreenTests
 {
     private static Window ShowWorkspace(WorkspaceViewModel? vm = null)
     {
-        var view = new WorkspaceView { DataContext = vm ?? NewWorkspaceViewModel() };
+        // Pin the WebView gate false BEFORE DataContext: assigning the
+        // DataContext fires SyncPreview immediately, and this suite must
+        // never construct a NativeWebView — its adapter failures surface
+        // asynchronously on the dispatcher (GTK on display-less CI), not
+        // in any catchable ctor. False makes every attach take the
+        // fallback-note path deterministically on every platform.
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm ?? NewWorkspaceViewModel();
         var window = new Window { Content = view, Width = 1140, Height = 720 };
         window.Show();
         return window;
@@ -99,8 +106,10 @@ public class WorkspaceScreenTests
     [AvaloniaFact]
     public void Setting_a_preview_url_never_crashes_a_machine_without_webview()
     {
-        // This headless/Linux run has no web engine: attaching must degrade
-        // to the in-pane note (or a blank host) — never throw.
+        // The gate is pinned false (see ShowWorkspace): a machine without a
+        // usable web engine must degrade to the in-pane note — never throw,
+        // never even construct the control — and the note must actually be
+        // visible; that is the machine-without-webview UX promise.
         var window = ShowWorkspace();
         var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
         vm.PreviewPath = "flightmap.html";
@@ -110,8 +119,8 @@ public class WorkspaceScreenTests
         window.UpdateLayout();
         var host = window.GetVisualDescendants().OfType<Border>()
             .Single(b => b.Name == "PreviewHost");
-        Assert.NotNull(host.Child);            // attach path ran: webview OR fallback note
-        Assert.True(host.Child is NativeWebView or TextBlock);
+        var note = Assert.IsType<TextBlock>(host.Child);   // fallback note, not a WebView
+        Assert.True(note.IsEffectivelyVisible);
         vm.GoHomeCommand.Execute(null);
         Dispatcher.UIThread.RunJobs();
         Assert.Null(host.Child);               // leaving Done detaches whatever was there

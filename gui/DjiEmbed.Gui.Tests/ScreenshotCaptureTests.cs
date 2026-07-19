@@ -117,11 +117,14 @@ public class ScreenshotCaptureTests
 
     /// <summary>
     /// Done step with an inline map preview: toolbar plus the preview
-    /// inset. Headless has no web engine, so the pane itself renders
-    /// blank — the capture is for reviewing the surrounding layout.
-    /// Deliberately a separate method rather than part of
-    /// Captures_every_screen_to_dir_when_requested: this one constructs
-    /// a NativeWebView, and that is kept isolated from the main matrix
+    /// inset. The view's WebView gate is pinned false, so the pane shows
+    /// the calm fallback note instead of a NativeWebView — deterministic
+    /// on every host (constructing the control headlessly would fail
+    /// asynchronously on display-less CI), and better for layout review
+    /// than the blank pane it used to render. Deliberately a separate
+    /// method rather than part of
+    /// Captures_every_screen_to_dir_when_requested: this one exercises
+    /// the attach path, and that is kept isolated from the main matrix
     /// run — don't merge them.
     /// </summary>
     [AvaloniaFact]
@@ -141,8 +144,11 @@ public class ScreenshotCaptureTests
         vm.PreviewPath = "C:/Users/demo/Videos/flight/flight_map.html";
         vm.PreviewUrl = "http://127.0.0.1:1/flight_map.html";
         vm.Step = FlowStep.Done;
-        CaptureView(new WorkspaceView { DataContext = vm },
-            Path.Combine(dir!, "workspace-preview.png"));
+        // Gate before DataContext: assigning the DataContext fires
+        // SyncPreview immediately, which would otherwise probe for real.
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        CaptureView(view, Path.Combine(dir!, "workspace-preview.png"));
     }
 
     /// <summary>
@@ -164,7 +170,11 @@ public class ScreenshotCaptureTests
         vm.Outputs.Add(@"C:\Users\demo\Videos\flight\flight_map.html");
         vm.PreviewUnavailable = true;
         vm.Step = FlowStep.Done;
-        CaptureView(new WorkspaceView { DataContext = vm },
+        // No PreviewUrl is set, so nothing attaches — but pin the gate
+        // anyway so this capture can never construct a WebView on any host.
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        CaptureView(view,
             Path.Combine(dir!, "workspace-done-degraded.png"));
     }
 

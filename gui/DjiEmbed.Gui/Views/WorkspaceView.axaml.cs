@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Views;
@@ -12,6 +13,16 @@ public partial class WorkspaceView : UserControl
 {
     private WorkspaceViewModel? _vm;
     private NativeWebView? _webView;
+
+    /// <summary>
+    /// Whether this machine can host a NativeWebView at all — a test seam
+    /// defaulting to the real probe. Must be decided before DataContext is
+    /// assigned: setting it fires SyncPreview immediately, so tests set
+    /// this first. See <see cref="AttachPreview"/> for why the gate, not
+    /// the try/catch, is the real protection.
+    /// </summary>
+    internal Func<bool> WebViewGate { get; set; } =
+        static () => WebViewSupport.IsLikelyAvailable;
 
     public WorkspaceView()
     {
@@ -63,6 +74,17 @@ public partial class WorkspaceView : UserControl
     /// </summary>
     private void AttachPreview(string url)
     {
+        if (!WebViewGate())
+        {
+            // Never even construct the control here: adapter creation
+            // happens on attach and its failures surface asynchronously
+            // via the dispatcher (observed: the GTK adapter throwing on
+            // display-less CI), where no try/catch of ours can reach
+            // them. The gate is the real protection; the catch below
+            // only covers synchronous construction failures.
+            PreviewHost.Child = MakeFallbackNote();
+            return;
+        }
         try
         {
             _webView ??= new NativeWebView();
@@ -72,20 +94,22 @@ public partial class WorkspaceView : UserControl
         catch (Exception)
         {
             _webView = null;
-            PreviewHost.Child = new TextBlock
-            {
-                Text = "The map is ready — use “Open in browser” above to "
-                       + "view it. (The inline preview isn't available on "
-                       + "this computer.)",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.7,
-                FontSize = 13,
-                MaxWidth = 420,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
+            PreviewHost.Child = MakeFallbackNote();
         }
     }
+
+    private static TextBlock MakeFallbackNote() => new()
+    {
+        Text = "The map is ready — use “Open in browser” above to "
+               + "view it. (The inline preview isn't available on "
+               + "this computer.)",
+        TextWrapping = TextWrapping.Wrap,
+        Opacity = 0.7,
+        FontSize = 13,
+        MaxWidth = 420,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
 
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>
         await FolderPicking.ChooseAsync(this, SetFolderAsync);
