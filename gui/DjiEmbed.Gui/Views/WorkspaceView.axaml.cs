@@ -28,15 +28,22 @@ public partial class WorkspaceView : UserControl
             {
                 _vm.PropertyChanged += OnVmPropertyChanged;
             }
+            // The VM outlives the view (ViewLocator rebuilds it on every
+            // page flip): adopt any preview that is already showing.
+            SyncPreview();
         };
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(WorkspaceViewModel.PreviewUrl))
+        if (e.PropertyName == nameof(WorkspaceViewModel.PreviewUrl))
         {
-            return;
+            SyncPreview();
         }
+    }
+
+    private void SyncPreview()
+    {
         if (_vm?.PreviewUrl is { } url)
         {
             AttachPreview(url);
@@ -48,11 +55,11 @@ public partial class WorkspaceView : UserControl
     }
 
     /// <summary>
-    /// One WebView for the window's lifetime, created on first use. A
-    /// machine that gets this far but still has no usable engine (the
-    /// spec's old-Windows-10 case) gets a calm note in the pane — the
-    /// map is always one "Open in browser" click away, never an error
-    /// dialog.
+    /// One WebView per view instance, created on first use — the view is
+    /// rebuilt each time navigation returns here. A machine that gets
+    /// this far but still has no usable engine (the spec's
+    /// old-Windows-10 case) gets a calm note in the pane — the map is
+    /// always one "Open in browser" click away, never an error dialog.
     /// </summary>
     private void AttachPreview(string url)
     {
@@ -72,6 +79,7 @@ public partial class WorkspaceView : UserControl
                        + "this computer.)",
                 TextWrapping = TextWrapping.Wrap,
                 Opacity = 0.7,
+                FontSize = 13,
                 MaxWidth = 420,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,

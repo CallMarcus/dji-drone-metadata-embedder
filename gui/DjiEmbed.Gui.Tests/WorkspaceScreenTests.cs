@@ -13,18 +13,17 @@ namespace DjiEmbed.Gui.Tests;
 // a CLI footer link — no menu bar, no tabs, no settings.
 public class WorkspaceScreenTests
 {
-    private static Window ShowWorkspace()
+    private static Window ShowWorkspace(WorkspaceViewModel? vm = null)
     {
-        var view = new WorkspaceView
-        {
-            DataContext = new WorkspaceViewModel(
-                "unused", new DjiEmbedRunner(), new FakeMapServer(null), () => { },
-                previewAvailable: static () => false),
-        };
+        var view = new WorkspaceView { DataContext = vm ?? NewWorkspaceViewModel() };
         var window = new Window { Content = view, Width = 1140, Height = 720 };
         window.Show();
         return window;
     }
+
+    private static WorkspaceViewModel NewWorkspaceViewModel() =>
+        new("unused", new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
 
     [AvaloniaFact]
     public void Mode_strip_shows_exactly_the_four_m1_modes()
@@ -112,9 +111,31 @@ public class WorkspaceScreenTests
         var host = window.GetVisualDescendants().OfType<Border>()
             .Single(b => b.Name == "PreviewHost");
         Assert.NotNull(host.Child);            // attach path ran: webview OR fallback note
+        Assert.True(host.Child is NativeWebView or TextBlock);
         vm.GoHomeCommand.Execute(null);
         Dispatcher.UIThread.RunJobs();
         Assert.Null(host.Child);               // leaving Done detaches whatever was there
+        vm.PreviewUrl = "http://127.0.0.1:1/again.html";
+        Dispatcher.UIThread.RunJobs();
+        Assert.NotNull(host.Child);            // and a second run re-attaches
+    }
+
+    [AvaloniaFact]
+    public void Recreated_view_syncs_an_already_live_preview()
+    {
+        // The VM outlives the view: ViewLocator rebuilds the workspace view
+        // on every CurrentPage flip (footer link → CLI discovery → back), so
+        // a fresh view must adopt a preview that is already showing.
+        var vm = NewWorkspaceViewModel();
+        vm.PreviewPath = "flightmap.html";
+        vm.PreviewUrl = "http://127.0.0.1:1/flightmap.html";
+        vm.Step = FlowStep.Done;
+        var window = ShowWorkspace(vm);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var host = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PreviewHost");
+        Assert.NotNull(host.Child);
     }
 
     [AvaloniaFact]
