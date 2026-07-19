@@ -46,7 +46,8 @@ public class ScreenshotCaptureTests
             Png("home"));
 
         var workspace = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+            null, new DjiEmbedRunner(), new FakeMapServer(null), NoOp(),
+            previewAvailable: static () => false);
         CaptureView(new WorkspaceView { DataContext = workspace },
             Png("workspace-pick"));
 
@@ -70,7 +71,8 @@ public class ScreenshotCaptureTests
             Png("workspace-done"));
 
         var setupDone = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+            null, new DjiEmbedRunner(), new FakeMapServer(null), NoOp(),
+            previewAvailable: static () => false);
         setupDone.Step = FlowStep.Done;
         setupDone.AllGood = true;
         setupDone.SetupItems.Add(new SetupItem(
@@ -81,7 +83,8 @@ public class ScreenshotCaptureTests
             Png("workspace-setup-done"));
 
         var failed = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), NoOp());
+            null, new DjiEmbedRunner(), new FakeMapServer(null), NoOp(),
+            previewAvailable: static () => false);
         failed.Step = FlowStep.Failed;
         failed.ErrorMessage = "Something went wrong while embedding the "
             + "flight data. Your original videos were not changed.";

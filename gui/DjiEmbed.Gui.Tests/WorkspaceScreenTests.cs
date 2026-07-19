@@ -17,7 +17,8 @@ public class WorkspaceScreenTests
         var view = new WorkspaceView
         {
             DataContext = new WorkspaceViewModel(
-                "unused", new DjiEmbedRunner(), new MapServer(), () => { }),
+                "unused", new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+                previewAvailable: static () => false),
         };
         var window = new Window { Content = view, Width = 1140, Height = 720 };
         window.Show();

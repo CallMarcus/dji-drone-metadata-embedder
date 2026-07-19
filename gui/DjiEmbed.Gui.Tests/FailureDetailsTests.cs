@@ -18,7 +18,8 @@ public class FailureDetailsTests
     private static WorkspaceViewModel FailedVm(string details)
     {
         var vm = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), () => { });
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
         vm.Step = FlowStep.Failed;
         vm.ErrorMessage = "Something went wrong.";
         vm.ErrorDetails = details;
@@ -66,7 +67,8 @@ public class FailureDetailsTests
     public void No_details_means_no_tail()
     {
         var vm = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), () => { });
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
         Assert.Null(vm.ErrorDetailsTail);
     }
 

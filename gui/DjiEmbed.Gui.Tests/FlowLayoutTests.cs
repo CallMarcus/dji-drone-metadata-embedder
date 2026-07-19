@@ -33,7 +33,8 @@ public class FlowLayoutTests
     }
 
     private static WorkspaceViewModel WorkspaceVm()
-        => new(null, new DjiEmbedRunner(), new MapServer(), () => { });
+        => new(null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
 
     private static Button VisibleButton(Window window, string caption) =>
         window.GetVisualDescendants().OfType<Button>()

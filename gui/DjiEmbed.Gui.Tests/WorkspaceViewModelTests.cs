@@ -418,15 +418,4 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(1, vm.Current);
         Assert.Equal(1, vm.Total);
     }
-
-    private sealed class FakeMapServer(string? url) : IMapServer
-    {
-        public List<string> Requests { get; } = [];
-
-        public Task<string?> GetUrlAsync(string cliPath, string htmlPath)
-        {
-            Requests.Add(htmlPath);
-            return Task.FromResult(url);
-        }
-    }
 }

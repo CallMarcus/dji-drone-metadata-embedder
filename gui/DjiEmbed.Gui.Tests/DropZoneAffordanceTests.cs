@@ -30,7 +30,8 @@ public class DropZoneAffordanceTests
     private static WorkspaceView PickView() => new()
     {
         DataContext = new WorkspaceViewModel(
-            null, new DjiEmbedRunner(), new MapServer(), () => { }),
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false),
     };
 
     [AvaloniaFact]
