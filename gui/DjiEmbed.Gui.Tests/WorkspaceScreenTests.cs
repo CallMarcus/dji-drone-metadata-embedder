@@ -98,6 +98,26 @@ public class WorkspaceScreenTests
     }
 
     [AvaloniaFact]
+    public void Setting_a_preview_url_never_crashes_a_machine_without_webview()
+    {
+        // This headless/Linux run has no web engine: attaching must degrade
+        // to the in-pane note (or a blank host) — never throw.
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.PreviewPath = "flightmap.html";
+        vm.PreviewUrl = "http://127.0.0.1:1/flightmap.html";
+        vm.Step = FlowStep.Done;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var host = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PreviewHost");
+        Assert.NotNull(host.Child);            // attach path ran: webview OR fallback note
+        vm.GoHomeCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Null(host.Child);               // leaving Done detaches whatever was there
+    }
+
+    [AvaloniaFact]
     public void Degraded_done_card_carries_the_calm_webview_note()
     {
         var window = ShowWorkspace();

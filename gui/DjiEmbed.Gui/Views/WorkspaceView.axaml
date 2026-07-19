@@ -290,7 +290,13 @@
                             </ItemsControl>
                         </ScrollViewer>
                     </Expander>
-                    <Border Name="PreviewHost" />
+                    <!-- Inset so the native WebView HWND (which ignores
+                         Avalonia clipping) sits inside the card's rounded
+                         silhouette instead of overdrawing its corners. -->
+                    <Border Name="PreviewHost" Margin="14,0,14,14"
+                            CornerRadius="8" ClipToBounds="True"
+                            BorderThickness="0,1,0,0"
+                            BorderBrush="#309aa7c8" />
                 </DockPanel>
 
                 <!-- Failed -->
