@@ -83,15 +83,35 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
 
+    /// <summary>
+    /// The exact human-facing <c>dji-embed</c> command the current mode +
+    /// folder would run — the CLI transparency strip (GUI 2.0 spec, M3a).
+    /// Uses a <c>&lt;folder&gt;</c> placeholder before a folder is picked so
+    /// the strip teaches the command shape from the idle state. Never shows
+    /// <c>--progress jsonl</c> (an execution detail added by the runner).
+    /// </summary>
+    public string CommandPreview
+    {
+        get
+        {
+            var folder = SelectedFolder
+                ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
+            return CommandLine.Format(
+                "dji-embed", CommandBuilder.Build(SelectedMode.Kind, folder));
+        }
+    }
+
     partial void OnSelectedFolderChanged(string? value)
     {
         OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(CommandPreview));
         RunCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedModeChanged(WorkspaceMode value)
     {
         OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(CommandPreview));
         RunCommand.NotifyCanExecuteChanged();
     }
 
