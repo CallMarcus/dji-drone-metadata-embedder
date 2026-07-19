@@ -15,6 +15,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.26.0] - 2026-07-19
+
+### Added
+
+- **gui**: NativeWebView renders the map inline, degrading to a calm note (249c379)
+- **gui**: Show-in-folder for the previewed map (4516eac)
+- **gui**: WebView package + IMapServer seam for the inline preview (M2 groundwork) (525692a)
+- **gui**: Done pane splits into card and inline-map states (62371f5)
+- **gui**: Prime the inline map preview after map runs, with calm degradation (7ffd5e0)
+
+### Changed
+
+- **gui**: Pure PSI seam for Reveal so the /select quoting is asserted (a539cf8)
+
+### Fixed
+
+- **gui**: Cancelable preview priming + coverage for photomap/failed-run/exception paths (2556ffb)
+- **gui**: Gate WebView attach on the probe — adapter failures surface async, not in the ctor (3d8594e)
+- **gui**: Probe for the WebView2 runtime, not just Windows (ac627b2)
+- **gui**: Recreated workspace view re-syncs the live preview; test hardening (5558680)
+- **gui**: Visibility-asserting screen tests, capped warnings list, review polish (4f534a7)
+
+### Documentation
+
+- **gui**: Inline map preview + WebView2 fallback note (c8075aa)
+- Auto-generate changelog for v1.25.0 (412c587)
+- Inline the README badges — kramdown-safe, and fixes the case-colliding link targets (f3777bc)
+
+### Testing
+
+- **gui**: Deterministic map-server fakes across the whole suite (6eef53e)
+- **gui**: Screenshot matrix covers the inline-preview states (41e8bca)
+
+### Maintenance
+
+- Ignore the local .superpowers/ brainstorm scratch dir (c491117)
+
+### Other
+
+- **gui**: Final-review nits — reset timing, server dispose, cancel test, converter idiom (d61b5af)
+- Prepare version 1.26.0 (8160b58)
+
+
 ## [1.25.0] - 2026-07-19
 
 ### Added
