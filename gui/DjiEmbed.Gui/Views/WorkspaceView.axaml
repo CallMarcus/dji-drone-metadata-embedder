@@ -174,10 +174,9 @@
                     </Button>
                 </StackPanel>
 
-                <!-- Done: outputs (map/embed) and/or the setup checklist -->
-                <StackPanel IsVisible="{Binding Step,
-                                Converter={x:Static ObjectConverters.Equal},
-                                ConverterParameter={x:Static vm:FlowStep.Done}}"
+                <!-- Done, card flavour: setup checklist, embed outputs,
+                     and maps when the inline preview can't render. -->
+                <StackPanel IsVisible="{Binding ShowDoneCard}"
                             Spacing="16" MaxWidth="480"
                             VerticalAlignment="Center" Margin="28,0">
                     <TextBlock Text="✅ Done" FontSize="20" FontWeight="SemiBold" />
@@ -198,6 +197,9 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <TextBlock IsVisible="{Binding PreviewUnavailable}"
+                               Opacity="0.65" FontSize="12" TextWrapping="Wrap"
+                               Text="The inline map preview isn't available on this computer — it uses Microsoft Edge WebView2, which comes preinstalled from Windows 11 on. Open shows the map in your browser instead; everything on it works there." />
                     <StackPanel Spacing="10" IsVisible="{Binding !!SetupItems.Count}">
                         <TextBlock FontSize="16"
                                    IsVisible="{Binding AllGood}"
@@ -238,6 +240,54 @@
                         <TextBlock Text="Process another" />
                     </Button>
                 </StackPanel>
+
+                <!-- Done, map flavour: the map itself, over the local server. -->
+                <DockPanel IsVisible="{Binding ShowPreview}">
+                    <Border DockPanel.Dock="Top" Padding="14,10">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right"
+                                        Orientation="Horizontal" Spacing="8">
+                                <Button Name="OpenInBrowserButton"
+                                        Command="{Binding OpenOutputCommand}"
+                                        CommandParameter="{Binding PreviewPath}"
+                                        ToolTip.Tip="Open this map in your web browser">
+                                    <TextBlock Text="Open in browser ↗" FontSize="12" />
+                                </Button>
+                                <Button Name="ShowInFolderButton"
+                                        Command="{Binding ShowInFolderCommand}"
+                                        ToolTip.Tip="Show the map file in its folder">
+                                    <TextBlock Text="Show in folder" FontSize="12" />
+                                </Button>
+                                <Button Command="{Binding GoHomeCommand}">
+                                    <TextBlock Text="Process another" FontSize="12" />
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="{Binding PreviewPath,
+                                           Converter={x:Static views:WorkspaceConverters.FileNameOnly}}"
+                                       VerticalAlignment="Center" Opacity="0.7"
+                                       FontSize="12"
+                                       TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
+                    </Border>
+                    <Expander DockPanel.Dock="Top" Margin="14,0,14,8"
+                              IsVisible="{Binding !!Warnings.Count}">
+                        <Expander.Header>
+                            <TextBlock Text="{Binding Warnings.Count,
+                                           StringFormat='⚠️ {0} warning(s)'}"
+                                       FontSize="12" />
+                        </Expander.Header>
+                        <ItemsControl ItemsSource="{Binding Warnings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap"
+                                               Opacity="0.85" FontSize="12"
+                                               Margin="0,2" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Expander>
+                    <Border Name="PreviewHost" />
+                </DockPanel>
 
                 <!-- Failed -->
                 <StackPanel IsVisible="{Binding Step,

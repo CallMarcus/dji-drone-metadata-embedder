@@ -71,4 +71,33 @@ public class WorkspaceScreenTests
         var images = window.GetVisualDescendants().OfType<Image>().ToList();
         Assert.Contains(images, i => i.Source is not null);
     }
+
+    [AvaloniaFact]
+    public void Preview_state_shows_toolbar_and_hides_the_done_card()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.PreviewPath = "flightmap.html";
+        vm.PreviewUrl = "http://127.0.0.1:1/flightmap.html";
+        vm.Step = FlowStep.Done;
+        var buttons = window.GetVisualDescendants().OfType<Button>().ToList();
+        Assert.Single(buttons, b => b.Name == "OpenInBrowserButton");
+        Assert.Single(buttons, b => b.Name == "ShowInFolderButton");
+        Assert.Single(window.GetVisualDescendants().OfType<Border>(),
+            b => b.Name == "PreviewHost");
+        Assert.True(vm.ShowPreview);
+        Assert.False(vm.ShowDoneCard);
+    }
+
+    [AvaloniaFact]
+    public void Degraded_done_card_carries_the_calm_webview_note()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.PreviewUnavailable = true;
+        vm.Step = FlowStep.Done;
+        var texts = window.GetVisualDescendants().OfType<TextBlock>()
+            .Select(t => t.Text ?? "").ToList();
+        Assert.Contains(texts, t => t.Contains("WebView2"));
+    }
 }
