@@ -239,7 +239,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             case WorkspaceModeKind.FlightMap:
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
-                        "Mapping your flights…", ["flightmap", folder, "-r"])
+                        "Mapping your flights…",
+                        CommandBuilder.Build(SelectedMode.Kind, folder))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
@@ -254,7 +255,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
-                        ["photomap", folder, "-r", "--link-originals"])
+                        CommandBuilder.Build(SelectedMode.Kind, folder))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.Embed when !contents.HasVideos:
@@ -265,14 +266,15 @@ public partial class WorkspaceViewModel : FlowViewModel
             case WorkspaceModeKind.Embed:
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
-                    ["embed", folder]));
+                    CommandBuilder.Build(SelectedMode.Kind, folder)));
                 return;
         }
     }
 
     private Task RunSetupAsync() => ExecuteFlowAsync(async () =>
     {
-        var result = await RunCliAsync("Checking…", ["doctor"]);
+        var result = await RunCliAsync(
+            "Checking…", CommandBuilder.Build(WorkspaceModeKind.Setup, null));
         if (result.ExitCode != 0
             || result.Terminal is not { Kind: ProgressEventKind.Result } t)
         {
