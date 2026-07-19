@@ -15,6 +15,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.25.0] - 2026-07-19
+
+### Added
+
+- **gui**: WorkspaceMode catalogue for the M1 mode strip (26e6610)
+- **gui**: Adopt SukiUI theme and resizable workspace window (M1) (9559cef)
+- **gui**: Workspace becomes the root page; CLI discovery round-trip (50a97cf)
+- **gui**: Workspace run dispatch for the four M1 modes (9a49bac)
+- **gui**: Workspace source selection, mode suggestion, CanRun (ad801bc)
+- **gui**: Workspace split layout with four preview-pane states (439da49)
+
+### Changed
+
+- **gui**: Extract DoctorReport parser from CheckSetupViewModel (a0c07b7)
+🚨 - **gui**: Retire the 3-card pages; workspace covers all four tasks (e0f49d3) **[BREAKING]**
+- **gui**: Virtual GoHomeCore seam on FlowViewModel (e570ba2)
+
+### Documentation
+
+- **gui**: AGENTS.md constraints point at the GUI 2.0 spec; dragover style fix + Fluent resource sweep (0a10155)
+- GUI 2.0 full-feature workspace design spec (amends #264 design) (2d90490)
+- Auto-generate changelog for v1.24.0 (0f4e141)
+
+### Other
+
+- **gui**: Setup verdict + checklist glyphs; docs point at the workspace (2bd04cc)
+- Prepare version 1.25.0 (8cc3a6b)
+
+
 ## [1.24.0] - 2026-07-18
 
 ### Added
