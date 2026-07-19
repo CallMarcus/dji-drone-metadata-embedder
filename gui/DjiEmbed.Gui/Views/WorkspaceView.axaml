@@ -250,6 +250,7 @@
                                 <Button Name="OpenInBrowserButton"
                                         Command="{Binding OpenOutputCommand}"
                                         CommandParameter="{Binding PreviewPath}"
+                                        AutomationProperties.Name="Open in browser"
                                         ToolTip.Tip="Open this map in your web browser">
                                     <TextBlock Text="Open in browser ↗" FontSize="12" />
                                 </Button>
@@ -273,18 +274,21 @@
                               IsVisible="{Binding !!Warnings.Count}">
                         <Expander.Header>
                             <TextBlock Text="{Binding Warnings.Count,
-                                           StringFormat='⚠️ {0} warning(s)'}"
+                                           StringFormat='⚠️ {0} warnings'}"
                                        FontSize="12" />
                         </Expander.Header>
-                        <ItemsControl ItemsSource="{Binding Warnings}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <TextBlock Text="{Binding}" TextWrapping="Wrap"
-                                               Opacity="0.85" FontSize="12"
-                                               Margin="0,2" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer MaxHeight="140"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Warnings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"
+                                                   Opacity="0.85" FontSize="12"
+                                                   Margin="0,2" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </Expander>
                     <Border Name="PreviewHost" />
                 </DockPanel>

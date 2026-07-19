@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
@@ -72,6 +73,9 @@ public class WorkspaceScreenTests
         Assert.Contains(images, i => i.Source is not null);
     }
 
+    // Hidden controls stay in the visual tree, so existence checks prove
+    // nothing about the IsVisible bindings — these two tests assert
+    // IsEffectivelyVisible in both directions instead.
     [AvaloniaFact]
     public void Preview_state_shows_toolbar_and_hides_the_done_card()
     {
@@ -80,13 +84,17 @@ public class WorkspaceScreenTests
         vm.PreviewPath = "flightmap.html";
         vm.PreviewUrl = "http://127.0.0.1:1/flightmap.html";
         vm.Step = FlowStep.Done;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
         var buttons = window.GetVisualDescendants().OfType<Button>().ToList();
-        Assert.Single(buttons, b => b.Name == "OpenInBrowserButton");
-        Assert.Single(buttons, b => b.Name == "ShowInFolderButton");
-        Assert.Single(window.GetVisualDescendants().OfType<Border>(),
-            b => b.Name == "PreviewHost");
-        Assert.True(vm.ShowPreview);
-        Assert.False(vm.ShowDoneCard);
+        Assert.True(buttons.Single(b => b.Name == "OpenInBrowserButton")
+            .IsEffectivelyVisible);
+        Assert.True(buttons.Single(b => b.Name == "ShowInFolderButton")
+            .IsEffectivelyVisible);
+        Assert.True(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PreviewHost").IsEffectivelyVisible);
+        Assert.False(window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Text == "✅ Done").IsEffectivelyVisible);
     }
 
     [AvaloniaFact]
@@ -96,8 +104,14 @@ public class WorkspaceScreenTests
         var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
         vm.PreviewUnavailable = true;
         vm.Step = FlowStep.Done;
-        var texts = window.GetVisualDescendants().OfType<TextBlock>()
-            .Select(t => t.Text ?? "").ToList();
-        Assert.Contains(texts, t => t.Contains("WebView2"));
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var tip = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => (t.Text ?? "").Contains("WebView2"));
+        Assert.True(tip.IsEffectivelyVisible);
+
+        vm.PreviewUnavailable = false;   // a healthy Done never shows the tip
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(tip.IsEffectivelyVisible);
     }
 }
