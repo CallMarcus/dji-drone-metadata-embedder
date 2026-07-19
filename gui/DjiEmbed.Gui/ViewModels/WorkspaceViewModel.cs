@@ -134,6 +134,15 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void OpenCliDiscovery() => _openCliDiscovery();
 
+    [RelayCommand]
+    private void ShowInFolder()
+    {
+        if (PreviewPath is not null)
+        {
+            Reveal.InFolder(PreviewPath);
+        }
+    }
+
     /// <summary>"Process another": back to idle, keep folder and mode.</summary>
     protected override void GoHomeCore()
     {

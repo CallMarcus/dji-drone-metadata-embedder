@@ -599,6 +599,14 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.True(vm.PreviewUnavailable);
     }
 
+    [Fact]
+    public void Show_in_folder_without_a_preview_is_a_safe_no_op()
+    {
+        var vm = Vm("unused");
+        vm.ShowInFolderCommand.Execute(null);   // must not throw or spawn
+        Assert.Null(vm.PreviewPath);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(
