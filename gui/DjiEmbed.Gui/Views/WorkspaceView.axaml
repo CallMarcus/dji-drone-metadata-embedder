@@ -23,12 +23,12 @@
         <Style Selector="Border#DropZone.dragover Rectangle.dropOutline">
             <Setter Property="Stroke" Value="#6366f1" />
         </Style>
-        <Style Selector="Button.footerLink">
+        <Style Selector="Button.footerLink, Button.copyLink">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.copyLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
     </UserControl.Styles>
@@ -128,7 +128,7 @@
                             Background="#11808080">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Name="CopyCommandButton"
-                                    Classes="footerLink" VerticalAlignment="Top"
+                                    Classes="copyLink" VerticalAlignment="Top"
                                     Margin="8,0,0,0"
                                     Click="OnCopyCommandClick"
                                     AutomationProperties.Name="Copy command"

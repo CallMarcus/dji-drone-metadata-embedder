@@ -43,7 +43,7 @@ public class NavigationTests
         window.Show();
 
         var link = window.GetVisualDescendants().OfType<Button>()
-            .First(b => b.Classes.Contains("footerLink"));
+            .Single(b => b.Classes.Contains("footerLink"));
         link.Focus();
         window.KeyPressQwerty(Avalonia.Input.PhysicalKey.Enter,
             Avalonia.Input.RawInputModifiers.None);

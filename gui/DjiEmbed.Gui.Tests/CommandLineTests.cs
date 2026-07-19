@@ -30,4 +30,20 @@ public class CommandLineTests
     {
         Assert.Equal("dji-embed", CommandLine.Format("dji-embed", []));
     }
+
+    [Fact]
+    public void Quotes_an_arg_containing_a_tab_whitespace_is_not_just_spaces()
+    {
+        Assert.Equal("dji-embed x \"a\tb\"",
+            CommandLine.Format("dji-embed", ["x", "a\tb"]));
+    }
+
+    [Fact]
+    public void Passes_an_embedded_double_quote_through_verbatim_display_only_not_shell_safe()
+    {
+        // No whitespace ⇒ unquoted; the embedded quote is left as-is. This
+        // documents that Format is display quoting, not shell escaping.
+        Assert.Equal("dji-embed check a\"b",
+            CommandLine.Format("dji-embed", ["check", "a\"b"]));
+    }
 }

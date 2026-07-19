@@ -64,12 +64,8 @@ public class WorkspaceScreenTests
     public void Cli_escape_hatch_footer_link_survives()
     {
         var window = ShowWorkspace();
-        // The M3a transparency strip's Copy button reuses the footerLink
-        // style too, so identify the escape hatch by its "dji-embed" text.
         var link = window.GetVisualDescendants().OfType<Button>()
-            .Single(b => b.Classes.Contains("footerLink")
-                && b.GetVisualDescendants().OfType<TextBlock>()
-                    .Any(t => (t.Text ?? "").Contains("dji-embed")));
+            .Single(b => b.Classes.Contains("footerLink"));
         var text = string.Join(" ", link.GetVisualDescendants()
             .OfType<TextBlock>().Select(t => t.Text ?? ""));
         Assert.Contains("dji-embed", text);
