@@ -1,9 +1,9 @@
 # DJI Drone Metadata Embedder
 
-[![GitHub Release]][release]
-[![Version](https://img.shields.io/badge/version-1.25.0-blue)][release]
-[![PyPI]][pypi]
-[![Winget]][winget]
+[![GitHub Release](https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
+[![Version](https://img.shields.io/badge/version-1.25.0-blue)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
+[![PyPI](https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi)](https://pypi.org/project/dji-drone-metadata-embedder/)
+[![Winget](https://img.shields.io/winget/v/CallMarcus.DJIMetadataEmbedder?logo=windows&label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/c/CallMarcus/DJIMetadataEmbedder)
 
 A free tool that puts your DJI drone footage on the map — literally. It reads
 the telemetry DJI records with every flight (GPS position, altitude, camera
@@ -809,10 +809,3 @@ MIT License - see LICENSE file for details
 ## Disclaimer
 
 This tool is not affiliated with or endorsed by DJI. Use at your own risk.
-
-[GitHub Release]: https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github
-[release]: https://github.com/CallMarcus/dji-drone-metadata-embedder/releases
-[PyPI]: https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi
-[pypi]: https://pypi.org/project/dji-drone-metadata-embedder/
-[Winget]: https://img.shields.io/winget/v/CallMarcus.DJIMetadataEmbedder?logo=windows&label=winget
-[winget]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/c/CallMarcus/DJIMetadataEmbedder
