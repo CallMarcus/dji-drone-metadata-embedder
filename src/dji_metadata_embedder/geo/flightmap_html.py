@@ -45,11 +45,14 @@ _TEMPLATE = """<!DOCTYPE html>
   /* Playback control (issue #267) */
   .playback {{ background: #fff; border-radius: 4px; padding: 6px 10px;
               box-shadow: 0 1px 5px rgba(0,0,0,.4); display: flex;
-              gap: 8px; align-items: center; font: 13px/1 sans-serif; }}
+              gap: 8px; align-items: center; flex-wrap: wrap;
+              font: 13px/1 sans-serif; }}
   .playback button {{ border: none; background: none; cursor: pointer;
                      font-size: 15px; padding: 0; }}
   .playback input[type=range] {{ width: 140px; }}
   .playback span {{ font-variant-numeric: tabular-nums; }}
+  .playback label {{ opacity: .7; }}
+  .playback select {{ font: inherit; max-width: 160px; }}
 </style>
 </head>
 <body>
@@ -121,7 +124,8 @@ const runs = [];   // playback (#267): flights with usable per-point times
     const times = p.times_s;
     if (Array.isArray(times) && times.length === latlngs.length &&
         times[times.length - 1] > 0) {
-      runs.push({ latlngs, times, color, group, cursor: 0, marker: null });
+      const name = p.name || `flight ${i + 1}`;
+      runs.push({ latlngs, times, color, group, name, cursor: 0, marker: null });
     }
   } else {                                             // single-fix clip
     const c = f.geometry.coordinates;
@@ -147,22 +151,37 @@ if (Object.keys(overlays).length > 1) {
   L.control.layers(null, overlays).addTo(map);
 }
 
-// Flight playback (issue #267): a hand-rolled requestAnimationFrame animator
-// — no plugin, no new pinned assets. Every flight replays on a shared
-// relative clock (each from its own takeoff), so a folder of flights can be
-// compared side by side. The control is inert until Play is pressed; the
-// default map costs nothing extra. Each flight's dot lives in that flight's
-// layer group, so the layer control hides it together with the track.
+// Flight playback (issues #267, #327): a hand-rolled requestAnimationFrame
+// animator — no plugin, no new pinned assets. By default one flight plays at a
+// time (#327: playing a folder no longer animates every track at once); a
+// selector switches the active flight, and an "All flights" option restores the
+// #267 shared-clock compare mode (every flight from its own takeoff). The
+// control is inert until Play is pressed; the default map costs nothing extra.
+// Each flight's dot lives in that flight's layer group, so the layer control
+// hides it together with the track.
 const maxT = Math.max(0, ...runs.map(r => r.times[r.times.length - 1]));
 if (runs.length && maxT > 0) {
+  let sel = 0;   // index into runs, or 'all' for the #267 compare mode
+  const selRuns = () => sel === 'all' ? runs : [runs[sel]];
+  const selMax = () => sel === 'all'
+    ? maxT : runs[sel].times[runs[sel].times.length - 1];
+
   const ctl = L.control({ position: 'bottomleft' });
   ctl.onAdd = () => {
     const div = L.DomUtil.create('div', 'playback');
+    let picker = '';
+    if (runs.length > 1) {
+      picker = '<label for="pb-flight">flight</label>' +
+        '<select id="pb-flight" title="Flight to play">' +
+        runs.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join('') +
+        '<option value="all">All flights (compare)</option></select>';
+    }
     div.innerHTML =
-      '<button id="pb-play" type="button" title="Play flights">&#9654;</button>' +
+      '<button id="pb-play" type="button" title="Play flight">&#9654;</button>' +
       '<button id="pb-speed" type="button" title="Playback speed">1&times;</button>' +
-      `<input id="pb-slider" type="range" min="0" max="${maxT}" step="0.1" value="0">` +
-      `<span id="pb-time">0:00 / ${fmtDuration(Math.round(maxT))}</span>`;
+      `<input id="pb-slider" type="range" min="0" max="${selMax()}" step="0.1" value="0">` +
+      `<span id="pb-time">0:00 / ${fmtDuration(Math.round(selMax()))}</span>` +
+      picker;
     L.DomEvent.disableClickPropagation(div);
     return div;
   };
@@ -171,6 +190,7 @@ if (runs.length && maxT > 0) {
   const speedBtn = document.getElementById('pb-speed');
   const slider = document.getElementById('pb-slider');
   const timeEl = document.getElementById('pb-time');
+  const flightSel = document.getElementById('pb-flight');
   const SPEEDS = [1, 5, 20, 60];
   const pb = { t: 0, playing: false, speed: 1, raf: null, last: 0 };
 
@@ -188,16 +208,22 @@ if (runs.length && maxT > 0) {
     return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
   }
   function render() {
+    const active = selRuns();
     for (const run of runs) {
-      const pos = positionAt(run, pb.t);
-      if (!run.marker) {
-        run.marker = L.circleMarker(pos, { radius: 7, color: '#fff', weight: 2,
-          fillColor: run.color, fillOpacity: 1 }).addTo(run.group);
-      } else run.marker.setLatLng(pos);
+      if (active.includes(run)) {
+        const pos = positionAt(run, pb.t);
+        if (!run.marker) {
+          run.marker = L.circleMarker(pos, { radius: 7, color: '#fff', weight: 2,
+            fillColor: run.color, fillOpacity: 1 }).addTo(run.group);
+        } else run.marker.setLatLng(pos);
+      } else if (run.marker) {                     // deselected: drop its dot
+        run.group.removeLayer(run.marker);
+        run.marker = null;
+      }
     }
     slider.value = pb.t;
     timeEl.textContent =
-      `${fmtDuration(Math.round(pb.t))} / ${fmtDuration(Math.round(maxT))}`;
+      `${fmtDuration(Math.round(pb.t))} / ${fmtDuration(Math.round(selMax()))}`;
   }
   function pause() {
     pb.playing = false;
@@ -206,14 +232,14 @@ if (runs.length && maxT > 0) {
   }
   function tick(now) {
     if (!pb.playing) return;
-    pb.t = Math.min(maxT, pb.t + (now - pb.last) / 1000 * pb.speed);
+    pb.t = Math.min(selMax(), pb.t + (now - pb.last) / 1000 * pb.speed);
     pb.last = now;
     render();
-    if (pb.t >= maxT) { pause(); return; }
+    if (pb.t >= selMax()) { pause(); return; }
     pb.raf = requestAnimationFrame(tick);
   }
   function play() {
-    if (pb.t >= maxT) pb.t = 0;
+    if (pb.t >= selMax()) pb.t = 0;
     pb.playing = true;
     playBtn.innerHTML = '&#10074;&#10074;';
     pb.last = performance.now();
@@ -228,6 +254,15 @@ if (runs.length && maxT > 0) {
     pb.t = Number(slider.value);
     render();
   });
+  if (flightSel) {
+    flightSel.addEventListener('change', () => {
+      pause();                                      // switching resets the clock
+      sel = flightSel.value === 'all' ? 'all' : Number(flightSel.value);
+      pb.t = 0;
+      slider.max = selMax();
+      render();
+    });
+  }
 }
 """
 
