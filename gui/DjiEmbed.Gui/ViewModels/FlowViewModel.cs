@@ -91,6 +91,14 @@ public abstract partial class FlowViewModel(
     partial void OnTotalChanged(int? value) =>
         OnPropertyChanged(nameof(ProgressDetail));
 
+    partial void OnStepChanged(FlowStep value) => OnStepChangedCore(value);
+
+    /// <summary>Hook for subclasses whose derived state depends on
+    /// <see cref="Step"/> — source-generated partials can only live here.</summary>
+    protected virtual void OnStepChangedCore(FlowStep value)
+    {
+    }
+
     private CancellationTokenSource? _cts;
 
     /// <summary>The bundled CLI path, for subclasses that spawn beyond

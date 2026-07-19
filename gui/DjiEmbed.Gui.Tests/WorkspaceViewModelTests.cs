@@ -418,4 +418,132 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(1, vm.Current);
         Assert.Equal(1, vm.Total);
     }
+
+    [Fact]
+    public async Task Map_done_primes_the_inline_preview()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var server = new FakeMapServer("http://127.0.0.1:8/flightmap.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal("http://127.0.0.1:8/flightmap.html", vm.PreviewUrl);
+        Assert.Equal("flightmap.html", vm.PreviewPath);
+        Assert.Equal(["flightmap.html"], server.Requests);
+        Assert.True(vm.ShowPreview);
+        Assert.False(vm.ShowDoneCard);
+        Assert.False(vm.PreviewUnavailable);
+    }
+
+    [Fact]
+    public async Task No_webview_engine_degrades_to_the_done_card_with_a_note()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var server = new FakeMapServer("http://127.0.0.1:8/flightmap.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => false);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Null(vm.PreviewUrl);
+        Assert.True(vm.PreviewUnavailable);
+        Assert.True(vm.ShowDoneCard);
+        Assert.False(vm.ShowPreview);
+        Assert.Empty(server.Requests);   // never even asked for a server
+    }
+
+    [Fact]
+    public async Task Server_failure_degrades_the_same_calm_way()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli, mapServer: new FakeMapServer(null),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);   // a dead preview never fails the run
+        Assert.Null(vm.PreviewUrl);
+        Assert.True(vm.PreviewUnavailable);
+    }
+
+    [Fact]
+    public async Task Non_map_done_shows_the_plain_card_without_any_note()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["doctor"] = (DoctorStream, 0),
+        });
+        var server = new FakeMapServer("http://127.0.0.1:8/x.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => true);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Null(vm.PreviewUrl);
+        Assert.False(vm.PreviewUnavailable);
+        Assert.True(vm.ShowDoneCard);
+        Assert.Empty(server.Requests);
+    }
+
+    [Fact]
+    public async Task Process_another_clears_the_preview()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli, mapServer: new FakeMapServer("http://127.0.0.1:8/f.html"),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.NotNull(vm.PreviewUrl);
+        vm.GoHomeCommand.Execute(null);
+        Assert.Equal(FlowStep.Pick, vm.Step);
+        Assert.Null(vm.PreviewUrl);
+        Assert.Null(vm.PreviewPath);
+        Assert.False(vm.ShowPreview);
+    }
+
+    [Fact]
+    public async Task A_new_run_resets_stale_preview_state()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+            ["doctor"] = (DoctorStream, 0),
+        });
+        var vm = Vm(cli, mapServer: new FakeMapServer("http://127.0.0.1:8/f.html"),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.NotNull(vm.PreviewUrl);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Null(vm.PreviewUrl);         // the doctor run wiped the old map
+        Assert.False(vm.PreviewUnavailable);
+    }
+
+    [Fact]
+    public async Task Preview_visibility_properties_notify_bindings()
+    {
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["flightmap"] = (FlightmapStream, 0),
+        });
+        var vm = Vm(cli, mapServer: new FakeMapServer("http://127.0.0.1:8/f.html"),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Contains(nameof(WorkspaceViewModel.ShowPreview), notified);
+        Assert.Contains(nameof(WorkspaceViewModel.ShowDoneCard), notified);
+    }
 }

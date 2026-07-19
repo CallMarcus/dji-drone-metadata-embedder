@@ -50,6 +50,35 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
 
+    [ObservableProperty]
+    public partial string? PreviewUrl { get; set; }
+
+    [ObservableProperty]
+    public partial string? PreviewPath { get; set; }
+
+    /// <summary>A map was made but the inline preview can't render here —
+    /// the done-card explains once, calmly.</summary>
+    [ObservableProperty]
+    public partial bool PreviewUnavailable { get; set; }
+
+    /// <summary>Done pane, card flavour (setup, embed, degraded maps).</summary>
+    public bool ShowDoneCard => Step == FlowStep.Done && PreviewUrl is null;
+
+    /// <summary>Done pane, inline-map flavour.</summary>
+    public bool ShowPreview => Step == FlowStep.Done && PreviewUrl is not null;
+
+    protected override void OnStepChangedCore(FlowStep value)
+    {
+        OnPropertyChanged(nameof(ShowDoneCard));
+        OnPropertyChanged(nameof(ShowPreview));
+    }
+
+    partial void OnPreviewUrlChanged(string? value)
+    {
+        OnPropertyChanged(nameof(ShowDoneCard));
+        OnPropertyChanged(nameof(ShowPreview));
+    }
+
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
 
@@ -104,7 +133,62 @@ public partial class WorkspaceViewModel : FlowViewModel
     private void OpenCliDiscovery() => _openCliDiscovery();
 
     /// <summary>"Process another": back to idle, keep folder and mode.</summary>
-    protected override void GoHomeCore() => Step = FlowStep.Pick;
+    protected override void GoHomeCore()
+    {
+        ResetPreview();
+        Step = FlowStep.Pick;
+    }
+
+    private void ResetPreview()
+    {
+        PreviewUrl = null;
+        PreviewPath = null;
+        PreviewUnavailable = false;
+    }
+
+    /// <summary>
+    /// After a successful map run: point the pane's WebView at the first
+    /// HTML output over the local server (#305 — file:// blocks the pano
+    /// viewer). Runs inside the flow so Done appears with the URL already
+    /// in hand; a preview that can't happen never fails the run.
+    /// </summary>
+    private async Task<bool> PrimePreviewAsync()
+    {
+        string? html = null;
+        foreach (var output in Outputs)
+        {
+            if (output.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            {
+                html = output;
+                break;
+            }
+        }
+        if (html is null)
+        {
+            return true;
+        }
+        try
+        {
+            if (!_previewAvailable() || CliPath is null)
+            {
+                PreviewUnavailable = true;
+                return true;
+            }
+            var url = await _mapServer.GetUrlAsync(CliPath, html);
+            if (url is null)
+            {
+                PreviewUnavailable = true;
+                return true;
+            }
+            PreviewPath = html;      // path first: the view reads it when the URL lands
+            PreviewUrl = url;
+        }
+        catch (Exception)
+        {
+            PreviewUnavailable = true;
+        }
+        return true;
+    }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
@@ -116,6 +200,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
         SetupItems.Clear();
         AllGood = false;
+        ResetPreview();
         if (SelectedMode.Kind == WorkspaceModeKind.Setup)
         {
             await RunSetupAsync();
@@ -134,8 +219,10 @@ public partial class WorkspaceViewModel : FlowViewModel
                      + "subfolders are included automatically.");
                 return;
             case WorkspaceModeKind.FlightMap:
-                await ExecuteFlowAsync(() => RunStepAsync(
-                    "Mapping your flights…", ["flightmap", folder, "-r"]));
+                await ExecuteFlowAsync(async () =>
+                    await RunStepAsync(
+                        "Mapping your flights…", ["flightmap", folder, "-r"])
+                    && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
                 Fail("No photos were found in that folder. Pick the folder "
@@ -146,9 +233,11 @@ public partial class WorkspaceViewModel : FlowViewModel
                 // --link-originals: the map is written inside the mapped
                 // folder, so the relative links are stable there — and they
                 // power the embedded 360° panorama viewer (#305).
-                await ExecuteFlowAsync(() => RunStepAsync(
-                    "Mapping your photos…",
-                    ["photomap", folder, "-r", "--link-originals"]));
+                await ExecuteFlowAsync(async () =>
+                    await RunStepAsync(
+                        "Mapping your photos…",
+                        ["photomap", folder, "-r", "--link-originals"])
+                    && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.Embed when !contents.HasVideos:
                 Fail("No videos (.MP4) were found in that folder. Pick the "
