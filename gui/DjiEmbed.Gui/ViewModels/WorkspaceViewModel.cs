@@ -83,15 +83,35 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
 
+    /// <summary>
+    /// The exact human-facing <c>dji-embed</c> command the current mode +
+    /// folder would run — the CLI transparency strip (GUI 2.0 spec, M3a).
+    /// Uses a <c>&lt;folder&gt;</c> placeholder before a folder is picked so
+    /// the strip teaches the command shape from the idle state. Never shows
+    /// <c>--progress jsonl</c> (an execution detail added by the runner).
+    /// </summary>
+    public string CommandPreview
+    {
+        get
+        {
+            var folder = SelectedFolder
+                ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
+            return CommandLine.Format(
+                "dji-embed", CommandBuilder.Build(SelectedMode.Kind, folder));
+        }
+    }
+
     partial void OnSelectedFolderChanged(string? value)
     {
         OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(CommandPreview));
         RunCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedModeChanged(WorkspaceMode value)
     {
         OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(CommandPreview));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -239,7 +259,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             case WorkspaceModeKind.FlightMap:
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
-                        "Mapping your flights…", ["flightmap", folder, "-r"])
+                        "Mapping your flights…",
+                        CommandBuilder.Build(SelectedMode.Kind, folder))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
@@ -254,7 +275,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
-                        ["photomap", folder, "-r", "--link-originals"])
+                        CommandBuilder.Build(SelectedMode.Kind, folder))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.Embed when !contents.HasVideos:
@@ -265,14 +286,15 @@ public partial class WorkspaceViewModel : FlowViewModel
             case WorkspaceModeKind.Embed:
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
-                    ["embed", folder]));
+                    CommandBuilder.Build(SelectedMode.Kind, folder)));
                 return;
         }
     }
 
     private Task RunSetupAsync() => ExecuteFlowAsync(async () =>
     {
-        var result = await RunCliAsync("Checking…", ["doctor"]);
+        var result = await RunCliAsync(
+            "Checking…", CommandBuilder.Build(WorkspaceModeKind.Setup, null));
         if (result.ExitCode != 0
             || result.Terminal is not { Kind: ProgressEventKind.Result } t)
         {

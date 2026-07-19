@@ -122,6 +122,14 @@ public partial class WorkspaceView : UserControl
         }
     }
 
+    private async void OnCopyCommandClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is WorkspaceViewModel vm)
+        {
+            await ClipboardCopy.CopyAsync(this, vm.CommandPreview);
+        }
+    }
+
     private System.Threading.Tasks.Task SetFolderAsync(string folder) =>
         DataContext is WorkspaceViewModel vm
             ? vm.SetFolderAsync(folder)

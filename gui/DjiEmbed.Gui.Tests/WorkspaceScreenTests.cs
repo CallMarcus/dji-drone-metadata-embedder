@@ -164,4 +164,17 @@ public class WorkspaceScreenTests
         Dispatcher.UIThread.RunJobs();
         Assert.False(tip.IsEffectivelyVisible);
     }
+
+    [AvaloniaFact]
+    public void Cli_transparency_strip_shows_the_live_command()
+    {
+        var window = ShowWorkspace();   // default mode Flight map, no folder
+        var strip = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "CommandPreviewText");
+        Assert.Contains("dji-embed flightmap", strip.Text);
+        Assert.Contains("<folder>", strip.Text);          // no folder picked yet
+        Assert.DoesNotContain("--progress", strip.Text);  // teaching form, not the machine flag
+        Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+            b => b.Name == "CopyCommandButton");
+    }
 }

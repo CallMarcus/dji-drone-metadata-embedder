@@ -626,6 +626,47 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Null(vm.PreviewPath);
     }
 
+    // M3a: the CLI transparency strip reads CommandPreview — the exact
+    // human-facing dji-embed command the current mode + folder would run.
+    [Fact]
+    public void Command_preview_shows_the_teaching_form_before_a_folder_is_picked()
+    {
+        var vm = Vm("unused");   // starts on Flight map, no folder
+        Assert.Equal("dji-embed flightmap <folder> -r", vm.CommandPreview);
+        Assert.DoesNotContain("--progress", vm.CommandPreview);
+    }
+
+    [Fact]
+    public async Task Command_preview_uses_the_real_folder_once_picked()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        Assert.Contains(folder, vm.CommandPreview);
+        Assert.DoesNotContain("<folder>", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Command_preview_tracks_the_selected_mode()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        Assert.Equal("dji-embed doctor", vm.CommandPreview);
+    }
+
+    [Fact]
+    public async Task Command_preview_notifies_on_mode_and_folder_change()
+    {
+        var vm = Vm("unused");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+        notified.Clear();
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(
