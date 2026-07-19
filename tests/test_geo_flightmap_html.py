@@ -131,6 +131,33 @@ def test_html_has_playback_control_without_new_dependencies():
     assert html.count('integrity="sha256-') == 2
 
 
+# Single-flight playback (#327): with several flights, "play" must animate one
+# selected flight by default, not every flight at once. A selector switches the
+# active flight and offers an "All flights" opt-in for the #267 compare mode.
+# (The selector is built in the browser from the constant app JS, so these
+# assert the mechanism is present; the runtime behaviour is verified manually.)
+
+
+def test_html_playback_has_flight_selector():
+    html = flights_to_html(TRACKS, title="t")
+    assert "pb-flight" in html          # the flight <select> in the playback bar
+    assert "All flights" in html        # opt-in #267 compare mode
+
+
+def test_html_playback_scopes_to_selected_flight():
+    html = flights_to_html(TRACKS, title="t")
+    # The animator drives only the selected flight(s) and scopes the timeline to
+    # that flight's own duration — not the global maxT over every flight.
+    assert "selRuns" in html
+    assert "selMax" in html
+
+
+def test_html_playback_selector_only_for_multiple_flights():
+    html = flights_to_html(TRACKS, title="t")
+    # A lone flight needs no selector; the widget is gated behind >1 run.
+    assert "runs.length > 1" in html
+
+
 def test_html_empty_tracks_still_valid_document():
     html = flights_to_html([], title="t")
     assert html.lstrip().startswith("<!DOCTYPE html>")
