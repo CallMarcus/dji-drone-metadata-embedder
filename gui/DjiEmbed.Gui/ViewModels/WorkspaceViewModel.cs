@@ -16,18 +16,22 @@ namespace DjiEmbed.Gui.ViewModels;
 /// </summary>
 public partial class WorkspaceViewModel : FlowViewModel
 {
-    private readonly MapServer _mapServer;
+    private readonly IMapServer _mapServer;
     private readonly Action _openCliDiscovery;
     private readonly Func<string?>? _cliResolver;
+    private readonly Func<bool> _previewAvailable;
 
     public WorkspaceViewModel(string? cli, DjiEmbedRunner runner,
-        MapServer mapServer, Action openCliDiscovery,
-        Func<string?>? cliResolver = null)
+        IMapServer mapServer, Action openCliDiscovery,
+        Func<string?>? cliResolver = null,
+        Func<bool>? previewAvailable = null)
         : base(cli, runner, static () => { })
     {
         _mapServer = mapServer;
         _openCliDiscovery = openCliDiscovery;
         _cliResolver = cliResolver;
+        _previewAvailable = previewAvailable
+            ?? (static () => WebViewSupport.IsLikelyAvailable);
     }
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;

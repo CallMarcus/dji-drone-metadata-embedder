@@ -21,9 +21,16 @@ public class WorkspaceViewModelTests : IDisposable
         return folder;
     }
 
+    // The REAL default probe is true on Windows, so a map-run test built
+    // without an explicit probe would spawn `serve` children on a Windows
+    // dev machine — pin probe=false and a fake server so every test is
+    // deterministic on every OS.
     private static WorkspaceViewModel Vm(
-        string? cli, Func<string?>? cliResolver = null) =>
-        new(cli, new DjiEmbedRunner(), new MapServer(), () => { }, cliResolver);
+        string? cli, Func<string?>? cliResolver = null,
+        IMapServer? mapServer = null, Func<bool>? previewAvailable = null) =>
+        new(cli, new DjiEmbedRunner(), mapServer ?? new FakeMapServer(null),
+            () => { }, cliResolver,
+            previewAvailable ?? (static () => false));
 
     [Fact]
     public void Starts_idle_with_flight_map_selected_and_no_folder()
@@ -147,8 +154,7 @@ public class WorkspaceViewModelTests : IDisposable
         {
             ["doctor"] = (DoctorStream, 0),
         });
-        var vm = new WorkspaceViewModel(null, new DjiEmbedRunner(),
-            new MapServer(), () => { }, () => cli);
+        var vm = Vm(null, cliResolver: () => cli);
         vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Done, vm.Step);
@@ -157,8 +163,7 @@ public class WorkspaceViewModelTests : IDisposable
     [Fact]
     public async Task Missing_cli_without_resolver_still_fails_cleanly()
     {
-        var vm = new WorkspaceViewModel(null, new DjiEmbedRunner(),
-            new MapServer(), () => { }, null);
+        var vm = Vm(null, cliResolver: null);
         await vm.SetFolderAsync(MakeFolder(srt: true));
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
@@ -412,5 +417,16 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.True(sawRunning, "expected a progress item while running");
         Assert.Equal(1, vm.Current);
         Assert.Equal(1, vm.Total);
+    }
+
+    private sealed class FakeMapServer(string? url) : IMapServer
+    {
+        public List<string> Requests { get; } = [];
+
+        public Task<string?> GetUrlAsync(string cliPath, string htmlPath)
+        {
+            Requests.Add(htmlPath);
+            return Task.FromResult(url);
+        }
     }
 }

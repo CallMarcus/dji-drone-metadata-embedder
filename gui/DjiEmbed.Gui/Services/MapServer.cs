@@ -16,7 +16,7 @@ namespace DjiEmbed.Gui.Services;
 /// the lifeline, so a server can never outlive this app even if no kill
 /// ever runs.
 /// </summary>
-public sealed class MapServer : IDisposable
+public sealed class MapServer : IMapServer, IDisposable
 {
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(10);
 
