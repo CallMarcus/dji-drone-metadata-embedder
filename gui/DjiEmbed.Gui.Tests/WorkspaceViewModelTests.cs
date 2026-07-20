@@ -1175,6 +1175,50 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal("dji-embed flightmap <folder> -r", vm.CommandPreview);
     }
 
+    // Review finding: ✕ after a finished run nulled the preview but left
+    // Step == Done, so ShowDoneCard stayed true — the run's outputs and
+    // warnings listed with no folder selected and no drop hero behind them.
+    // That is the same failure the ResetPreview comment cites; the reset just
+    // stopped one property short. Synthetic Done, as in the GoHome sibling
+    // above: the bug is in the reset, not in how Done was reached.
+    [Fact]
+    public async Task Clearing_the_folder_after_a_run_returns_to_the_hero()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.Outputs.Add("C:\\out\\flightmap.html");
+        vm.Warnings.Add("something from the run just finished");
+        vm.Step = FlowStep.Done;
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.True(vm.ShowIdle);
+        Assert.False(vm.ShowDoneCard);
+        Assert.Empty(vm.Outputs);
+        Assert.Empty(vm.Warnings);
+    }
+
+    // SetFolderAsync is inert mid-run; ✕ was not, so it could yank the folder
+    // out from under a running job — and once it also cleared the three
+    // output overrides, a mid-run ✕ silently discarded those too.
+    [Fact]
+    public async Task Clearing_the_folder_is_inert_while_a_run_is_in_flight()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
+        vm.Step = FlowStep.Running;
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Equal(folder, vm.SelectedFolder);
+        Assert.Equal(Path.Combine(_dir, "flightmap.html"), vm.FlightOptions.Output);
+        Assert.Equal(Path.Combine(_dir, "copies"), vm.EmbedOptions.Output);
+        Assert.Equal(FlowStep.Running, vm.Step);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(

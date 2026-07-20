@@ -283,6 +283,12 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void ClearFolder()
     {
+        // Inert mid-run, exactly as SetFolderAsync is: pulling the folder out
+        // from under a running job would also discard the output overrides.
+        if (Step == FlowStep.Running)
+        {
+            return;
+        }
         SelectedFolder = null;
         SuggestedMode = null;
         ExistingMaps.Clear();
@@ -300,6 +306,12 @@ public partial class WorkspaceViewModel : FlowViewModel
         // A map browsed out of that folder can't outlive it: without this the
         // pane keeps rendering it with no folder and no drop hero behind it.
         ResetPreview();
+        // Nor can a finished run's results: without these, ✕ after a run left
+        // Step == Done with the preview nulled, which is precisely the
+        // done-card state — outputs and warnings listed over no folder.
+        Outputs.Clear();
+        Warnings.Clear();
+        Step = FlowStep.Pick;
     }
 
     [RelayCommand]
