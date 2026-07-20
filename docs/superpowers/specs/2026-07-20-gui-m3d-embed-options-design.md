@@ -244,7 +244,7 @@ TDD throughout; red before green.
   but `embed` does not, a folder whose videos live only in subfolders passes the
   mode guard, embeds nothing, and reports "✅ Done" with a "No MP4 files found"
   warning (`embedder.py:588-592` — a warning, not an error, so `ok` stays true).
-  Filed as a `type:gui` issue alongside #333: both share one root cause (a
+  Filed as **#338**, alongside #333: both share one root cause (a
   recursive folder scan feeding commands that are non-recursive or only
   opt-in recursive) and should be fixed once, together, not patched inside an
   options PR.
