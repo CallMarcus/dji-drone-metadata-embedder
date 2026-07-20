@@ -34,6 +34,13 @@ public class EmbedTelemetryOptionsViewModelTests
     }
 
     [Fact]
+    public void Containers_offer_only_the_two_keys_the_embed_cli_accepts()
+    {
+        var vm = new EmbedTelemetryOptionsViewModel();
+        Assert.Equal(["mp4", "mkv"], vm.Containers.Select(c => c.Key));
+    }
+
+    [Fact]
     public void ToOptions_reflects_every_mutated_control()
     {
         var vm = new EmbedTelemetryOptionsViewModel
@@ -99,7 +106,7 @@ public class EmbedTelemetryOptionsViewModelTests
     }
 
     [Fact]
-    public void Clear_output_resets_to_the_source_folder()
+    public void Clear_output_resets_to_the_processed_folder_default()
     {
         var vm = new EmbedTelemetryOptionsViewModel { Output = "/out/copies" };
         vm.ClearOutputCommand.Execute(null);
