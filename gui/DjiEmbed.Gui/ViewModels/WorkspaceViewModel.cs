@@ -283,8 +283,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void ClearFolder()
     {
-        // Inert mid-run, exactly as SetFolderAsync is: pulling the folder out
-        // from under a running job would also discard the output overrides.
+        // Inert once the flow proper is running: pulling the folder out from
+        // under a running job would also discard the output overrides. This
+        // covers only Step == Running — a run's folder scan happens BEFORE
+        // ExecuteFlowAsync sets that, and that earlier window is closed on
+        // the other side, by RunAsync's ownership re-check after the scan.
         if (Step == FlowStep.Running)
         {
             return;
@@ -464,6 +467,14 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        // The scan runs before ExecuteFlowAsync sets Step = Running, so the
+        // folder can be cleared or replaced underneath us while it is in
+        // flight. The newest pick owns the state — same rule SetFolderAsync
+        // applies to itself — so a run whose folder is gone just stops.
+        if (SelectedFolder != folder)
+        {
+            return;
+        }
         // Reset only now, past the awaited scan: clearing the preview any
         // earlier flashes the stale done card while a live map is still up.
         ResetPreview();
