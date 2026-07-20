@@ -57,6 +57,10 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
 
+    /// <summary>Maps this folder already had when it was picked (#328) —
+    /// what is on disk, independent of the selected mode.</summary>
+    public ObservableCollection<ExistingMap> ExistingMaps { get; } = [];
+
     [ObservableProperty]
     public partial string? PreviewUrl { get; set; }
 
@@ -71,20 +75,31 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Done pane, card flavour (setup, embed, degraded maps).</summary>
     public bool ShowDoneCard => Step == FlowStep.Done && PreviewUrl is null;
 
-    /// <summary>Done pane, inline-map flavour.</summary>
-    public bool ShowPreview => Step == FlowStep.Done && PreviewUrl is not null;
+    /// <summary>Inline-map pane: a finished run's map, or one the folder
+    /// already had and the user asked to see (#328).</summary>
+    public bool ShowPreview =>
+        PreviewUrl is not null
+        && (Step == FlowStep.Done || Step == FlowStep.Pick);
+
+    /// <summary>The hero empty state: idle with nothing to show.</summary>
+    public bool ShowIdle => Step == FlowStep.Pick && PreviewUrl is null;
+
+    /// <summary>The three pane gates all derive from Step + PreviewUrl, so
+    /// every writer of either has to re-raise all three.</summary>
+    private void RaiseGateChanged()
+    {
+        OnPropertyChanged(nameof(ShowDoneCard));
+        OnPropertyChanged(nameof(ShowPreview));
+        OnPropertyChanged(nameof(ShowIdle));
+    }
 
     protected override void OnStepChangedCore(FlowStep value)
     {
-        OnPropertyChanged(nameof(ShowDoneCard));
-        OnPropertyChanged(nameof(ShowPreview));
+        RaiseGateChanged();
+        OpenExistingMapCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnPreviewUrlChanged(string? value)
-    {
-        OnPropertyChanged(nameof(ShowDoneCard));
-        OnPropertyChanged(nameof(ShowPreview));
-    }
+    partial void OnPreviewUrlChanged(string? value) => RaiseGateChanged();
 
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
@@ -145,16 +160,37 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         SelectedFolder = folder;
-        var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        // One background pass: the classification the mode suggestion needs
+        // and the map probe that depends on its timestamps.
+        var scan = await Task.Run(() =>
+        {
+            var contents = FolderInspector.Inspect(folder);
+            return (contents, maps: ExistingMapFinder.Find(folder, contents));
+        });
+        // A second pick can land while this scan is in flight; the newest
+        // pick owns the state, so a scan that has been overtaken just stops.
+        if (SelectedFolder != folder)
+        {
+            return;
+        }
         SuggestedMode =
-            contents.HasFlightLogs ? WorkspaceMode.Of(WorkspaceModeKind.FlightMap)
-            : contents.HasPhotos ? WorkspaceMode.Of(WorkspaceModeKind.PhotoMap)
-            : contents.HasVideos ? WorkspaceMode.Of(WorkspaceModeKind.Embed)
+            scan.contents.HasFlightLogs ? WorkspaceMode.Of(WorkspaceModeKind.FlightMap)
+            : scan.contents.HasPhotos ? WorkspaceMode.Of(WorkspaceModeKind.PhotoMap)
+            : scan.contents.HasVideos ? WorkspaceMode.Of(WorkspaceModeKind.Embed)
             : null;
         if (SuggestedMode is not null)
         {
             SelectedMode = SuggestedMode;
         }
+        ExistingMaps.Clear();
+        foreach (var map in scan.maps)
+        {
+            ExistingMaps.Add(map);
+        }
+        // A new folder is a fresh start: the previous run's outputs and
+        // warnings must not frame a map that was already sitting here.
+        Outputs.Clear();
+        Warnings.Clear();
         ResetPreview();
         Step = FlowStep.Pick;
     }
@@ -164,6 +200,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     {
         SelectedFolder = null;
         SuggestedMode = null;
+        ExistingMaps.Clear();
     }
 
     [RelayCommand]
@@ -177,6 +214,57 @@ public partial class WorkspaceViewModel : FlowViewModel
             Reveal.InFolder(PreviewPath);
         }
     }
+
+    /// <summary>A run owns the preview pane while it is in flight. Private:
+    /// it raises no PropertyChanged, so nothing may bind it — a button gets
+    /// this gate from the command's own CanExecute.</summary>
+    private bool CanOpenExistingMap => Step != FlowStep.Running;
+
+    /// <summary>
+    /// Show a map the folder already had, in the pane a finished run would
+    /// use. Mirrors <see cref="PrimePreviewAsync"/>, except that a preview
+    /// which can't render falls back to the browser rather than an
+    /// explanatory card: the user asked for this one map, and the browser
+    /// answers that ask.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanOpenExistingMap))]
+    private async Task OpenExistingMapAsync(ExistingMap map)
+    {
+        if (!_previewAvailable() || CliPath is null)
+        {
+            // OpenOutputCoreAsync still routes through the map server, so the
+            // browser gets an http:// URL and the 360° viewer keeps working.
+            await OpenOutputCoreAsync(map.Path);
+            return;
+        }
+        string? url;
+        try
+        {
+            // Browsing isn't part of a flow — nothing cancels it.
+            url = await _mapServer.GetUrlAsync(
+                CliPath, map.Path, CancellationToken.None);
+        }
+        // Nothing to cancel back to — any failure, cancellation included,
+        // just means "browser instead". (PrimePreviewAsync rethrows
+        // OperationCanceledException because it runs inside a flow.)
+        catch (Exception)
+        {
+            url = null;
+        }
+        if (url is null)
+        {
+            // base., not the override: the override's first move is another
+            // GetUrlAsync, and this one just failed.
+            await base.OpenOutputCoreAsync(map.Path);
+            return;
+        }
+        PreviewPath = map.Path;   // path first: the view reads it when the URL lands
+        PreviewUrl = url;
+    }
+
+    [RelayCommand]
+    private void ShowExistingMapInFolder(ExistingMap map) =>
+        Reveal.InFolder(map.Path);
 
     /// <summary>"Process another": back to idle, keep folder and mode.</summary>
     protected override void GoHomeCore()
