@@ -891,6 +891,62 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.ShowPreview);
     }
 
+    // M3c: Photo map options flow through the run and the live strip.
+    [Fact]
+    public async Task Photo_map_options_reach_the_photomap_argv()
+    {
+        var argsFile = Path.Combine(_dir, "args-photo-opt.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, PhotomapStream);
+        var vm = Vm(cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        vm.PhotoOptions.SelectedPrivacy =
+            vm.PhotoOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.PhotoOptions.ShowCamera = false;
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllText(argsFile);
+        Assert.Contains("--redact fuzz", argv);
+        Assert.Contains("--popup-fields name,timestamp,altitude,credit", argv);
+        Assert.Contains("--link-originals", argv);
+    }
+
+    [Fact]
+    public void Command_preview_reflects_photo_options()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Assert.Contains("photomap", vm.CommandPreview);
+        vm.PhotoOptions.ExportAll = true;
+        Assert.Contains("--format all", vm.CommandPreview);
+        vm.PhotoOptions.LinkOriginals = false;
+        Assert.DoesNotContain("--link-originals", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Changing_a_photo_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.PhotoOptions.ShowCredit = false;
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_photo_map_mode_reports_the_photo_options_panel_visible()
+    {
+        var vm = Vm("unused");   // default mode Flight map
+        Assert.False(vm.IsPhotoMapMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Assert.True(vm.IsPhotoMapMode);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsPhotoMapMode), notified);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(

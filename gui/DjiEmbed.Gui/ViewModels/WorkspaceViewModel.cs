@@ -35,11 +35,17 @@ public partial class WorkspaceViewModel : FlowViewModel
             ?? (static () => WebViewSupport.IsLikelyAvailable);
         FlightOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
+        PhotoOptions.PropertyChanged += (_, _) =>
+            OnPropertyChanged(nameof(CommandPreview));
     }
 
     /// <summary>Curated option state for the Flight map mode (M3b). Feeds both
     /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public FlightMapOptionsViewModel FlightOptions { get; } = new();
+
+    /// <summary>Curated option state for the Photo map mode (M3c). Feeds both
+    /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
+    public PhotoMapOptionsViewModel PhotoOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -107,6 +113,9 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Whether the Flight map options panel applies to the current mode.</summary>
     public bool IsFlightMapMode => SelectedMode.Kind == WorkspaceModeKind.FlightMap;
 
+    /// <summary>Whether the Photo map options panel applies to the current mode.</summary>
+    public bool IsPhotoMapMode => SelectedMode.Kind == WorkspaceModeKind.PhotoMap;
+
     /// <summary>
     /// The exact human-facing <c>dji-embed</c> command the current mode +
     /// folder would run — the CLI transparency strip (GUI 2.0 spec, M3a).
@@ -120,12 +129,17 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             var folder = SelectedFolder
                 ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
-            // folder! is safe for Flight map: its NeedsFolder is true, so the
-            // line above yields the "<folder>" placeholder (never null) when
-            // no folder is picked.
-            var argv = SelectedMode.Kind == WorkspaceModeKind.FlightMap
-                ? CommandBuilder.FlightMap(folder!, FlightOptions.ToOptions())
-                : CommandBuilder.Build(SelectedMode.Kind, folder);
+            // folder! is safe for the map modes: their NeedsFolder is true, so
+            // the line above yields the "<folder>" placeholder (never null)
+            // when no folder is picked.
+            var argv = SelectedMode.Kind switch
+            {
+                WorkspaceModeKind.FlightMap =>
+                    CommandBuilder.FlightMap(folder!, FlightOptions.ToOptions()),
+                WorkspaceModeKind.PhotoMap =>
+                    CommandBuilder.PhotoMap(folder!, PhotoOptions.ToOptions()),
+                _ => CommandBuilder.Build(SelectedMode.Kind, folder),
+            };
             return CommandLine.Format("dji-embed", argv);
         }
     }
@@ -142,6 +156,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(IsFlightMapMode));
+        OnPropertyChanged(nameof(IsPhotoMapMode));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -385,7 +400,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
-                        CommandBuilder.Build(SelectedMode.Kind, folder))
+                        CommandBuilder.PhotoMap(folder, PhotoOptions.ToOptions()))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.Embed when !contents.HasVideos:
