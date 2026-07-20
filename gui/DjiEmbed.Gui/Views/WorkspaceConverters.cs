@@ -1,5 +1,7 @@
+using System;
 using System.IO;
 using Avalonia.Data.Converters;
+using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Views;
@@ -24,4 +26,20 @@ public static class WorkspaceConverters
     /// <summary>Toolbar label: just the map's file name.</summary>
     public static readonly FuncValueConverter<string?, string?> FileNameOnly =
         new(static p => p is null ? null : Path.GetFileName(p));
+
+    /// <summary>
+    /// An existing map's age in words ("2 days ago"). The clock is read here
+    /// so <see cref="RelativeTime"/> itself stays pure. It is read once per
+    /// bind and never ticks afterwards — deliberately: the list is rebuilt
+    /// from disk on every folder pick, and the buckets are coarse enough
+    /// (minutes, hours, days) that a stale string is only ever wrong for a
+    /// window nobody stares at the panel through.
+    /// </summary>
+    public static readonly FuncValueConverter<DateTime, string> AgeInWords =
+        new(static utc => RelativeTime.Describe(utc, DateTime.UtcNow));
+
+    /// <summary>Label for the preview header's GoHome button: nothing has
+    /// been processed when the map on screen was already in the folder.</summary>
+    public static readonly FuncValueConverter<FlowStep, string> PreviewGoHomeLabel =
+        new(static step => step == FlowStep.Done ? "Process another" : "Close map");
 }

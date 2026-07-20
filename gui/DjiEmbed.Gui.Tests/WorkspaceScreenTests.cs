@@ -204,4 +204,138 @@ public class WorkspaceScreenTests
             .Single(b => b.Name == "FlightOptionsPanel");
         Assert.False(panel.IsEffectivelyVisible);
     }
+
+    [AvaloniaFact]
+    public async Task A_folder_with_an_existing_map_shows_the_already_here_panel()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-maps").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "DJI_0001.SRT"), "");
+            File.WriteAllText(Path.Combine(dir, "flightmap.html"), "");
+            var window = ShowWorkspace();
+            var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+            await vm.SetFolderAsync(dir);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+
+            var panel = window.GetVisualDescendants().OfType<Border>()
+                .Single(b => b.Name == "ExistingMapsPanel");
+            Assert.True(panel.IsEffectivelyVisible);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    // A state transition, not a fresh window: asserting "hidden" on a
+    // workspace that never had maps would pass against a hard-coded False
+    // or a misspelled binding path. Picking a second folder also proves
+    // ExistingMaps.Clear() propagates through the !!Count binding.
+    [AvaloniaFact]
+    public async Task A_picked_folder_with_no_existing_maps_hides_the_panel()
+    {
+        var withMap = Directory.CreateTempSubdirectory("djiembed-screen-with").FullName;
+        var without = Directory.CreateTempSubdirectory("djiembed-screen-without").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(withMap, "DJI_0001.SRT"), "");
+            File.WriteAllText(Path.Combine(withMap, "flightmap.html"), "");
+            File.WriteAllText(Path.Combine(without, "DJI_0001.SRT"), "");
+            var window = ShowWorkspace();
+            var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+            var panel = window.GetVisualDescendants().OfType<Border>()
+                .Single(b => b.Name == "ExistingMapsPanel");
+
+            await vm.SetFolderAsync(withMap);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.True(panel.IsEffectivelyVisible);
+
+            await vm.SetFolderAsync(without);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.False(panel.IsEffectivelyVisible);
+        }
+        finally
+        {
+            Directory.Delete(withMap, recursive: true);
+            Directory.Delete(without, recursive: true);
+        }
+    }
+
+    // The item template is most of this panel, and the outer Border's
+    // visibility says nothing about it. ExistingMaps is a public collection,
+    // so the rows can be driven straight from the VM — no temp dirs needed.
+    [AvaloniaFact]
+    public void An_existing_map_row_shows_its_title_age_and_live_commands()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.ExistingMaps.Add(new ExistingMap(@"C:\d\flightmap.html", "Flight map",
+            DateTime.UtcNow.AddDays(-2), Stale: true));
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var texts = window.GetVisualDescendants().OfType<TextBlock>()
+            .Select(t => t.Text ?? "").ToList();
+        Assert.Contains("Flight map", texts);
+        Assert.Contains("2 days ago", texts);
+        Assert.True(window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "StaleNote").IsEffectivelyVisible);
+        // Identity, not enabledness, is what proves the
+        // $parent[ItemsControl].((vm:WorkspaceViewModel)DataContext) path
+        // resolved: an Avalonia Button with a null Command still renders
+        // enabled (verified by deleting the binding — every enabled-based
+        // assertion still passed), so only the instance is load-bearing.
+        var open = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "OpenExistingMapButton");
+        Assert.Same(vm.OpenExistingMapCommand, open.Command);
+        Assert.Same(vm.ExistingMaps[0], open.CommandParameter);
+        Assert.True(open.IsEffectivelyEnabled);   // and CanExecute lets it click
+        var reveal = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ShowExistingMapButton");
+        Assert.Same(vm.ShowExistingMapInFolderCommand, reveal.Command);
+        Assert.Same(vm.ExistingMaps[0], reveal.CommandParameter);
+    }
+
+    [AvaloniaFact]
+    public void A_fresh_existing_map_hides_the_stale_note()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.ExistingMaps.Add(new ExistingMap(@"C:\d\photomap.html", "Photo map",
+            DateTime.UtcNow.AddHours(-3), Stale: false));
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        Assert.False(window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "StaleNote").IsEffectivelyVisible);
+    }
+
+    // The preview header's GoHome button says "Process another" only when a
+    // run actually produced the map — browsing one the folder already had
+    // processed nothing.
+    [AvaloniaFact]
+    public void Preview_header_labels_the_go_home_button_for_the_step()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.PreviewPath = "flightmap.html";
+        vm.PreviewUrl = "http://127.0.0.1:1/flightmap.html";
+        vm.Step = FlowStep.Pick;              // an existing map, browsed
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var button = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ClosePreviewButton");
+        var label = button.GetVisualDescendants().OfType<TextBlock>().Single();
+        Assert.Equal("Close map", label.Text);
+
+        vm.Step = FlowStep.Done;              // a map this run just made
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.Equal("Process another", label.Text);
+    }
 }
