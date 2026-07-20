@@ -15,6 +15,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [1.27.0] - 2026-07-20
+
+### Added
+
+- **gui**: Already-in-this-folder panel for existing maps (#328) (a0cc2fb)
+- **gui**: CLI transparency strip under the action button (M3a) (c7b9268)
+- **gui**: CommandBuilder — one source of truth for per-mode argv (M3a) (043bc1c)
+- **gui**: CommandLine.Format renders argv as a copy-pasteable command (M3a) (d43b9e9)
+- **gui**: CommandPreview exposes the live equivalent command (M3a) (a6b360a)
+- **gui**: Embed options panel + Advanced expander (M3d) (9deb946)
+- **gui**: EmbedTelemetryOptions + CommandBuilder.Embed argv (M3d) (2a5ee01)
+- **gui**: EmbedTelemetryOptionsViewModel — typed control state (M3d) (dd7c4b4)
+- **gui**: ExistingMapFinder — probe default map paths on pick (#328) (bf8a31e)
+- **gui**: Flight map options panel + Advanced expander (M3b) (fecd0e9)
+- **gui**: FlightMapOptions + CommandBuilder.FlightMap argv (M3b) (c0efd1e)
+- **gui**: FlightMapOptionsViewModel — typed control state (M3b) (35f146b)
+- **gui**: Photo map options panel + Advanced expander (M3c) (640320e)
+- **gui**: PhotoMapOptions + CommandBuilder.PhotoMap argv (M3c) (c6f5fa5)
+- **gui**: RelativeTime — clock-free ages in words (#328) (6fdd47f)
+- **gui**: Clear-output affordance for the Flight map Save-map override (M3b) (3d43745)
+- **gui**: List and preview maps the folder already has (#328) (a0af80d)
+- **gui**: Per-kind newest-media timestamps in FolderInspector (#328) (293c1d6)
+- **gui**: Route Embed run + strip through EmbedOptions (M3d) (9f6e76d)
+- **gui**: Route Flight map run + strip through FlightOptions (M3b) (1ad8d89)
+- **gui**: Route Photo map run + strip through PhotoOptions (M3c) (de32239)
+
+### Changed
+
+- **gui**: RunAsync/RunSetupAsync build argv via CommandBuilder (M3a) (6a261c3)
+- **gui**: One shared tile-style list for both map modes (M3c) (5035c47)
+- **gui**: Total privacy switch + test cleanups from review (M3d) (b347349)
+
+### Fixed
+
+- **flightmap**: Play one flight at a time, with a selector (#327) (#329) (1821045)
+- **gui**: A new folder clears the save-map override (M3c) (b722cb7)
+- **gui**: A run whose folder was replaced mid-scan stops (M3d) (0462c34)
+- **gui**: Clearing the folder clears every save override (M3d) (73e7f9f)
+- **gui**: Clearing the folder returns to idle and is inert mid-run (M3d) (0b69f2c)
+- **gui**: Close three gaps found in the #328 branch review (42fe4b4)
+- **gui**: Correct the ExifTool hint and the reset tooltip (M3d) (ec76676)
+- **gui**: The DAT checkbox promised more than --dat-auto delivers (M3d) (00af690)
+- **gui**: Warn that ExifTool can't write MKV, and sharpen the launch-point note (M3d) (4fc8c22)
+- **gui**: Warn when a redirected map can't reach the originals (M3c) (9ce85f7)
+
+### Documentation
+
+- **gui**: M3b spec — Flight map curated options + Advanced expander (55fa6a4)
+- **gui**: Align the M3d spec with the shipped type names (f3dd94f)
+- **gui**: Correct the DAT doc comments from re-review (M3d) (77d6d0c)
+- **gui**: Correct the M3d spec's DAT claim and flag-order note (705516c)
+- **gui**: Correct the reset-path comments from review (M3d) (b962277)
+- **gui**: Point the M3d out-of-scope note at the filed issue (#338) (50bede6)
+- **gui**: Spec for Embed telemetry curated options (M3d) (1693871)
+- **gui**: Spec for Photo map curated options (M3c) (546d968)
+- **gui**: Spec for surfacing existing maps on folder pick (#328) (52651c3)
+- **gui**: Sync the M3d spec with the shipped panel text (62befc5)
+- Auto-generate changelog for v1.26.0 (39a0da8)
+
+### Testing
+
+- **gui**: Opt-in capture of the Embed options panel (M3d) (295f1a1)
+- **gui**: Opt-in capture of the Photo map options panel (M3c) (92a765b)
+- **gui**: Pin --dat as CLI-only alongside --overwrite (M3d) (2521884)
+- **gui**: Pin PhotoMap's fixed flag order with a composite golden (M3c) (66ee3da)
+- **gui**: Pin the container list and fix an inherited test name (M3d) (9ab4687)
+- **gui**: Pin the fuzz caveat and link-originals bindings (M3c) (3937ddd)
+- **gui**: Round-trip both Embed combo boxes into the argv (M3d) (a0f8c95)
+
+### Maintenance
+
+- Keep .claude/ permission settings local-only (a889ffb)
+
+### Other
+
+- **gui**: Distinct copyLink class + harden footerLink tests; correct CommandLine doc (M3a review) (264b64d)
+- Prepare version 1.27.0 (ad5d754)
+
+
 ## [1.26.0] - 2026-07-19
 
 ### Added
