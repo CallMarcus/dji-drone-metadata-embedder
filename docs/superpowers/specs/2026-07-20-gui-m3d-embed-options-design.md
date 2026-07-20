@@ -60,7 +60,10 @@ brainstorm:
    specific DAT file is a per-file operation in a folder-shaped GUI, and it would
    add a second untestable picker handler (the gap already filed as #335) plus a
    mutual-exclusion rule against `--dat-auto`. The auto flag covers the realistic
-   case: DAT logs pulled off the aircraft into the same folder as the videos.
+   case: DAT logs pulled off the aircraft into the video folder **and named after
+   the videos** — `embedder.py:632-641` tries `<video>.DAT` and then globs
+   `<stem>*.DAT`, so co-location alone is not enough, and the panel must say so
+   rather than promising a merge a stray `FLY042.DAT` will never get.
 
 ## Curated controls (always visible when Embed telemetry is selected)
 
@@ -106,7 +109,7 @@ multi-binding) so it is assertable headless.
 |---|---|---|---|
 | **Also write GPS with ExifTool** | `CheckBox` | off | `--exiftool` when on |
 | **Mux .m4a audio sidecar (DJI Neo 2)** | `CheckBox` | off | `--audio-sidecar` when on |
-| **Merge DAT flight logs found beside the videos** | `CheckBox` | off | `--dat-auto` when on |
+| **Merge DAT flight logs named after the videos** | `CheckBox` | off | `--dat-auto` when on |
 | **Save copies to** | folder picker (path text + Choose… + "Use default") | empty (→ `processed/`) | `--output DIR` when set |
 
 "Save copies to" reuses M3b/M3c's clear-output affordance verbatim — the
@@ -122,10 +125,13 @@ points at the Setup mode.
 
 With nothing touched, the Embed argv is **`embed <folder>`** — byte-identical to
 what M3a's `CommandBuilder.Build(Embed, folder)` produces today, and the only
-mode whose default argv carries no flags at all. Options only *add* flags.
+folder-taking mode whose default argv carries no flags at all (`doctor` is
+flagless too, but takes no folder). Options only *add* flags.
 
-Fully loaded, the fixed flag order (mirroring panel order, curated before
-Advanced) is:
+Fully loaded, the fixed flag order is curated-before-Advanced, and within the
+curated group `--redact` precedes `--container` — the panel puts container
+first because it is the less loaded choice to meet, while the argv keeps
+privacy first. The order is fixed for golden tests either way:
 
 ```
 embed <folder> --redact fuzz --container mkv --extract-home \
