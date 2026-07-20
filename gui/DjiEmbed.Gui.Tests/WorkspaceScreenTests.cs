@@ -405,6 +405,39 @@ public class WorkspaceScreenTests
         Assert.Same(vm.PhotoOptions.ClearOutputCommand, clear.Command);
     }
 
+    // Branch review: photomap links pins to the originals with an href
+    // RELATIVE to the HTML file, so redirecting "Save map to" outside the
+    // source folder silently breaks every "open the original" link.
+    [AvaloniaFact]
+    public async Task Link_reach_note_appears_only_when_the_output_would_leave_the_source_folder()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-linkreach").FullName;
+        var elsewhere = Directory.CreateTempSubdirectory("djiembed-screen-linkreach-out").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "IMG_1.JPG"), "");
+            var window = ShowWorkspace();
+            var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+            await vm.SetFolderAsync(dir);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+
+            var note = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => t.Name == "LinkReachNote");
+            Assert.False(note.IsEffectivelyVisible);
+
+            vm.PhotoOptions.Output = Path.Combine(elsewhere, "photomap.html");
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.True(note.IsEffectivelyVisible);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+            Directory.Delete(elsewhere, recursive: true);
+        }
+    }
+
     // The one privacy-relevant message in the panel: a fuzzed map still
     // leaks exact GPS through linked originals. Proves the IsVisible
     // binding path itself, not just the ViewModel property it reads.

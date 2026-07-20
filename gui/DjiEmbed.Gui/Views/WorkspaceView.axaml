@@ -395,6 +395,11 @@
                                                                    Opacity="0.8" FontSize="12" />
                                                     </Panel>
                                                 </DockPanel>
+                                                <TextBlock Name="LinkReachNote"
+                                                           Text="Pins can only open the original photos when the map is saved in the photo folder."
+                                                           IsVisible="{Binding PhotoLinksCannotReachOriginals}"
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Expander>

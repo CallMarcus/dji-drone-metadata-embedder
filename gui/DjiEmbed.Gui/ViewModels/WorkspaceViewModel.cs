@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -36,7 +37,10 @@ public partial class WorkspaceViewModel : FlowViewModel
         FlightOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
         PhotoOptions.PropertyChanged += (_, _) =>
+        {
             OnPropertyChanged(nameof(CommandPreview));
+            OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
+        };
     }
 
     /// <summary>Curated option state for the Flight map mode (M3b). Feeds both
@@ -117,6 +121,50 @@ public partial class WorkspaceViewModel : FlowViewModel
     public bool IsPhotoMapMode => SelectedMode.Kind == WorkspaceModeKind.PhotoMap;
 
     /// <summary>
+    /// True when a Photo map's "Save map to" override would leave the pins
+    /// unable to find the original photos. <c>photomap --link-originals</c>
+    /// writes each pin's href RELATIVE to the HTML file (the CLI's
+    /// <c>--link-base</c> is never passed here, so it defaults to the mapped
+    /// folder — see <c>geo/photomap.py</c>'s <c>_link_href</c>), and those
+    /// hrefs are what power the embedded 360° panorama viewer (#305). Redirect
+    /// the output elsewhere and every "open the original" link 404s, silently.
+    /// The fix is not a curated <c>--link-base</c> control — that flag stays
+    /// CLI-only by design — it's warning the user before they run. Any
+    /// exception from the path APIs (an unparseable path mid-typing) yields
+    /// false: a note computation must never throw into a binding.
+    /// </summary>
+    public bool PhotoLinksCannotReachOriginals
+    {
+        get
+        {
+            if (!PhotoOptions.LinkOriginals
+                || string.IsNullOrWhiteSpace(PhotoOptions.Output)
+                || SelectedFolder is null)
+            {
+                return false;
+            }
+            try
+            {
+                var outputDir = Path.GetDirectoryName(PhotoOptions.Output);
+                if (string.IsNullOrEmpty(outputDir))
+                {
+                    return false;
+                }
+                var fullOutputDir =
+                    Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDir));
+                var fullSourceDir =
+                    Path.TrimEndingDirectorySeparator(Path.GetFullPath(SelectedFolder));
+                return !string.Equals(fullOutputDir, fullSourceDir,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
     /// The exact human-facing <c>dji-embed</c> command the current mode +
     /// folder would run — the CLI transparency strip (GUI 2.0 spec, M3a).
     /// Uses a <c>&lt;folder&gt;</c> placeholder before a folder is picked so
@@ -148,6 +196,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     {
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
+        OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
         RunCommand.NotifyCanExecuteChanged();
     }
 
