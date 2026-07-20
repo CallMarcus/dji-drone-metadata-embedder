@@ -84,7 +84,12 @@ panels' labels, so the same stance reads the same way in every mode.
 
 **Record the launch point** is `--extract-home` with a plain-language subtitle:
 where the aircraft took off — often the operator's home — written only to the
-`.json` sidecar, never into the video. It sits in the curated zone rather than
+`.json` sidecar, never as a separate tag in the video, and pointing at Privacy
+as the control that governs the location *in* the video. That last clause
+matters: `first_gps` is always written into the video as a `location` tag
+(`embedder.py:481-490`), and on a clip that starts recording on the ground it
+is the takeoff point to within a few metres — so leaving this box unticked is
+not by itself a privacy measure. It sits in the curated zone rather than
 Advanced because it is a privacy decision, and privacy decisions should not be
 discoverable only by expanding "Advanced".
 
@@ -118,8 +123,21 @@ is set — but opens a **folder** picker, reusing the existing `FolderPicking`
 helper rather than the map modes' save-file picker. Its empty-state text reads
 "(a 'processed' folder inside the source folder)".
 
-The ExifTool row carries a one-line hint that it needs ExifTool installed, and
-points at the Setup mode.
+The ExifTool row carries a hint saying it writes GPS tags with ExifTool as well
+as ffmpeg, and that Embed needs ExifTool installed **either way** — the CLI's
+`check_dependencies()` probes ffmpeg and exiftool unconditionally
+(`utilities.py:469-535`) and refuses to run without both, so a hint reading as
+"leave it unticked and skip installing ExifTool" would earn the user a failed
+run. It points at the Setup mode, which is where that gets resolved.
+
+It also carries a **conditional note**, shown only when ExifTool is ticked *and*
+the container is MKV: *"ExifTool can't write MKV — this does nothing while MKV
+is selected."* ExifTool cannot write Matroska (`exiftool -listwf` lists MP4/MOV,
+not MKV), `embed_metadata_exiftool` swallows the failure (no `check=True`, and
+the captured stderr is dropped), and `embedder.py:735` discards the `False` it
+returns — so the run reports success having written no tags. Nothing can surface
+this at runtime; a pre-run note is the only place it can be said. Same shape as
+the launch-point note: a real bool on the options VM, assertable headless.
 
 ## Defaults invariant
 
