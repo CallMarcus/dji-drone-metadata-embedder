@@ -150,22 +150,31 @@ Known build gotcha carried from M3b: `TextBox.Watermark` is `[Obsolete]`
 
 Mirrors M3b/M3c's seam layout.
 
-- **`ViewModels/EmbedOptions.cs`** — an immutable record of typed option state
-  (`Privacy`, `Container`, `ExtractHome`, `UseExifTool`, `AudioSidecar`,
+**Naming.** The record is mode-qualified and the ViewModel property is short,
+following the siblings (`FlightMapOptions` → `vm.FlightOptions`,
+`PhotoMapOptions` → `vm.PhotoOptions`): the record is
+**`EmbedTelemetryOptions`** and the property is **`vm.EmbedOptions`**. An
+`EmbedOptions` record would collide with that property name.
+
+- **`ViewModels/EmbedTelemetryOptions.cs`** — an immutable record of typed option
+  state (`Privacy`, `Container`, `ExtractHome`, `UseExifTool`, `AudioSidecar`,
   `DatAuto`, `Output`) with a `Defaults` value, plus a new
   **`EmbedPrivacy { Keep, Fuzz, Drop }`** enum. `Container` is the CLI key
   string (`"mp4"`/`"mkv"`), following `TileStyle` in the map option records.
-- **`ViewModels/EmbedOptionsViewModel.cs`** — `[ObservableProperty]` per control,
-  bound to the panel; `ToOptions()` snapshots it into `EmbedOptions`. Exposes the
-  launch-point note bool and the `ClearOutputCommand`. Declares the one-line
+- **`ViewModels/EmbedTelemetryOptionsViewModel.cs`** — `[ObservableProperty]` per
+  control, bound to the panel; `ToOptions()` snapshots it into
+  `EmbedTelemetryOptions`. Exposes the launch-point note bool and the
+  `ClearOutputCommand`. Declares the one-line
   `EmbedPrivacyChoice(string Label, EmbedPrivacy Value)` display record and a
   `ContainerChoice(string Label, string Key)` list.
 - **`Services/CommandBuilder.cs`** — new pure overload
-  `Embed(string folder, EmbedOptions opts)`. The existing `Build(kind, folder)`
-  routes its Embed arm through `Embed(folder, EmbedOptions.Defaults)`, so M3a's
-  default-behavior golden tests are unchanged.
-- **`ViewModels/WorkspaceViewModel.cs`** — an `EmbedOptions` property; a new
-  `IsEmbedMode` computed property notified alongside `IsFlightMapMode` /
+  `Embed(string folder, EmbedTelemetryOptions opts)`. The existing
+  `Build(kind, folder)` routes its Embed arm through
+  `Embed(folder, EmbedTelemetryOptions.Defaults)`, so M3a's default-behavior
+  golden tests are unchanged.
+- **`ViewModels/WorkspaceViewModel.cs`** — an `EmbedOptions` property of type
+  `EmbedTelemetryOptionsViewModel`; a new `IsEmbedMode` computed property
+  notified alongside `IsFlightMapMode` /
   `IsPhotoMapMode`; the Embed `RunAsync` branch and `CommandPreview` both build
   argv via `CommandBuilder.Embed(folder, EmbedOptions.ToOptions())`; the strip
   recomputes on the options VM's `PropertyChanged` (same subscription pattern as
