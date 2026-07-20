@@ -184,4 +184,131 @@ public class CommandBuilderTests
              "--title", "T", "--output", "/o.html"],
             CommandBuilder.FlightMap("/x", opts));
     }
+
+    // M3c: PhotoMap(folder, opts) is the option-aware argv builder. Defaults
+    // must equal M3a's hardcoded output; every option adds flags, omitting at
+    // default so the strip stays clean.
+    [Fact]
+    public void Photo_map_defaults_match_the_m3a_linked_form()
+    {
+        string[] expected = ["photomap", "/x", "-r", "--link-originals"];
+        Assert.Equal(expected,
+            CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults));
+    }
+
+    [Fact]
+    public void Photo_map_build_delegates_to_the_options_overload()
+    {
+        Assert.Equal(
+            CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults),
+            CommandBuilder.Build(WorkspaceModeKind.PhotoMap, "/x"));
+    }
+
+    [Fact]
+    public void Photo_map_without_recursive_drops_the_flag()
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { Recursive = false });
+        Assert.Equal(["photomap", "/x", "--link-originals"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_without_link_originals_drops_the_flag()
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { LinkOriginals = false });
+        Assert.Equal(["photomap", "/x", "-r"], argv);
+    }
+
+    [Theory]
+    [InlineData("osm-hot")]
+    [InlineData("opentopomap")]
+    [InlineData("cyclosm")]
+    public void Photo_map_passes_a_non_default_tile_style(string key)
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { TileStyle = key });
+        Assert.Equal(["photomap", "/x", "-r", "--tile-style", key,
+                      "--link-originals"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_omits_the_default_tile_style()
+    {
+        Assert.DoesNotContain("--tile-style",
+            CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults));
+    }
+
+    [Fact]
+    public void Photo_map_fuzz_redacts()
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { Privacy = MapPrivacy.Fuzz });
+        Assert.Equal(["photomap", "/x", "-r", "--redact", "fuzz",
+                      "--link-originals"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_omits_popup_fields_when_every_detail_is_shown()
+    {
+        Assert.DoesNotContain("--popup-fields",
+            CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults));
+    }
+
+    [Fact]
+    public void Photo_map_encodes_no_popup_details_as_none()
+    {
+        // parse_popup_fields (photomap_html.py) REJECTS an empty comma list;
+        // "none" is the only valid encoding of "show nothing".
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { Popup = PopupFields.None });
+        Assert.Equal(["photomap", "/x", "-r", "--link-originals",
+                      "--popup-fields", "none"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_lists_a_popup_subset_in_the_cli_field_order()
+    {
+        // Ticked out of order; the flag must still read name,camera,credit —
+        // the POPUP_FIELDS order the CLI documents.
+        var argv = CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults with
+        {
+            Popup = new PopupFields(Name: true, Timestamp: false, Camera: true,
+                                    Altitude: false, Credit: true),
+        });
+        Assert.Equal(["photomap", "/x", "-r", "--link-originals",
+                      "--popup-fields", "name,camera,credit"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_export_all_writes_every_format()
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { ExportAll = true });
+        Assert.Equal(["photomap", "/x", "-r", "--link-originals",
+                      "--format", "all"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_passes_a_title_and_output()
+    {
+        var argv = CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults with
+        {
+            Title = "  Sunday flight  ",
+            Output = " /out/map.html ",
+        });
+        // Trimmed, not quoted: quoting belongs to CommandLine.Format (the
+        // strip); argv elements reach the process verbatim.
+        Assert.Equal(["photomap", "/x", "-r", "--link-originals",
+                      "--title", "Sunday flight",
+                      "--output", "/out/map.html"], argv);
+    }
+
+    [Fact]
+    public void Photo_map_ignores_blank_title_and_output()
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { Title = "   ", Output = "  " });
+        Assert.Equal(["photomap", "/x", "-r", "--link-originals"], argv);
+    }
 }
