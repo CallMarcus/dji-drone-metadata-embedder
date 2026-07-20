@@ -125,3 +125,6 @@ CLAUDE.local.md
 
 # Visual-companion brainstorm scratch (local only)
 .superpowers/
+
+# Claude Code permission settings (local only, like CLAUDE.md above)
+.claude/
