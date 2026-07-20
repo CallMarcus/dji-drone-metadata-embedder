@@ -198,6 +198,15 @@
                                                             Click="OnChooseOutputClick">
                                                         <TextBlock Text="Choose…" FontSize="12" />
                                                     </Button>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ClearOutputButton"
+                                                            Command="{Binding FlightOptions.ClearOutputCommand}"
+                                                            IsVisible="{Binding FlightOptions.Output,
+                                                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            ToolTip.Tip="Reset to the source folder">
+                                                        <TextBlock Text="Use default" FontSize="12" />
+                                                    </Button>
                                                     <Panel VerticalAlignment="Center">
                                                         <TextBlock Text="(inside the source folder)"
                                                                    IsVisible="{Binding FlightOptions.Output,

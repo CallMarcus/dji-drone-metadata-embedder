@@ -55,4 +55,12 @@ public class FlightMapOptionsViewModelTests
                 "-8", "Trip", "/out/map.html"),
             vm.ToOptions());
     }
+
+    [Fact]
+    public void Clear_output_resets_to_the_default()
+    {
+        var vm = new FlightMapOptionsViewModel { Output = "/out/map.html" };
+        vm.ClearOutputCommand.Execute(null);
+        Assert.Equal("", vm.Output);
+    }
 }

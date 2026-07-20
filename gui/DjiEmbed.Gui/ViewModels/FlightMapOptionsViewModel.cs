@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace DjiEmbed.Gui.ViewModels;
 
@@ -70,4 +71,9 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
         TzOffset: TzOffset,
         Title: Title,
         Output: Output);
+
+    /// <summary>Reset the output override back to the default (write the map
+    /// into the source folder).</summary>
+    [RelayCommand]
+    private void ClearOutput() => Output = "";
 }
