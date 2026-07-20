@@ -256,6 +256,57 @@ public class ScreenshotCaptureTests
         Capture(window, Path.Combine(dir!, "workspace-photo-options-advanced.png"));
     }
 
+    /// <summary>
+    /// The Embed telemetry curated options (M3d): once at its defaults with
+    /// Advanced closed — the state a novice actually meets — and once with
+    /// Advanced open, "Remove GPS entirely" chosen and the launch point
+    /// ticked, the only state that renders the emptied-home note and the
+    /// "Use default" reset.
+    /// </summary>
+    [AvaloniaFact]
+    public void Captures_embed_options_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the Embed options.");
+        Directory.CreateDirectory(dir!);
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        vm.SelectedFolder = @"C:\Users\demo\Videos\flight";
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        // Taller than the app's 720: the point of this capture is to review
+        // the whole panel at once, which the real window scrolls to reach.
+        CaptureView(view, Path.Combine(dir!, "workspace-embed-options.png"),
+            height: 1100);
+
+        vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Drop);
+        vm.EmbedOptions.ExtractHome = true;
+        vm.EmbedOptions.DatAuto = true;
+        vm.EmbedOptions.Output = @"C:\Users\demo\Desktop\embedded";
+        var opened = new WorkspaceView { WebViewGate = static () => false };
+        opened.DataContext = vm;
+        var window = new Window { Width = 1140, Height = 1400, Content = opened };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        opened.FindControl<Expander>("EmbedAdvanced")!.IsExpanded = true;
+        // The expander reveals its content with an animation; without
+        // advancing the headless render clock the capture catches it
+        // half-open and the Advanced rows are clipped away. Interleaved
+        // ticks are required — one big tick count does NOT settle it.
+        for (var i = 0; i < 80; i++)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+        Capture(window, Path.Combine(dir!, "workspace-embed-options-advanced.png"));
+    }
+
     private static void CaptureView(
         Control view, string outPath, double width = 1140, double height = 720) =>
         Capture(new Window { Width = width, Height = height, Content = view },
