@@ -338,4 +338,70 @@ public class WorkspaceScreenTests
         window.UpdateLayout();
         Assert.Equal("Process another", label.Text);
     }
+
+    // M3c: the Photo map options panel renders only for Photo map, with the
+    // Advanced expander closed by default.
+    [AvaloniaFact]
+    public void Photo_map_mode_shows_its_options_panel_with_advanced_collapsed()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PhotoOptionsPanel");
+        Assert.True(panel.IsEffectivelyVisible);
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "PhotoAdvanced");
+        Assert.False(advanced.IsExpanded);
+        // The two map panels are mutually exclusive.
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "FlightOptionsPanel").IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Flight_map_mode_hides_the_photo_options_panel()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PhotoOptionsPanel");
+        Assert.False(panel.IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Photo_map_popup_checkboxes_bind_to_the_options_view_model()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var camera = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "PopupCameraCheck");
+        Assert.True(camera.IsChecked);
+        camera.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.ShowCamera);
+        Assert.Contains("--popup-fields", vm.CommandPreview);
+    }
+
+    [AvaloniaFact]
+    public void Photo_map_clear_output_button_is_bound_to_its_command()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        vm.PhotoOptions.Output = "/out/map.html";
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var clear = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ClearPhotoOutputButton");
+        // A Button with a NULL Command still reports IsEffectivelyEnabled ==
+        // true, so identity is the only assertion that proves the binding.
+        Assert.Same(vm.PhotoOptions.ClearOutputCommand, clear.Command);
+    }
 }

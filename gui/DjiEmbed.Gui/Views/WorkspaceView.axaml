@@ -275,6 +275,134 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Name="PhotoOptionsPanel"
+                            IsVisible="{Binding IsPhotoMapMode}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <StackPanel Spacing="12">
+                                    <DockPanel>
+                                        <ToggleSwitch DockPanel.Dock="Right"
+                                                      IsChecked="{Binding PhotoOptions.Recursive}" />
+                                        <TextBlock Text="Include subfolders"
+                                                   VerticalAlignment="Center" />
+                                    </DockPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Map style" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <ComboBox HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding PhotoOptions.TileStyles}"
+                                                  SelectedItem="{Binding PhotoOptions.SelectedTileStyle}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:TileChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Privacy" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <ComboBox HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding PhotoOptions.PrivacyOptions}"
+                                                  SelectedItem="{Binding PhotoOptions.SelectedPrivacy}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:PrivacyChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <TextBlock Name="FuzzCaveatNote"
+                                                   Text="Linked originals still carry exact GPS in their EXIF."
+                                                   IsVisible="{Binding PhotoOptions.ShowsFuzzCaveat}"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <CheckBox Name="LinkOriginalsCheck"
+                                              IsChecked="{Binding PhotoOptions.LinkOriginals}"
+                                              Content="Link pins to the original photos"
+                                              ToolTip.Tip="Needed for the 360° panorama viewer. Off writes a map that stands alone." />
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Popup details" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <WrapPanel>
+                                            <CheckBox Name="PopupNameCheck" Margin="0,0,14,0"
+                                                      Content="Name"
+                                                      IsChecked="{Binding PhotoOptions.ShowName}" />
+                                            <CheckBox Name="PopupTimeCheck" Margin="0,0,14,0"
+                                                      Content="Time"
+                                                      IsChecked="{Binding PhotoOptions.ShowTimestamp}" />
+                                            <CheckBox Name="PopupCameraCheck" Margin="0,0,14,0"
+                                                      Content="Camera"
+                                                      IsChecked="{Binding PhotoOptions.ShowCamera}" />
+                                            <CheckBox Name="PopupAltitudeCheck" Margin="0,0,14,0"
+                                                      Content="Altitude"
+                                                      IsChecked="{Binding PhotoOptions.ShowAltitude}" />
+                                            <CheckBox Name="PopupCreditCheck"
+                                                      Content="Credit"
+                                                      IsChecked="{Binding PhotoOptions.ShowCredit}" />
+                                        </WrapPanel>
+                                        <TextBlock Text="Unticked details are left out of the map file entirely. Your photos are never changed."
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <Expander Name="PhotoAdvanced" Header="Advanced"
+                                              IsExpanded="False">
+                                        <StackPanel Spacing="12" Margin="0,8,0,0">
+                                            <CheckBox IsChecked="{Binding PhotoOptions.ExportAll}"
+                                                      Content="Also export KML + GeoJSON" />
+
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Map title" Opacity="0.7"
+                                                           FontSize="12" />
+                                                <TextBox Text="{Binding PhotoOptions.Title}"
+                                                         PlaceholderText="(folder name)" />
+                                            </StackPanel>
+
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Save map to" Opacity="0.7"
+                                                           FontSize="12" />
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ChoosePhotoOutputButton"
+                                                            Click="OnChoosePhotoOutputClick">
+                                                        <TextBlock Text="Choose…" FontSize="12" />
+                                                    </Button>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ClearPhotoOutputButton"
+                                                            Command="{Binding PhotoOptions.ClearOutputCommand}"
+                                                            IsVisible="{Binding PhotoOptions.Output,
+                                                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            ToolTip.Tip="Reset to the source folder">
+                                                        <TextBlock Text="Use default" FontSize="12" />
+                                                    </Button>
+                                                    <Panel VerticalAlignment="Center">
+                                                        <TextBlock Text="(inside the source folder)"
+                                                                   IsVisible="{Binding PhotoOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                                                   Opacity="0.5" FontSize="12" />
+                                                        <TextBlock Text="{Binding PhotoOptions.Output}"
+                                                                   IsVisible="{Binding PhotoOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Opacity="0.8" FontSize="12" />
+                                                    </Panel>
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Classes="zone" Text="ACTION" />
                     <Button Name="RunButton" Classes="Flat"
                             HorizontalAlignment="Stretch"

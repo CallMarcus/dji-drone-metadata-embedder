@@ -118,7 +118,19 @@ public partial class WorkspaceView : UserControl
     {
         if (DataContext is WorkspaceViewModel vm)
         {
-            await FolderPicking.SaveMapAsync(this, p => vm.FlightOptions.Output = p);
+            await FolderPicking.SaveMapAsync(
+                this, p => vm.FlightOptions.Output = p,
+                "Save the flight map as", "flightmap.html");
+        }
+    }
+
+    private async void OnChoosePhotoOutputClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is WorkspaceViewModel vm)
+        {
+            await FolderPicking.SaveMapAsync(
+                this, p => vm.PhotoOptions.Output = p,
+                "Save the photo map as", "photomap.html");
         }
     }
 
