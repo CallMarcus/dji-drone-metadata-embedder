@@ -404,4 +404,49 @@ public class WorkspaceScreenTests
         // true, so identity is the only assertion that proves the binding.
         Assert.Same(vm.PhotoOptions.ClearOutputCommand, clear.Command);
     }
+
+    // The one privacy-relevant message in the panel: a fuzzed map still
+    // leaks exact GPS through linked originals. Proves the IsVisible
+    // binding path itself, not just the ViewModel property it reads.
+    [AvaloniaFact]
+    public void Fuzz_caveat_note_tracks_privacy_and_link_originals()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FuzzCaveatNote");
+        Assert.False(note.IsEffectivelyVisible);   // defaults: Keep + linked
+
+        vm.PhotoOptions.SelectedPrivacy = vm.PhotoOptions.PrivacyOptions[1];   // Fuzz
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(note.IsEffectivelyVisible);
+
+        vm.PhotoOptions.LinkOriginals = false;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(note.IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Photo_map_link_originals_checkbox_binds_to_the_options_view_model()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var link = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "LinkOriginalsCheck");
+        Assert.True(link.IsChecked);
+        link.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.LinkOriginals);
+        Assert.DoesNotContain("--link-originals", vm.CommandPreview);
+    }
 }
