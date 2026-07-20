@@ -138,7 +138,7 @@ public partial class WorkspaceView : UserControl
     {
         if (DataContext is WorkspaceViewModel vm)
         {
-            await FolderPicking.ChooseFolderAsync(
+            await FolderPicking.ChooseOutputFolderAsync(
                 this, p => vm.EmbedOptions.Output = p,
                 "Choose where to save the embedded copies");
         }

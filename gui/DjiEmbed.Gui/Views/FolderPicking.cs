@@ -39,11 +39,11 @@ internal static class FolderPicking
     }
 
     /// <summary>
-    /// Pick a destination directory. Embed's <c>-o</c> is a directory, not a
-    /// file, so it reuses the folder picker rather than
-    /// <see cref="SaveMapAsync"/>'s save-file dialog.
+    /// Pick a destination directory for a command's output. Embed's
+    /// <c>-o</c> is a directory, not a file, so it reuses the folder picker
+    /// rather than <see cref="SaveMapAsync"/>'s save-file dialog.
     /// </summary>
-    internal static async Task ChooseFolderAsync(
+    internal static async Task ChooseOutputFolderAsync(
         Control anchor, Action<string> onPath, string title)
     {
         if (await PickFolderAsync(anchor, title) is { } path)

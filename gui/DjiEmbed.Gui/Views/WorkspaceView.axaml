@@ -465,7 +465,7 @@
                                                 <CheckBox Name="ExifToolCheck"
                                                           IsChecked="{Binding EmbedOptions.UseExifTool}"
                                                           Content="Also write GPS with ExifTool" />
-                                                <TextBlock Text="Needs ExifTool installed — the Setup mode checks for it."
+                                                <TextBlock Text="Writes GPS tags with ExifTool as well as ffmpeg. Embed needs ExifTool installed either way — the Setup mode checks for it."
                                                            TextWrapping="Wrap"
                                                            Opacity="0.5" FontSize="11" />
                                             </StackPanel>
@@ -499,7 +499,7 @@
                                                             Command="{Binding EmbedOptions.ClearOutputCommand}"
                                                             IsVisible="{Binding EmbedOptions.Output,
                                                                 Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                            ToolTip.Tip="Reset to the source folder">
+                                                            ToolTip.Tip="Reset to the default 'processed' folder">
                                                         <TextBlock Text="Use default" FontSize="12" />
                                                     </Button>
                                                     <Panel VerticalAlignment="Center">
