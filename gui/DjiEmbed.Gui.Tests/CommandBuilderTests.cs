@@ -424,6 +424,18 @@ public class CommandBuilderTests
     }
 
     [Fact]
+    public void Embed_never_offers_a_dat_file_path()
+    {
+        // --dat PATH is CLI-only by design (M3d spec): pointing at one file
+        // does not fit a folder-shaped GUI. Only --dat-auto is surfaced.
+        var everything = new EmbedTelemetryOptions(
+            Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
+            UseExifTool: true, AudioSidecar: true, DatAuto: true,
+            Output: "/out/copies");
+        Assert.DoesNotContain("--dat", CommandBuilder.Embed("/x", everything));
+    }
+
+    [Fact]
     public void Embed_all_options_compose_in_a_stable_order()
     {
         var opts = new EmbedTelemetryOptions(
