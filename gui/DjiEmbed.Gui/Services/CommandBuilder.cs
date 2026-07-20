@@ -23,7 +23,7 @@ public static class CommandBuilder
     {
         WorkspaceModeKind.FlightMap => FlightMap(folder!, FlightMapOptions.Defaults),
         WorkspaceModeKind.PhotoMap => PhotoMap(folder!, PhotoMapOptions.Defaults),
-        WorkspaceModeKind.Embed => ["embed", folder!],
+        WorkspaceModeKind.Embed => Embed(folder!, EmbedTelemetryOptions.Defaults),
         WorkspaceModeKind.Setup => ["doctor"],
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
@@ -126,6 +126,63 @@ public static class CommandBuilder
         {
             args.Add("--title");
             args.Add(title);
+        }
+        var output = opts.Output.Trim();
+        if (output.Length > 0)
+        {
+            args.Add("--output");
+            args.Add(output);
+        }
+        return args.ToArray();
+    }
+
+    /// <summary>
+    /// The Embed telemetry argv from typed <paramref name="opts"/> (GUI 2.0
+    /// spec, M3d). Flags are omitted at their defaults so an untouched run
+    /// reads <c>embed &lt;folder&gt;</c>, exactly like M3a — the only
+    /// folder-taking mode whose default argv carries no flags. Order is fixed
+    /// for golden tests.
+    /// No <c>--progress</c>: the runner appends that. No <c>--overwrite</c>
+    /// and no <c>--dat</c>: both are CLI-only by design, the first because it
+    /// destroys the originals, the second because a per-file picker does not
+    /// fit a folder-shaped GUI.
+    /// </summary>
+    public static string[] Embed(string folder, EmbedTelemetryOptions opts)
+    {
+        var args = new List<string> { "embed", folder };
+        var redact = opts.Privacy switch
+        {
+            EmbedPrivacy.Keep => null,
+            EmbedPrivacy.Fuzz => "fuzz",
+            EmbedPrivacy.Drop => "drop",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(opts), opts.Privacy, null),
+        };
+        if (redact is not null)
+        {
+            args.Add("--redact");
+            args.Add(redact);
+        }
+        if (opts.Container != EmbedTelemetryOptions.Defaults.Container)
+        {
+            args.Add("--container");
+            args.Add(opts.Container);
+        }
+        if (opts.ExtractHome)
+        {
+            args.Add("--extract-home");
+        }
+        if (opts.UseExifTool)
+        {
+            args.Add("--exiftool");
+        }
+        if (opts.AudioSidecar)
+        {
+            args.Add("--audio-sidecar");
+        }
+        if (opts.DatAuto)
+        {
+            args.Add("--dat-auto");
         }
         var output = opts.Output.Trim();
         if (output.Length > 0)

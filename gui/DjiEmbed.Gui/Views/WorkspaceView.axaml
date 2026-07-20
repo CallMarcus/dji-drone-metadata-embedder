@@ -408,6 +408,126 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Name="EmbedOptionsPanel"
+                            IsVisible="{Binding IsEmbedMode}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Video container" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <ComboBox Name="ContainerCombo"
+                                                  HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding EmbedOptions.Containers}"
+                                                  SelectedItem="{Binding EmbedOptions.SelectedContainer}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ContainerChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Privacy" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <ComboBox Name="EmbedPrivacyCombo"
+                                                  HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding EmbedOptions.PrivacyOptions}"
+                                                  SelectedItem="{Binding EmbedOptions.SelectedPrivacy}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:EmbedPrivacyChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <CheckBox Name="ExtractHomeCheck"
+                                                  IsChecked="{Binding EmbedOptions.ExtractHome}"
+                                                  Content="Record the launch point in the sidecar" />
+                                        <TextBlock Text="Where the aircraft took off — often your home. Written only to the .json file, never as a separate tag in the video — use Privacy above to control the location in the video itself."
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                        <TextBlock Name="HomeEmptiedNote"
+                                                   Text="This privacy stance writes the launch point as empty."
+                                                   IsVisible="{Binding EmbedOptions.ShowsHomeEmptiedNote}"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <Expander Name="EmbedAdvanced" Header="Advanced"
+                                              IsExpanded="False">
+                                        <StackPanel Spacing="12" Margin="0,8,0,0">
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Name="ExifToolCheck"
+                                                          IsChecked="{Binding EmbedOptions.UseExifTool}"
+                                                          Content="Also write GPS with ExifTool" />
+                                                <TextBlock Text="Writes GPS tags with ExifTool as well as ffmpeg. Embed needs ExifTool installed either way — the Setup mode checks for it."
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
+                                                <TextBlock Name="ExifToolMkvNote"
+                                                           Text="ExifTool can't write MKV — this does nothing while MKV is selected."
+                                                           IsVisible="{Binding EmbedOptions.ShowsExifToolMkvNote}"
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
+                                            </StackPanel>
+
+                                            <CheckBox Name="AudioSidecarCheck"
+                                                      IsChecked="{Binding EmbedOptions.AudioSidecar}"
+                                                      Content="Mux .m4a audio sidecar (DJI Neo 2)" />
+
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Name="DatAutoCheck"
+                                                          IsChecked="{Binding EmbedOptions.DatAuto}"
+                                                          Content="Merge DAT flight logs named after the videos" />
+                                                <TextBlock Text="A log is used when its name starts with the video's — DJI_0001.DAT beside DJI_0001.MP4."
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
+                                            </StackPanel>
+
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Save copies to" Opacity="0.7"
+                                                           FontSize="12" />
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ChooseEmbedOutputButton"
+                                                            Click="OnChooseEmbedOutputClick">
+                                                        <TextBlock Text="Choose…" FontSize="12" />
+                                                    </Button>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ClearEmbedOutputButton"
+                                                            Command="{Binding EmbedOptions.ClearOutputCommand}"
+                                                            IsVisible="{Binding EmbedOptions.Output,
+                                                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            ToolTip.Tip="Reset to the default 'processed' folder">
+                                                        <TextBlock Text="Use default" FontSize="12" />
+                                                    </Button>
+                                                    <Panel VerticalAlignment="Center">
+                                                        <TextBlock Text="(a 'processed' folder inside the source folder)"
+                                                                   IsVisible="{Binding EmbedOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                                                   TextWrapping="Wrap"
+                                                                   Opacity="0.5" FontSize="12" />
+                                                        <TextBlock Text="{Binding EmbedOptions.Output}"
+                                                                   IsVisible="{Binding EmbedOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Opacity="0.8" FontSize="12" />
+                                                    </Panel>
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Classes="zone" Text="ACTION" />
                     <Button Name="RunButton" Classes="Flat"
                             HorizontalAlignment="Stretch"

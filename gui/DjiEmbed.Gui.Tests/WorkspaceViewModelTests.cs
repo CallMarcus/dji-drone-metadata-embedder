@@ -947,6 +947,88 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains(nameof(WorkspaceViewModel.IsPhotoMapMode), notified);
     }
 
+    // M3d: Embed options flow through the run and the live strip.
+    [Fact]
+    public async Task Embed_options_reach_the_embed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "args-embed-opt.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile,
+        [
+            """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["/footage/processed"], "summary": {}}""",
+        ]);
+        var vm = Vm(cli);
+        vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Drop);
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        vm.EmbedOptions.DatAuto = true;
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllText(argsFile);
+        Assert.Contains("--redact drop", argv);
+        Assert.Contains("--container mkv", argv);
+        Assert.Contains("--dat-auto", argv);
+        Assert.DoesNotContain("--overwrite", argv);
+    }
+
+    [Fact]
+    public void Command_preview_reflects_embed_options()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Assert.Equal("dji-embed embed <folder>", vm.CommandPreview);
+        vm.EmbedOptions.ExtractHome = true;
+        Assert.Contains("--extract-home", vm.CommandPreview);
+        vm.EmbedOptions.UseExifTool = true;
+        Assert.Contains("--exiftool", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Changing_an_embed_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.EmbedOptions.AudioSidecar = true;
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_embed_mode_reports_the_embed_options_panel_visible()
+    {
+        var vm = Vm("unused");   // default mode Flight map
+        Assert.False(vm.IsEmbedMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Assert.True(vm.IsEmbedMode);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.False(vm.IsPhotoMapMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsEmbedMode), notified);
+    }
+
+    [Fact]
+    public async Task A_new_folder_clears_the_embed_output_but_keeps_other_options()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        vm.EmbedOptions.ExtractHome = true;
+
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+
+        Assert.Equal("", vm.EmbedOptions.Output);
+        Assert.Equal("mkv", vm.EmbedOptions.SelectedContainer.Key);
+        Assert.True(vm.EmbedOptions.ExtractHome);
+    }
+
     // Branch review finding: photomap writes each pin's href RELATIVE to the
     // HTML file, so a "Save map to" redirected outside the source folder
     // silently breaks every "open the original" link — and with it the 360°
@@ -1055,6 +1137,86 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(MapPrivacy.Fuzz, vm.FlightOptions.SelectedPrivacy.Value);
         Assert.Equal("opentopomap", vm.PhotoOptions.SelectedTileStyle.Key);
         Assert.False(vm.PhotoOptions.ShowCamera);
+    }
+
+    // The ✕ next to the folder path removes the folder, so an absolute output
+    // override chosen for it no longer has an owner — without this the idle
+    // strip advertises a path from a folder that is no longer selected.
+    [Fact]
+    public async Task Clearing_the_folder_clears_every_save_override()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Equal("", vm.FlightOptions.Output);
+        Assert.Equal("", vm.PhotoOptions.Output);
+        Assert.Equal("", vm.EmbedOptions.Output);
+    }
+
+    // The reset is only half the fix: the strip has to be told to recompute,
+    // or the cleared path stays on screen as text.
+    [Fact]
+    public async Task Clearing_the_folder_refreshes_the_command_strip()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+        Assert.Equal("dji-embed flightmap <folder> -r", vm.CommandPreview);
+    }
+
+    // Review finding: ✕ after a finished run nulled the preview but left
+    // Step == Done, so ShowDoneCard stayed true — the run's outputs and
+    // warnings listed with no folder selected and no drop hero behind them.
+    // That is the same failure the ResetPreview comment cites; the reset just
+    // stopped one property short. Synthetic Done, as in the GoHome sibling
+    // above: the bug is in the reset, not in how Done was reached.
+    [Fact]
+    public async Task Clearing_the_folder_after_a_run_returns_to_the_hero()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.Outputs.Add("C:\\out\\flightmap.html");
+        vm.Warnings.Add("something from the run just finished");
+        vm.Step = FlowStep.Done;
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.True(vm.ShowIdle);
+        Assert.False(vm.ShowDoneCard);
+        Assert.Empty(vm.Outputs);
+        Assert.Empty(vm.Warnings);
+    }
+
+    // SetFolderAsync is inert mid-run; ✕ was not, so it could yank the folder
+    // out from under a running job — and once it also cleared the three
+    // output overrides, a mid-run ✕ silently discarded those too.
+    [Fact]
+    public async Task Clearing_the_folder_is_inert_while_a_run_is_in_flight()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
+        vm.Step = FlowStep.Running;
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Equal(folder, vm.SelectedFolder);
+        Assert.Equal(Path.Combine(_dir, "flightmap.html"), vm.FlightOptions.Output);
+        Assert.Equal(Path.Combine(_dir, "copies"), vm.EmbedOptions.Output);
+        Assert.Equal(FlowStep.Running, vm.Step);
     }
 
     private sealed class ThrowingMapServer : IMapServer

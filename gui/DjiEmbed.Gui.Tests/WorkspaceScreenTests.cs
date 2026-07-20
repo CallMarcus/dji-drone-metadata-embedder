@@ -482,4 +482,167 @@ public class WorkspaceScreenTests
         Assert.False(vm.PhotoOptions.LinkOriginals);
         Assert.DoesNotContain("--link-originals", vm.CommandPreview);
     }
+
+    [AvaloniaFact]
+    public void Embed_mode_shows_its_options_panel_with_advanced_collapsed()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "EmbedOptionsPanel");
+        Assert.True(panel.IsEffectivelyVisible);
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "EmbedAdvanced");
+        Assert.False(advanced.IsExpanded);
+        // All three options panels are mutually exclusive.
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "FlightOptionsPanel").IsEffectivelyVisible);
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PhotoOptionsPanel").IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Flight_map_mode_hides_the_embed_options_panel()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "EmbedOptionsPanel");
+        Assert.False(panel.IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Embed_checkboxes_bind_to_their_own_options_view_model()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var home = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "ExtractHomeCheck");
+        Assert.False(home.IsChecked);
+        home.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.EmbedOptions.ExtractHome);
+        Assert.Contains("--extract-home", vm.CommandPreview);
+
+        // A wrong-OBJECT binding (e.g. PhotoOptions.X in this panel) compiles
+        // fine, so assert the flag actually lands in the Embed argv.
+        var dat = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "DatAutoCheck");
+        dat.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.EmbedOptions.DatAuto);
+        Assert.Contains("--dat-auto", vm.CommandPreview);
+    }
+
+    [AvaloniaFact]
+    public void Embed_clear_output_button_is_bound_to_its_command()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        vm.EmbedOptions.Output = "/out/copies";
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var clear = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ClearEmbedOutputButton");
+        // A Button with a NULL Command still reports IsEffectivelyEnabled ==
+        // true, so identity is the only assertion that proves the binding.
+        Assert.Same(vm.EmbedOptions.ClearOutputCommand, clear.Command);
+    }
+
+    // The one privacy-relevant message in this panel: "Remove GPS entirely"
+    // empties the launch point the checkbox just asked for. Proves the
+    // IsVisible binding path, not just the ViewModel property behind it.
+    [AvaloniaFact]
+    public void Home_emptied_note_appears_only_when_dropping_and_extracting()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "HomeEmptiedNote");
+        Assert.False(note.IsEffectivelyVisible);   // defaults: Keep, no home
+
+        vm.EmbedOptions.ExtractHome = true;
+        vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Drop);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(note.IsEffectivelyVisible);
+
+        vm.EmbedOptions.ExtractHome = false;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(note.IsEffectivelyVisible);
+    }
+
+    // The Advanced expander's counterpart to the home note: ExifTool can't
+    // write MKV, and the curated container combo sits three rows above, so
+    // the no-op pair is two clicks away. Proves the IsVisible binding path.
+    [AvaloniaFact]
+    public void Exiftool_mkv_note_appears_only_when_exiftool_meets_mkv()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "ExifToolMkvNote");
+        Assert.False(note.IsEffectivelyVisible);   // defaults: MP4, no ExifTool
+
+        vm.EmbedOptions.UseExifTool = true;
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(note.IsEffectivelyVisible);
+
+        vm.EmbedOptions.UseExifTool = false;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(note.IsEffectivelyVisible);
+    }
+
+    // Driven from the CONTROL side on purpose: the note test above mutates
+    // SelectedPrivacy on the ViewModel and so never exercises the combo's
+    // binding. A wrong-object ItemsSource compiles, renders a plausible
+    // list, and silently cannot round-trip a selection.
+    [AvaloniaFact]
+    public void Embed_combo_boxes_round_trip_a_selection_into_the_argv()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var privacy = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "EmbedPrivacyCombo");
+        Assert.Same(vm.EmbedOptions.PrivacyOptions, privacy.ItemsSource);
+        privacy.SelectedItem = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Drop);
+
+        var container = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "ContainerCombo");
+        Assert.Same(vm.EmbedOptions.Containers, container.ItemsSource);
+        container.SelectedItem =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("--redact drop", vm.CommandPreview);
+        Assert.Contains("--container mkv", vm.CommandPreview);
+    }
 }

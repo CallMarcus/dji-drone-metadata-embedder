@@ -13,23 +13,42 @@ namespace DjiEmbed.Gui.Views;
 /// </summary>
 internal static class FolderPicking
 {
-    internal static async Task ChooseAsync(
-        Control anchor, Func<string, Task> onFolder)
+    private static async Task<string?> PickFolderAsync(Control anchor, string title)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
-            return;
+            return null;
         }
         var folders = await top.StorageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions
             {
                 AllowMultiple = false,
-                Title = "Choose the folder with your footage",
+                Title = title,
             });
-        var path = folders.FirstOrDefault()?.TryGetLocalPath();
-        if (path is not null)
+        return folders.FirstOrDefault()?.TryGetLocalPath();
+    }
+
+    internal static async Task ChooseAsync(
+        Control anchor, Func<string, Task> onFolder)
+    {
+        if (await PickFolderAsync(anchor, "Choose the folder with your footage")
+            is { } path)
         {
             await onFolder(path);
+        }
+    }
+
+    /// <summary>
+    /// Pick a destination directory for a command's output. Embed's
+    /// <c>-o</c> is a directory, not a file, so it reuses the folder picker
+    /// rather than <see cref="SaveMapAsync"/>'s save-file dialog.
+    /// </summary>
+    internal static async Task ChooseOutputFolderAsync(
+        Control anchor, Action<string> onPath, string title)
+    {
+        if (await PickFolderAsync(anchor, title) is { } path)
+        {
+            onPath(path);
         }
     }
 
