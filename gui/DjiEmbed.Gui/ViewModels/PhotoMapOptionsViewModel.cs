@@ -64,9 +64,12 @@ public partial class PhotoMapOptionsViewModel : ViewModelBase
 
     /// <summary>
     /// True when the map coordinates are fuzzed but the popups still link the
-    /// originals — whose EXIF keeps the exact GPS. Mirrors the note the CLI
-    /// prints on stderr, which the GUI folds into the warnings area. A real
-    /// property (not a XAML multi-binding) so it is assertable headless.
+    /// originals — whose EXIF keeps the exact GPS. Mirrors a note the CLI
+    /// prints via <c>click.echo(err=True)</c>, but the GUI's warnings area
+    /// only collects jsonl <c>warning</c> events — on a successful run that
+    /// stderr line is discarded entirely, so this panel note is the user's
+    /// only chance to see it. A real property (not a XAML multi-binding) so
+    /// it is assertable headless.
     /// </summary>
     public bool ShowsFuzzCaveat =>
         SelectedPrivacy.Value == MapPrivacy.Fuzz && LinkOriginals;

@@ -72,8 +72,9 @@ public class PhotoMapOptionsViewModelTests
             Output: "/out/map.html"), opts);
     }
 
-    // The CLI prints this caveat on stderr, where the GUI would bury it in the
-    // warnings area — so the panel says it at the moment of the choice.
+    // The CLI prints this caveat on stderr via click.echo(err=True), which a
+    // successful run's jsonl-only warnings area never sees — so the panel
+    // says it at the moment of the choice, the user's only chance to see it.
     [Fact]
     public void Fuzz_caveat_shows_only_when_fuzzing_and_linking()
     {

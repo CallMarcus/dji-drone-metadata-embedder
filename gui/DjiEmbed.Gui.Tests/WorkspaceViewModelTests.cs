@@ -1028,6 +1028,35 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.PhotoLinksCannotReachOriginals);
     }
 
+    // Branch review finding (present since M3b, doubled by M3c): an absolute
+    // "Save map to" override belongs to the folder it was chosen for — carry
+    // it to a new folder and that folder's map silently overwrites the old
+    // one, or lands nowhere the new folder shows. Every OTHER option is
+    // deliberately app-session state (the GUI 2.0 spec: "options survive
+    // while the app is open") — this test guards both halves so neither
+    // regresses into the other.
+    [Fact]
+    public async Task A_new_folder_clears_the_save_map_override_but_keeps_other_options()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        vm.FlightOptions.SelectedPrivacy =
+            vm.FlightOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        vm.PhotoOptions.SelectedTileStyle =
+            vm.PhotoOptions.TileStyles.Single(t => t.Key == "opentopomap");
+        vm.PhotoOptions.ShowCamera = false;
+
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        Assert.Equal("", vm.FlightOptions.Output);
+        Assert.Equal("", vm.PhotoOptions.Output);
+        Assert.Equal(MapPrivacy.Fuzz, vm.FlightOptions.SelectedPrivacy.Value);
+        Assert.Equal("opentopomap", vm.PhotoOptions.SelectedTileStyle.Key);
+        Assert.False(vm.PhotoOptions.ShowCamera);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(

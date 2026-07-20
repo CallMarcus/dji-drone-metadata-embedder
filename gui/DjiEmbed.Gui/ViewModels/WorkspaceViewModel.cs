@@ -255,6 +255,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         // warnings must not frame a map that was already sitting here.
         Outputs.Clear();
         Warnings.Clear();
+        // An absolute "Save map to" override belongs to the folder it was
+        // chosen for — carried to a new folder it either overwrites that
+        // folder's map or writes nowhere the new folder shows. Every other
+        // option (tile style, privacy, popup fields, ...) is deliberately
+        // app-session state that survives a folder change (GUI 2.0 spec).
+        FlightOptions.Output = "";
+        PhotoOptions.Output = "";
         ResetPreview();
         Step = FlowStep.Pick;
     }
@@ -443,9 +450,11 @@ public partial class WorkspaceViewModel : FlowViewModel
                      + "included automatically.");
                 return;
             case WorkspaceModeKind.PhotoMap:
-                // --link-originals: the map is written inside the mapped
-                // folder, so the relative links are stable there — and they
-                // power the embedded 360° panorama viewer (#305).
+                // --link-originals defaults on: it's what powers the embedded
+                // 360° panorama viewer (#305). Its relative hrefs only
+                // resolve while the map stays in the photo folder — both are
+                // now user choices, and PhotoLinksCannotReachOriginals is
+                // what warns before a redirected "Save map to" breaks them.
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
