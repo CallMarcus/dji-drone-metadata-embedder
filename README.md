@@ -1,7 +1,7 @@
 # DJI Drone Metadata Embedder
 
 [![GitHub Release](https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
-[![Version](https://img.shields.io/badge/version-1.26.0-blue)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
+[![Version](https://img.shields.io/badge/version-1.27.0-blue)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
 [![PyPI](https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi)](https://pypi.org/project/dji-drone-metadata-embedder/)
 [![Winget](https://img.shields.io/winget/v/CallMarcus.DJIMetadataEmbedder?logo=windows&label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/c/CallMarcus/DJIMetadataEmbedder)
 
