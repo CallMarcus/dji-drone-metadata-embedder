@@ -327,4 +327,113 @@ public class CommandBuilderTests
              "--format", "all", "--title", "T", "--output", "/o.html"],
             CommandBuilder.PhotoMap("/x", opts));
     }
+
+    // M3d: Embed(folder, opts) is the option-aware argv builder. Embed is the
+    // only mode whose defaults carry NO flags at all, so the defaults test is
+    // also the guard that no option leaks in at its default value.
+    [Fact]
+    public void Embed_defaults_match_the_m3a_bare_form()
+    {
+        string[] expected = ["embed", "/x"];
+        Assert.Equal(expected,
+            CommandBuilder.Embed("/x", EmbedTelemetryOptions.Defaults));
+    }
+
+    [Fact]
+    public void Embed_build_delegates_to_the_options_overload()
+    {
+        Assert.Equal(
+            CommandBuilder.Embed("/x", EmbedTelemetryOptions.Defaults),
+            CommandBuilder.Build(WorkspaceModeKind.Embed, "/x"));
+    }
+
+    [Theory]
+    [InlineData(EmbedPrivacy.Fuzz, "fuzz")]
+    [InlineData(EmbedPrivacy.Drop, "drop")]
+    public void Embed_passes_a_non_default_privacy_stance(
+        EmbedPrivacy privacy, string value)
+    {
+        var argv = CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { Privacy = privacy });
+        Assert.Equal(["embed", "/x", "--redact", value], argv);
+    }
+
+    [Fact]
+    public void Embed_omits_redact_when_locations_are_kept()
+    {
+        Assert.DoesNotContain("--redact",
+            CommandBuilder.Embed("/x", EmbedTelemetryOptions.Defaults));
+    }
+
+    [Fact]
+    public void Embed_passes_the_mkv_container_and_omits_the_default_mp4()
+    {
+        var argv = CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { Container = "mkv" });
+        Assert.Equal(["embed", "/x", "--container", "mkv"], argv);
+        Assert.DoesNotContain("--container",
+            CommandBuilder.Embed("/x", EmbedTelemetryOptions.Defaults));
+    }
+
+    [Fact]
+    public void Embed_passes_extract_home()
+    {
+        var argv = CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { ExtractHome = true });
+        Assert.Equal(["embed", "/x", "--extract-home"], argv);
+    }
+
+    [Fact]
+    public void Embed_passes_each_advanced_flag()
+    {
+        Assert.Equal(["embed", "/x", "--exiftool"], CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { UseExifTool = true }));
+        Assert.Equal(["embed", "/x", "--audio-sidecar"], CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { AudioSidecar = true }));
+        Assert.Equal(["embed", "/x", "--dat-auto"], CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { DatAuto = true }));
+    }
+
+    [Fact]
+    public void Embed_passes_a_trimmed_output_directory()
+    {
+        var argv = CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { Output = "  /out/copies  " });
+        // Trimmed, not quoted: quoting belongs to CommandLine.Format (the
+        // strip); argv elements reach the process verbatim.
+        Assert.Equal(["embed", "/x", "--output", "/out/copies"], argv);
+    }
+
+    [Fact]
+    public void Embed_ignores_a_blank_output()
+    {
+        Assert.Equal(["embed", "/x"], CommandBuilder.Embed("/x",
+            EmbedTelemetryOptions.Defaults with { Output = "   " }));
+    }
+
+    [Fact]
+    public void Embed_never_offers_overwrite()
+    {
+        // --overwrite is CLI-only by design (M3d spec): it rewrites the
+        // originals in place and must not be reachable from the GUI.
+        var everything = new EmbedTelemetryOptions(
+            Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
+            UseExifTool: true, AudioSidecar: true, DatAuto: true,
+            Output: "/out/copies");
+        Assert.DoesNotContain("--overwrite", CommandBuilder.Embed("/x", everything));
+    }
+
+    [Fact]
+    public void Embed_all_options_compose_in_a_stable_order()
+    {
+        var opts = new EmbedTelemetryOptions(
+            Privacy: EmbedPrivacy.Fuzz, Container: "mkv", ExtractHome: true,
+            UseExifTool: true, AudioSidecar: true, DatAuto: true,
+            Output: "/out/copies");
+        Assert.Equal(
+            ["embed", "/x", "--redact", "fuzz", "--container", "mkv",
+             "--extract-home", "--exiftool", "--audio-sidecar", "--dat-auto",
+             "--output", "/out/copies"],
+            CommandBuilder.Embed("/x", opts));
+    }
 }
