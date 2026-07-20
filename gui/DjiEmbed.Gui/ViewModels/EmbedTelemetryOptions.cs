@@ -33,6 +33,13 @@ public enum EmbedPrivacy
 /// <param name="ExtractHome">Write the launch point into the JSON sidecar
 /// (<c>--extract-home</c>). Never written into the video, and redacted along
 /// with everything else — <see cref="EmbedPrivacy.Drop"/> empties it.</param>
+/// <param name="UseExifTool">Also write GPS metadata with ExifTool
+/// (<c>--exiftool</c>) — the one field whose name does not mirror its
+/// flag.</param>
+/// <param name="DatAuto">Scan for DAT flight logs sitting beside the videos
+/// and merge each match (<c>--dat-auto</c>). This is the whole DAT story in
+/// the GUI: <c>--dat PATH</c>, which names one log for one video, stays
+/// CLI-only.</param>
 /// <param name="Output">Destination directory for the copies; empty means the
 /// CLI default, a <c>processed</c> folder inside the source folder.</param>
 public sealed record EmbedTelemetryOptions(

@@ -139,8 +139,9 @@ public static class CommandBuilder
     /// <summary>
     /// The Embed telemetry argv from typed <paramref name="opts"/> (GUI 2.0
     /// spec, M3d). Flags are omitted at their defaults so an untouched run
-    /// reads <c>embed &lt;folder&gt;</c>, exactly like M3a — the only mode
-    /// whose default argv carries no flags. Order is fixed for golden tests.
+    /// reads <c>embed &lt;folder&gt;</c>, exactly like M3a — the only
+    /// folder-taking mode whose default argv carries no flags. Order is fixed
+    /// for golden tests.
     /// No <c>--progress</c>: the runner appends that. No <c>--overwrite</c>
     /// and no <c>--dat</c>: both are CLI-only by design, the first because it
     /// destroys the originals, the second because a per-file picker does not
@@ -149,10 +150,18 @@ public static class CommandBuilder
     public static string[] Embed(string folder, EmbedTelemetryOptions opts)
     {
         var args = new List<string> { "embed", folder };
-        if (opts.Privacy != EmbedPrivacy.Keep)
+        var redact = opts.Privacy switch
+        {
+            EmbedPrivacy.Keep => null,
+            EmbedPrivacy.Fuzz => "fuzz",
+            EmbedPrivacy.Drop => "drop",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(opts), opts.Privacy, null),
+        };
+        if (redact is not null)
         {
             args.Add("--redact");
-            args.Add(opts.Privacy == EmbedPrivacy.Fuzz ? "fuzz" : "drop");
+            args.Add(redact);
         }
         if (opts.Container != EmbedTelemetryOptions.Defaults.Container)
         {

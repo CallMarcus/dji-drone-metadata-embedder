@@ -329,8 +329,14 @@ public class CommandBuilderTests
     }
 
     // M3d: Embed(folder, opts) is the option-aware argv builder. Embed is the
-    // only mode whose defaults carry NO flags at all, so the defaults test is
-    // also the guard that no option leaks in at its default value.
+    // only folder-taking mode whose defaults carry NO flags at all, so the
+    // defaults test is also the guard that no option leaks in at its default
+    // value.
+    private static readonly EmbedTelemetryOptions EverythingOn = new(
+        Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
+        UseExifTool: true, AudioSidecar: true, DatAuto: true,
+        Output: "/out/copies");
+
     [Fact]
     public void Embed_defaults_match_the_m3a_bare_form()
     {
@@ -416,11 +422,7 @@ public class CommandBuilderTests
     {
         // --overwrite is CLI-only by design (M3d spec): it rewrites the
         // originals in place and must not be reachable from the GUI.
-        var everything = new EmbedTelemetryOptions(
-            Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
-            UseExifTool: true, AudioSidecar: true, DatAuto: true,
-            Output: "/out/copies");
-        Assert.DoesNotContain("--overwrite", CommandBuilder.Embed("/x", everything));
+        Assert.DoesNotContain("--overwrite", CommandBuilder.Embed("/x", EverythingOn));
     }
 
     [Fact]
@@ -428,20 +430,14 @@ public class CommandBuilderTests
     {
         // --dat PATH is CLI-only by design (M3d spec): pointing at one file
         // does not fit a folder-shaped GUI. Only --dat-auto is surfaced.
-        var everything = new EmbedTelemetryOptions(
-            Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
-            UseExifTool: true, AudioSidecar: true, DatAuto: true,
-            Output: "/out/copies");
-        Assert.DoesNotContain("--dat", CommandBuilder.Embed("/x", everything));
+        // (collection DoesNotContain is element-wise, so --dat-auto does not trip it)
+        Assert.DoesNotContain("--dat", CommandBuilder.Embed("/x", EverythingOn));
     }
 
     [Fact]
     public void Embed_all_options_compose_in_a_stable_order()
     {
-        var opts = new EmbedTelemetryOptions(
-            Privacy: EmbedPrivacy.Fuzz, Container: "mkv", ExtractHome: true,
-            UseExifTool: true, AudioSidecar: true, DatAuto: true,
-            Output: "/out/copies");
+        var opts = EverythingOn with { Privacy = EmbedPrivacy.Fuzz };
         Assert.Equal(
             ["embed", "/x", "--redact", "fuzz", "--container", "mkv",
              "--extract-home", "--exiftool", "--audio-sidecar", "--dat-auto",
