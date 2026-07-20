@@ -448,7 +448,7 @@
                                         <CheckBox Name="ExtractHomeCheck"
                                                   IsChecked="{Binding EmbedOptions.ExtractHome}"
                                                   Content="Record the launch point in the sidecar" />
-                                        <TextBlock Text="Where the aircraft took off — often your home. Written only to the .json file, never into the video."
+                                        <TextBlock Text="Where the aircraft took off — often your home. Written only to the .json file, never as a separate tag in the video — use Privacy above to control the location in the video itself."
                                                    TextWrapping="Wrap"
                                                    Opacity="0.5" FontSize="11" />
                                         <TextBlock Name="HomeEmptiedNote"
@@ -466,6 +466,11 @@
                                                           IsChecked="{Binding EmbedOptions.UseExifTool}"
                                                           Content="Also write GPS with ExifTool" />
                                                 <TextBlock Text="Writes GPS tags with ExifTool as well as ffmpeg. Embed needs ExifTool installed either way — the Setup mode checks for it."
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
+                                                <TextBlock Name="ExifToolMkvNote"
+                                                           Text="ExifTool can't write MKV — this does nothing while MKV is selected."
+                                                           IsVisible="{Binding EmbedOptions.ShowsExifToolMkvNote}"
                                                            TextWrapping="Wrap"
                                                            Opacity="0.5" FontSize="11" />
                                             </StackPanel>

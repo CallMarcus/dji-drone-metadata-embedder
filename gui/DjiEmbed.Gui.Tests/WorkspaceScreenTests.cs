@@ -587,6 +587,35 @@ public class WorkspaceScreenTests
         Assert.False(note.IsEffectivelyVisible);
     }
 
+    // The Advanced expander's counterpart to the home note: ExifTool can't
+    // write MKV, and the curated container combo sits three rows above, so
+    // the no-op pair is two clicks away. Proves the IsVisible binding path.
+    [AvaloniaFact]
+    public void Exiftool_mkv_note_appears_only_when_exiftool_meets_mkv()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "ExifToolMkvNote");
+        Assert.False(note.IsEffectivelyVisible);   // defaults: MP4, no ExifTool
+
+        vm.EmbedOptions.UseExifTool = true;
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(note.IsEffectivelyVisible);
+
+        vm.EmbedOptions.UseExifTool = false;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(note.IsEffectivelyVisible);
+    }
+
     // Driven from the CONTROL side on purpose: the note test above mutates
     // SelectedPrivacy on the ViewModel and so never exercises the combo's
     // binding. A wrong-object ItemsSource compiles, renders a plausible

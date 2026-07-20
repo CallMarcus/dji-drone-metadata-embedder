@@ -77,6 +77,22 @@ public partial class EmbedTelemetryOptionsViewModel : ViewModelBase
     partial void OnExtractHomeChanged(bool value) =>
         OnPropertyChanged(nameof(ShowsHomeEmptiedNote));
 
+    /// <summary>
+    /// True when ExifTool is requested but the chosen container makes it a
+    /// no-op. ExifTool cannot write Matroska (<c>exiftool -listwf</c> lists
+    /// MP4/MOV, not MKV), and <c>embedder.py:735</c> discards the failed
+    /// call's return value — so the run reports success and writes no tags.
+    /// A real property (not a XAML multi-binding) so it is assertable headless.
+    /// </summary>
+    public bool ShowsExifToolMkvNote =>
+        UseExifTool && SelectedContainer.Key == "mkv";
+
+    partial void OnUseExifToolChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowsExifToolMkvNote));
+
+    partial void OnSelectedContainerChanged(ContainerChoice value) =>
+        OnPropertyChanged(nameof(ShowsExifToolMkvNote));
+
     public EmbedTelemetryOptions ToOptions() => new(
         Privacy: SelectedPrivacy.Value,
         Container: SelectedContainer.Key,

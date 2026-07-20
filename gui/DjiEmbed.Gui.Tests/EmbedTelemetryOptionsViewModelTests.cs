@@ -105,6 +105,40 @@ public class EmbedTelemetryOptionsViewModelTests
             n => n == nameof(EmbedTelemetryOptionsViewModel.ShowsHomeEmptiedNote)));
     }
 
+    // ExifTool cannot write Matroska (`exiftool -listwf` lists MP4/MOV, not
+    // MKV) and embedder.py:735 discards the failed call's return value, so
+    // ExifTool + MKV writes no tags and still reports success. The panel says
+    // so at the moment of the choice, like the home note above.
+    [Fact]
+    public void Exiftool_mkv_note_shows_only_when_exiftool_meets_mkv()
+    {
+        var vm = new EmbedTelemetryOptionsViewModel();
+        Assert.False(vm.ShowsExifToolMkvNote);          // MP4, no ExifTool
+
+        vm.UseExifTool = true;
+        Assert.False(vm.ShowsExifToolMkvNote);          // MP4 + ExifTool works
+
+        vm.SelectedContainer = vm.Containers.Single(c => c.Key == "mkv");
+        Assert.True(vm.ShowsExifToolMkvNote);           // MKV + ExifTool = no-op
+
+        vm.UseExifTool = false;
+        Assert.False(vm.ShowsExifToolMkvNote);          // MKV alone is fine
+    }
+
+    [Fact]
+    public void Exiftool_mkv_note_notifies_on_both_of_its_inputs()
+    {
+        var vm = new EmbedTelemetryOptionsViewModel();
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+
+        vm.UseExifTool = true;
+        vm.SelectedContainer = vm.Containers.Single(c => c.Key == "mkv");
+
+        Assert.Equal(2, notified.Count(
+            n => n == nameof(EmbedTelemetryOptionsViewModel.ShowsExifToolMkvNote)));
+    }
+
     [Fact]
     public void Clear_output_resets_to_the_processed_folder_default()
     {
