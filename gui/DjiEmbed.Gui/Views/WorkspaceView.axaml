@@ -474,9 +474,14 @@
                                                       IsChecked="{Binding EmbedOptions.AudioSidecar}"
                                                       Content="Mux .m4a audio sidecar (DJI Neo 2)" />
 
-                                            <CheckBox Name="DatAutoCheck"
-                                                      IsChecked="{Binding EmbedOptions.DatAuto}"
-                                                      Content="Merge DAT flight logs found beside the videos" />
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Name="DatAutoCheck"
+                                                          IsChecked="{Binding EmbedOptions.DatAuto}"
+                                                          Content="Merge DAT flight logs named after the videos" />
+                                                <TextBlock Text="A log is used when its name starts with the video's — DJI_0001.DAT beside DJI_0001.MP4."
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
+                                            </StackPanel>
 
                                             <StackPanel Spacing="4">
                                                 <TextBlock Text="Save copies to" Opacity="0.7"
