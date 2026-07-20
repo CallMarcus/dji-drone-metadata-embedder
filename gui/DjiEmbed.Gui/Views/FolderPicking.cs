@@ -69,7 +69,8 @@ internal static class FolderPicking
     internal static void SetDragOver(Control zone, bool active) =>
         zone.Classes.Set("dragover", active);
 
-    internal static async Task SaveMapAsync(Control anchor, Action<string> onPath)
+    internal static async Task SaveMapAsync(
+        Control anchor, Action<string> onPath, string title, string suggestedName)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
@@ -78,8 +79,8 @@ internal static class FolderPicking
         var file = await top.StorageProvider.SaveFilePickerAsync(
             new FilePickerSaveOptions
             {
-                Title = "Save the flight map as",
-                SuggestedFileName = "flightmap.html",
+                Title = title,
+                SuggestedFileName = suggestedName,
                 DefaultExtension = "html",
                 FileTypeChoices =
                 [

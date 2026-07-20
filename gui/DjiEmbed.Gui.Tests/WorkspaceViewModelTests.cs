@@ -891,6 +891,172 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.ShowPreview);
     }
 
+    // M3c: Photo map options flow through the run and the live strip.
+    [Fact]
+    public async Task Photo_map_options_reach_the_photomap_argv()
+    {
+        var argsFile = Path.Combine(_dir, "args-photo-opt.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, PhotomapStream);
+        var vm = Vm(cli);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        vm.PhotoOptions.SelectedPrivacy =
+            vm.PhotoOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.PhotoOptions.ShowCamera = false;
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllText(argsFile);
+        Assert.Contains("--redact fuzz", argv);
+        Assert.Contains("--popup-fields name,timestamp,altitude,credit", argv);
+        Assert.Contains("--link-originals", argv);
+    }
+
+    [Fact]
+    public void Command_preview_reflects_photo_options()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Assert.Contains("photomap", vm.CommandPreview);
+        vm.PhotoOptions.ExportAll = true;
+        Assert.Contains("--format all", vm.CommandPreview);
+        vm.PhotoOptions.LinkOriginals = false;
+        Assert.DoesNotContain("--link-originals", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Changing_a_photo_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.PhotoOptions.ShowCredit = false;
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_photo_map_mode_reports_the_photo_options_panel_visible()
+    {
+        var vm = Vm("unused");   // default mode Flight map
+        Assert.False(vm.IsPhotoMapMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Assert.True(vm.IsPhotoMapMode);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsPhotoMapMode), notified);
+    }
+
+    // Branch review finding: photomap writes each pin's href RELATIVE to the
+    // HTML file, so a "Save map to" redirected outside the source folder
+    // silently breaks every "open the original" link — and with it the 360°
+    // panorama viewer. PhotoLinksCannotReachOriginals is the truth behind the
+    // panel's warning note.
+    [Fact]
+    public async Task Link_reach_note_is_false_at_defaults()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.False(vm.PhotoLinksCannotReachOriginals);
+    }
+
+    [Fact]
+    public async Task Link_reach_note_is_false_when_output_sits_in_the_source_folder()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(photos: true);
+        await vm.SetFolderAsync(folder);
+        vm.PhotoOptions.Output = Path.Combine(folder, "photomap.html");
+        Assert.False(vm.PhotoLinksCannotReachOriginals);
+    }
+
+    [Fact]
+    public async Task Link_reach_note_is_true_when_output_sits_outside_the_source_folder()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(photos: true);
+        await vm.SetFolderAsync(folder);
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        Assert.True(vm.PhotoLinksCannotReachOriginals);
+    }
+
+    [Fact]
+    public async Task Link_reach_note_is_false_when_link_originals_is_off()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(photos: true);
+        await vm.SetFolderAsync(folder);
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        vm.PhotoOptions.LinkOriginals = false;
+        Assert.False(vm.PhotoLinksCannotReachOriginals);
+    }
+
+    // D:\Trip and D:\Trip\ must read as the same folder — SelectedFolder is
+    // whatever the drop/pick handed us, untrimmed.
+    [Fact]
+    public async Task Link_reach_note_treats_a_trailing_separator_as_the_same_folder()
+    {
+        var vm = Vm("unused");
+        var folder = MakeFolder(photos: true);
+        await vm.SetFolderAsync(folder + Path.DirectorySeparatorChar);
+        vm.PhotoOptions.Output = Path.Combine(folder, "photomap.html");
+        Assert.False(vm.PhotoLinksCannotReachOriginals);
+    }
+
+    [Fact]
+    public async Task Link_reach_note_notifies_on_output_and_folder_changes()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        Assert.Contains(nameof(WorkspaceViewModel.PhotoLinksCannotReachOriginals), notified);
+
+        notified.Clear();
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Contains(nameof(WorkspaceViewModel.PhotoLinksCannotReachOriginals), notified);
+    }
+
+    [Fact]
+    public async Task Link_reach_note_is_false_for_a_garbage_output_path()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.PhotoOptions.Output = " bad";
+        Assert.False(vm.PhotoLinksCannotReachOriginals);
+    }
+
+    // Branch review finding (present since M3b, doubled by M3c): an absolute
+    // "Save map to" override belongs to the folder it was chosen for — carry
+    // it to a new folder and that folder's map silently overwrites the old
+    // one, or lands nowhere the new folder shows. Every OTHER option is
+    // deliberately app-session state (the GUI 2.0 spec: "options survive
+    // while the app is open") — this test guards both halves so neither
+    // regresses into the other.
+    [Fact]
+    public async Task A_new_folder_clears_the_save_map_override_but_keeps_other_options()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        vm.FlightOptions.SelectedPrivacy =
+            vm.FlightOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        vm.PhotoOptions.SelectedTileStyle =
+            vm.PhotoOptions.TileStyles.Single(t => t.Key == "opentopomap");
+        vm.PhotoOptions.ShowCamera = false;
+
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        Assert.Equal("", vm.FlightOptions.Output);
+        Assert.Equal("", vm.PhotoOptions.Output);
+        Assert.Equal(MapPrivacy.Fuzz, vm.FlightOptions.SelectedPrivacy.Value);
+        Assert.Equal("opentopomap", vm.PhotoOptions.SelectedTileStyle.Key);
+        Assert.False(vm.PhotoOptions.ShowCamera);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(

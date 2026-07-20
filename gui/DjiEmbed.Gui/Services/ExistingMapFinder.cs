@@ -12,8 +12,8 @@ public sealed record ExistingMap(
 /// Finds maps a previous run left in the chosen folder. The GUI never passes
 /// <c>-o</c> by default, so the CLI's defaults apply and the two paths are
 /// deterministic: <c>flightmap.html</c> and <c>photomap.html</c>, written
-/// directly in the mapped folder. A map redirected elsewhere by the Flight
-/// map "Save map to" override is deliberately out of scope (#328 spec) —
+/// directly in the mapped folder. A map redirected elsewhere by either map
+/// mode's "Save map to" override is deliberately out of scope (#328 spec) —
 /// finding those would need a persisted record of past outputs.
 /// </summary>
 public static class ExistingMapFinder

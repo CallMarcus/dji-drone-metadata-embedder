@@ -22,7 +22,7 @@ public static class CommandBuilder
     public static string[] Build(WorkspaceModeKind kind, string? folder) => kind switch
     {
         WorkspaceModeKind.FlightMap => FlightMap(folder!, FlightMapOptions.Defaults),
-        WorkspaceModeKind.PhotoMap => ["photomap", folder!, "-r", "--link-originals"],
+        WorkspaceModeKind.PhotoMap => PhotoMap(folder!, PhotoMapOptions.Defaults),
         WorkspaceModeKind.Embed => ["embed", folder!],
         WorkspaceModeKind.Setup => ["doctor"],
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
@@ -80,5 +80,95 @@ public static class CommandBuilder
             args.Add(output);
         }
         return args.ToArray();
+    }
+
+    /// <summary>
+    /// The Photo map argv from typed <paramref name="opts"/> (GUI 2.0 spec,
+    /// M3c). Flags are omitted at their defaults so an untouched run reads
+    /// <c>photomap &lt;folder&gt; -r --link-originals</c>, exactly like M3a.
+    /// Order is fixed for golden tests. No <c>--progress</c>: the runner
+    /// appends that. No <c>--serve</c>: the CLI rejects it alongside
+    /// <c>--progress jsonl</c>, and the inline preview covers that need.
+    /// </summary>
+    public static string[] PhotoMap(string folder, PhotoMapOptions opts)
+    {
+        var args = new List<string> { "photomap", folder };
+        if (opts.Recursive)
+        {
+            args.Add("-r");
+        }
+        if (opts.TileStyle != PhotoMapOptions.Defaults.TileStyle)
+        {
+            args.Add("--tile-style");
+            args.Add(opts.TileStyle);
+        }
+        if (opts.Privacy == MapPrivacy.Fuzz)
+        {
+            args.Add("--redact");
+            args.Add("fuzz");
+        }
+        if (opts.LinkOriginals)
+        {
+            args.Add("--link-originals");
+        }
+        if (PopupFieldsValue(opts.Popup) is { } popup)
+        {
+            args.Add("--popup-fields");
+            args.Add(popup);
+        }
+        if (opts.ExportAll)
+        {
+            args.Add("--format");
+            args.Add("all");
+        }
+        var title = opts.Title.Trim();
+        if (title.Length > 0)
+        {
+            args.Add("--title");
+            args.Add(title);
+        }
+        var output = opts.Output.Trim();
+        if (output.Length > 0)
+        {
+            args.Add("--output");
+            args.Add(output);
+        }
+        return args.ToArray();
+    }
+
+    /// <summary>
+    /// The <c>--popup-fields</c> value, or <c>null</c> to omit the flag.
+    /// Names follow the CLI's own <c>POPUP_FIELDS</c> order. "Nothing ticked"
+    /// MUST encode as <c>none</c>: <c>parse_popup_fields</c> raises on an
+    /// empty comma list, so an empty string would fail the run.
+    /// </summary>
+    private static string? PopupFieldsValue(PopupFields fields)
+    {
+        if (fields == PopupFields.All)
+        {
+            return null;
+        }
+        var names = new List<string>(5);
+        if (fields.Name)
+        {
+            names.Add("name");
+        }
+        if (fields.Timestamp)
+        {
+            names.Add("timestamp");
+        }
+        if (fields.Camera)
+        {
+            names.Add("camera");
+        }
+        if (fields.Altitude)
+        {
+            names.Add("altitude");
+        }
+        if (fields.Credit)
+        {
+            names.Add("credit");
+        }
+        return names.Count == 0 ? "none" : string.Join(",", names);
     }
 }

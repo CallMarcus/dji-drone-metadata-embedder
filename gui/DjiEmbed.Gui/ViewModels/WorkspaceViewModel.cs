@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -35,11 +36,20 @@ public partial class WorkspaceViewModel : FlowViewModel
             ?? (static () => WebViewSupport.IsLikelyAvailable);
         FlightOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
+        PhotoOptions.PropertyChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(CommandPreview));
+            OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
+        };
     }
 
     /// <summary>Curated option state for the Flight map mode (M3b). Feeds both
     /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public FlightMapOptionsViewModel FlightOptions { get; } = new();
+
+    /// <summary>Curated option state for the Photo map mode (M3c). Feeds both
+    /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
+    public PhotoMapOptionsViewModel PhotoOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -107,6 +117,53 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Whether the Flight map options panel applies to the current mode.</summary>
     public bool IsFlightMapMode => SelectedMode.Kind == WorkspaceModeKind.FlightMap;
 
+    /// <summary>Whether the Photo map options panel applies to the current mode.</summary>
+    public bool IsPhotoMapMode => SelectedMode.Kind == WorkspaceModeKind.PhotoMap;
+
+    /// <summary>
+    /// True when a Photo map's "Save map to" override would leave the pins
+    /// unable to find the original photos. <c>photomap --link-originals</c>
+    /// writes each pin's href RELATIVE to the HTML file (the CLI's
+    /// <c>--link-base</c> is never passed here, so it defaults to the mapped
+    /// folder — see <c>geo/photomap.py</c>'s <c>_link_href</c>), and those
+    /// hrefs are what power the embedded 360° panorama viewer (#305). Redirect
+    /// the output elsewhere and every "open the original" link 404s, silently.
+    /// The fix is not a curated <c>--link-base</c> control — that flag stays
+    /// CLI-only by design — it's warning the user before they run. Any
+    /// exception from the path APIs (an unparseable path mid-typing) yields
+    /// false: a note computation must never throw into a binding.
+    /// </summary>
+    public bool PhotoLinksCannotReachOriginals
+    {
+        get
+        {
+            if (!PhotoOptions.LinkOriginals
+                || string.IsNullOrWhiteSpace(PhotoOptions.Output)
+                || SelectedFolder is null)
+            {
+                return false;
+            }
+            try
+            {
+                var outputDir = Path.GetDirectoryName(PhotoOptions.Output);
+                if (string.IsNullOrEmpty(outputDir))
+                {
+                    return false;
+                }
+                var fullOutputDir =
+                    Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDir));
+                var fullSourceDir =
+                    Path.TrimEndingDirectorySeparator(Path.GetFullPath(SelectedFolder));
+                return !string.Equals(fullOutputDir, fullSourceDir,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+    }
+
     /// <summary>
     /// The exact human-facing <c>dji-embed</c> command the current mode +
     /// folder would run — the CLI transparency strip (GUI 2.0 spec, M3a).
@@ -120,12 +177,17 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             var folder = SelectedFolder
                 ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
-            // folder! is safe for Flight map: its NeedsFolder is true, so the
-            // line above yields the "<folder>" placeholder (never null) when
-            // no folder is picked.
-            var argv = SelectedMode.Kind == WorkspaceModeKind.FlightMap
-                ? CommandBuilder.FlightMap(folder!, FlightOptions.ToOptions())
-                : CommandBuilder.Build(SelectedMode.Kind, folder);
+            // folder! is safe for the map modes: their NeedsFolder is true, so
+            // the line above yields the "<folder>" placeholder (never null)
+            // when no folder is picked.
+            var argv = SelectedMode.Kind switch
+            {
+                WorkspaceModeKind.FlightMap =>
+                    CommandBuilder.FlightMap(folder!, FlightOptions.ToOptions()),
+                WorkspaceModeKind.PhotoMap =>
+                    CommandBuilder.PhotoMap(folder!, PhotoOptions.ToOptions()),
+                _ => CommandBuilder.Build(SelectedMode.Kind, folder),
+            };
             return CommandLine.Format("dji-embed", argv);
         }
     }
@@ -134,6 +196,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     {
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
+        OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -142,6 +205,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(IsFlightMapMode));
+        OnPropertyChanged(nameof(IsPhotoMapMode));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -191,6 +255,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         // warnings must not frame a map that was already sitting here.
         Outputs.Clear();
         Warnings.Clear();
+        // An absolute "Save map to" override belongs to the folder it was
+        // chosen for — carried to a new folder it either overwrites that
+        // folder's map or writes nowhere the new folder shows. Every other
+        // option (tile style, privacy, popup fields, ...) is deliberately
+        // app-session state that survives a folder change (GUI 2.0 spec).
+        FlightOptions.Output = "";
+        PhotoOptions.Output = "";
         ResetPreview();
         Step = FlowStep.Pick;
     }
@@ -379,13 +450,15 @@ public partial class WorkspaceViewModel : FlowViewModel
                      + "included automatically.");
                 return;
             case WorkspaceModeKind.PhotoMap:
-                // --link-originals: the map is written inside the mapped
-                // folder, so the relative links are stable there — and they
-                // power the embedded 360° panorama viewer (#305).
+                // --link-originals defaults on: it's what powers the embedded
+                // 360° panorama viewer (#305). Its relative hrefs only
+                // resolve while the map stays in the photo folder — both are
+                // now user choices, and PhotoLinksCannotReachOriginals is
+                // what warns before a redirected "Save map to" breaks them.
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
-                        CommandBuilder.Build(SelectedMode.Kind, folder))
+                        CommandBuilder.PhotoMap(folder, PhotoOptions.ToOptions()))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.Embed when !contents.HasVideos:

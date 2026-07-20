@@ -207,6 +207,55 @@ public class ScreenshotCaptureTests
         CaptureView(view, Path.Combine(dir!, "workspace-existing-maps.png"));
     }
 
+    /// <summary>
+    /// The Photo map curated options (M3c): once at its defaults with
+    /// Advanced closed — the state a novice actually meets — and once with
+    /// Advanced open, Fuzz chosen and popup details unticked, which is the
+    /// only state that renders the fuzz caveat and the "Use default" reset.
+    /// </summary>
+    [AvaloniaFact]
+    public void Captures_photo_map_options_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the Photo map options.");
+        Directory.CreateDirectory(dir!);
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        vm.SelectedFolder = @"C:\Users\demo\Pictures\flight";
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        // Taller than the app's 720: the point of this capture is to review
+        // the whole panel at once, which the real window scrolls to reach.
+        CaptureView(view, Path.Combine(dir!, "workspace-photo-options.png"),
+            height: 1100);
+
+        vm.PhotoOptions.SelectedPrivacy = vm.PhotoOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.PhotoOptions.ShowCamera = false;
+        vm.PhotoOptions.ShowAltitude = false;
+        vm.PhotoOptions.Output = @"C:\Users\demo\Desktop\holiday-map.html";
+        var opened = new WorkspaceView { WebViewGate = static () => false };
+        opened.DataContext = vm;
+        var window = new Window { Width = 1140, Height = 1400, Content = opened };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        opened.FindControl<Expander>("PhotoAdvanced")!.IsExpanded = true;
+        // The expander reveals its content with an animation; without
+        // advancing the headless render clock the capture catches it
+        // half-open and the Advanced rows are clipped away.
+        for (var i = 0; i < 80; i++)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+        Capture(window, Path.Combine(dir!, "workspace-photo-options-advanced.png"));
+    }
+
     private static void CaptureView(
         Control view, string outPath, double width = 1140, double height = 720) =>
         Capture(new Window { Width = width, Height = height, Content = view },
