@@ -41,6 +41,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             OnPropertyChanged(nameof(CommandPreview));
             OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
         };
+        EmbedOptions.PropertyChanged += (_, _) =>
+            OnPropertyChanged(nameof(CommandPreview));
     }
 
     /// <summary>Curated option state for the Flight map mode (M3b). Feeds both
@@ -50,6 +52,10 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Curated option state for the Photo map mode (M3c). Feeds both
     /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public PhotoMapOptionsViewModel PhotoOptions { get; } = new();
+
+    /// <summary>Curated option state for the Embed telemetry mode (M3d). Feeds
+    /// both the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
+    public EmbedTelemetryOptionsViewModel EmbedOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -120,6 +126,9 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Whether the Photo map options panel applies to the current mode.</summary>
     public bool IsPhotoMapMode => SelectedMode.Kind == WorkspaceModeKind.PhotoMap;
 
+    /// <summary>Whether the Embed telemetry options panel applies to the current mode.</summary>
+    public bool IsEmbedMode => SelectedMode.Kind == WorkspaceModeKind.Embed;
+
     /// <summary>
     /// True when a Photo map's "Save map to" override would leave the pins
     /// unable to find the original photos. <c>photomap --link-originals</c>
@@ -177,15 +186,17 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             var folder = SelectedFolder
                 ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
-            // folder! is safe for the map modes: their NeedsFolder is true, so
-            // the line above yields the "<folder>" placeholder (never null)
-            // when no folder is picked.
+            // folder! is safe for every arm below: each of those modes has
+            // NeedsFolder true, so the line above yields the "<folder>"
+            // placeholder (never null) when no folder is picked.
             var argv = SelectedMode.Kind switch
             {
                 WorkspaceModeKind.FlightMap =>
                     CommandBuilder.FlightMap(folder!, FlightOptions.ToOptions()),
                 WorkspaceModeKind.PhotoMap =>
                     CommandBuilder.PhotoMap(folder!, PhotoOptions.ToOptions()),
+                WorkspaceModeKind.Embed =>
+                    CommandBuilder.Embed(folder!, EmbedOptions.ToOptions()),
                 _ => CommandBuilder.Build(SelectedMode.Kind, folder),
             };
             return CommandLine.Format("dji-embed", argv);
@@ -206,6 +217,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(IsFlightMapMode));
         OnPropertyChanged(nameof(IsPhotoMapMode));
+        OnPropertyChanged(nameof(IsEmbedMode));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -255,13 +267,15 @@ public partial class WorkspaceViewModel : FlowViewModel
         // warnings must not frame a map that was already sitting here.
         Outputs.Clear();
         Warnings.Clear();
-        // An absolute "Save map to" override belongs to the folder it was
-        // chosen for — carried to a new folder it either overwrites that
-        // folder's map or writes nowhere the new folder shows. Every other
-        // option (tile style, privacy, popup fields, ...) is deliberately
-        // app-session state that survives a folder change (GUI 2.0 spec).
+        // An absolute output override ("Save map to", "Save copies to")
+        // belongs to the folder it was chosen for — carried to a new folder it
+        // either overwrites that folder's outputs or writes nowhere the new
+        // folder shows. Every other option (tile style, privacy, container,
+        // popup fields, ...) is deliberately app-session state that survives a
+        // folder change (GUI 2.0 spec).
         FlightOptions.Output = "";
         PhotoOptions.Output = "";
+        EmbedOptions.Output = "";
         ResetPreview();
         Step = FlowStep.Pick;
     }
@@ -469,7 +483,7 @@ public partial class WorkspaceViewModel : FlowViewModel
             case WorkspaceModeKind.Embed:
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
-                    CommandBuilder.Build(SelectedMode.Kind, folder)));
+                    CommandBuilder.Embed(folder, EmbedOptions.ToOptions())));
                 return;
         }
     }

@@ -947,6 +947,88 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains(nameof(WorkspaceViewModel.IsPhotoMapMode), notified);
     }
 
+    // M3d: Embed options flow through the run and the live strip.
+    [Fact]
+    public async Task Embed_options_reach_the_embed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "args-embed-opt.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile,
+        [
+            """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["/footage/processed"], "summary": {}}""",
+        ]);
+        var vm = Vm(cli);
+        vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Drop);
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        vm.EmbedOptions.DatAuto = true;
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllText(argsFile);
+        Assert.Contains("--redact drop", argv);
+        Assert.Contains("--container mkv", argv);
+        Assert.Contains("--dat-auto", argv);
+        Assert.DoesNotContain("--overwrite", argv);
+    }
+
+    [Fact]
+    public void Command_preview_reflects_embed_options()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Assert.Equal("dji-embed embed <folder>", vm.CommandPreview);
+        vm.EmbedOptions.ExtractHome = true;
+        Assert.Contains("--extract-home", vm.CommandPreview);
+        vm.EmbedOptions.UseExifTool = true;
+        Assert.Contains("--exiftool", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Changing_an_embed_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.EmbedOptions.AudioSidecar = true;
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_embed_mode_reports_the_embed_options_panel_visible()
+    {
+        var vm = Vm("unused");   // default mode Flight map
+        Assert.False(vm.IsEmbedMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Assert.True(vm.IsEmbedMode);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.False(vm.IsPhotoMapMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsEmbedMode), notified);
+    }
+
+    [Fact]
+    public async Task A_new_folder_clears_the_embed_output_but_keeps_other_options()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        vm.EmbedOptions.ExtractHome = true;
+
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+
+        Assert.Equal("", vm.EmbedOptions.Output);
+        Assert.Equal("mkv", vm.EmbedOptions.SelectedContainer.Key);
+        Assert.True(vm.EmbedOptions.ExtractHome);
+    }
+
     // Branch review finding: photomap writes each pin's href RELATIVE to the
     // HTML file, so a "Save map to" redirected outside the source folder
     // silently breaks every "open the original" link — and with it the 360°
