@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Services;
@@ -19,10 +21,64 @@ public static class CommandBuilder
     /// placeholder token when previewing).</param>
     public static string[] Build(WorkspaceModeKind kind, string? folder) => kind switch
     {
-        WorkspaceModeKind.FlightMap => ["flightmap", folder!, "-r"],
+        WorkspaceModeKind.FlightMap => FlightMap(folder!, FlightMapOptions.Defaults),
         WorkspaceModeKind.PhotoMap => ["photomap", folder!, "-r", "--link-originals"],
         WorkspaceModeKind.Embed => ["embed", folder!],
         WorkspaceModeKind.Setup => ["doctor"],
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
+
+    /// <summary>
+    /// The Flight map argv from typed <paramref name="opts"/> (GUI 2.0 spec,
+    /// M3b). Flags are omitted at their defaults so an untouched run reads
+    /// <c>flightmap &lt;folder&gt; -r</c>, exactly like M3a. Order is fixed for
+    /// golden tests. No <c>--progress</c>: the runner appends that.
+    /// </summary>
+    public static string[] FlightMap(string folder, FlightMapOptions opts)
+    {
+        var args = new List<string> { "flightmap", folder };
+        if (opts.Recursive)
+        {
+            args.Add("-r");
+        }
+        if (opts.TileStyle != FlightMapOptions.Defaults.TileStyle)
+        {
+            args.Add("--tile-style");
+            args.Add(opts.TileStyle);
+        }
+        if (opts.Privacy == MapPrivacy.Fuzz)
+        {
+            args.Add("--redact");
+            args.Add("fuzz");
+        }
+        if (opts.JoinGap != FlightMapOptions.Defaults.JoinGap)
+        {
+            args.Add("--join-gap");
+            args.Add(opts.JoinGap.ToString(CultureInfo.InvariantCulture));
+        }
+        if (opts.ExportAll)
+        {
+            args.Add("--format");
+            args.Add("all");
+        }
+        var tz = opts.TzOffset.Trim();
+        if (tz.Length > 0 && !tz.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            args.Add("--tz-offset");
+            args.Add(tz);
+        }
+        var title = opts.Title.Trim();
+        if (title.Length > 0)
+        {
+            args.Add("--title");
+            args.Add(title);
+        }
+        var output = opts.Output.Trim();
+        if (output.Length > 0)
+        {
+            args.Add("--output");
+            args.Add(output);
+        }
+        return args.ToArray();
+    }
 }

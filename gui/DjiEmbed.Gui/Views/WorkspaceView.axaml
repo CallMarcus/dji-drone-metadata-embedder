@@ -112,6 +112,121 @@
                         </StackPanel>
                     </suki:GlassCard>
 
+                    <Border Name="FlightOptionsPanel"
+                            IsVisible="{Binding IsFlightMapMode}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <StackPanel Spacing="12">
+                                    <DockPanel>
+                                        <ToggleSwitch DockPanel.Dock="Right"
+                                                      IsChecked="{Binding FlightOptions.Recursive}" />
+                                        <TextBlock Text="Include subfolders"
+                                                   VerticalAlignment="Center" />
+                                    </DockPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Map style" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <ComboBox HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding FlightOptions.TileStyles}"
+                                                  SelectedItem="{Binding FlightOptions.SelectedTileStyle}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:TileChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Privacy" Opacity="0.7"
+                                                   FontSize="12" />
+                                        <ComboBox HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding FlightOptions.PrivacyOptions}"
+                                                  SelectedItem="{Binding FlightOptions.SelectedPrivacy}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:PrivacyChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Text="{Binding FlightOptions.JoinGap, StringFormat='{}{0} s'}"
+                                                       Opacity="0.7" FontSize="12" />
+                                            <TextBlock Text="Join split recordings within"
+                                                       Opacity="0.7" FontSize="12" />
+                                        </DockPanel>
+                                        <Slider Minimum="0" Maximum="60"
+                                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                                Value="{Binding FlightOptions.JoinGap}" />
+                                        <TextBlock Text="0 = keep split clips as separate flights"
+                                                   Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <Expander Name="FlightAdvanced" Header="Advanced"
+                                              IsExpanded="False">
+                                        <StackPanel Spacing="12" Margin="0,8,0,0">
+                                            <CheckBox IsChecked="{Binding FlightOptions.ExportAll}"
+                                                      Content="Also export KML + GeoJSON" />
+
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Time zone of the clips"
+                                                           Opacity="0.7" FontSize="12" />
+                                                <TextBox Text="{Binding FlightOptions.TzOffset}"
+                                                         PlaceholderText="auto" />
+                                            </StackPanel>
+
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Map title" Opacity="0.7"
+                                                           FontSize="12" />
+                                                <TextBox Text="{Binding FlightOptions.Title}"
+                                                         PlaceholderText="(folder name)" />
+                                            </StackPanel>
+
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Save map to" Opacity="0.7"
+                                                           FontSize="12" />
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ChooseOutputButton"
+                                                            Click="OnChooseOutputClick">
+                                                        <TextBlock Text="Choose…" FontSize="12" />
+                                                    </Button>
+                                                    <Button DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
+                                                            Name="ClearOutputButton"
+                                                            Command="{Binding FlightOptions.ClearOutputCommand}"
+                                                            IsVisible="{Binding FlightOptions.Output,
+                                                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            ToolTip.Tip="Reset to the source folder">
+                                                        <TextBlock Text="Use default" FontSize="12" />
+                                                    </Button>
+                                                    <Panel VerticalAlignment="Center">
+                                                        <TextBlock Text="(inside the source folder)"
+                                                                   IsVisible="{Binding FlightOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                                                   Opacity="0.5" FontSize="12" />
+                                                        <TextBlock Text="{Binding FlightOptions.Output}"
+                                                                   IsVisible="{Binding FlightOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Opacity="0.8" FontSize="12" />
+                                                    </Panel>
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Classes="zone" Text="ACTION" />
                     <Button Name="RunButton" Classes="Flat"
                             HorizontalAlignment="Stretch"

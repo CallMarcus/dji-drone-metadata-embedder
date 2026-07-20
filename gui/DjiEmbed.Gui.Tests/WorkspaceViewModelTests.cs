@@ -667,6 +667,56 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
     }
 
+    // M3b: Flight map options flow through the run and the live strip.
+    [Fact]
+    public async Task Flight_map_options_reach_the_flightmap_argv()
+    {
+        var argsFile = Path.Combine(_dir, "args-opt.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        vm.FlightOptions.SelectedPrivacy =
+            vm.FlightOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.FlightOptions.ExportAll = true;
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllText(argsFile);
+        Assert.Contains("--redact fuzz", argv);
+        Assert.Contains("--format all", argv);
+    }
+
+    [Fact]
+    public void Command_preview_reflects_flight_options()
+    {
+        var vm = Vm("unused");   // default mode Flight map, no folder
+        vm.FlightOptions.ExportAll = true;
+        Assert.Contains("--format all", vm.CommandPreview);
+        vm.FlightOptions.Recursive = false;
+        Assert.DoesNotContain(" -r", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Changing_a_flight_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.FlightOptions.JoinGap = 0;
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_flight_map_mode_reports_the_options_panel_visible()
+    {
+        var vm = Vm("unused");
+        Assert.True(vm.IsFlightMapMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsFlightMapMode), notified);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(
