@@ -28,6 +28,8 @@ public sealed record PopupFields(
 /// Reuses <see cref="MapPrivacy"/>, whose two values are exactly the
 /// <c>none</c>/<c>fuzz</c> that <c>photomap --redact</c> accepts.
 /// </summary>
+/// <param name="TileStyle">A <c>tiles.py</c> key: <c>osm</c> (default),
+/// <c>osm-hot</c>, <c>opentopomap</c>, or <c>cyclosm</c>.</param>
 /// <param name="LinkOriginals">Popups link the thumbnail to the photo file.
 /// On by default: it is what powers the embedded 360° panorama viewer (#305).
 /// Off produces a self-contained map with no local paths in it.</param>

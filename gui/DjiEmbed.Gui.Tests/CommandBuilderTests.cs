@@ -311,4 +311,20 @@ public class CommandBuilderTests
             PhotoMapOptions.Defaults with { Title = "   ", Output = "  " });
         Assert.Equal(["photomap", "/x", "-r", "--link-originals"], argv);
     }
+
+    [Fact]
+    public void Photo_map_all_options_compose_in_a_stable_order()
+    {
+        var opts = new PhotoMapOptions(
+            Recursive: true, TileStyle: "cyclosm", Privacy: MapPrivacy.Fuzz,
+            LinkOriginals: true,
+            Popup: new PopupFields(Name: true, Timestamp: false, Camera: true,
+                                    Altitude: false, Credit: true),
+            ExportAll: true, Title: "T", Output: "/o.html");
+        Assert.Equal(
+            ["photomap", "/x", "-r", "--tile-style", "cyclosm", "--redact", "fuzz",
+             "--link-originals", "--popup-fields", "name,camera,credit",
+             "--format", "all", "--title", "T", "--output", "/o.html"],
+            CommandBuilder.PhotoMap("/x", opts));
+    }
 }
