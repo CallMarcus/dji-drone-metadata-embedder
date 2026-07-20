@@ -134,6 +134,16 @@ public partial class WorkspaceView : UserControl
         }
     }
 
+    private async void OnChooseEmbedOutputClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is WorkspaceViewModel vm)
+        {
+            await FolderPicking.ChooseFolderAsync(
+                this, p => vm.EmbedOptions.Output = p,
+                "Choose where to save the embedded copies");
+        }
+    }
+
     private async void OnCopyDetailsClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is FlowViewModel vm)
