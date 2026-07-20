@@ -186,9 +186,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             var folder = SelectedFolder
                 ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
-            // folder! is safe for every arm below: each of those modes has
-            // NeedsFolder true, so the line above yields the "<folder>"
-            // placeholder (never null) when no folder is picked.
+            // folder! is safe in the three explicit arms below: each of those
+            // modes has NeedsFolder true, so the line above yields the
+            // "<folder>" placeholder (never null) when no folder is picked.
             var argv = SelectedMode.Kind switch
             {
                 WorkspaceModeKind.FlightMap =>
@@ -271,8 +271,8 @@ public partial class WorkspaceViewModel : FlowViewModel
         // belongs to the folder it was chosen for — carried to a new folder it
         // either overwrites that folder's outputs or writes nowhere the new
         // folder shows. Every other option (tile style, privacy, container,
-        // popup fields, ...) is deliberately app-session state that survives a
-        // folder change (GUI 2.0 spec).
+        // popup fields, title, timezone, ...) is deliberately app-session
+        // state that survives a folder change (GUI 2.0 spec).
         FlightOptions.Output = "";
         PhotoOptions.Output = "";
         EmbedOptions.Output = "";
@@ -290,8 +290,10 @@ public partial class WorkspaceViewModel : FlowViewModel
         // belongs to the folder it was chosen for, and removing the folder
         // leaves it with no owner at all. The strip is where that shows —
         // it would go on advertising `--output <path>` beside the `<folder>`
-        // placeholder. (SelectedFolder = null above already re-raises
-        // CommandPreview, so the cleared text refreshes on screen.)
+        // placeholder. (Each Output setter raises through the ctor's options
+        // subscription, so the strip repaints with the cleared value. The
+        // SelectedFolder raise above fires before these lines and still sees
+        // the old path.)
         FlightOptions.Output = "";
         PhotoOptions.Output = "";
         EmbedOptions.Output = "";
