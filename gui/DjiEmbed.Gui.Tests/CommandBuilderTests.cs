@@ -332,6 +332,8 @@ public class CommandBuilderTests
     // only folder-taking mode whose defaults carry NO flags at all, so the
     // defaults test is also the guard that no option leaks in at its default
     // value.
+
+    // Every option switched on; shared by the two CLI-only guards below.
     private static readonly EmbedTelemetryOptions EverythingOn = new(
         Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
         UseExifTool: true, AudioSidecar: true, DatAuto: true,
