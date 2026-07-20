@@ -1139,6 +1139,42 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.PhotoOptions.ShowCamera);
     }
 
+    // The ✕ next to the folder path removes the folder, so an absolute output
+    // override chosen for it no longer has an owner — without this the idle
+    // strip advertises a path from a folder that is no longer selected.
+    [Fact]
+    public async Task Clearing_the_folder_clears_every_save_override()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
+        vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Equal("", vm.FlightOptions.Output);
+        Assert.Equal("", vm.PhotoOptions.Output);
+        Assert.Equal("", vm.EmbedOptions.Output);
+    }
+
+    // The reset is only half the fix: the strip has to be told to recompute,
+    // or the cleared path stays on screen as text.
+    [Fact]
+    public async Task Clearing_the_folder_refreshes_the_command_strip()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+        Assert.Equal("dji-embed flightmap <folder> -r", vm.CommandPreview);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(

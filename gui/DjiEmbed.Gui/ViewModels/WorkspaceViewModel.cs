@@ -286,6 +286,15 @@ public partial class WorkspaceViewModel : FlowViewModel
         SelectedFolder = null;
         SuggestedMode = null;
         ExistingMaps.Clear();
+        // The same ownership rule SetFolderAsync explains: an output override
+        // belongs to the folder it was chosen for, and removing the folder
+        // leaves it with no owner at all. The strip is where that shows —
+        // it would go on advertising `--output <path>` beside the `<folder>`
+        // placeholder. (SelectedFolder = null above already re-raises
+        // CommandPreview, so the cleared text refreshes on screen.)
+        FlightOptions.Output = "";
+        PhotoOptions.Output = "";
+        EmbedOptions.Output = "";
         // A map browsed out of that folder can't outlive it: without this the
         // pane keeps rendering it with no folder and no drop hero behind it.
         ResetPreview();
