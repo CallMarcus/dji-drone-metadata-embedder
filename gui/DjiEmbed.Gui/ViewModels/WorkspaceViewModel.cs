@@ -33,7 +33,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         _cliResolver = cliResolver;
         _previewAvailable = previewAvailable
             ?? (static () => WebViewSupport.IsLikelyAvailable);
+        FlightOptions.PropertyChanged += (_, _) =>
+            OnPropertyChanged(nameof(CommandPreview));
     }
+
+    /// <summary>Curated option state for the Flight map mode (M3b). Feeds both
+    /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
+    public FlightMapOptionsViewModel FlightOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -83,6 +89,9 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>The action button lights up as soon as a run could work.</summary>
     public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
 
+    /// <summary>Whether the Flight map options panel applies to the current mode.</summary>
+    public bool IsFlightMapMode => SelectedMode.Kind == WorkspaceModeKind.FlightMap;
+
     /// <summary>
     /// The exact human-facing <c>dji-embed</c> command the current mode +
     /// folder would run — the CLI transparency strip (GUI 2.0 spec, M3a).
@@ -96,8 +105,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             var folder = SelectedFolder
                 ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
-            return CommandLine.Format(
-                "dji-embed", CommandBuilder.Build(SelectedMode.Kind, folder));
+            // folder! is safe for Flight map: its NeedsFolder is true, so the
+            // line above yields the "<folder>" placeholder (never null) when
+            // no folder is picked.
+            var argv = SelectedMode.Kind == WorkspaceModeKind.FlightMap
+                ? CommandBuilder.FlightMap(folder!, FlightOptions.ToOptions())
+                : CommandBuilder.Build(SelectedMode.Kind, folder);
+            return CommandLine.Format("dji-embed", argv);
         }
     }
 
@@ -112,6 +126,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     {
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
+        OnPropertyChanged(nameof(IsFlightMapMode));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -260,7 +275,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your flights…",
-                        CommandBuilder.Build(SelectedMode.Kind, folder))
+                        CommandBuilder.FlightMap(folder, FlightOptions.ToOptions()))
                     && await PrimePreviewAsync());
                 return;
             case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
