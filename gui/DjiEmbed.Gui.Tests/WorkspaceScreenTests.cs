@@ -586,4 +586,34 @@ public class WorkspaceScreenTests
         window.UpdateLayout();
         Assert.False(note.IsEffectivelyVisible);
     }
+
+    // Driven from the CONTROL side on purpose: the note test above mutates
+    // SelectedPrivacy on the ViewModel and so never exercises the combo's
+    // binding. A wrong-object ItemsSource compiles, renders a plausible
+    // list, and silently cannot round-trip a selection.
+    [AvaloniaFact]
+    public void Embed_combo_boxes_round_trip_a_selection_into_the_argv()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var privacy = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "EmbedPrivacyCombo");
+        Assert.Same(vm.EmbedOptions.PrivacyOptions, privacy.ItemsSource);
+        privacy.SelectedItem = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Drop);
+
+        var container = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "ContainerCombo");
+        Assert.Same(vm.EmbedOptions.Containers, container.ItemsSource);
+        container.SelectedItem =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("--redact drop", vm.CommandPreview);
+        Assert.Contains("--container mkv", vm.CommandPreview);
+    }
 }
