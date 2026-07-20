@@ -114,6 +114,14 @@ public partial class WorkspaceView : UserControl
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>
         await FolderPicking.ChooseAsync(this, SetFolderAsync);
 
+    private async void OnChooseOutputClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is WorkspaceViewModel vm)
+        {
+            await FolderPicking.SaveMapAsync(this, p => vm.FlightOptions.Output = p);
+        }
+    }
+
     private async void OnCopyDetailsClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is FlowViewModel vm)

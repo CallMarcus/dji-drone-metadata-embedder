@@ -177,4 +177,31 @@ public class WorkspaceScreenTests
         Assert.Single(window.GetVisualDescendants().OfType<Button>(),
             b => b.Name == "CopyCommandButton");
     }
+
+    // M3b: the Flight map options panel renders only for Flight map, with the
+    // Advanced expander closed by default.
+    [AvaloniaFact]
+    public void Flight_map_mode_shows_the_options_panel_with_advanced_collapsed()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "FlightOptionsPanel");
+        Assert.True(panel.IsEffectivelyVisible);
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "FlightAdvanced");
+        Assert.False(advanced.IsExpanded);
+    }
+
+    [AvaloniaFact]
+    public void Non_flight_map_mode_hides_the_options_panel()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "FlightOptionsPanel");
+        Assert.False(panel.IsEffectivelyVisible);
+    }
 }
