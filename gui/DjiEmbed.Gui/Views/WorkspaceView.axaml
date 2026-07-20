@@ -112,6 +112,54 @@
                         </StackPanel>
                     </suki:GlassCard>
 
+                    <Border Name="ExistingMapsPanel"
+                            IsVisible="{Binding !!ExistingMaps.Count}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="ALREADY IN THIS FOLDER" />
+                            <ItemsControl ItemsSource="{Binding ExistingMaps}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="6" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="svc:ExistingMap">
+                                        <suki:GlassCard Padding="14">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock FontSize="12" Opacity="0.7"
+                                                           Text="{Binding WrittenUtc,
+                                                               Converter={x:Static views:WorkspaceConverters.AgeInWords}}" />
+                                                <TextBlock Name="StaleNote"
+                                                           FontSize="12" Opacity="0.7"
+                                                           TextWrapping="Wrap"
+                                                           IsVisible="{Binding Stale}"
+                                                           Text="⚠️ New footage since this map was made" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Button Name="OpenExistingMapButton"
+                                                            Command="{Binding $parent[ItemsControl].((vm:WorkspaceViewModel)DataContext).OpenExistingMapCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            AutomationProperties.Name="{Binding Title, StringFormat='Open {0}'}"
+                                                            ToolTip.Tip="Open this map — in the preview pane, or your browser if preview isn't available here">
+                                                        <TextBlock Text="Open" FontSize="12" />
+                                                    </Button>
+                                                    <Button Name="ShowExistingMapButton"
+                                                            Command="{Binding $parent[ItemsControl].((vm:WorkspaceViewModel)DataContext).ShowExistingMapInFolderCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            AutomationProperties.Name="{Binding Title, StringFormat='Show {0} in folder'}"
+                                                            ToolTip.Tip="Show the map file in its folder">
+                                                        <TextBlock Text="Show in folder" FontSize="12" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </suki:GlassCard>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
                     <Border Name="FlightOptionsPanel"
                             IsVisible="{Binding IsFlightMapMode}">
                         <StackPanel>
@@ -267,9 +315,7 @@
             <Panel>
 
                 <!-- Idle: the home screen reborn as the empty state. -->
-                <Panel IsVisible="{Binding Step,
-                          Converter={x:Static ObjectConverters.Equal},
-                          ConverterParameter={x:Static vm:FlowStep.Pick}}">
+                <Panel IsVisible="{Binding ShowIdle}">
                     <Image Source="avares://DjiEmbed.Gui/Assets/home-background.png"
                            Stretch="UniformToFill" />
                     <Border>
@@ -378,7 +424,7 @@
                     </Button>
                 </StackPanel>
 
-                <!-- Done, map flavour: the map itself, over the local server. -->
+                <!-- Map pane: a finished run's map, or one the folder already had. -->
                 <DockPanel IsVisible="{Binding ShowPreview}">
                     <Border DockPanel.Dock="Top" Padding="14,10">
                         <DockPanel>
@@ -396,8 +442,12 @@
                                         ToolTip.Tip="Show the map file in its folder">
                                     <TextBlock Text="Show in folder" FontSize="12" />
                                 </Button>
-                                <Button Command="{Binding GoHomeCommand}">
-                                    <TextBlock Text="Process another" FontSize="12" />
+                                <Button Name="ClosePreviewButton"
+                                        Command="{Binding GoHomeCommand}"
+                                        ToolTip.Tip="Close this map and go back to the start">
+                                    <TextBlock FontSize="12"
+                                               Text="{Binding Step,
+                                                   Converter={x:Static views:WorkspaceConverters.PreviewGoHomeLabel}}" />
                                 </Button>
                             </StackPanel>
                             <TextBlock Text="{Binding PreviewPath,

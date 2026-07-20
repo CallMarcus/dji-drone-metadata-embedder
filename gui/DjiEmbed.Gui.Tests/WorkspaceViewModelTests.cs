@@ -11,13 +11,16 @@ public class WorkspaceViewModelTests : IDisposable
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private string MakeFolder(
-        bool srt = false, bool photos = false, bool videos = false)
+        bool srt = false, bool photos = false, bool videos = false,
+        bool flightMap = false, bool photoMap = false)
     {
         var folder = Path.Combine(_dir, "footage-" + Guid.NewGuid().ToString("N")[..6]);
         Directory.CreateDirectory(folder);
         if (srt) File.WriteAllText(Path.Combine(folder, "DJI_0001.SRT"), "");
         if (photos) File.WriteAllText(Path.Combine(folder, "IMG_1.JPG"), "");
         if (videos) File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
+        if (flightMap) File.WriteAllText(Path.Combine(folder, "flightmap.html"), "");
+        if (photoMap) File.WriteAllText(Path.Combine(folder, "photomap.html"), "");
         return folder;
     }
 
@@ -715,6 +718,177 @@ public class WorkspaceViewModelTests : IDisposable
         vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
         Assert.False(vm.IsFlightMapMode);
         Assert.Contains(nameof(WorkspaceViewModel.IsFlightMapMode), notified);
+    }
+
+    private const string FakeUrl = "http://127.0.0.1:65535/flightmap.html";
+
+    private static WorkspaceViewModel PreviewingVm() =>
+        Vm("cli", mapServer: new FakeMapServer(FakeUrl),
+            previewAvailable: static () => true);
+
+    [Fact]
+    public async Task Picking_a_folder_lists_the_maps_it_already_has()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(
+            MakeFolder(srt: true, flightMap: true, photoMap: true));
+
+        Assert.Equal(["Flight map", "Photo map"],
+            vm.ExistingMaps.Select(m => m.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task A_folder_without_maps_lists_none()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        Assert.Empty(vm.ExistingMaps);
+    }
+
+    [Fact]
+    public async Task A_second_pick_replaces_the_list()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        Assert.Empty(vm.ExistingMaps);
+    }
+
+    [Fact]
+    public async Task Clearing_the_folder_clears_the_list()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Empty(vm.ExistingMaps);
+    }
+
+    [Fact]
+    public async Task A_folder_pick_drops_the_previous_runs_outputs_and_warnings()
+    {
+        var vm = Vm("unused");
+        vm.Outputs.Add("C:\\old\\flightmap.html");
+        vm.Warnings.Add("something from the last folder");
+
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        Assert.Empty(vm.Outputs);
+        Assert.Empty(vm.Warnings);
+    }
+
+    [Fact]
+    public void Process_another_drops_the_previous_runs_outputs_and_warnings()
+    {
+        // GoHome is the other door into Step == Pick, where a browsed map can
+        // now render: the last run's warnings must not frame it.
+        var vm = Vm("unused");
+        vm.Outputs.Add("C:\\out\\flightmap.html");
+        vm.Warnings.Add("something from the run just finished");
+        vm.Step = FlowStep.Done;
+
+        vm.GoHomeCommand.Execute(null);
+
+        Assert.Empty(vm.Outputs);
+        Assert.Empty(vm.Warnings);
+        Assert.True(vm.ShowIdle);
+    }
+
+    [Fact]
+    public async Task Clearing_the_folder_drops_a_browsed_preview()
+    {
+        var vm = PreviewingVm();
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        await vm.OpenExistingMapCommand.ExecuteAsync(vm.ExistingMaps[0]);
+        Assert.True(vm.ShowPreview);
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Null(vm.PreviewUrl);
+        Assert.False(vm.ShowPreview);
+        Assert.True(vm.ShowIdle);
+    }
+
+    [Fact]
+    public async Task Opening_an_existing_map_previews_it_on_the_pick_step()
+    {
+        var vm = PreviewingVm();
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        var map = Assert.Single(vm.ExistingMaps);
+
+        await vm.OpenExistingMapCommand.ExecuteAsync(map);
+
+        Assert.Equal(FlowStep.Pick, vm.Step);
+        Assert.Equal(FakeUrl, vm.PreviewUrl);
+        Assert.Equal(map.Path, vm.PreviewPath);
+        Assert.True(vm.ShowPreview);
+        Assert.False(vm.ShowIdle);
+        Assert.False(vm.ShowDoneCard);
+    }
+
+    [Fact]
+    public async Task Picking_another_folder_drops_a_browsed_preview()
+    {
+        var vm = PreviewingVm();
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        await vm.OpenExistingMapCommand.ExecuteAsync(vm.ExistingMaps[0]);
+
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        Assert.Null(vm.PreviewUrl);
+        Assert.False(vm.ShowPreview);
+        Assert.True(vm.ShowIdle);
+    }
+
+    [Fact]
+    public async Task A_run_takes_the_pane_back_from_a_browsed_map()
+    {
+        // The run's own output must replace what the user was browsing.
+        // FlightmapStream reports the bare name "flightmap.html", which the
+        // browsed absolute path can never be mistaken for.
+        var argsFile = Path.Combine(_dir, "args-browsed.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli, mapServer: new FakeMapServer(FakeUrl),
+            previewAvailable: static () => true);
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        await vm.OpenExistingMapCommand.ExecuteAsync(vm.ExistingMaps[0]);
+        Assert.True(vm.ShowPreview);
+        Assert.True(Path.IsPathRooted(vm.PreviewPath));
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal("flightmap.html", vm.PreviewPath);
+    }
+
+    [Fact]
+    public async Task The_open_command_is_disabled_while_a_run_is_in_flight()
+    {
+        var vm = PreviewingVm();
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        var map = vm.ExistingMaps[0];
+        Assert.True(vm.OpenExistingMapCommand.CanExecute(map));
+        // CanExecute is evaluated live, so the assertion below passes with or
+        // without the notification — but a real button only re-reads it when
+        // told to, so assert the telling too.
+        var notified = false;
+        vm.OpenExistingMapCommand.CanExecuteChanged += (_, _) => notified = true;
+
+        vm.Step = FlowStep.Running;
+
+        Assert.False(vm.OpenExistingMapCommand.CanExecute(map));
+        Assert.True(notified);
+    }
+
+    [Fact]
+    public void The_idle_hero_shows_when_nothing_is_previewed()
+    {
+        var vm = Vm("unused");
+
+        Assert.True(vm.ShowIdle);
+        Assert.False(vm.ShowPreview);
     }
 
     private sealed class ThrowingMapServer : IMapServer

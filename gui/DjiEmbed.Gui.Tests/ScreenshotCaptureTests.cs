@@ -178,6 +178,35 @@ public class ScreenshotCaptureTests
             Path.Combine(dir!, "workspace-done-degraded.png"));
     }
 
+    /// <summary>
+    /// Pick step on a folder an earlier run already mapped: the
+    /// "Already in this folder" zone at its tallest — both map kinds, one
+    /// of them stale — so the left column's fold can be reviewed in the
+    /// exact case that inserts it above OPTIONS.
+    /// </summary>
+    [AvaloniaFact]
+    public void Captures_existing_maps_panel_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the existing-maps panel.");
+        Directory.CreateDirectory(dir!);
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        vm.SelectedFolder = @"C:\Users\demo\Videos\flight";
+        vm.ExistingMaps.Add(new ExistingMap(
+            @"C:\Users\demo\Videos\flight\flightmap.html", "Flight map",
+            DateTime.UtcNow.AddDays(-2), Stale: true));
+        vm.ExistingMaps.Add(new ExistingMap(
+            @"C:\Users\demo\Videos\flight\photomap.html", "Photo map",
+            DateTime.UtcNow.AddHours(-3), Stale: false));
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        CaptureView(view, Path.Combine(dir!, "workspace-existing-maps.png"));
+    }
+
     private static void CaptureView(
         Control view, string outPath, double width = 1140, double height = 720) =>
         Capture(new Window { Width = width, Height = height, Content = view },
