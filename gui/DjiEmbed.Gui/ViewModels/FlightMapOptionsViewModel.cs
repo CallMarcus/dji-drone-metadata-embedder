@@ -4,9 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace DjiEmbed.Gui.ViewModels;
 
-/// <summary>A selectable basemap: a friendly label over a <c>tiles.py</c> key.</summary>
-public sealed record TileChoice(string Label, string Key);
-
 /// <summary>A selectable privacy stance: a label over a <see cref="MapPrivacy"/>.</summary>
 public sealed record PrivacyChoice(string Label, MapPrivacy Value);
 
@@ -18,13 +15,7 @@ public sealed record PrivacyChoice(string Label, MapPrivacy Value);
 /// </summary>
 public partial class FlightMapOptionsViewModel : ViewModelBase
 {
-    public IReadOnlyList<TileChoice> TileStyles { get; } =
-    [
-        new("Standard", "osm"),
-        new("Humanitarian", "osm-hot"),
-        new("Topographic", "opentopomap"),
-        new("Cycling", "cyclosm"),
-    ];
+    public IReadOnlyList<TileChoice> TileStyles { get; } = TileChoice.All;
 
     public IReadOnlyList<PrivacyChoice> PrivacyOptions { get; } =
     [
