@@ -201,6 +201,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         SelectedFolder = null;
         SuggestedMode = null;
         ExistingMaps.Clear();
+        // A map browsed out of that folder can't outlive it: without this the
+        // pane keeps rendering it with no folder and no drop hero behind it.
+        ResetPreview();
     }
 
     [RelayCommand]
@@ -270,6 +273,10 @@ public partial class WorkspaceViewModel : FlowViewModel
     protected override void GoHomeCore()
     {
         ResetPreview();
+        // The other door into Pick, where a map the folder already had can
+        // render: the finished run's outputs and warnings must not follow it.
+        Outputs.Clear();
+        Warnings.Clear();
         Step = FlowStep.Pick;
     }
 

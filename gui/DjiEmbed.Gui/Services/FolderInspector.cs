@@ -23,9 +23,18 @@ public static class FolderInspector
         DateTime? newestFlightLog = null;
         DateTime? newestPhoto = null;
         // No early exit: the newest write time is only known once every
-        // file has been seen.
-        foreach (var file in Directory.EnumerateFiles(
-                     directory, "*", SearchOption.AllDirectories))
+        // file has been seen. IgnoreInaccessible keeps an unreadable
+        // subfolder from throwing out of the (async void) folder pick.
+        foreach (var file in Directory.EnumerateFiles(directory, "*",
+                     new EnumerationOptions
+                     {
+                         RecurseSubdirectories = true,
+                         IgnoreInaccessible = true,
+                         // The SearchOption overload this replaces skipped
+                         // nothing by attribute; EnumerationOptions would
+                         // default to skipping Hidden and System files.
+                         AttributesToSkip = FileAttributes.None,
+                     }))
         {
             var ext = Path.GetExtension(file);
             if (ext.Equals(".srt", StringComparison.OrdinalIgnoreCase))

@@ -100,6 +100,77 @@ public class FolderInspectorTests : IDisposable
     }
 
     [Fact]
+    public void A_hidden_file_is_still_classified()
+    {
+        // The walk asks EnumerationOptions to skip nothing by attribute:
+        // its default (Hidden | System) would quietly lose media the
+        // SearchOption overload used to find.
+        // A leading dot is what hidden means on Unix; on Windows it is the
+        // attribute bit, which only sticks there.
+        Touch(".IMG_1.JPG");
+        var path = Path.Combine(_dir, ".IMG_1.JPG");
+        if (OperatingSystem.IsWindows())
+        {
+            File.SetAttributes(path, FileAttributes.Hidden);
+        }
+        Assert.SkipUnless(File.GetAttributes(path).HasFlag(FileAttributes.Hidden),
+            "This filesystem does not carry the Hidden attribute.");
+
+        var c = FolderInspector.Inspect(_dir);
+
+        Assert.True(c.HasPhotos);
+    }
+
+    [Fact]
+    public void An_unreadable_subfolder_is_skipped_not_thrown()
+    {
+        // The folder pick runs from an async void handler, so anything the
+        // walk throws reaches the dispatcher unobserved.
+        Assert.SkipWhen(OperatingSystem.IsWindows(),
+            "Permissions are modelled with ACLs on Windows, not file modes.");
+        // The Skip above has already ended the test on Windows; the platform
+        // analyzer only reads the explicit guard.
+        if (!OperatingSystem.IsWindows())
+        {
+            Touch("IMG_1.JPG");
+            Touch("locked", "DJI_0001.SRT");
+            var locked = Path.Combine(_dir, "locked");
+            File.SetUnixFileMode(locked, UnixFileMode.None);
+            try
+            {
+                Assert.SkipWhen(CanRead(locked),
+                    "This user can read the directory anyway (root?).");
+
+                var c = FolderInspector.Inspect(_dir);
+
+                Assert.True(c.HasPhotos);
+            }
+            finally
+            {
+                // Dispose deletes the tree recursively; let it back in.
+                File.SetUnixFileMode(locked,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite
+                    | UnixFileMode.UserExecute);
+            }
+        }
+    }
+
+    private static bool CanRead(string directory)
+    {
+        try
+        {
+            foreach (var _ in Directory.EnumerateFiles(directory))
+            {
+            }
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    [Fact]
     public void A_kind_that_is_absent_has_no_timestamp()
     {
         Touch("IMG_1.JPG");

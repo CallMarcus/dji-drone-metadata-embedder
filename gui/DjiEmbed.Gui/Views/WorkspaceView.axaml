@@ -424,7 +424,7 @@
                     </Button>
                 </StackPanel>
 
-                <!-- Done, map flavour: the map itself, over the local server. -->
+                <!-- Map pane: a finished run's map, or one the folder already had. -->
                 <DockPanel IsVisible="{Binding ShowPreview}">
                     <Border DockPanel.Dock="Top" Padding="14,10">
                         <DockPanel>

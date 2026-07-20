@@ -780,6 +780,38 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Process_another_drops_the_previous_runs_outputs_and_warnings()
+    {
+        // GoHome is the other door into Step == Pick, where a browsed map can
+        // now render: the last run's warnings must not frame it.
+        var vm = Vm("unused");
+        vm.Outputs.Add("C:\\out\\flightmap.html");
+        vm.Warnings.Add("something from the run just finished");
+        vm.Step = FlowStep.Done;
+
+        vm.GoHomeCommand.Execute(null);
+
+        Assert.Empty(vm.Outputs);
+        Assert.Empty(vm.Warnings);
+        Assert.True(vm.ShowIdle);
+    }
+
+    [Fact]
+    public async Task Clearing_the_folder_drops_a_browsed_preview()
+    {
+        var vm = PreviewingVm();
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        await vm.OpenExistingMapCommand.ExecuteAsync(vm.ExistingMaps[0]);
+        Assert.True(vm.ShowPreview);
+
+        vm.ClearFolderCommand.Execute(null);
+
+        Assert.Null(vm.PreviewUrl);
+        Assert.False(vm.ShowPreview);
+        Assert.True(vm.ShowIdle);
+    }
+
+    [Fact]
     public async Task Opening_an_existing_map_previews_it_on_the_pick_step()
     {
         var vm = PreviewingVm();
