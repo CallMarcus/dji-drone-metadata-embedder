@@ -82,6 +82,37 @@ jobs:
           uv run dji-embed convert csv examples/DJI_sample.SRT -o test_smoke.csv
           ls -la test_smoke.*
 
+  # Browser-behaviour tests (Track B spec 2026-07-21): generated maps driven
+  # in headless Chromium via pytest-playwright. One leg is enough — the
+  # suite asserts the maps' inlined JS, which is OS-independent. Hermetic:
+  # unpkg assets come from an SRI-verified download cache (kept warm below)
+  # and tile requests are stubbed, so steady-state runs are offline.
+  browser:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+      - name: Install dependencies
+        run: uv sync --extra dev --extra browser --python 3.12
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('uv.lock') }}
+      - name: Cache map CDN assets
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/djiembed-test-assets
+          key: map-assets-${{ hashFiles('src/dji_metadata_embedder/geo/photomap_html.py', 'src/dji_metadata_embedder/geo/flightmap_html.py') }}
+      - name: Install Chromium
+        run: uv run playwright install chromium --with-deps
+      - name: Browser tests
+        run: uv run pytest tests/browser -v
+
   # Desktop GUI (issue #264 stage 3): Avalonia app in gui/. Kept as its own
   # job so the Python matrix is untouched; ubuntu is enough for compile +
   # headless UI tests, Windows-specific packaging is exercised at release.
