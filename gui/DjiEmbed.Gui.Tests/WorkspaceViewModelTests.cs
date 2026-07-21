@@ -143,13 +143,27 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Folder_drop_while_running_is_ignored()
+    public async Task Folder_drop_during_a_run_is_ignored()
     {
-        var vm = Vm("unused");
-        vm.Step = FlowStep.Running;
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var vm = Vm(cli, folderInspector: dir => inspect(dir));
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        var gate = new TaskCompletionSource();
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
+        var run = vm.RunCommand.ExecuteAsync(null);
+
         await vm.SetFolderAsync(MakeFolder(photos: true));
-        Assert.Null(vm.SelectedFolder);
-        Assert.Equal(FlowStep.Running, vm.Step);
+
+        Assert.Equal(folder, vm.SelectedFolder);
+        gate.SetResult();
+        await run;
     }
 
     private static readonly string[] FlightmapStream =
@@ -312,6 +326,69 @@ public class WorkspaceViewModelTests : IDisposable
         var argv = File.ReadAllLines(argsFile);
         Assert.Equal("flightmap", argv[0]);
         Assert.DoesNotContain("-r", argv);
+    }
+
+    // #340: the run's folder scan happens before ExecuteFlowAsync sets
+    // Step = Running, and that window used to leave every guard open. A
+    // run is busy from its first line, and it owns the inputs it captured.
+    [Fact]
+    public async Task The_whole_run_is_busy_from_its_first_line()
+    {
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var vm = Vm(cli, folderInspector: dir => inspect(dir));
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+
+        var gate = new TaskCompletionSource();
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
+        var run = vm.RunCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsBusy);
+        vm.ClearFolderCommand.Execute(null);
+        Assert.Equal(folder, vm.SelectedFolder);      // inert while busy
+        await vm.SetFolderAsync("Z:/other");
+        Assert.Equal(folder, vm.SelectedFolder);      // inert while busy
+        Assert.False(vm.OpenExistingMapCommand.CanExecute(null));
+
+        gate.SetResult();
+        await run;
+        Assert.False(vm.IsBusy);
+        Assert.Equal(FlowStep.Done, vm.Step);
+    }
+
+    [Fact]
+    public async Task Mid_scan_edits_do_not_alter_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "args-midscan.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, FlightmapStream);
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var vm = Vm(cli, folderInspector: dir => inspect(dir));
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+
+        var gate = new TaskCompletionSource();
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
+        var run = vm.RunCommand.ExecuteAsync(null);
+        // The strip promised `flightmap <folder> -r` at press time; these
+        // edits arrive while the scan is still in flight.
+        vm.FlightOptions.Recursive = false;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        gate.SetResult();
+        await run;
+
+        var argv = File.ReadAllLines(argsFile);
+        Assert.Equal("flightmap", argv[0]);
+        Assert.Contains("-r", argv);
     }
 
     [Fact]
@@ -1019,7 +1096,13 @@ public class WorkspaceViewModelTests : IDisposable
     [Fact]
     public async Task The_open_command_is_disabled_while_a_run_is_in_flight()
     {
-        var vm = PreviewingVm();
+        var gate = new TaskCompletionSource();
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        var vm = Vm(cli, mapServer: new FakeMapServer(FakeUrl),
+            previewAvailable: static () => true,
+            folderInspector: dir => inspect(dir));
         await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
         var map = vm.ExistingMaps[0];
         Assert.True(vm.OpenExistingMapCommand.CanExecute(map));
@@ -1028,11 +1111,18 @@ public class WorkspaceViewModelTests : IDisposable
         // told to, so assert the telling too.
         var notified = false;
         vm.OpenExistingMapCommand.CanExecuteChanged += (_, _) => notified = true;
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
 
-        vm.Step = FlowStep.Running;
+        var run = vm.RunCommand.ExecuteAsync(null);
 
         Assert.False(vm.OpenExistingMapCommand.CanExecute(map));
         Assert.True(notified);
+        gate.SetResult();
+        await run;
     }
 
     [Fact]
@@ -1480,19 +1570,29 @@ public class WorkspaceViewModelTests : IDisposable
     [Fact]
     public async Task Clearing_the_folder_is_inert_while_a_run_is_in_flight()
     {
-        var vm = Vm("unused");
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var vm = Vm(cli, folderInspector: dir => inspect(dir));
         var folder = MakeFolder(srt: true);
         await vm.SetFolderAsync(folder);
         vm.FlightOptions.Output = Path.Combine(_dir, "flightmap.html");
         vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
-        vm.Step = FlowStep.Running;
+        var gate = new TaskCompletionSource();
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
+        var run = vm.RunCommand.ExecuteAsync(null);
 
         vm.ClearFolderCommand.Execute(null);
 
         Assert.Equal(folder, vm.SelectedFolder);
         Assert.Equal(Path.Combine(_dir, "flightmap.html"), vm.FlightOptions.Output);
         Assert.Equal(Path.Combine(_dir, "copies"), vm.EmbedOptions.Output);
-        Assert.Equal(FlowStep.Running, vm.Step);
+        gate.SetResult();
+        await run;
     }
 
     private sealed class ThrowingMapServer : IMapServer

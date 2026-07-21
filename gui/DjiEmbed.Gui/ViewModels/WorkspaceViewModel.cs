@@ -86,6 +86,19 @@ public partial class WorkspaceViewModel : FlowViewModel
     [ObservableProperty]
     public partial bool AllGood { get; set; }
 
+    /// <summary>
+    /// True from the first line of a run to its last — including the folder
+    /// scan that precedes <see cref="FlowViewModel.Step"/> becoming
+    /// <see cref="FlowStep.Running"/> (#340). Everything that feeds a run
+    /// (folder, mode, options) freezes on this, so the CLI strip's promise
+    /// — what is shown is what runs — holds for the whole run.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsBusy { get; private set; }
+
+    partial void OnIsBusyChanged(bool value) =>
+        OpenExistingMapCommand.NotifyCanExecuteChanged();
+
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
 
     /// <summary>Maps this folder already had when it was picked (#328) —
@@ -246,7 +259,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// </summary>
     public async Task SetFolderAsync(string folder)
     {
-        if (Step == FlowStep.Running)
+        if (IsBusy)
         {
             return;
         }
@@ -298,12 +311,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void ClearFolder()
     {
-        // Inert once the flow proper is running: pulling the folder out from
-        // under a running job would also discard the output overrides. This
-        // covers only Step == Running — a run's folder scan happens BEFORE
-        // ExecuteFlowAsync sets that, and that earlier window is closed on
-        // the other side, by RunAsync's ownership re-check after the scan.
-        if (Step == FlowStep.Running)
+        // Inert while a run is in flight: pulling the folder out from under
+        // a running job would also discard the output overrides. IsBusy
+        // spans the run's folder scan too, and RunAsync's ownership
+        // re-check after the scan stays as defence in depth.
+        if (IsBusy)
         {
             return;
         }
@@ -347,7 +359,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>A run owns the preview pane while it is in flight. Private:
     /// it raises no PropertyChanged, so nothing may bind it — a button gets
     /// this gate from the command's own CanExecute.</summary>
-    private bool CanOpenExistingMap => Step != FlowStep.Running;
+    private bool CanOpenExistingMap => !IsBusy;
 
     /// <summary>
     /// Show a map the folder already had, in the pane a finished run would
@@ -464,6 +476,22 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
+        // Busy for the run's entire lifetime, from before the folder scan:
+        // AsyncRelayCommand only covers the button, and Step only turns
+        // Running later, inside ExecuteFlowAsync (#340).
+        IsBusy = true;
+        try
+        {
+            await RunCoreAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task RunCoreAsync()
+    {
         CliPath ??= _cliResolver?.Invoke();
         if (!EnsureCli())
         {
@@ -471,7 +499,11 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
         SetupItems.Clear();
         AllGood = false;
-        if (SelectedMode.Kind == WorkspaceModeKind.Setup)
+        // Captured with the folder and options below: SelectedMode is a
+        // bare bindable property, so only captures guarantee a mid-scan
+        // change cannot pair this run's folder with another mode.
+        var mode = SelectedMode;
+        if (mode.Kind == WorkspaceModeKind.Setup)
         {
             ResetPreview();
             await RunSetupAsync();
@@ -503,7 +535,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         // the map commands recurse only with -r — so each guard asks "is
         // the media where THIS command will look" (#333, #338), and the
         // guidance names the panel's own controls, never the CLI's flags.
-        switch (SelectedMode.Kind)
+        switch (mode.Kind)
         {
             case WorkspaceModeKind.FlightMap
                 when !(flight.Recursive
