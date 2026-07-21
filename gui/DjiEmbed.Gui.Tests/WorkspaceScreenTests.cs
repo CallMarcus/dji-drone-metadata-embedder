@@ -748,6 +748,89 @@ public class WorkspaceScreenTests
         Assert.Same(vm.EmbedOptions.ClearOutputCommand, clear.Command);
     }
 
+    // #335: the three Choose… click handlers differ only in which panel's
+    // Output they assign — a cross-wired copy-paste (Photo's button on the
+    // flight handler, say) keeps every other test green while the click
+    // lands in the wrong panel. The picker seams are pinned so no native
+    // dialog ever opens headless; the OTHER two outputs are asserted
+    // untouched because that is precisely the failure shape.
+    [AvaloniaFact]
+    public void Flight_choose_button_routes_the_picked_path_to_the_flight_output()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var view = (WorkspaceView)window.Content!;
+        var vm = (WorkspaceViewModel)view.DataContext!;
+        var titles = new List<string>();
+        view.SavePicker = (_, title, _) =>
+        {
+            titles.Add(title);
+            return Task.FromResult<string?>("/picked/flightmap.html");
+        };
+
+        window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ChooseOutputButton")
+            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(["Save the flight map as"], titles);
+        Assert.Equal("/picked/flightmap.html", vm.FlightOptions.Output);
+        Assert.Equal("", vm.PhotoOptions.Output);
+        Assert.Equal("", vm.EmbedOptions.Output);
+    }
+
+    [AvaloniaFact]
+    public void Photo_choose_button_routes_the_picked_path_to_the_photo_output()
+    {
+        var window = ShowWorkspace();
+        var view = (WorkspaceView)window.Content!;
+        var vm = (WorkspaceViewModel)view.DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var titles = new List<string>();
+        view.SavePicker = (_, title, _) =>
+        {
+            titles.Add(title);
+            return Task.FromResult<string?>("/picked/photomap.html");
+        };
+
+        window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ChoosePhotoOutputButton")
+            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(["Save the photo map as"], titles);
+        Assert.Equal("/picked/photomap.html", vm.PhotoOptions.Output);
+        Assert.Equal("", vm.FlightOptions.Output);
+        Assert.Equal("", vm.EmbedOptions.Output);
+    }
+
+    [AvaloniaFact]
+    public void Embed_choose_button_routes_the_picked_folder_to_the_embed_output()
+    {
+        var window = ShowWorkspace();
+        var view = (WorkspaceView)window.Content!;
+        var vm = (WorkspaceViewModel)view.DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        // Embed's -o is a DIRECTORY, so this button must take the folder
+        // picker, never the save dialog — the decoy would betray it.
+        view.SavePicker = static (_, _, _) =>
+            Task.FromResult<string?>("/decoy/from-the-save-dialog.html");
+        view.OutputFolderPicker = static (_, _) =>
+            Task.FromResult<string?>("/picked/copies");
+
+        window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ChooseEmbedOutputButton")
+            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("/picked/copies", vm.EmbedOptions.Output);
+        Assert.Equal("", vm.FlightOptions.Output);
+        Assert.Equal("", vm.PhotoOptions.Output);
+    }
+
     // The one privacy-relevant message in this panel: "Remove GPS entirely"
     // empties the launch point the checkbox just asked for. Proves the
     // IsVisible binding path, not just the ViewModel property behind it.

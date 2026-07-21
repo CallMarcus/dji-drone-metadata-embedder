@@ -13,7 +13,13 @@ namespace DjiEmbed.Gui.Views;
 /// </summary>
 internal static class FolderPicking
 {
-    private static async Task<string?> PickFolderAsync(Control anchor, string title)
+    /// <summary>
+    /// Pick a directory, or <c>null</c> when the picker was dismissed.
+    /// Also serves as a command-output destination picker: Embed's
+    /// <c>-o</c> is a directory, not a file, so its Choose… button routes
+    /// here rather than to <see cref="PickSaveAsync"/>'s save dialog.
+    /// </summary>
+    internal static async Task<string?> PickFolderAsync(Control anchor, string title)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
@@ -35,20 +41,6 @@ internal static class FolderPicking
             is { } path)
         {
             await onFolder(path);
-        }
-    }
-
-    /// <summary>
-    /// Pick a destination directory for a command's output. Embed's
-    /// <c>-o</c> is a directory, not a file, so it reuses the folder picker
-    /// rather than <see cref="SaveMapAsync"/>'s save-file dialog.
-    /// </summary>
-    internal static async Task ChooseOutputFolderAsync(
-        Control anchor, Action<string> onPath, string title)
-    {
-        if (await PickFolderAsync(anchor, title) is { } path)
-        {
-            onPath(path);
         }
     }
 
@@ -88,12 +80,14 @@ internal static class FolderPicking
     internal static void SetDragOver(Control zone, bool active) =>
         zone.Classes.Set("dragover", active);
 
-    internal static async Task SaveMapAsync(
-        Control anchor, Action<string> onPath, string title, string suggestedName)
+    /// <summary>Pick where to save a map's HTML, or <c>null</c> when the
+    /// dialog was dismissed.</summary>
+    internal static async Task<string?> PickSaveAsync(
+        Control anchor, string title, string suggestedName)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
-            return;
+            return null;
         }
         var file = await top.StorageProvider.SaveFilePickerAsync(
             new FilePickerSaveOptions
@@ -106,10 +100,6 @@ internal static class FolderPicking
                     new FilePickerFileType("Web map") { Patterns = ["*.html"] },
                 ],
             });
-        var path = file?.TryGetLocalPath();
-        if (path is not null)
-        {
-            onPath(path);
-        }
+        return file?.TryGetLocalPath();
     }
 }
