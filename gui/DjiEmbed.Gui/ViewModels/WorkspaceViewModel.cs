@@ -481,6 +481,12 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             return;
         }
+        // Option snapshots are taken BEFORE the awaited scan: the strip
+        // shows this exact command when the button is pressed, and a run
+        // owns what it showed — a mid-scan edit must not repair into it.
+        var flight = FlightOptions.ToOptions();
+        var photo = PhotoOptions.ToOptions();
+        var embed = EmbedOptions.ToOptions();
         var contents = await Task.Run(() => _inspectFolder(folder));
         // The scan runs before ExecuteFlowAsync sets Step = Running, so the
         // folder can be cleared or replaced underneath us while it is in
@@ -493,24 +499,40 @@ public partial class WorkspaceViewModel : FlowViewModel
         // Reset only now, past the awaited scan: clearing the preview any
         // earlier flashes the stale done card while a live map is still up.
         ResetPreview();
+        // The scan is recursive, but embed reads one directory level and
+        // the map commands recurse only with -r — so each guard asks "is
+        // the media where THIS command will look" (#333, #338), and the
+        // guidance names the panel's own controls, never the CLI's flags.
         switch (SelectedMode.Kind)
         {
-            case WorkspaceModeKind.FlightMap when !contents.HasFlightLogs:
-                Fail("No drone flight logs (.SRT) were found in that folder. "
-                     + "Pick the folder that contains your footage — "
-                     + "subfolders are included automatically.");
+            case WorkspaceModeKind.FlightMap
+                when !(flight.Recursive
+                    ? contents.HasFlightLogs : contents.HasTopLevelFlightLogs):
+                Fail(contents.HasFlightLogs
+                    ? "Those flight logs are in subfolders — turn on "
+                      + "Include subfolders."
+                    : "No drone flight logs (.SRT) were found in that "
+                      + "folder. Pick the folder that contains your footage"
+                      + (flight.Recursive
+                          ? " — subfolders are included automatically." : "."));
                 return;
             case WorkspaceModeKind.FlightMap:
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your flights…",
-                        CommandBuilder.FlightMap(folder, FlightOptions.ToOptions()))
+                        CommandBuilder.FlightMap(folder, flight))
                     && await PrimePreviewAsync());
                 return;
-            case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
-                Fail("No photos were found in that folder. Pick the folder "
-                     + "that contains your pictures — subfolders are "
-                     + "included automatically.");
+            case WorkspaceModeKind.PhotoMap
+                when !(photo.Recursive
+                    ? contents.HasPhotos : contents.HasTopLevelPhotos):
+                Fail(contents.HasPhotos
+                    ? "Those photos are in subfolders — turn on "
+                      + "Include subfolders."
+                    : "No photos were found in that folder. Pick the folder "
+                      + "that contains your pictures"
+                      + (photo.Recursive
+                          ? " — subfolders are included automatically." : "."));
                 return;
             case WorkspaceModeKind.PhotoMap:
                 // --link-originals defaults on: it's what powers the embedded
@@ -521,18 +543,25 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
-                        CommandBuilder.PhotoMap(folder, PhotoOptions.ToOptions()))
+                        CommandBuilder.PhotoMap(folder, photo))
                     && await PrimePreviewAsync());
                 return;
-            case WorkspaceModeKind.Embed when !contents.HasVideos:
-                Fail("No videos (.MP4) were found in that folder. Pick the "
-                     + "folder that holds the drone videos together with "
-                     + "their .SRT flight logs.");
+            case WorkspaceModeKind.Embed when !contents.HasTopLevelVideos:
+                // embed has no recursive form at all, so subfolder-only
+                // videos would end as a "Done" card over a zero-file
+                // warning run (#338) — say so before spending the run.
+                Fail(contents.HasVideos
+                    ? "The videos are in subfolders, and Embed reads only "
+                      + "the folder you pick — pick the subfolder that "
+                      + "holds the videos."
+                    : "No videos (.MP4) were found in that folder. Pick the "
+                      + "folder that holds the drone videos together with "
+                      + "their .SRT flight logs.");
                 return;
             case WorkspaceModeKind.Embed:
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
-                    CommandBuilder.Embed(folder, EmbedOptions.ToOptions())));
+                    CommandBuilder.Embed(folder, embed)));
                 return;
         }
     }

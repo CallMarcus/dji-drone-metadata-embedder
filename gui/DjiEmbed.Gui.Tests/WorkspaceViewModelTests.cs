@@ -12,7 +12,9 @@ public class WorkspaceViewModelTests : IDisposable
 
     private string MakeFolder(
         bool srt = false, bool photos = false, bool videos = false,
-        bool flightMap = false, bool photoMap = false)
+        bool flightMap = false, bool photoMap = false,
+        bool nestedSrt = false, bool nestedPhotos = false,
+        bool nestedVideos = false)
     {
         var folder = Path.Combine(_dir, "footage-" + Guid.NewGuid().ToString("N")[..6]);
         Directory.CreateDirectory(folder);
@@ -21,6 +23,14 @@ public class WorkspaceViewModelTests : IDisposable
         if (videos) File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
         if (flightMap) File.WriteAllText(Path.Combine(folder, "flightmap.html"), "");
         if (photoMap) File.WriteAllText(Path.Combine(folder, "photomap.html"), "");
+        if (nestedSrt || nestedPhotos || nestedVideos)
+        {
+            var sub = Directory.CreateDirectory(
+                Path.Combine(folder, "trip")).FullName;
+            if (nestedSrt) File.WriteAllText(Path.Combine(sub, "DJI_0002.SRT"), "");
+            if (nestedPhotos) File.WriteAllText(Path.Combine(sub, "IMG_2.JPG"), "");
+            if (nestedVideos) File.WriteAllText(Path.Combine(sub, "DJI_0002.MP4"), "");
+        }
         return folder;
     }
 
@@ -219,6 +229,89 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Contains("--link-originals", File.ReadAllText(argsFile));
+    }
+
+    // #333/#338: the folder scan is recursive, but embed reads one level
+    // and the map commands recurse only with -r. When the media is out of
+    // the selected command's reach the run must not start, and the message
+    // must speak GUI ("Include subfolders"), not CLI ("-r").
+    [Fact]
+    public async Task Flight_map_without_subfolders_blocks_nested_only_logs_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedSrt: true));
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Those flight logs are in subfolders — turn on Include subfolders.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Photo_map_without_subfolders_blocks_nested_only_photos_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedPhotos: true));
+        vm.PhotoOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Those photos are in subfolders — turn on Include subfolders.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Embed_blocks_nested_only_videos_instead_of_a_hollow_success()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedVideos: true));  // suggests Embed
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "The videos are in subfolders, and Embed reads only the folder "
+            + "you pick — pick the subfolder that holds the videos.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Not_found_message_drops_the_subfolders_clause_when_the_toggle_is_off()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.DoesNotContain("subfolders are included", vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Not_found_message_keeps_the_subfolders_clause_when_the_toggle_is_on()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("subfolders are included automatically", vm.ErrorMessage);
+    }
+
+    // Positive control for the new guards: top-level media with the toggle
+    // off is within reach, so the run proceeds (and stays non-recursive).
+    [Fact]
+    public async Task Flight_map_without_subfolders_still_runs_on_top_level_logs()
+    {
+        var argsFile = Path.Combine(_dir, "args-fm-toponly.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true, nestedSrt: true));
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllLines(argsFile);
+        Assert.Equal("flightmap", argv[0]);
+        Assert.DoesNotContain("-r", argv);
     }
 
     [Fact]
