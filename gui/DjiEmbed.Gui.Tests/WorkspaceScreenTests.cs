@@ -981,6 +981,7 @@ public class WorkspaceScreenTests
             Assert.False(byName("FlightOptionsPanel").IsEnabled);
             Assert.False(byName("PhotoOptionsPanel").IsEnabled);
             Assert.False(byName("EmbedOptionsPanel").IsEnabled);
+            Assert.False(byName("ConvertOptionsPanel").IsEnabled);
             Assert.True(byName("CopyCommandButton").IsEffectivelyEnabled);
 
             gate.SetResult();
@@ -1012,59 +1013,25 @@ public class WorkspaceScreenTests
         Assert.Equal("C:/x/DJI_1.SRT", vm.SelectedFile);
     }
 
-    // M4a: the Convert options panel renders only for Convert, and — like
-    // the other three options panels — freezes for the whole lifetime of a
-    // run (#340), not just while Step == Running.
+    // M4a: the Convert options panel renders only for Convert, with the
+    // Advanced expander closed by default. The panel's freeze-while-busy
+    // behaviour is covered alongside the other three panels' by
+    // Left_column_freezes_while_a_run_is_in_flight (#340).
     [AvaloniaFact]
-    public async Task Convert_panel_shows_only_in_convert_mode_and_freezes_when_busy()
+    public void Convert_mode_shows_the_options_panel_with_advanced_collapsed()
     {
-        var dir = Directory.CreateTempSubdirectory("djiembed-screen-convert-busy").FullName;
-        try
-        {
-            var cli = FakeCli.WriteEventStream(dir,
-            [
-                """{"v": 1, "event": "start", "command": "convert", "total": 1}""",
-                """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.gpx"], "summary": {}}""",
-            ]);
-            var gate = new TaskCompletionSource();
-            Func<string, FolderContents> inspect = _ => new FolderContents(
-                true, false, false, true, false, false, null, null);
-            var vm = new WorkspaceViewModel(cli, new DjiEmbedRunner(),
-                new FakeMapServer(null), () => { },
-                previewAvailable: static () => false,
-                folderInspector: d => inspect(d));
-            var window = ShowWorkspace(vm);
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
 
-            var panel = window.GetVisualDescendants().OfType<Border>()
-                .Single(b => b.Name == "ConvertOptionsPanel");
-            Assert.False(panel.IsEffectivelyVisible);   // default mode: Flight map
-
-            vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
-            Dispatcher.UIThread.RunJobs();
-            window.UpdateLayout();
-            Assert.True(panel.IsEffectivelyVisible);
-
-            await vm.SetFolderAsync(dir);
-            inspect = _ =>
-            {
-                gate.Task.Wait();
-                return new FolderContents(
-                    true, false, false, true, false, false, null, null);
-            };
-
-            var run = vm.RunCommand.ExecuteAsync(null);
-            Dispatcher.UIThread.RunJobs();
-            Assert.False(panel.IsEnabled);
-
-            gate.SetResult();
-            await run;
-            Dispatcher.UIThread.RunJobs();
-            Assert.True(panel.IsEnabled);
-        }
-        finally
-        {
-            Directory.Delete(dir, recursive: true);
-        }
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "ConvertOptionsPanel");
+        Assert.True(panel.IsEffectivelyVisible);
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "ConvertAdvanced");
+        Assert.False(advanced.IsExpanded);
     }
 
     [AvaloniaFact]
@@ -1094,6 +1061,7 @@ public class WorkspaceScreenTests
         format.SelectedItem = vm.ConvertOptions.Formats.Single(f => f.Key == "kml");
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("kml", vm.ConvertOptions.SelectedFormat.Key);
+        Assert.Contains("convert kml", vm.CommandPreview);
 
         var privacy = window.GetVisualDescendants().OfType<ComboBox>()
             .Single(c => c.Name == "ConvertPrivacyCombo");
@@ -1102,12 +1070,14 @@ public class WorkspaceScreenTests
             .Single(p => p.Value == TelemetryPrivacy.Fuzz);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(TelemetryPrivacy.Fuzz, vm.ConvertOptions.SelectedPrivacy.Value);
+        Assert.Contains("--redact fuzz", vm.CommandPreview);
 
         var tz = window.GetVisualDescendants().OfType<TextBox>()
             .Single(t => t.Name == "ConvertTzBox");
         tz.Text = "+02:00";
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("+02:00", vm.ConvertOptions.TzOffset);
+        Assert.Contains("--tz-offset +02:00", vm.CommandPreview);
 
         var footprints = window.GetVisualDescendants().OfType<CheckBox>()
             .Single(c => c.Name == "FootprintsCheck");
@@ -1115,12 +1085,14 @@ public class WorkspaceScreenTests
         footprints.IsChecked = true;
         Dispatcher.UIThread.RunJobs();
         Assert.True(vm.ConvertOptions.Footprints);
+        Assert.Contains("--footprint", vm.CommandPreview);
 
         var interval = window.GetVisualDescendants().OfType<Slider>()
             .Single(s => s.Name == "FootprintIntervalSlider");
         interval.Value = 5;
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(5, vm.ConvertOptions.FootprintInterval);
+        Assert.Contains("--footprint-interval 5", vm.CommandPreview);
 
         var model = window.GetVisualDescendants().OfType<ComboBox>()
             .Single(c => c.Name == "ConvertModelCombo");
@@ -1128,6 +1100,7 @@ public class WorkspaceScreenTests
         model.SelectedItem = vm.ConvertOptions.Models.Single(m => m.Key == "air3");
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("air3", vm.ConvertOptions.SelectedModel.Key);
+        Assert.Contains("--model air3", vm.CommandPreview);
 
         // Switch to cot to reach the CoT-only controls.
         format.SelectedItem = vm.ConvertOptions.Formats.Single(f => f.Key == "cot");
@@ -1139,12 +1112,14 @@ public class WorkspaceScreenTests
         cotInterval.Text = "3";
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(3, vm.ConvertOptions.CotInterval);
+        Assert.Contains("--interval 3", vm.CommandPreview);
 
         var cotType = window.GetVisualDescendants().OfType<TextBox>()
             .Single(t => t.Name == "CotTypeBox");
         cotType.Text = "a-h-A";
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("a-h-A", vm.ConvertOptions.CotType);
+        Assert.Contains("--cot-type a-h-A", vm.CommandPreview);
 
         var clear = window.GetVisualDescendants().OfType<Button>()
             .Single(b => b.Name == "ClearConvertOutputButton");
