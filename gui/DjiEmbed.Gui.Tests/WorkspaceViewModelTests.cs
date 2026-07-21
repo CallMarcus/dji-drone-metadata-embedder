@@ -1373,6 +1373,32 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains(nameof(WorkspaceViewModel.IsEmbedMode), notified);
     }
 
+    [Fact]
+    public void Changing_a_convert_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.ConvertOptions.TzOffset = "2";
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_convert_mode_reports_the_convert_options_panel_visible()
+    {
+        var vm = Vm("unused");   // default mode Flight map
+        Assert.False(vm.IsConvertMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Assert.True(vm.IsConvertMode);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.False(vm.IsPhotoMapMode);
+        Assert.False(vm.IsEmbedMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsConvertMode), notified);
+    }
+
     // #334: the CLI transparency strip's whole promise is that the command it
     // shows IS the command the runner executes — the runner may append only
     // the machine-only `--progress jsonl`. Argv-fragment tests and preview

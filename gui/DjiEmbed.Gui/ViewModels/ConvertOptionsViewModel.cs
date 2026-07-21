@@ -27,7 +27,7 @@ public partial class ConvertOptionsViewModel : ViewModelBase
         new("GeoJSON", "geojson", "geojson"),
         new("KML (Google Earth)", "kml", "kml"),
         new("Web map (HTML)", "html", "html"),
-        new("CoT (ATAK/WinTAK)", "cot", "cot.xml"),
+        new("Tactical markers (ATAK/WinTAK)", "cot", "cot.xml"),
     ];
 
     public IReadOnlyList<TelemetryPrivacyChoice> PrivacyOptions { get; } =

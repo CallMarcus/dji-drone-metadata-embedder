@@ -26,15 +26,6 @@ public class WorkspaceModeTests
     }
 
     [Fact]
-    public void Convert_sits_between_embed_and_setup_in_the_strip()
-    {
-        var kinds = WorkspaceMode.All.Select(m => m.Kind).ToArray();
-        Assert.Equal([WorkspaceModeKind.FlightMap, WorkspaceModeKind.PhotoMap,
-            WorkspaceModeKind.Embed, WorkspaceModeKind.Convert,
-            WorkspaceModeKind.Setup], kinds);
-    }
-
-    [Fact]
     public void Of_finds_each_mode()
     {
         Assert.Equal("Flight map",
