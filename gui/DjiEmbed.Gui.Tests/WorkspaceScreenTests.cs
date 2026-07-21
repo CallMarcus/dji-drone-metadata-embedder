@@ -1011,4 +1011,234 @@ public class WorkspaceScreenTests
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("C:/x/DJI_1.SRT", vm.SelectedFile);
     }
+
+    // M4a: the Convert options panel renders only for Convert, and — like
+    // the other three options panels — freezes for the whole lifetime of a
+    // run (#340), not just while Step == Running.
+    [AvaloniaFact]
+    public async Task Convert_panel_shows_only_in_convert_mode_and_freezes_when_busy()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-convert-busy").FullName;
+        try
+        {
+            var cli = FakeCli.WriteEventStream(dir,
+            [
+                """{"v": 1, "event": "start", "command": "convert", "total": 1}""",
+                """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.gpx"], "summary": {}}""",
+            ]);
+            var gate = new TaskCompletionSource();
+            Func<string, FolderContents> inspect = _ => new FolderContents(
+                true, false, false, true, false, false, null, null);
+            var vm = new WorkspaceViewModel(cli, new DjiEmbedRunner(),
+                new FakeMapServer(null), () => { },
+                previewAvailable: static () => false,
+                folderInspector: d => inspect(d));
+            var window = ShowWorkspace(vm);
+
+            var panel = window.GetVisualDescendants().OfType<Border>()
+                .Single(b => b.Name == "ConvertOptionsPanel");
+            Assert.False(panel.IsEffectivelyVisible);   // default mode: Flight map
+
+            vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.True(panel.IsEffectivelyVisible);
+
+            await vm.SetFolderAsync(dir);
+            inspect = _ =>
+            {
+                gate.Task.Wait();
+                return new FolderContents(
+                    true, false, false, true, false, false, null, null);
+            };
+
+            var run = vm.RunCommand.ExecuteAsync(null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(panel.IsEnabled);
+
+            gate.SetResult();
+            await run;
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(panel.IsEnabled);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Non_convert_mode_hides_the_convert_options_panel()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "ConvertOptionsPanel");
+        Assert.False(panel.IsEffectivelyVisible);
+    }
+
+    // #336-style: flip every control from the CONTROL side and assert its
+    // own options VM moved, catching a wrong-OBJECT binding that a
+    // compiled-binding build would let through.
+    [AvaloniaFact]
+    public void Convert_panel_controls_bind_the_convert_options()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var format = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "ConvertFormatCombo");
+        Assert.Same(vm.ConvertOptions.Formats, format.ItemsSource);
+        format.SelectedItem = vm.ConvertOptions.Formats.Single(f => f.Key == "kml");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("kml", vm.ConvertOptions.SelectedFormat.Key);
+
+        var privacy = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "ConvertPrivacyCombo");
+        Assert.Same(vm.ConvertOptions.PrivacyOptions, privacy.ItemsSource);
+        privacy.SelectedItem = vm.ConvertOptions.PrivacyOptions
+            .Single(p => p.Value == TelemetryPrivacy.Fuzz);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(TelemetryPrivacy.Fuzz, vm.ConvertOptions.SelectedPrivacy.Value);
+
+        var tz = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "ConvertTzBox");
+        tz.Text = "+02:00";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("+02:00", vm.ConvertOptions.TzOffset);
+
+        var footprints = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FootprintsCheck");
+        Assert.False(footprints.IsChecked);
+        footprints.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.ConvertOptions.Footprints);
+
+        var interval = window.GetVisualDescendants().OfType<Slider>()
+            .Single(s => s.Name == "FootprintIntervalSlider");
+        interval.Value = 5;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(5, vm.ConvertOptions.FootprintInterval);
+
+        var model = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "ConvertModelCombo");
+        Assert.Same(vm.ConvertOptions.Models, model.ItemsSource);
+        model.SelectedItem = vm.ConvertOptions.Models.Single(m => m.Key == "air3");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("air3", vm.ConvertOptions.SelectedModel.Key);
+
+        // Switch to cot to reach the CoT-only controls.
+        format.SelectedItem = vm.ConvertOptions.Formats.Single(f => f.Key == "cot");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var cotInterval = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "CotIntervalBox");
+        cotInterval.Text = "3";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(3, vm.ConvertOptions.CotInterval);
+
+        var cotType = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "CotTypeBox");
+        cotType.Text = "a-h-A";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("a-h-A", vm.ConvertOptions.CotType);
+
+        var clear = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ClearConvertOutputButton");
+        // A Button with a NULL Command still reports IsEffectivelyEnabled ==
+        // true, so identity is the only assertion that proves the binding.
+        Assert.Same(vm.ConvertOptions.ClearOutputCommand, clear.Command);
+    }
+
+    [AvaloniaFact]
+    public async Task Convert_conditional_sections_follow_the_format()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var footprintSection = window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(s => s.Name == "FootprintSection");
+        var cotSection = window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(s => s.Name == "CotSection");
+        var saveSection = window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(s => s.Name == "ConvertSaveSection");
+
+        // Default format is gpx: neither conditional section, no file source.
+        Assert.False(footprintSection.IsEffectivelyVisible);
+        Assert.False(cotSection.IsEffectivelyVisible);
+        Assert.False(saveSection.IsEffectivelyVisible);
+
+        vm.ConvertOptions.SelectedFormat =
+            vm.ConvertOptions.Formats.Single(f => f.Key == "kml");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(footprintSection.IsEffectivelyVisible);
+        Assert.False(cotSection.IsEffectivelyVisible);
+
+        vm.ConvertOptions.SelectedFormat =
+            vm.ConvertOptions.Formats.Single(f => f.Key == "cot");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(footprintSection.IsEffectivelyVisible);
+        Assert.True(cotSection.IsEffectivelyVisible);
+
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(saveSection.IsEffectivelyVisible);
+
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-convert-savesection").FullName;
+        try
+        {
+            await vm.SetFolderAsync(dir);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.False(saveSection.IsEffectivelyVisible);   // a folder source has no save-as
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    // #335-style: the seam is pinned so no native dialog opens headless, and
+    // the suggested name proves the picker is wired with the SOURCE file's
+    // stem and the currently-selected format's own suffix.
+    [AvaloniaFact]
+    public void Choose_convert_output_routes_through_the_typed_save_picker()
+    {
+        var window = ShowWorkspace();
+        var view = (WorkspaceView)window.Content!;
+        var vm = (WorkspaceViewModel)view.DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        vm.ConvertOptions.SelectedFormat =
+            vm.ConvertOptions.Formats.Single(f => f.Key == "kml");
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        string? suggestedName = null;
+        string? pattern = null;
+        view.ConvertSavePicker = (_, _, name, _, ext) =>
+        {
+            suggestedName = name;
+            pattern = ext;
+            return Task.FromResult<string?>("C:/x/DJI_0001.kml");
+        };
+
+        window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ChooseConvertOutputButton")
+            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("DJI_0001.kml", suggestedName);
+        Assert.Equal("*.kml", pattern);
+        Assert.Equal("C:/x/DJI_0001.kml", vm.ConvertOptions.Output);
+    }
 }

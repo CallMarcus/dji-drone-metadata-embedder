@@ -118,8 +118,18 @@ internal static class FolderPicking
 
     /// <summary>Pick where to save a map's HTML, or <c>null</c> when the
     /// dialog was dismissed.</summary>
+    internal static Task<string?> PickSaveAsync(
+        Control anchor, string title, string suggestedName) =>
+        PickSaveAsync(anchor, title, suggestedName, "Web map", "*.html");
+
+    /// <summary>Pick where to save a file of the given kind, or <c>null</c>
+    /// when the dialog was dismissed — the typed form behind
+    /// <see cref="PickSaveAsync(Control, string, string)"/>, used directly
+    /// by Convert (M4a) so each format gets its own extension and filter
+    /// label instead of "Web map"/"*.html".</summary>
     internal static async Task<string?> PickSaveAsync(
-        Control anchor, string title, string suggestedName)
+        Control anchor, string title, string suggestedName,
+        string filterLabel, string pattern)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
@@ -130,10 +140,10 @@ internal static class FolderPicking
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
-                DefaultExtension = "html",
+                DefaultExtension = pattern[(pattern.LastIndexOf('.') + 1)..],
                 FileTypeChoices =
                 [
-                    new FilePickerFileType("Web map") { Patterns = ["*.html"] },
+                    new FilePickerFileType(filterLabel) { Patterns = [pattern] },
                 ],
             });
         return file?.TryGetLocalPath();

@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -50,6 +51,12 @@ public partial class WorkspaceView : UserControl
     /// </summary>
     internal Func<Control, Task<string?>> FilePicker
     { get; set; } = FolderPicking.PickSourceFileAsync;
+
+    /// <summary>Save-file picking for Convert's Choose… button — the
+    /// <see cref="SavePicker"/> seam with the format's own extension:
+    /// (anchor, title, suggestedName, filterLabel, pattern) → path or null.</summary>
+    internal Func<Control, string, string, string, string, Task<string?>>
+        ConvertSavePicker { get; set; } = FolderPicking.PickSaveAsync;
 
     public WorkspaceView()
     {
@@ -177,6 +184,22 @@ public partial class WorkspaceView : UserControl
                 this, "Choose where to save the embedded copies") is { } path)
         {
             vm.EmbedOptions.Output = path;
+        }
+    }
+
+    private async void OnChooseConvertOutputClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not WorkspaceViewModel vm
+            || vm.SelectedFile is not { } file)
+        {
+            return;
+        }
+        var fmt = vm.ConvertOptions.SelectedFormat;
+        var name = Path.GetFileNameWithoutExtension(file) + "." + fmt.Suffix;
+        if (await ConvertSavePicker(this, "Save the converted file as", name,
+                fmt.Label, "*." + fmt.Suffix) is { } path)
+        {
+            vm.ConvertOptions.Output = path;
         }
     }
 

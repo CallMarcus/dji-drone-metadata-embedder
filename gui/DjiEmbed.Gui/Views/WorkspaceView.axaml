@@ -555,6 +555,136 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Name="ConvertOptionsPanel"
+                            IsVisible="{Binding IsConvertMode}"
+                            IsEnabled="{Binding !IsBusy}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Convert to" Opacity="0.7" FontSize="12" />
+                                        <ComboBox Name="ConvertFormatCombo"
+                                                  HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding ConvertOptions.Formats}"
+                                                  SelectedItem="{Binding ConvertOptions.SelectedFormat}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:FormatChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Privacy" Opacity="0.7" FontSize="12" />
+                                        <ComboBox Name="ConvertPrivacyCombo"
+                                                  HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding ConvertOptions.PrivacyOptions}"
+                                                  SelectedItem="{Binding ConvertOptions.SelectedPrivacy}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:TelemetryPrivacyChoice">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Name="FootprintSection" Spacing="4"
+                                                IsVisible="{Binding ConvertOptions.ShowsFootprintOptions}">
+                                        <CheckBox Name="FootprintsCheck"
+                                                  IsChecked="{Binding ConvertOptions.Footprints}"
+                                                  Content="Camera footprint polygons" />
+                                        <StackPanel Spacing="4" Margin="24,0,0,0"
+                                                    IsVisible="{Binding ConvertOptions.Footprints}">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right"
+                                                           Text="{Binding ConvertOptions.FootprintInterval, StringFormat='{}{0} s'}"
+                                                           Opacity="0.7" FontSize="12" />
+                                                <TextBlock Text="Sample every" Opacity="0.7" FontSize="12" />
+                                            </DockPanel>
+                                            <Slider Name="FootprintIntervalSlider"
+                                                    Minimum="1" Maximum="10"
+                                                    TickFrequency="1" IsSnapToTickEnabled="True"
+                                                    Value="{Binding ConvertOptions.FootprintInterval}" />
+                                            <ComboBox Name="ConvertModelCombo"
+                                                      HorizontalAlignment="Stretch"
+                                                      ItemsSource="{Binding ConvertOptions.Models}"
+                                                      SelectedItem="{Binding ConvertOptions.SelectedModel}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:ModelChoice">
+                                                        <TextBlock Text="{Binding Label}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <TextBlock Name="FootprintsSuppressedNote"
+                                                   Text="Privacy is on, so footprints are left out — a precise polygon would re-sharpen a fuzzed location."
+                                                   IsVisible="{Binding ConvertOptions.ShowsFootprintsSuppressedNote}"
+                                                   TextWrapping="Wrap" Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <Expander Name="ConvertAdvanced" Header="Advanced"
+                                              IsExpanded="False">
+                                        <StackPanel Spacing="12" Margin="0,8,0,0">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Time zone of the clips"
+                                                           Opacity="0.7" FontSize="12" />
+                                                <TextBox Name="ConvertTzBox"
+                                                         Text="{Binding ConvertOptions.TzOffset}"
+                                                         PlaceholderText="auto" />
+                                            </StackPanel>
+
+                                            <StackPanel Name="CotSection" Spacing="4"
+                                                        IsVisible="{Binding ConvertOptions.ShowsCotOptions}">
+                                                <TextBlock Text="CoT sampling interval (seconds)"
+                                                           Opacity="0.7" FontSize="12" />
+                                                <TextBox Name="CotIntervalBox"
+                                                         Text="{Binding ConvertOptions.CotInterval}" />
+                                                <TextBlock Text="CoT event type" Opacity="0.7"
+                                                           FontSize="12" />
+                                                <TextBox Name="CotTypeBox"
+                                                         Text="{Binding ConvertOptions.CotType}"
+                                                         PlaceholderText="a-n-A" />
+                                            </StackPanel>
+
+                                            <StackPanel Name="ConvertSaveSection" Spacing="4"
+                                                        IsVisible="{Binding ConvertSaveApplies}">
+                                                <TextBlock Text="Save as" Opacity="0.7" FontSize="12" />
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Margin="8,0,0,0"
+                                                            Name="ChooseConvertOutputButton"
+                                                            Click="OnChooseConvertOutputClick">
+                                                        <TextBlock Text="Choose…" FontSize="12" />
+                                                    </Button>
+                                                    <Button DockPanel.Dock="Right" Margin="8,0,0,0"
+                                                            Name="ClearConvertOutputButton"
+                                                            Command="{Binding ConvertOptions.ClearOutputCommand}"
+                                                            IsVisible="{Binding ConvertOptions.Output,
+                                                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            ToolTip.Tip="Reset to beside the source file">
+                                                        <TextBlock Text="Use default" FontSize="12" />
+                                                    </Button>
+                                                    <Panel VerticalAlignment="Center">
+                                                        <TextBlock Text="(beside the source file)"
+                                                                   IsVisible="{Binding ConvertOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                                                   Opacity="0.5" FontSize="12" />
+                                                        <TextBlock Text="{Binding ConvertOptions.Output}"
+                                                                   IsVisible="{Binding ConvertOptions.Output,
+                                                                       Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Opacity="0.8" FontSize="12" />
+                                                    </Panel>
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Classes="zone" Text="ACTION" />
                     <Button Name="RunButton" Classes="Flat"
                             HorizontalAlignment="Stretch"

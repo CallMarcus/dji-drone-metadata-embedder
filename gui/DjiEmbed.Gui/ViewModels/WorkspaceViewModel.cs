@@ -177,6 +177,10 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Whether the Convert telemetry options panel applies to the current mode.</summary>
     public bool IsConvertMode => SelectedMode.Kind == WorkspaceModeKind.Convert;
 
+    /// <summary>The Save-as override only exists for single-file sources:
+    /// the CLI's batch loop writes every output beside its source.</summary>
+    public bool ConvertSaveApplies => SelectedFile is not null;
+
     /// <summary>
     /// True when a Photo map's "Save map to" override would leave the pins
     /// unable to find the original photos. <c>photomap --link-originals</c>
@@ -267,6 +271,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
         OnPropertyChanged(nameof(SourceDisplay));
+        OnPropertyChanged(nameof(ConvertSaveApplies));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -279,6 +284,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(SourceDisplay));
+        OnPropertyChanged(nameof(ConvertSaveApplies));
         RunCommand.NotifyCanExecuteChanged();
     }
 
