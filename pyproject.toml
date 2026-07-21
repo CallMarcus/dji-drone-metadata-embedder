@@ -43,6 +43,12 @@ dev = [
     "types-click==7.1.8",
     "jsonschema==4.26.0",
 ]
+# Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
+# (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
+browser = [
+    "pytest-playwright==0.8.0",
+    "playwright==1.61.0",
+]
 build = [
     "build==1.5.0",
     "hatchling==1.30.1",
