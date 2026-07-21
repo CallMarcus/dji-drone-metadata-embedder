@@ -104,10 +104,12 @@ The command scans the whole directory in one pass, so even large archives
 scan quickly (ExifTool must be installed — `dji-embed doctor` checks this).
 The HTML map clusters nearby shots into an expandable numbered marker so a
 dense session doesn't turn into a wall of overlapping pins; clicking a photo
-shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings,
-and hovering a marker previews the thumbnail and filename without clicking.
-On phones and tablets there is no hover, so the map skips the previews and
-gives every pin a larger tap target instead — one tap opens the photo popup.
+shows its EXIF thumbnail, filename, timestamp, altitude, and camera settings.
+A **Hover previews** toggle in the map's top-right corner (off by default)
+adds a thumbnail-and-filename preview on mouse-over for skimming large maps;
+the browser remembers your choice. On phones and tablets there is no hover,
+so the map skips the toggle and previews entirely and gives every pin a
+larger tap target instead — one tap opens the photo popup.
 Sharing the map? `--popup-fields` chooses what the popups disclose (`none`,
 or a comma list of `name`, `timestamp`, `camera`, `altitude`); excluded
 details are left out of the HTML file entirely.

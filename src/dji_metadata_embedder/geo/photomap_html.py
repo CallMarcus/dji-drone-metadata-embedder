@@ -118,6 +118,9 @@ _TEMPLATE = """<!DOCTYPE html>
   .photo-popup img {{ max-width: 260px; display: block; margin-bottom: 4px; }}
   .photo-popup .photo-credit {{ opacity: .75; font-size: 90%; }}
   .photo-tooltip img {{ max-width: 160px; display: block; margin-bottom: 2px; }}
+  /* The hover-previews toggle (issue #345) borrows the layer-control card. */
+  .hover-control {{ padding: 5px 8px; font: 12px/1.4 sans-serif; }}
+  .hover-control label {{ cursor: pointer; user-select: none; }}
   /* Per-type markers (issue #283): blue dot = photo, orange dot = 360 pano.
      The same classes render the swatches in the layer-control legend, and
      the cluster tints derive from the same two custom properties. */
@@ -338,8 +341,7 @@ function buildPopup(f) {
 
 // Hover preview (issue #273): thumbnail + filename in a sticky tooltip so a
 // map can be skimmed without clicking every pin. Thumb-less points fall back
-// to a filename-only tooltip. Bound only when the device really hovers
-// (issue #295) — on touch the tooltip hijacked the first tap and hid the pin.
+// to a filename-only tooltip.
 function buildTooltip(f) {
   const p = f.properties || {};
   let html = '<div class="photo-tooltip">';
@@ -350,15 +352,36 @@ function buildTooltip(f) {
   return html;
 }
 
+// Hover previews are opt-in (issue #345): as the default they added a second
+// interaction before the popup's details and link. A small control (mouse
+// devices only — touch never had tooltips, #295) restores #273's skimming
+// tooltips, and the choice is remembered per browser. localStorage can throw
+// (Safari private mode, file://), so failing to remember is silent.
+const HOVER_KEY = 'djiembed-photomap-hover';
+const readHoverPref = () => {
+  try { return localStorage.getItem(HOVER_KEY) === '1'; } catch (e) { return false; }
+};
+const writeHoverPref = on => {
+  try { localStorage.setItem(HOVER_KEY, on ? '1' : '0'); } catch (e) {}
+};
+const allMarkers = [];
+function setHoverPreviews(on) {
+  for (const [marker, f] of allMarkers) {
+    if (on) {
+      marker.bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' });
+    } else {
+      marker.unbindTooltip();
+    }
+  }
+}
+
 for (const f of points) {
   const c = f.geometry.coordinates;                  // [lon, lat, alt]
   latlngs.push([c[1], c[0]]);
   const pano = isPano(f);
   const marker = L.marker([c[1], c[0]], { icon: pano ? panoIcon : photoIcon })
     .bindPopup(() => buildPopup(f), { maxWidth: 300 });
-  if (!TOUCH) {
-    marker.bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' });
-  }
+  allMarkers.push([marker, f]);
   (pano ? panoMarkers : photoMarkers).push(marker);
 }
 photoCluster.addLayers(photoMarkers);
@@ -373,6 +396,27 @@ if (photoMarkers.length && panoMarkers.length) {
     '<span class="photo-pin pin-pano pin-swatch"></span>360° panoramas':
       panoCluster
   }, { collapsed: false }).addTo(map);
+}
+if (!TOUCH) {
+  const HoverControl = L.Control.extend({
+    onAdd() {
+      const div = L.DomUtil.create(
+        'div', 'leaflet-control-layers hover-control');
+      div.innerHTML =
+        '<label><input type="checkbox" id="hover-toggle"> Hover previews</label>';
+      // Without this, a click on the checkbox also pans/zooms the map.
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    }
+  });
+  new HoverControl({ position: 'topright' }).addTo(map);
+  const hoverToggle = document.getElementById('hover-toggle');
+  hoverToggle.checked = readHoverPref();
+  if (hoverToggle.checked) setHoverPreviews(true);
+  hoverToggle.addEventListener('change', () => {
+    setHoverPreviews(hoverToggle.checked);
+    writeHoverPref(hoverToggle.checked);
+  });
 }
 if (latlngs.length > 1) {
   map.fitBounds(L.latLngBounds(latlngs).pad(0.1), { maxZoom: 17 });

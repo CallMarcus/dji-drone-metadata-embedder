@@ -13,7 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- Photo map hover previews are now opt-in ([#345]): pins go straight to the
+  click popup, and a "Hover previews" toggle in the map's top-right corner
+  (mouse devices only, remembered by the browser) restores the thumbnail
+  preview for skimming. Previously the preview was always on, which meant
+  interacting with a pin twice to reach its details and link.
+
+[#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
 ## [1.27.0] - 2026-07-20
 

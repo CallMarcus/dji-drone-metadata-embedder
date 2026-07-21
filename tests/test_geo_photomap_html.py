@@ -117,12 +117,48 @@ def _tooltip_builder(html: str) -> str:
     return match.group(1)
 
 
-def test_html_markers_bind_hover_tooltip():
-    # Hover preview (issue #273): every marker gets a sticky tooltip so the
-    # map can be skimmed without clicking each pin.
+def test_html_hover_previews_are_off_by_default():
+    # Issue #345: hovering used to add a second interaction before the
+    # popup's details and link. Markers now bind only the click popup at
+    # creation; the tooltip binding lives solely in the opt-in toggle path.
     html = photos_to_html(POINTS, title="t")
-    assert "bindTooltip(" in html
-    assert "sticky: true" in html
+    # The dot keeps `unbindTooltip(` from matching as a substring.
+    assert html.count(".bindTooltip(") == 1
+    match = re.search(
+        r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
+    assert match, "setHoverPreviews function not found"
+    assert ".bindTooltip(" in match.group(1)
+
+
+def test_html_hover_toggle_binds_and_unbinds():
+    # Turning the toggle on restores exactly the #273 sticky tooltips;
+    # turning it off removes them again.
+    html = photos_to_html(POINTS, title="t")
+    match = re.search(
+        r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
+    assert match
+    body = match.group(1)
+    assert "bindTooltip(" in body
+    assert "sticky: true" in body
+    assert "unbindTooltip(" in body
+
+
+def test_html_hover_toggle_control_only_on_hover_devices():
+    # The control is a small Leaflet-style card labelled "Hover previews".
+    # Touch never had tooltips (#295), so it must not gain a dead toggle.
+    html = photos_to_html(POINTS, title="t")
+    assert "Hover previews" in html
+    assert re.search(r"if \(!TOUCH\) \{[\s\S]{0,700}Hover previews", html)
+
+
+def test_html_hover_preference_is_remembered_and_guarded():
+    # The choice persists per browser; localStorage can throw (Safari
+    # private mode, file://), so every access sits inside a try.
+    html = photos_to_html(POINTS, title="t")
+    assert "djiembed-photomap-hover" in html
+    assert "localStorage.getItem" in html
+    assert "localStorage.setItem" in html
+    assert "catch" in html
 
 
 def test_html_tooltip_shows_thumbnail_and_escaped_name():
@@ -294,13 +330,15 @@ def test_html_pano_cluster_anchor_offset_against_occlusion():
 # the tap meant for it. Touch gets no tooltips and a larger tap target instead.
 
 
-def test_html_touch_devices_detected_and_skip_hover_tooltips():
+def test_html_touch_devices_detected_and_skip_hover_previews():
     html = photos_to_html(PANO_POINTS, title="t")
     # Capability detection, not UA sniffing: no hover / coarse pointer.
     assert "matchMedia" in html
     assert "hover: none" in html
-    # Tooltip binding is gated on the touch check; popups stay unconditional.
-    assert re.search(r"if \(!TOUCH\)[\s\S]{0,120}bindTooltip\(", html)
+    # The hover-previews control (#345) is gated on the touch check —
+    # touch devices get neither tooltips nor the toggle. Popups stay
+    # unconditional.
+    assert re.search(r"if \(!TOUCH\) \{[\s\S]{0,700}Hover previews", html)
     assert "bindPopup(" in html
 
 
