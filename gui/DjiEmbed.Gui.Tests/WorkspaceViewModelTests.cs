@@ -126,10 +126,91 @@ public class WorkspaceViewModelTests : IDisposable
     {
         var vm = Vm("unused");
         await vm.SetFolderAsync(MakeFolder(srt: true));
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
         Assert.Null(vm.SelectedFolder);
         Assert.Null(vm.SuggestedMode);
         Assert.False(vm.CanRun);
+    }
+
+    // M4a Task 2: SOURCE learns to hold a single file instead of a folder,
+    // mutually exclusive with it.
+    [Fact]
+    public async Task Picking_a_file_clears_the_folder_and_vice_versa()
+    {
+        var vm = Vm("unused",
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("C:/clips/DJI_0001.SRT", vm.SelectedFile);
+        Assert.Null(vm.SelectedFolder);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        Assert.Null(vm.SelectedFile);
+        Assert.NotNull(vm.SelectedFolder);
+    }
+
+    [Fact]
+    public void File_pick_suggests_nothing_yet()
+    {
+        // Becomes "suggests Convert" when the Convert mode lands (M4a Task 6).
+        var vm = Vm("unused");
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Null(vm.SuggestedMode);
+    }
+
+    [Fact]
+    public void Clear_source_removes_a_file_too()
+    {
+        var vm = Vm("unused");
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        vm.ClearSourceCommand.Execute(null);
+        Assert.Null(vm.SelectedFile);
+        Assert.Equal(FlowStep.Pick, vm.Step);
+    }
+
+    [Fact]
+    public void Source_display_shows_folder_path_but_file_name_only()
+    {
+        var vm = Vm("unused");
+        Assert.Null(vm.SourceDisplay);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("DJI_0001.SRT", vm.SourceDisplay);
+    }
+
+    [Fact]
+    public void File_pick_enables_the_run_button()
+    {
+        var vm = Vm("unused");
+        Assert.False(vm.CanRun);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.True(vm.CanRun);
+    }
+
+    [Fact]
+    public async Task File_pick_is_inert_while_busy()
+    {
+        // Same discipline as SetFolderAsync: a run owns its inputs (#340).
+        // Copies the gated-scan idiom from The_whole_run_is_busy_from_its_first_line.
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var vm = Vm(cli, folderInspector: dir => inspect(dir));
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+
+        var gate = new TaskCompletionSource();
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
+        var run = vm.RunCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsBusy);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Null(vm.SelectedFile);      // inert while busy
+
+        gate.SetResult();
+        await run;
+        Assert.False(vm.IsBusy);
     }
 
     [Fact]
@@ -350,7 +431,7 @@ public class WorkspaceViewModelTests : IDisposable
         var run = vm.RunCommand.ExecuteAsync(null);
 
         Assert.True(vm.IsBusy);
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
         Assert.Equal(folder, vm.SelectedFolder);      // inert while busy
         await vm.SetFolderAsync("Z:/other");
         Assert.Equal(folder, vm.SelectedFolder);      // inert while busy
@@ -965,7 +1046,7 @@ public class WorkspaceViewModelTests : IDisposable
     {
         var vm = Vm("unused");
         await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Empty(vm.ExistingMaps);
     }
@@ -1008,7 +1089,7 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.OpenExistingMapCommand.ExecuteAsync(vm.ExistingMaps[0]);
         Assert.True(vm.ShowPreview);
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Null(vm.PreviewUrl);
         Assert.False(vm.ShowPreview);
@@ -1517,7 +1598,7 @@ public class WorkspaceViewModelTests : IDisposable
         vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
         vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Equal("", vm.FlightOptions.Output);
         Assert.Equal("", vm.PhotoOptions.Output);
@@ -1535,7 +1616,7 @@ public class WorkspaceViewModelTests : IDisposable
         var notified = new List<string>();
         vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
         Assert.Equal("dji-embed flightmap <folder> -r", vm.CommandPreview);
@@ -1556,7 +1637,7 @@ public class WorkspaceViewModelTests : IDisposable
         vm.Warnings.Add("something from the run just finished");
         vm.Step = FlowStep.Done;
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.True(vm.ShowIdle);
         Assert.False(vm.ShowDoneCard);
@@ -1586,7 +1667,7 @@ public class WorkspaceViewModelTests : IDisposable
         };
         var run = vm.RunCommand.ExecuteAsync(null);
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Equal(folder, vm.SelectedFolder);
         Assert.Equal(Path.Combine(_dir, "flightmap.html"), vm.FlightOptions.Output);

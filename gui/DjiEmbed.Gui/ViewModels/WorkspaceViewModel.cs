@@ -78,6 +78,15 @@ public partial class WorkspaceViewModel : FlowViewModel
     public partial string? SelectedFolder { get; set; }
 
     [ObservableProperty]
+    public partial string? SelectedFile { get; set; }
+
+    /// <summary>The one source chip's text: a folder shows its full path, a
+    /// file just its name (the path is long and the name is what identifies
+    /// the clip).</summary>
+    public string? SourceDisplay =>
+        SelectedFolder ?? (SelectedFile is { } f ? Path.GetFileName(f) : null);
+
+    [ObservableProperty]
     public partial WorkspaceMode SelectedMode { get; set; } = WorkspaceMode.All[0];
 
     [ObservableProperty]
@@ -146,7 +155,9 @@ public partial class WorkspaceViewModel : FlowViewModel
     partial void OnPreviewUrlChanged(string? value) => RaiseGateChanged();
 
     /// <summary>The action button lights up as soon as a run could work.</summary>
-    public bool CanRun => SelectedMode.Sources == SourceKinds.None || SelectedFolder is not null;
+    public bool CanRun =>
+        SelectedMode.Sources == SourceKinds.None
+        || SelectedFolder is not null || SelectedFile is not null;
 
     /// <summary>Whether the Flight map options panel applies to the current mode.</summary>
     public bool IsFlightMapMode => SelectedMode.Kind == WorkspaceModeKind.FlightMap;
@@ -233,9 +244,26 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     partial void OnSelectedFolderChanged(string? value)
     {
+        if (value is not null)
+        {
+            SelectedFile = null;
+        }
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
+        OnPropertyChanged(nameof(SourceDisplay));
+        RunCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedFileChanged(string? value)
+    {
+        if (value is not null)
+        {
+            SelectedFolder = null;
+        }
+        OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(CommandPreview));
+        OnPropertyChanged(nameof(SourceDisplay));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -308,10 +336,34 @@ public partial class WorkspaceViewModel : FlowViewModel
         Step = FlowStep.Pick;
     }
 
-    [RelayCommand]
-    private void ClearFolder()
+    /// <summary>
+    /// Single-file pick (M4a): the mirror of <see cref="SetFolderAsync"/> for
+    /// modes that take one telemetry file. No inspector scan and no
+    /// existing-map probe — both are folder concepts — so this is synchronous
+    /// and has no overtake race to re-check.
+    /// </summary>
+    public void SetFile(string path)
     {
-        // Inert while a run is in flight: pulling the folder out from under
+        if (IsBusy)
+        {
+            return;
+        }
+        SelectedFile = path;
+        ExistingMaps.Clear();
+        Outputs.Clear();
+        Warnings.Clear();
+        FlightOptions.Output = "";
+        PhotoOptions.Output = "";
+        EmbedOptions.Output = "";
+        ResetPreview();
+        Step = FlowStep.Pick;
+        SuggestedMode = null;   // becomes Convert in Task 6
+    }
+
+    [RelayCommand]
+    private void ClearSource()
+    {
+        // Inert while a run is in flight: pulling the source out from under
         // a running job would also discard the output overrides. IsBusy
         // spans the run's folder scan too, and RunAsync's ownership
         // re-check after the scan stays as defence in depth.
@@ -320,25 +372,26 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         SelectedFolder = null;
+        SelectedFile = null;
         SuggestedMode = null;
         ExistingMaps.Clear();
         // The same ownership rule SetFolderAsync explains: an output override
-        // belongs to the folder it was chosen for, and removing the folder
+        // belongs to the source it was chosen for, and removing the source
         // leaves it with no owner at all. The strip is where that shows —
         // it would go on advertising `--output <path>` beside the `<folder>`
         // placeholder. (Each Output setter raises through the ctor's options
         // subscription, so the strip repaints with the cleared value. The
-        // SelectedFolder raise above fires before these lines and still sees
-        // the old path.)
+        // SelectedFolder/SelectedFile raises above fire before these lines
+        // and still see the old path.)
         FlightOptions.Output = "";
         PhotoOptions.Output = "";
         EmbedOptions.Output = "";
         // A map browsed out of that folder can't outlive it: without this the
-        // pane keeps rendering it with no folder and no drop hero behind it.
+        // pane keeps rendering it with no source and no drop hero behind it.
         ResetPreview();
         // Nor can a finished run's results: without these, ✕ after a run left
         // Step == Done with the preview nulled, which is precisely the
-        // done-card state — outputs and warnings listed over no folder.
+        // done-card state — outputs and warnings listed over no source.
         Outputs.Clear();
         Warnings.Clear();
         Step = FlowStep.Pick;

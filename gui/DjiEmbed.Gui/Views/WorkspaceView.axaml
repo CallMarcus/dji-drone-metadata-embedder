@@ -76,15 +76,15 @@
                                     </StackPanel>
                                 </Panel>
                             </Border>
-                            <DockPanel IsVisible="{Binding SelectedFolder,
+                            <DockPanel IsVisible="{Binding SourceDisplay,
                                            Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <Button DockPanel.Dock="Right"
-                                        Command="{Binding ClearFolderCommand}"
-                                        AutomationProperties.Name="Remove folder"
-                                        ToolTip.Tip="Remove folder">
+                                        Command="{Binding ClearSourceCommand}"
+                                        AutomationProperties.Name="Remove source"
+                                        ToolTip.Tip="Remove">
                                     <TextBlock Text="✕" FontSize="12" />
                                 </Button>
-                                <TextBlock Text="{Binding SelectedFolder}"
+                                <TextBlock Text="{Binding SourceDisplay}"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            Opacity="0.8" FontSize="12" />
