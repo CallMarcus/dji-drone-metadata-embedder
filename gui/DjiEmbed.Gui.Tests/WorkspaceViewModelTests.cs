@@ -145,6 +145,9 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.SetFolderAsync(MakeFolder(srt: true));
         Assert.Null(vm.SelectedFile);
         Assert.NotNull(vm.SelectedFolder);
+        vm.SetFile("C:/clips/DJI_0002.SRT");
+        Assert.Equal("C:/clips/DJI_0002.SRT", vm.SelectedFile);
+        Assert.Null(vm.SelectedFolder);
     }
 
     [Fact]
