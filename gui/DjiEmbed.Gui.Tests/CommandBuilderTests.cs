@@ -446,4 +446,79 @@ public class CommandBuilderTests
              "--output", "/out/copies"],
             CommandBuilder.Embed("/x", opts));
     }
+
+    [Fact]
+    public void Convert_defaults_folder_is_bare_batch_gpx()
+        => Assert.Equal(["convert", "gpx", "F", "-b"],
+            CommandBuilder.Convert("F", batch: true, ConvertTelemetryOptions.Defaults));
+
+    [Fact]
+    public void Convert_defaults_file_is_bare_gpx()
+        => Assert.Equal(["convert", "gpx", "clip.SRT"],
+            CommandBuilder.Convert("clip.SRT", batch: false,
+                ConvertTelemetryOptions.Defaults));
+
+    [Fact]
+    public void Convert_full_options_emit_in_fixed_order()
+    {
+        var opts = ConvertTelemetryOptions.Defaults with
+        {
+            Format = "kml", Privacy = TelemetryPrivacy.Fuzz, TzOffset = "+02:00",
+            Footprints = true, FootprintInterval = 5, Model = "air3",
+        };
+        Assert.Equal(
+            ["convert", "kml", "clip.SRT", "--redact", "fuzz",
+             "--tz-offset", "+02:00", "--footprint",
+             "--footprint-interval", "5", "--model", "air3"],
+            CommandBuilder.Convert("clip.SRT", batch: false, opts));
+    }
+
+    [Fact]
+    public void Convert_footprint_flags_only_reach_formats_that_take_them()
+    {
+        // --footprint is a geojson/kml flag; on gpx the CLI would reject it.
+        var opts = ConvertTelemetryOptions.Defaults with { Footprints = true };
+        Assert.DoesNotContain("--footprint",
+            CommandBuilder.Convert("F", batch: true, opts));
+    }
+
+    [Fact]
+    public void Convert_cot_settings_only_reach_cot()
+    {
+        var cot = ConvertTelemetryOptions.Defaults with
+        { Format = "cot", CotInterval = 2.5, CotType = "a-f-A" };
+        Assert.Equal(
+            ["convert", "cot", "F", "-b", "--interval", "2.5",
+             "--cot-type", "a-f-A"],
+            CommandBuilder.Convert("F", batch: true, cot));
+        var gpx = cot with { Format = "gpx" };
+        Assert.DoesNotContain("--interval",
+            CommandBuilder.Convert("F", batch: true, gpx));
+    }
+
+    [Fact]
+    public void Convert_output_applies_to_single_files_only()
+    {
+        // The CLI's batch loop has no -o: every output lands beside its source.
+        var opts = ConvertTelemetryOptions.Defaults with { Output = "out.gpx" };
+        Assert.Equal(["convert", "gpx", "clip.SRT", "--output", "out.gpx"],
+            CommandBuilder.Convert("clip.SRT", batch: false, opts));
+        Assert.DoesNotContain("--output",
+            CommandBuilder.Convert("F", batch: true, opts));
+    }
+
+    [Fact]
+    public void Convert_auto_and_blank_tz_are_omitted()
+    {
+        foreach (var tz in new[] { "", "  ", "auto", "AUTO" })
+        {
+            Assert.DoesNotContain("--tz-offset", CommandBuilder.Convert(
+                "F", true, ConvertTelemetryOptions.Defaults with { TzOffset = tz }));
+        }
+    }
+
+    [Fact]
+    public void Build_convert_arm_uses_defaults_batch()
+        => Assert.Equal(["convert", "gpx", "F", "-b"],
+            CommandBuilder.Build(WorkspaceModeKind.Convert, "F"));
 }

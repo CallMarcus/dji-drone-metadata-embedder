@@ -9,6 +9,7 @@ public enum WorkspaceModeKind
     FlightMap,
     PhotoMap,
     Embed,
+    Convert,
     Setup,
 }
 
