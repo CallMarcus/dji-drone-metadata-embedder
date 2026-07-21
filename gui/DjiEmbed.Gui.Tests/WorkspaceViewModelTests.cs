@@ -297,6 +297,13 @@ public class WorkspaceViewModelTests : IDisposable
         """{"v": 1, "event": "result", "ok": true, "outputs": ["photomap.html"], "summary": {}}""",
     ];
 
+    private static readonly string[] ConvertStream =
+    [
+        """{"v": 1, "event": "start", "command": "convert", "total": 1}""",
+        """{"v": 1, "event": "progress", "current": 1, "total": 1, "item": "DJI_0001.SRT"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.gpx"], "summary": {"converted": 1, "skipped": 0, "format": "gpx"}}""",
+    ];
+
     private static readonly string[] DoctorStream =
     [
         """{"v": 1, "event": "start", "command": "doctor"}""",
@@ -532,6 +539,106 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Contains("photos", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // M4a Task 7: Convert runs bare on a single file, batch on a folder,
+    // and guards a folder whose media is out of -b's one-level reach the
+    // same way embed does (#333/#338).
+    [Fact]
+    public async Task Convert_runs_bare_on_a_single_file()
+    {
+        var argsFile = Path.Combine(_dir, "args-convert-file.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, ConvertStream);
+        var vm = Vm(cli);
+        var srt = Path.Combine(MakeFolder(srt: true), "DJI_0001.SRT");
+        vm.SetFile(srt);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllLines(argsFile);
+        Assert.Equal(["convert", "gpx", srt], argv[..3]);
+        Assert.DoesNotContain("-b", argv);
+    }
+
+    [Fact]
+    public async Task Convert_runs_batch_on_a_folder()
+    {
+        var argsFile = Path.Combine(_dir, "args-convert-folder.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, ConvertStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Contains("-b", File.ReadAllLines(argsFile));
+    }
+
+    [Fact]
+    public async Task Convert_blocks_a_folder_whose_media_is_nested_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedSrt: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Those files are in subfolders — Convert reads only the folder "
+            + "you pick. Pick the subfolder that holds the flight logs or "
+            + "videos.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Convert_blocks_an_empty_folder_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No flight logs (.SRT) or drone videos were found in that "
+            + "folder. Pick the folder that holds the footage to convert.",
+            vm.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(WorkspaceModeKind.FlightMap,
+        "Flight map works on a folder of footage — pick the folder that "
+        + "holds your flights, not a single file.")]
+    [InlineData(WorkspaceModeKind.PhotoMap,
+        "Photo map works on a folder of pictures — pick the folder that "
+        + "holds your photos, not a single file.")]
+    [InlineData(WorkspaceModeKind.Embed,
+        "Embed telemetry works on a folder of videos with their .SRT "
+        + "flight logs — pick that folder, not a single file.")]
+    public async Task Folder_modes_block_a_file_source_with_guidance(
+        WorkspaceModeKind kind, string message)
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        vm.SelectedMode = WorkspaceMode.Of(kind);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(message, vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Convert_html_file_run_primes_the_inline_preview()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "convert", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.html"], "summary": {"converted": 1, "skipped": 0, "format": "html"}}""",
+        ]);
+        var server = new FakeMapServer("http://127.0.0.1:8/DJI_0001.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => true);
+        var srt = Path.Combine(MakeFolder(srt: true), "DJI_0001.SRT");
+        vm.SetFile(srt);
+        vm.ConvertOptions.SelectedFormat = vm.ConvertOptions.Formats
+            .First(f => f.Key == "html");
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.NotNull(vm.PreviewUrl);
     }
 
     [Fact]

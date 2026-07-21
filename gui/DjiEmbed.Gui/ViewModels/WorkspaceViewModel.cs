@@ -567,6 +567,36 @@ public partial class WorkspaceViewModel : FlowViewModel
             await RunSetupAsync();
             return;
         }
+        // A file in the slot with a folder-only mode selected: say which folder
+        // the mode wants instead of failing into the CLI's usage error (#346
+        // discipline — reach-aware guidance in the panel's own language).
+        if (SelectedFile is { } file && !mode.Sources.HasFlag(SourceKinds.File))
+        {
+            Fail(mode.Kind switch
+            {
+                WorkspaceModeKind.FlightMap =>
+                    "Flight map works on a folder of footage — pick the folder "
+                    + "that holds your flights, not a single file.",
+                WorkspaceModeKind.PhotoMap =>
+                    "Photo map works on a folder of pictures — pick the folder "
+                    + "that holds your photos, not a single file.",
+                _ =>
+                    "Embed telemetry works on a folder of videos with their .SRT "
+                    + "flight logs — pick that folder, not a single file.",
+            });
+            return;
+        }
+        if (mode.Kind == WorkspaceModeKind.Convert && SelectedFile is { } source)
+        {
+            // No folder, no scan, no overtake window: snapshot and go.
+            var single = ConvertOptions.ToOptions();
+            ResetPreview();
+            await ExecuteFlowAsync(async () =>
+                await RunStepAsync("Converting…",
+                    CommandBuilder.Convert(source, batch: false, single))
+                && await PrimePreviewAsync());
+            return;
+        }
         if (SelectedFolder is not { } folder)
         {
             return;
@@ -577,6 +607,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         var flight = FlightOptions.ToOptions();
         var photo = PhotoOptions.ToOptions();
         var embed = EmbedOptions.ToOptions();
+        var convert = ConvertOptions.ToOptions();
         var contents = await Task.Run(() => _inspectFolder(folder));
         // The scan runs before ExecuteFlowAsync sets Step = Running, so the
         // folder can be cleared or replaced underneath us while it is in
@@ -652,6 +683,23 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
                     CommandBuilder.Embed(folder, embed)));
+                return;
+            case WorkspaceModeKind.Convert
+                when !(contents.HasTopLevelFlightLogs || contents.HasTopLevelVideos):
+                // convert -b globs one directory level (SRT/MP4/MOV) and has no
+                // recursive flag at all — same reach rule as embed (#333/#338).
+                Fail(contents.HasFlightLogs || contents.HasVideos
+                    ? "Those files are in subfolders — Convert reads only the folder "
+                      + "you pick. Pick the subfolder that holds the flight logs or "
+                      + "videos."
+                    : "No flight logs (.SRT) or drone videos were found in that "
+                      + "folder. Pick the folder that holds the footage to convert.");
+                return;
+            case WorkspaceModeKind.Convert:
+                await ExecuteFlowAsync(async () =>
+                    await RunStepAsync("Converting…",
+                        CommandBuilder.Convert(folder, batch: true, convert))
+                    && await PrimePreviewAsync());
                 return;
         }
     }
