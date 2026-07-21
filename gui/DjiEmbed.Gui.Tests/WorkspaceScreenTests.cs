@@ -939,4 +939,59 @@ public class WorkspaceScreenTests
         Assert.Contains("--redact drop", vm.CommandPreview);
         Assert.Contains("--container mkv", vm.CommandPreview);
     }
+
+    // #340: the CLI strip's promise — what is shown is what runs — only
+    // holds if nothing that feeds it can change during a run. SOURCE, MODE
+    // and the options panels freeze; the strip's Copy button does not
+    // (what it copies IS what is running).
+    [AvaloniaFact]
+    public async Task Left_column_freezes_while_a_run_is_in_flight()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-busy").FullName;
+        try
+        {
+            var cli = FakeCli.WriteEventStream(dir,
+            [
+                """{"v": 1, "event": "start", "command": "flightmap", "total": 1}""",
+                """{"v": 1, "event": "result", "ok": true, "outputs": ["flightmap.html"], "summary": {}}""",
+            ]);
+            var gate = new TaskCompletionSource();
+            Func<string, FolderContents> inspect = _ => new FolderContents(
+                true, false, false, true, false, false, null, null);
+            var vm = new WorkspaceViewModel(cli, new DjiEmbedRunner(),
+                new FakeMapServer(null), () => { },
+                previewAvailable: static () => false,
+                folderInspector: d => inspect(d));
+            var window = ShowWorkspace(vm);
+            await vm.SetFolderAsync(dir);
+            inspect = _ =>
+            {
+                gate.Task.Wait();
+                return new FolderContents(
+                    true, false, false, true, false, false, null, null);
+            };
+
+            var run = vm.RunCommand.ExecuteAsync(null);
+            Dispatcher.UIThread.RunJobs();
+
+            var byName = (string name) => window.GetVisualDescendants()
+                .OfType<Control>().Single(c => c.Name == name);
+            Assert.False(byName("SourceCard").IsEnabled);
+            Assert.False(byName("ModeCard").IsEnabled);
+            Assert.False(byName("FlightOptionsPanel").IsEnabled);
+            Assert.False(byName("PhotoOptionsPanel").IsEnabled);
+            Assert.False(byName("EmbedOptionsPanel").IsEnabled);
+            Assert.True(byName("CopyCommandButton").IsEffectivelyEnabled);
+
+            gate.SetResult();
+            await run;
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(byName("SourceCard").IsEnabled);
+            Assert.True(byName("ModeCard").IsEnabled);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }
