@@ -73,6 +73,33 @@ internal static class FakeCli
             + EchoLinesSh(stdoutLines) + "exit 0\n");
     }
 
+    /// <summary>
+    /// Like <see cref="WriteArgsRecorder"/>, but records ONE ARGUMENT PER
+    /// LINE so argument boundaries survive — <c>%*</c>/<c>"$@"</c> joined
+    /// with spaces cannot tell <c>--title "My Trip"</c> from two arguments.
+    /// For tests that compare the full argv sequence (#334).
+    /// </summary>
+    internal static string WriteArgvLinesRecorder(string dir, string argsFile,
+        IEnumerable<string> stdoutLines)
+    {
+        if (IsWindows)
+        {
+            // Redirect-first (`>> "f" echo x`), or an argument ending in a
+            // digit would turn `echo x2>> f` into a stream-2 redirect.
+            return WriteScript(dir, "@echo off\r\n"
+                + ":argloop\r\n"
+                + "if \"%~1\"==\"\" goto argdone\r\n"
+                + $">> \"{argsFile}\" echo %~1\r\n"
+                + "shift\r\n"
+                + "goto argloop\r\n"
+                + ":argdone\r\n"
+                + EchoLinesCmd(stdoutLines) + "exit /b 0\r\n");
+        }
+        return WriteScript(dir, "#!/bin/sh\n"
+            + $"for a in \"$@\"; do printf '%s\\n' \"$a\" >> '{argsFile}'; done\n"
+            + EchoLinesSh(stdoutLines) + "exit 0\n");
+    }
+
     private static string EchoLinesCmd(IEnumerable<string> lines) =>
         string.Concat(lines.Select(l =>
             "echo " + l.Replace("\"", "\"\"") + "\r\n"));

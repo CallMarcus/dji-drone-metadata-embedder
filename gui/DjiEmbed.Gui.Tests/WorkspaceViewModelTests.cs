@@ -1012,6 +1012,129 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains(nameof(WorkspaceViewModel.IsEmbedMode), notified);
     }
 
+    // #334: the CLI transparency strip's whole promise is that the command it
+    // shows IS the command the runner executes — the runner may append only
+    // the machine-only `--progress jsonl`. Argv-fragment tests and preview
+    // tests each cover one side; these pin the two sides to each other, one
+    // per mode, argv-to-argv (via SplitPreview) so CommandLine.Format's
+    // display quoting stays free to change.
+    private static void AssertStripEqualsExecutedArgv(
+        string preview, string argsFile)
+    {
+        var executed = File.ReadAllLines(argsFile);
+        Assert.Equal(["--progress", "jsonl"], executed[^2..]);
+        var shown = SplitPreview(preview);
+        Assert.Equal("dji-embed", shown[0]);
+        Assert.Equal(shown.Skip(1), executed[..^2]);
+    }
+
+    /// <summary>Splits the strip's display string back into an argv,
+    /// honouring the double quotes CommandLine.Format adds around arguments
+    /// with spaces. Deliberately test-side: the promise under test is about
+    /// the rendered string, whatever quoting produced it.</summary>
+    private static List<string> SplitPreview(string preview)
+    {
+        var tokens = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuotes = false;
+        var hasToken = false;   // distinguishes "" (an empty argument) from nothing
+        foreach (var c in preview)
+        {
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+                hasToken = true;
+            }
+            else if (char.IsWhiteSpace(c) && !inQuotes)
+            {
+                if (hasToken)
+                {
+                    tokens.Add(current.ToString());
+                    current.Clear();
+                    hasToken = false;
+                }
+            }
+            else
+            {
+                current.Append(c);
+                hasToken = true;
+            }
+        }
+        if (hasToken)
+        {
+            tokens.Add(current.ToString());
+        }
+        return tokens;
+    }
+
+    [Fact]
+    public async Task Flight_map_strip_equals_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "argv-strip-fm.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.SelectedTileStyle =
+            vm.FlightOptions.TileStyles.Single(t => t.Key == "opentopomap");
+        vm.FlightOptions.SelectedPrivacy =
+            vm.FlightOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.FlightOptions.JoinGap = 0;
+        vm.FlightOptions.Title = "My Alps Trip";   // quoted in the strip
+        var preview = vm.CommandPreview;
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        AssertStripEqualsExecutedArgv(preview, argsFile);
+    }
+
+    [Fact]
+    public async Task Photo_map_strip_equals_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "argv-strip-pm.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, PhotomapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
+        vm.PhotoOptions.SelectedTileStyle =
+            vm.PhotoOptions.TileStyles.Single(t => t.Key == "cyclosm");
+        vm.PhotoOptions.ShowName = false;    // forces a --popup-fields subset
+        vm.PhotoOptions.ShowCredit = false;
+        vm.PhotoOptions.ExportAll = true;
+        var preview = vm.CommandPreview;
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        AssertStripEqualsExecutedArgv(preview, argsFile);
+    }
+
+    [Fact]
+    public async Task Embed_strip_equals_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "argv-strip-em.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile,
+        [
+            """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["/footage/processed"], "summary": {}}""",
+        ]);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Fuzz);
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        vm.EmbedOptions.ExtractHome = true;
+        vm.EmbedOptions.AudioSidecar = true;
+        var preview = vm.CommandPreview;
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        AssertStripEqualsExecutedArgv(preview, argsFile);
+    }
+
     [Fact]
     public async Task A_new_folder_clears_the_embed_output_but_keeps_other_options()
     {
