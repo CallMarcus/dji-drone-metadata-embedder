@@ -34,9 +34,12 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
 Two ways to use it — same engine:
 
 1. **Windows app** ("DJI Metadata Embedder"): install, open, drop a folder,
-   pick a mode (*Flight map*, *Photo map*, *Embed telemetry*, *Setup*), and
-   press the action button; finished maps render right in the app's preview
-   pane, with an *Open in browser* pop-out. No terminal.
+   pick a mode (*Flight map*, *Photo map*, *Embed telemetry*,
+   *Convert telemetry*, *Setup*), and press the action button; finished maps
+   render right in the app's preview pane, with an *Open in browser* pop-out.
+   No terminal. The workspace also accepts a single telemetry file
+   (`.SRT`/`.MP4`/`.MOV`) as the source, and *Convert telemetry* turns it
+   (or a folder) into GPX, CSV, GeoJSON, KML, an HTML map, or CoT.
 2. **`dji-embed` command line**: every feature, all platforms. The Windows
    app's installer puts `dji-embed` on your PATH automatically.
 

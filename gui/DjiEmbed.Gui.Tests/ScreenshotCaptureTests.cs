@@ -307,6 +307,49 @@ public class ScreenshotCaptureTests
         Capture(window, Path.Combine(dir!, "workspace-embed-options-advanced.png"));
     }
 
+    /// <summary>
+    /// The Convert curated options (M4a): a single telemetry file selected
+    /// (so the save-as row applies, unlike the folder-source captures
+    /// above) with KML chosen so the footprint section renders, and
+    /// Advanced open — the state that shows the panel's full shape: the
+    /// format/privacy combos, the footprint controls, and the tz/save-as
+    /// Advanced rows together.
+    /// </summary>
+    [AvaloniaFact]
+    public void Captures_convert_options_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the Convert options.");
+        Directory.CreateDirectory(dir!);
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        vm.SetFile(@"C:\Users\demo\Videos\flight\DJI_0001.SRT");
+        vm.ConvertOptions.SelectedFormat = vm.ConvertOptions.Formats
+            .Single(f => f.Key == "kml");
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        // Taller than the app's 720: the point of this capture is to review
+        // the whole panel at once, which the real window scrolls to reach.
+        var window = new Window { Width = 1140, Height = 1400, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        view.FindControl<Expander>("ConvertAdvanced")!.IsExpanded = true;
+        // The expander reveals its content with an animation; without
+        // advancing the headless render clock the capture catches it
+        // half-open and the Advanced rows are clipped away. Interleaved
+        // ticks are required — one big tick count does NOT settle it.
+        for (var i = 0; i < 80; i++)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+        Capture(window, Path.Combine(dir!, "workspace-convert-options-advanced.png"));
+    }
+
     private static void CaptureView(
         Control view, string outPath, double width = 1140, double height = 720) =>
         Capture(new Window { Width = width, Height = height, Content = view },
