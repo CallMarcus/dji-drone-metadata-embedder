@@ -26,6 +26,7 @@ public class ExistingMapFinderTests : IDisposable
     private static FolderContents Contents(
         DateTime? newestFlightLog = null, DateTime? newestPhoto = null) =>
         new(newestFlightLog is not null, newestPhoto is not null, false,
+            newestFlightLog is not null, newestPhoto is not null, false,
             newestFlightLog, newestPhoto);
 
     [Fact]
