@@ -637,10 +637,16 @@
 
                                             <StackPanel Name="CotSection" Spacing="4"
                                                         IsVisible="{Binding ConvertOptions.ShowsCotOptions}">
-                                                <TextBlock Text="CoT sampling interval (seconds)"
-                                                           Opacity="0.7" FontSize="12" />
-                                                <TextBox Name="CotIntervalBox"
-                                                         Text="{Binding ConvertOptions.CotInterval}" />
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right"
+                                                               Text="{Binding ConvertOptions.CotInterval, StringFormat='{}{0} s'}"
+                                                               Opacity="0.7" FontSize="12" />
+                                                    <TextBlock Text="CoT sampling interval" Opacity="0.7" FontSize="12" />
+                                                </DockPanel>
+                                                <Slider Name="CotIntervalSlider"
+                                                        Minimum="1" Maximum="10"
+                                                        TickFrequency="1" IsSnapToTickEnabled="True"
+                                                        Value="{Binding ConvertOptions.CotInterval}" />
                                                 <TextBlock Text="CoT event type" Opacity="0.7"
                                                            FontSize="12" />
                                                 <TextBox Name="CotTypeBox"

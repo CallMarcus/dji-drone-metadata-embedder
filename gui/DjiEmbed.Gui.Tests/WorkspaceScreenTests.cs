@@ -1107,9 +1107,9 @@ public class WorkspaceScreenTests
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
 
-        var cotInterval = window.GetVisualDescendants().OfType<TextBox>()
-            .Single(t => t.Name == "CotIntervalBox");
-        cotInterval.Text = "3";
+        var cotInterval = window.GetVisualDescendants().OfType<Slider>()
+            .Single(s => s.Name == "CotIntervalSlider");
+        cotInterval.Value = 3;
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(3, vm.ConvertOptions.CotInterval);
         Assert.Contains("--interval 3", vm.CommandPreview);
