@@ -559,6 +559,41 @@ class DJIMetadataEmbedder:
             logger.error("ExifTool error: %s", e)
             return False
 
+    @staticmethod
+    def _find_dat_log(video_path: Path, warnings: list[str]) -> Optional[Path]:
+        """Locate the DAT log named after *video_path* for --dat-auto.
+
+        Exact ``<video>.DAT`` (either case) wins; otherwise name-prefix
+        matches in the video's own directory, compared case-insensitively so
+        ``dji_0001.dat`` pairs on Linux/macOS the same way it does on
+        Windows. A miss warns — mirroring the audio-sidecar branch — and a
+        multi-match names the (alphabetically first) log it picked, so
+        neither case is a silent no-op (issue #339).
+        """
+        for ext in (".DAT", ".dat"):
+            cand = video_path.with_suffix(ext)
+            if cand.exists():
+                return cand
+        stem = video_path.stem.lower()
+        matches = sorted(
+            p
+            for p in video_path.parent.iterdir()
+            if p.suffix.lower() == ".dat" and p.stem.lower().startswith(stem)
+        )
+        if not matches:
+            msg = f"No DAT flight log found for: {video_path.name}"
+            logger.warning(msg)
+            warnings.append(msg)
+            return None
+        if len(matches) > 1:
+            msg = (
+                f"Multiple DAT logs match {video_path.name}; "
+                f"using {matches[0].name}"
+            )
+            logger.warning(msg)
+            warnings.append(msg)
+        return matches[0]
+
     def process_directory(
         self,
         use_exiftool: bool = False,
@@ -630,15 +665,7 @@ class DJIMetadataEmbedder:
                 if self.dat_path:
                     dat_file = self.dat_path
                 elif self.dat_autoscan:
-                    cand = video_path.with_suffix(".DAT")
-                    if cand.exists():
-                        dat_file = cand
-                    else:
-                        matches = list(
-                            video_path.parent.glob(f"{video_path.stem}*.DAT")
-                        )
-                        if matches:
-                            dat_file = matches[0]
+                    dat_file = self._find_dat_log(video_path, result["warnings"])
                 if dat_file and dat_file.exists():
                     try:
                         dat_data = parse_dat_v13(dat_file)
