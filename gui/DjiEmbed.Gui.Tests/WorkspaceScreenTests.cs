@@ -924,7 +924,7 @@ public class WorkspaceScreenTests
         window.UpdateLayout();
 
         var privacy = window.GetVisualDescendants().OfType<ComboBox>()
-            .Single(c => c.Name == "TelemetryPrivacyCombo");
+            .Single(c => c.Name == "EmbedPrivacyCombo");
         Assert.Same(vm.EmbedOptions.PrivacyOptions, privacy.ItemsSource);
         privacy.SelectedItem = vm.EmbedOptions.PrivacyOptions
             .Single(p => p.Value == TelemetryPrivacy.Drop);

@@ -459,7 +459,7 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
-                                        <ComboBox Name="TelemetryPrivacyCombo"
+                                        <ComboBox Name="EmbedPrivacyCombo"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding EmbedOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding EmbedOptions.SelectedPrivacy}">
