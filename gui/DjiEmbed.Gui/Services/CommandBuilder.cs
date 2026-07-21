@@ -201,8 +201,11 @@ public static class CommandBuilder
     /// <c>convert gpx &lt;source&gt; [-b]</c>. Order is fixed for golden
     /// tests. No <c>--progress</c>: the runner appends that.
     /// <c>--footprint</c>/<c>--footprint-interval</c>/<c>--model</c> reach
-    /// only <c>geojson</c>/<c>kml</c> — the CLI rejects them on other
-    /// formats. <c>--interval</c>/<c>--cot-type</c> reach only <c>cot</c>.
+    /// only <c>geojson</c>/<c>kml</c> — Click declares them on the shared
+    /// <c>convert</c> command, but <c>run_one</c> silently never forwards
+    /// them for other formats, so they'd be meaningless noise in the strip.
+    /// <c>--interval</c>/<c>--cot-type</c> reach only <c>cot</c> for the
+    /// same reason.
     /// <c>--output</c> reaches only single-file (non-batch) sources: the
     /// CLI's batch loop has no <c>-o</c>, every output lands beside its
     /// source.

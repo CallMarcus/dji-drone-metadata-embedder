@@ -476,7 +476,8 @@ public class CommandBuilderTests
     [Fact]
     public void Convert_footprint_flags_only_reach_formats_that_take_them()
     {
-        // --footprint is a geojson/kml flag; on gpx the CLI would reject it.
+        // --footprint is meaningless on gpx: Click declares it on the shared
+        // convert command, but run_one silently never forwards it there.
         var opts = ConvertTelemetryOptions.Defaults with { Footprints = true };
         Assert.DoesNotContain("--footprint",
             CommandBuilder.Convert("F", batch: true, opts));
@@ -516,6 +517,48 @@ public class CommandBuilderTests
                 "F", true, ConvertTelemetryOptions.Defaults with { TzOffset = tz }));
         }
     }
+
+    [Fact]
+    public void Convert_drop_privacy_emits_redact_drop()
+        => Assert.Equal(["convert", "gpx", "F", "-b", "--redact", "drop"],
+            CommandBuilder.Convert("F", batch: true,
+                ConvertTelemetryOptions.Defaults with { Privacy = TelemetryPrivacy.Drop }));
+
+    [Fact]
+    public void Convert_footprints_at_default_interval_and_empty_model_emit_footprint_alone()
+    {
+        var opts = ConvertTelemetryOptions.Defaults with
+        { Format = "geojson", Footprints = true };
+        Assert.Equal(["convert", "geojson", "F", "-b", "--footprint"],
+            CommandBuilder.Convert("F", batch: true, opts));
+    }
+
+    [Fact]
+    public void Convert_cot_at_all_defaults_emits_no_cot_flags()
+        => Assert.Equal(["convert", "cot", "F", "-b"],
+            CommandBuilder.Convert("F", batch: true,
+                ConvertTelemetryOptions.Defaults with { Format = "cot" }));
+
+    [Fact]
+    public void Convert_trims_model()
+    {
+        var opts = ConvertTelemetryOptions.Defaults with
+        { Format = "kml", Footprints = true, Model = " air3 " };
+        Assert.Equal(["convert", "kml", "F", "-b", "--footprint", "--model", "air3"],
+            CommandBuilder.Convert("F", batch: true, opts));
+    }
+
+    [Fact]
+    public void Convert_cot_type_trimmed_to_the_default_is_omitted()
+        => Assert.Equal(["convert", "cot", "F", "-b"],
+            CommandBuilder.Convert("F", batch: true, ConvertTelemetryOptions.Defaults with
+            { Format = "cot", CotType = " a-n-A " }));
+
+    [Fact]
+    public void Convert_blank_output_on_a_single_file_is_omitted()
+        => Assert.Equal(["convert", "gpx", "clip.SRT"],
+            CommandBuilder.Convert("clip.SRT", batch: false,
+                ConvertTelemetryOptions.Defaults with { Output = "  " }));
 
     [Fact]
     public void Build_convert_arm_uses_defaults_batch()
