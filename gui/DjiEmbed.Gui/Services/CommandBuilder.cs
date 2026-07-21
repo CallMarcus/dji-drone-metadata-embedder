@@ -24,6 +24,8 @@ public static class CommandBuilder
         WorkspaceModeKind.FlightMap => FlightMap(folder!, FlightMapOptions.Defaults),
         WorkspaceModeKind.PhotoMap => PhotoMap(folder!, PhotoMapOptions.Defaults),
         WorkspaceModeKind.Embed => Embed(folder!, EmbedTelemetryOptions.Defaults),
+        WorkspaceModeKind.Convert =>
+            Convert(folder!, batch: true, ConvertTelemetryOptions.Defaults),
         WorkspaceModeKind.Setup => ["doctor"],
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
@@ -152,9 +154,9 @@ public static class CommandBuilder
         var args = new List<string> { "embed", folder };
         var redact = opts.Privacy switch
         {
-            EmbedPrivacy.Keep => null,
-            EmbedPrivacy.Fuzz => "fuzz",
-            EmbedPrivacy.Drop => "drop",
+            TelemetryPrivacy.Keep => null,
+            TelemetryPrivacy.Fuzz => "fuzz",
+            TelemetryPrivacy.Drop => "drop",
             _ => throw new ArgumentOutOfRangeException(
                 nameof(opts), opts.Privacy, null),
         };
@@ -186,6 +188,89 @@ public static class CommandBuilder
         }
         var output = opts.Output.Trim();
         if (output.Length > 0)
+        {
+            args.Add("--output");
+            args.Add(output);
+        }
+        return args.ToArray();
+    }
+
+    /// <summary>
+    /// The Convert argv from typed <paramref name="opts"/> (GUI 2.0 spec,
+    /// M4a). Flags are omitted at their defaults so an untouched run reads
+    /// <c>convert gpx &lt;source&gt; [-b]</c>. Order is fixed for golden
+    /// tests. No <c>--progress</c>: the runner appends that.
+    /// <c>--footprint</c>/<c>--footprint-interval</c>/<c>--model</c> reach
+    /// only <c>geojson</c>/<c>kml</c> — Click declares them on the shared
+    /// <c>convert</c> command, but <c>run_one</c> silently never forwards
+    /// them for other formats, so they'd be meaningless noise in the strip.
+    /// <c>--interval</c>/<c>--cot-type</c> reach only <c>cot</c> for the
+    /// same reason.
+    /// <c>--output</c> reaches only single-file (non-batch) sources: the
+    /// CLI's batch loop has no <c>-o</c>, every output lands beside its
+    /// source.
+    /// </summary>
+    public static string[] Convert(
+        string source, bool batch, ConvertTelemetryOptions opts)
+    {
+        var args = new List<string> { "convert", opts.Format, source };
+        if (batch)
+        {
+            args.Add("-b");
+        }
+        var redact = opts.Privacy switch
+        {
+            TelemetryPrivacy.Keep => null,
+            TelemetryPrivacy.Fuzz => "fuzz",
+            TelemetryPrivacy.Drop => "drop",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(opts), opts.Privacy, null),
+        };
+        if (redact is not null)
+        {
+            args.Add("--redact");
+            args.Add(redact);
+        }
+        var tz = opts.TzOffset.Trim();
+        if (tz.Length > 0 && !tz.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            args.Add("--tz-offset");
+            args.Add(tz);
+        }
+        if (opts.Footprints && opts.Format is "geojson" or "kml")
+        {
+            args.Add("--footprint");
+            if (opts.FootprintInterval
+                != ConvertTelemetryOptions.Defaults.FootprintInterval)
+            {
+                args.Add("--footprint-interval");
+                args.Add(opts.FootprintInterval.ToString(
+                    CultureInfo.InvariantCulture));
+            }
+            var model = opts.Model.Trim();
+            if (model.Length > 0)
+            {
+                args.Add("--model");
+                args.Add(model);
+            }
+        }
+        if (opts.Format == "cot")
+        {
+            if (opts.CotInterval != ConvertTelemetryOptions.Defaults.CotInterval)
+            {
+                args.Add("--interval");
+                args.Add(opts.CotInterval.ToString(CultureInfo.InvariantCulture));
+            }
+            var cotType = opts.CotType.Trim();
+            if (cotType.Length > 0
+                && cotType != ConvertTelemetryOptions.Defaults.CotType)
+            {
+                args.Add("--cot-type");
+                args.Add(cotType);
+            }
+        }
+        var output = opts.Output.Trim();
+        if (!batch && output.Length > 0)
         {
             args.Add("--output");
             args.Add(output);

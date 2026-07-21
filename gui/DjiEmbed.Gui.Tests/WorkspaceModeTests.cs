@@ -5,19 +5,24 @@ namespace DjiEmbed.Gui.Tests;
 public class WorkspaceModeTests
 {
     [Fact]
-    public void Catalogue_has_the_four_m1_modes_in_strip_order()
+    public void Catalogue_has_the_five_m1_plus_m4a_modes_in_strip_order()
     {
         Assert.Equal(
             [WorkspaceModeKind.FlightMap, WorkspaceModeKind.PhotoMap,
-             WorkspaceModeKind.Embed, WorkspaceModeKind.Setup],
+             WorkspaceModeKind.Embed, WorkspaceModeKind.Convert,
+             WorkspaceModeKind.Setup],
             WorkspaceMode.All.Select(m => m.Kind).ToArray());
     }
 
     [Fact]
-    public void Only_setup_runs_without_a_folder()
+    public void Sources_match_each_modes_reach()
     {
-        Assert.All(WorkspaceMode.All, m =>
-            Assert.Equal(m.Kind != WorkspaceModeKind.Setup, m.NeedsFolder));
+        Assert.All(WorkspaceMode.All, m => Assert.Equal(m.Kind switch
+        {
+            WorkspaceModeKind.Setup => SourceKinds.None,
+            WorkspaceModeKind.Convert => SourceKinds.Folder | SourceKinds.File,
+            _ => SourceKinds.Folder,
+        }, m.Sources));
     }
 
     [Fact]

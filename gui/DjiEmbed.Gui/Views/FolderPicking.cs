@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -44,8 +45,38 @@ internal static class FolderPicking
         }
     }
 
+    /// <summary>Extensions the SOURCE area accepts as a single file (M4a):
+    /// the telemetry sources <c>convert</c> reads.</summary>
+    private static readonly string[] SourceFileExtensions =
+        [".srt", ".mp4", ".mov"];
+
+    /// <summary>Pure drop-payload resolution: the first directory wins,
+    /// otherwise the first telemetry file; anything else yields nothing.</summary>
+    internal static void ResolveDrop(
+        IEnumerable<string> paths, out string? folder, out string? file)
+    {
+        folder = null;
+        file = null;
+        foreach (var path in paths)
+        {
+            if (System.IO.Directory.Exists(path))
+            {
+                folder = path;
+                return;
+            }
+            if (file is null
+                && System.IO.File.Exists(path)
+                && Array.Exists(SourceFileExtensions, e => path.EndsWith(
+                    e, StringComparison.OrdinalIgnoreCase)))
+            {
+                file = path;
+            }
+        }
+    }
+
     internal static void EnableDrop(
-        Control target, Func<string, Task> onFolder, Control? dropZone = null)
+        Control target, Func<string, Task> onFolder, Control? dropZone = null,
+        Func<string, Task>? onFile = null)
     {
         target.AddHandler(DragDrop.DragOverEvent, (_, e) =>
             e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
@@ -65,13 +96,18 @@ internal static class FolderPicking
             {
                 SetDragOver(dropZone, false);
             }
-            var folder = e.DataTransfer.TryGetFiles()
+            var paths = e.DataTransfer.TryGetFiles()
                 ?.Select(f => f.TryGetLocalPath())
-                .FirstOrDefault(p =>
-                    p is not null && System.IO.Directory.Exists(p));
+                .Where(p => p is not null)
+                .Select(p => p!) ?? [];
+            ResolveDrop(paths, out var folder, out var file);
             if (folder is not null)
             {
                 await onFolder(folder);
+            }
+            else if (file is not null && onFile is not null)
+            {
+                await onFile(file);
             }
         });
     }
@@ -82,8 +118,18 @@ internal static class FolderPicking
 
     /// <summary>Pick where to save a map's HTML, or <c>null</c> when the
     /// dialog was dismissed.</summary>
+    internal static Task<string?> PickSaveAsync(
+        Control anchor, string title, string suggestedName) =>
+        PickSaveAsync(anchor, title, suggestedName, "Web map", "*.html");
+
+    /// <summary>Pick where to save a file of the given kind, or <c>null</c>
+    /// when the dialog was dismissed — the typed form behind
+    /// <see cref="PickSaveAsync(Control, string, string)"/>, used directly
+    /// by Convert (M4a) so each format gets its own extension and filter
+    /// label instead of "Web map"/"*.html".</summary>
     internal static async Task<string?> PickSaveAsync(
-        Control anchor, string title, string suggestedName)
+        Control anchor, string title, string suggestedName,
+        string filterLabel, string pattern)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
@@ -94,12 +140,36 @@ internal static class FolderPicking
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
-                DefaultExtension = "html",
+                DefaultExtension = pattern[(pattern.LastIndexOf('.') + 1)..],
                 FileTypeChoices =
                 [
-                    new FilePickerFileType("Web map") { Patterns = ["*.html"] },
+                    new FilePickerFileType(filterLabel) { Patterns = [pattern] },
                 ],
             });
         return file?.TryGetLocalPath();
+    }
+
+    /// <summary>Pick a single telemetry file, or <c>null</c> when dismissed.</summary>
+    internal static async Task<string?> PickSourceFileAsync(Control anchor)
+    {
+        if (TopLevel.GetTopLevel(anchor) is not { } top)
+        {
+            return null;
+        }
+        var files = await top.StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                AllowMultiple = false,
+                Title = "Choose a flight log or drone video",
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Telemetry sources")
+                    {
+                        Patterns = ["*.srt", "*.SRT", "*.mp4", "*.MP4",
+                                    "*.mov", "*.MOV"],
+                    },
+                ],
+            });
+        return files.FirstOrDefault()?.TryGetLocalPath();
     }
 }

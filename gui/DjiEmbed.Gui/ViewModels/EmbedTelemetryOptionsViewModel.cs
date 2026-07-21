@@ -7,11 +7,6 @@ namespace DjiEmbed.Gui.ViewModels;
 /// <summary>A selectable output container: a label over a CLI key.</summary>
 public sealed record ContainerChoice(string Label, string Key);
 
-/// <summary>A selectable privacy stance: a label over an <see cref="EmbedPrivacy"/>.
-/// Separate from <see cref="PrivacyChoice"/>, which wraps <see cref="MapPrivacy"/>
-/// and so cannot express the third stance <c>embed --redact</c> accepts.</summary>
-public sealed record EmbedPrivacyChoice(string Label, EmbedPrivacy Value);
-
 /// <summary>
 /// Observable control state for the Embed telemetry options panel (GUI 2.0
 /// spec, M3d). Bound directly to the SukiUI-themed controls;
@@ -27,18 +22,18 @@ public partial class EmbedTelemetryOptionsViewModel : ViewModelBase
         new("MKV (keeps DJI data streams)", "mkv"),
     ];
 
-    public IReadOnlyList<EmbedPrivacyChoice> PrivacyOptions { get; } =
+    public IReadOnlyList<TelemetryPrivacyChoice> PrivacyOptions { get; } =
     [
-        new("Keep exact locations", EmbedPrivacy.Keep),
-        new("Fuzz to ~100 m", EmbedPrivacy.Fuzz),
-        new("Remove GPS entirely", EmbedPrivacy.Drop),
+        new("Keep exact locations", TelemetryPrivacy.Keep),
+        new("Fuzz to ~100 m", TelemetryPrivacy.Fuzz),
+        new("Remove GPS entirely", TelemetryPrivacy.Drop),
     ];
 
     [ObservableProperty]
     public partial ContainerChoice SelectedContainer { get; set; }
 
     [ObservableProperty]
-    public partial EmbedPrivacyChoice SelectedPrivacy { get; set; }
+    public partial TelemetryPrivacyChoice SelectedPrivacy { get; set; }
 
     [ObservableProperty]
     public partial bool ExtractHome { get; set; }
@@ -69,9 +64,9 @@ public partial class EmbedTelemetryOptionsViewModel : ViewModelBase
     /// XAML multi-binding) so it is assertable headless.
     /// </summary>
     public bool ShowsHomeEmptiedNote =>
-        SelectedPrivacy.Value == EmbedPrivacy.Drop && ExtractHome;
+        SelectedPrivacy.Value == TelemetryPrivacy.Drop && ExtractHome;
 
-    partial void OnSelectedPrivacyChanged(EmbedPrivacyChoice value) =>
+    partial void OnSelectedPrivacyChanged(TelemetryPrivacyChoice value) =>
         OnPropertyChanged(nameof(ShowsHomeEmptiedNote));
 
     partial void OnExtractHomeChanged(bool value) =>

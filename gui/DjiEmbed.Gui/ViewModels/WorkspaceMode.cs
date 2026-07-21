@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -8,33 +9,47 @@ public enum WorkspaceModeKind
     FlightMap,
     PhotoMap,
     Embed,
+    Convert,
     Setup,
+}
+
+/// <summary>What the SOURCE area may hold for a mode (GUI 2.0 spec, M4a):
+/// a folder, a single telemetry file, or nothing (Setup).</summary>
+[Flags]
+public enum SourceKinds
+{
+    None = 0,
+    Folder = 1,
+    File = 2,
 }
 
 /// <summary>
 /// One entry in the workspace mode strip (GUI 2.0 spec). M1 ships four;
-/// Convert and Verify join in M4.
+/// Convert joins in M4a, Verify pending M4b.
 /// </summary>
 public sealed record WorkspaceMode(
     WorkspaceModeKind Kind,
     string Title,
     string Verb,
-    bool NeedsFolder,
+    SourceKinds Sources,
     string FailureMessage)
 {
     public static readonly IReadOnlyList<WorkspaceMode> All =
     [
         new(WorkspaceModeKind.FlightMap, "Flight map", "Generate flight map",
-            NeedsFolder: true,
+            Sources: SourceKinds.Folder,
             "Something went wrong while mapping your flights."),
         new(WorkspaceModeKind.PhotoMap, "Photo map", "Generate photo map",
-            NeedsFolder: true,
+            Sources: SourceKinds.Folder,
             "Something went wrong while mapping your photos."),
         new(WorkspaceModeKind.Embed, "Embed telemetry", "Embed telemetry",
-            NeedsFolder: true,
+            Sources: SourceKinds.Folder,
             "Something went wrong while embedding the flight data."),
+        new(WorkspaceModeKind.Convert, "Convert telemetry", "Convert",
+            Sources: SourceKinds.Folder | SourceKinds.File,
+            "Something went wrong while converting the telemetry."),
         new(WorkspaceModeKind.Setup, "Setup", "Check my setup",
-            NeedsFolder: false,
+            Sources: SourceKinds.None,
             "The setup check could not be completed."),
     ];
 

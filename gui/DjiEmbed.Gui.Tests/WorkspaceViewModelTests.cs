@@ -126,10 +126,128 @@ public class WorkspaceViewModelTests : IDisposable
     {
         var vm = Vm("unused");
         await vm.SetFolderAsync(MakeFolder(srt: true));
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
         Assert.Null(vm.SelectedFolder);
         Assert.Null(vm.SuggestedMode);
         Assert.False(vm.CanRun);
+    }
+
+    // M4a Task 2: SOURCE learns to hold a single file instead of a folder,
+    // mutually exclusive with it.
+    [Fact]
+    public async Task Picking_a_file_clears_the_folder_and_vice_versa()
+    {
+        var vm = Vm("unused",
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("C:/clips/DJI_0001.SRT", vm.SelectedFile);
+        Assert.Null(vm.SelectedFolder);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        Assert.Null(vm.SelectedFile);
+        Assert.NotNull(vm.SelectedFolder);
+        vm.SetFile("C:/clips/DJI_0002.SRT");
+        Assert.Equal("C:/clips/DJI_0002.SRT", vm.SelectedFile);
+        Assert.Null(vm.SelectedFolder);
+    }
+
+    [Fact]
+    public void File_pick_suggests_and_selects_convert_mode()
+    {
+        var vm = Vm("unused");
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal(WorkspaceModeKind.Convert, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.Convert, vm.SuggestedMode!.Kind);
+    }
+
+    [Fact]
+    public void Convert_strip_previews_batch_for_folders_and_bare_for_files()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Assert.Equal("dji-embed convert gpx <folder> -b", vm.CommandPreview);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("dji-embed convert gpx C:/clips/DJI_0001.SRT",
+            vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Convert_options_repaint_the_strip()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        vm.ConvertOptions.SelectedFormat = vm.ConvertOptions.Formats
+            .First(f => f.Key == "kml");
+        Assert.Contains("convert kml", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Source_changes_clear_the_convert_output_override_too()
+    {
+        var vm = Vm("unused",
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        vm.ConvertOptions.Output = "C:/elsewhere/track.gpx";
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("", vm.ConvertOptions.Output);
+    }
+
+    [Fact]
+    public void Clear_source_removes_a_file_too()
+    {
+        var vm = Vm("unused");
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        vm.ClearSourceCommand.Execute(null);
+        Assert.Null(vm.SelectedFile);
+        Assert.Equal(FlowStep.Pick, vm.Step);
+    }
+
+    [Fact]
+    public async Task Source_display_shows_folder_path_but_file_name_only()
+    {
+        var vm = Vm("unused");
+        Assert.Null(vm.SourceDisplay);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("DJI_0001.SRT", vm.SourceDisplay);
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        Assert.Equal(folder, vm.SourceDisplay);
+    }
+
+    [Fact]
+    public void File_pick_enables_the_run_button()
+    {
+        var vm = Vm("unused");
+        Assert.False(vm.CanRun);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.True(vm.CanRun);
+    }
+
+    [Fact]
+    public async Task File_pick_is_inert_while_busy()
+    {
+        // Same discipline as SetFolderAsync: a run owns its inputs (#340).
+        // Copies the gated-scan idiom from The_whole_run_is_busy_from_its_first_line.
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        Func<string, FolderContents> inspect =
+            _ => Contents(logs: true, topLogs: true);
+        var vm = Vm(cli, folderInspector: dir => inspect(dir));
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+
+        var gate = new TaskCompletionSource();
+        inspect = _ =>
+        {
+            gate.Task.Wait();
+            return Contents(logs: true, topLogs: true);
+        };
+        var run = vm.RunCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsBusy);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Null(vm.SelectedFile);      // inert while busy
+
+        gate.SetResult();
+        await run;
+        Assert.False(vm.IsBusy);
     }
 
     [Fact]
@@ -177,6 +295,13 @@ public class WorkspaceViewModelTests : IDisposable
     [
         """{"v": 1, "event": "start", "command": "photomap", "total": 1}""",
         """{"v": 1, "event": "result", "ok": true, "outputs": ["photomap.html"], "summary": {}}""",
+    ];
+
+    private static readonly string[] ConvertStream =
+    [
+        """{"v": 1, "event": "start", "command": "convert", "total": 1}""",
+        """{"v": 1, "event": "progress", "current": 1, "total": 1, "item": "DJI_0001.SRT"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.gpx"], "summary": {"converted": 1, "skipped": 0, "format": "gpx"}}""",
     ];
 
     private static readonly string[] DoctorStream =
@@ -350,7 +475,7 @@ public class WorkspaceViewModelTests : IDisposable
         var run = vm.RunCommand.ExecuteAsync(null);
 
         Assert.True(vm.IsBusy);
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
         Assert.Equal(folder, vm.SelectedFolder);      // inert while busy
         await vm.SetFolderAsync("Z:/other");
         Assert.Equal(folder, vm.SelectedFolder);      // inert while busy
@@ -414,6 +539,106 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Contains("photos", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // M4a Task 7: Convert runs bare on a single file, batch on a folder,
+    // and guards a folder whose media is out of -b's one-level reach the
+    // same way embed does (#333/#338).
+    [Fact]
+    public async Task Convert_runs_bare_on_a_single_file()
+    {
+        var argsFile = Path.Combine(_dir, "args-convert-file.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, ConvertStream);
+        var vm = Vm(cli);
+        var srt = Path.Combine(MakeFolder(srt: true), "DJI_0001.SRT");
+        vm.SetFile(srt);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllLines(argsFile);
+        Assert.Equal(["convert", "gpx", srt], argv[..3]);
+        Assert.DoesNotContain("-b", argv);
+    }
+
+    [Fact]
+    public async Task Convert_runs_batch_on_a_folder()
+    {
+        var argsFile = Path.Combine(_dir, "args-convert-folder.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, ConvertStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Contains("-b", File.ReadAllLines(argsFile));
+    }
+
+    [Fact]
+    public async Task Convert_blocks_a_folder_whose_media_is_nested_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedSrt: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Those files are in subfolders — Convert reads only the folder "
+            + "you pick. Pick the subfolder that holds the flight logs or "
+            + "videos.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Convert_blocks_an_empty_folder_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No flight logs (.SRT) or drone videos were found in that "
+            + "folder. Pick the folder that holds the footage to convert.",
+            vm.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(WorkspaceModeKind.FlightMap,
+        "Flight map works on a folder of footage — pick the folder that "
+        + "holds your flights, not a single file.")]
+    [InlineData(WorkspaceModeKind.PhotoMap,
+        "Photo map works on a folder of pictures — pick the folder that "
+        + "holds your photos, not a single file.")]
+    [InlineData(WorkspaceModeKind.Embed,
+        "Embed telemetry works on a folder of videos with their .SRT "
+        + "flight logs — pick that folder, not a single file.")]
+    public async Task Folder_modes_block_a_file_source_with_guidance(
+        WorkspaceModeKind kind, string message)
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        vm.SelectedMode = WorkspaceMode.Of(kind);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(message, vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Convert_html_file_run_primes_the_inline_preview()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "convert", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.html"], "summary": {"converted": 1, "skipped": 0, "format": "html"}}""",
+        ]);
+        var server = new FakeMapServer("http://127.0.0.1:8/DJI_0001.html");
+        var vm = Vm(cli, mapServer: server, previewAvailable: static () => true);
+        var srt = Path.Combine(MakeFolder(srt: true), "DJI_0001.SRT");
+        vm.SetFile(srt);
+        vm.ConvertOptions.SelectedFormat = vm.ConvertOptions.Formats
+            .First(f => f.Key == "html");
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.NotNull(vm.PreviewUrl);
     }
 
     [Fact]
@@ -965,7 +1190,7 @@ public class WorkspaceViewModelTests : IDisposable
     {
         var vm = Vm("unused");
         await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Empty(vm.ExistingMaps);
     }
@@ -1008,7 +1233,7 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.OpenExistingMapCommand.ExecuteAsync(vm.ExistingMaps[0]);
         Assert.True(vm.ShowPreview);
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Null(vm.PreviewUrl);
         Assert.False(vm.ShowPreview);
@@ -1202,7 +1427,7 @@ public class WorkspaceViewModelTests : IDisposable
         ]);
         var vm = Vm(cli);
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Drop);
+            .Single(p => p.Value == TelemetryPrivacy.Drop);
         vm.EmbedOptions.SelectedContainer =
             vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
         vm.EmbedOptions.DatAuto = true;
@@ -1253,6 +1478,32 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.IsFlightMapMode);
         Assert.False(vm.IsPhotoMapMode);
         Assert.Contains(nameof(WorkspaceViewModel.IsEmbedMode), notified);
+    }
+
+    [Fact]
+    public void Changing_a_convert_option_notifies_command_preview()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.ConvertOptions.TzOffset = "2";
+        Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
+    }
+
+    [Fact]
+    public void Only_convert_mode_reports_the_convert_options_panel_visible()
+    {
+        var vm = Vm("unused");   // default mode Flight map
+        Assert.False(vm.IsConvertMode);
+        var notified = new List<string>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Assert.True(vm.IsConvertMode);
+        Assert.False(vm.IsFlightMapMode);
+        Assert.False(vm.IsPhotoMapMode);
+        Assert.False(vm.IsEmbedMode);
+        Assert.Contains(nameof(WorkspaceViewModel.IsConvertMode), notified);
     }
 
     // #334: the CLI transparency strip's whole promise is that the command it
@@ -1365,7 +1616,7 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.SetFolderAsync(MakeFolder(videos: true));
         Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Fuzz);
+            .Single(p => p.Value == TelemetryPrivacy.Fuzz);
         vm.EmbedOptions.SelectedContainer =
             vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
         vm.EmbedOptions.ExtractHome = true;
@@ -1517,7 +1768,7 @@ public class WorkspaceViewModelTests : IDisposable
         vm.PhotoOptions.Output = Path.Combine(_dir, "photomap.html");
         vm.EmbedOptions.Output = Path.Combine(_dir, "copies");
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Equal("", vm.FlightOptions.Output);
         Assert.Equal("", vm.PhotoOptions.Output);
@@ -1535,7 +1786,7 @@ public class WorkspaceViewModelTests : IDisposable
         var notified = new List<string>();
         vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Contains(nameof(WorkspaceViewModel.CommandPreview), notified);
         Assert.Equal("dji-embed flightmap <folder> -r", vm.CommandPreview);
@@ -1556,7 +1807,7 @@ public class WorkspaceViewModelTests : IDisposable
         vm.Warnings.Add("something from the run just finished");
         vm.Step = FlowStep.Done;
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.True(vm.ShowIdle);
         Assert.False(vm.ShowDoneCard);
@@ -1586,7 +1837,7 @@ public class WorkspaceViewModelTests : IDisposable
         };
         var run = vm.RunCommand.ExecuteAsync(null);
 
-        vm.ClearFolderCommand.Execute(null);
+        vm.ClearSourceCommand.Execute(null);
 
         Assert.Equal(folder, vm.SelectedFolder);
         Assert.Equal(Path.Combine(_dir, "flightmap.html"), vm.FlightOptions.Output);

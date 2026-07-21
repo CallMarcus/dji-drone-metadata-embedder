@@ -49,6 +49,8 @@ public partial class WorkspaceViewModel : FlowViewModel
         };
         EmbedOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
+        ConvertOptions.PropertyChanged += (_, _) =>
+            OnPropertyChanged(nameof(CommandPreview));
     }
 
     /// <summary>
@@ -72,10 +74,23 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// both the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public EmbedTelemetryOptionsViewModel EmbedOptions { get; } = new();
 
+    /// <summary>Curated option state for the Convert telemetry mode (M4a). Feeds
+    /// both the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
+    public ConvertOptionsViewModel ConvertOptions { get; } = new();
+
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
     [ObservableProperty]
     public partial string? SelectedFolder { get; set; }
+
+    [ObservableProperty]
+    public partial string? SelectedFile { get; set; }
+
+    /// <summary>The one source chip's text: a folder shows its full path, a
+    /// file just its name (the path is long and the name is what identifies
+    /// the clip).</summary>
+    public string? SourceDisplay =>
+        SelectedFolder ?? (SelectedFile is { } f ? Path.GetFileName(f) : null);
 
     [ObservableProperty]
     public partial WorkspaceMode SelectedMode { get; set; } = WorkspaceMode.All[0];
@@ -146,7 +161,9 @@ public partial class WorkspaceViewModel : FlowViewModel
     partial void OnPreviewUrlChanged(string? value) => RaiseGateChanged();
 
     /// <summary>The action button lights up as soon as a run could work.</summary>
-    public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
+    public bool CanRun =>
+        SelectedMode.Sources == SourceKinds.None
+        || SelectedFolder is not null || SelectedFile is not null;
 
     /// <summary>Whether the Flight map options panel applies to the current mode.</summary>
     public bool IsFlightMapMode => SelectedMode.Kind == WorkspaceModeKind.FlightMap;
@@ -156,6 +173,13 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     /// <summary>Whether the Embed telemetry options panel applies to the current mode.</summary>
     public bool IsEmbedMode => SelectedMode.Kind == WorkspaceModeKind.Embed;
+
+    /// <summary>Whether the Convert telemetry options panel applies to the current mode.</summary>
+    public bool IsConvertMode => SelectedMode.Kind == WorkspaceModeKind.Convert;
+
+    /// <summary>The Save-as override only exists for single-file sources:
+    /// the CLI's batch loop writes every output beside its source.</summary>
+    public bool ConvertSaveApplies => SelectedFile is not null;
 
     /// <summary>
     /// True when a Photo map's "Save map to" override would leave the pins
@@ -213,9 +237,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         get
         {
             var folder = SelectedFolder
-                ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
+                ?? (SelectedMode.Sources.HasFlag(SourceKinds.Folder) ? "<folder>" : null);
             // folder! is safe in the three explicit arms below: each of those
-            // modes has NeedsFolder true, so the line above yields the
+            // modes has Sources including Folder, so the line above yields the
             // "<folder>" placeholder (never null) when no folder is picked.
             var argv = SelectedMode.Kind switch
             {
@@ -225,6 +249,12 @@ public partial class WorkspaceViewModel : FlowViewModel
                     CommandBuilder.PhotoMap(folder!, PhotoOptions.ToOptions()),
                 WorkspaceModeKind.Embed =>
                     CommandBuilder.Embed(folder!, EmbedOptions.ToOptions()),
+                WorkspaceModeKind.Convert =>
+                    SelectedFile is { } file
+                        ? CommandBuilder.Convert(file, batch: false,
+                            ConvertOptions.ToOptions())
+                        : CommandBuilder.Convert(folder!, batch: true,
+                            ConvertOptions.ToOptions()),
                 _ => CommandBuilder.Build(SelectedMode.Kind, folder),
             };
             return CommandLine.Format("dji-embed", argv);
@@ -233,9 +263,28 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     partial void OnSelectedFolderChanged(string? value)
     {
+        if (value is not null)
+        {
+            SelectedFile = null;
+        }
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
+        OnPropertyChanged(nameof(SourceDisplay));
+        OnPropertyChanged(nameof(ConvertSaveApplies));
+        RunCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedFileChanged(string? value)
+    {
+        if (value is not null)
+        {
+            SelectedFolder = null;
+        }
+        OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(CommandPreview));
+        OnPropertyChanged(nameof(SourceDisplay));
+        OnPropertyChanged(nameof(ConvertSaveApplies));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -246,11 +295,37 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(IsFlightMapMode));
         OnPropertyChanged(nameof(IsPhotoMapMode));
         OnPropertyChanged(nameof(IsEmbedMode));
+        OnPropertyChanged(nameof(IsConvertMode));
         RunCommand.NotifyCanExecuteChanged();
     }
 
     protected override string GenericFailureMessage =>
         SelectedMode.FailureMessage;
+
+    /// <summary>
+    /// An absolute output override ("Save map to", "Save copies to")
+    /// belongs to the source it was chosen for — carried to a new source it
+    /// either overwrites that source's outputs or writes nowhere the new
+    /// source shows. Every other option (tile style, privacy, container,
+    /// popup fields, title, timezone, ...) is deliberately app-session
+    /// state that survives a source change (GUI 2.0 spec).
+    ///
+    /// A new source (or none) disowns everything derived from the
+    /// old one: the previous run's outputs/warnings, per-source output
+    /// overrides, the browsed/primed preview. Shared by SetFolderAsync,
+    /// SetFile and ClearSource so the three doors stay in step.
+    /// </summary>
+    private void ResetDerivedSourceState()
+    {
+        ExistingMaps.Clear();
+        Outputs.Clear();
+        Warnings.Clear();
+        FlightOptions.Output = "";
+        PhotoOptions.Output = "";
+        EmbedOptions.Output = "";
+        ConvertOptions.Output = "";
+        ResetPreview();
+    }
 
     /// <summary>
     /// Folder drop/pick: remember it, suggest the likely mode. A new folder
@@ -286,32 +361,39 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             SelectedMode = SuggestedMode;
         }
-        ExistingMaps.Clear();
+        // A new folder is a fresh start: the previous run's outputs and
+        // warnings must not frame a map that was already sitting here.
+        ResetDerivedSourceState();
         foreach (var map in scan.maps)
         {
             ExistingMaps.Add(map);
         }
-        // A new folder is a fresh start: the previous run's outputs and
-        // warnings must not frame a map that was already sitting here.
-        Outputs.Clear();
-        Warnings.Clear();
-        // An absolute output override ("Save map to", "Save copies to")
-        // belongs to the folder it was chosen for — carried to a new folder it
-        // either overwrites that folder's outputs or writes nowhere the new
-        // folder shows. Every other option (tile style, privacy, container,
-        // popup fields, title, timezone, ...) is deliberately app-session
-        // state that survives a folder change (GUI 2.0 spec).
-        FlightOptions.Output = "";
-        PhotoOptions.Output = "";
-        EmbedOptions.Output = "";
-        ResetPreview();
+        Step = FlowStep.Pick;
+    }
+
+    /// <summary>
+    /// Single-file pick (M4a): the mirror of <see cref="SetFolderAsync"/> for
+    /// modes that take one telemetry file. No inspector scan and no
+    /// existing-map probe — both are folder concepts — so this is synchronous
+    /// and has no overtake race to re-check.
+    /// </summary>
+    public void SetFile(string path)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+        SelectedFile = path;
+        SuggestedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        SelectedMode = SuggestedMode;
+        ResetDerivedSourceState();
         Step = FlowStep.Pick;
     }
 
     [RelayCommand]
-    private void ClearFolder()
+    private void ClearSource()
     {
-        // Inert while a run is in flight: pulling the folder out from under
+        // Inert while a run is in flight: pulling the source out from under
         // a running job would also discard the output overrides. IsBusy
         // spans the run's folder scan too, and RunAsync's ownership
         // re-check after the scan stays as defence in depth.
@@ -320,27 +402,9 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         SelectedFolder = null;
+        SelectedFile = null;
         SuggestedMode = null;
-        ExistingMaps.Clear();
-        // The same ownership rule SetFolderAsync explains: an output override
-        // belongs to the folder it was chosen for, and removing the folder
-        // leaves it with no owner at all. The strip is where that shows —
-        // it would go on advertising `--output <path>` beside the `<folder>`
-        // placeholder. (Each Output setter raises through the ctor's options
-        // subscription, so the strip repaints with the cleared value. The
-        // SelectedFolder raise above fires before these lines and still sees
-        // the old path.)
-        FlightOptions.Output = "";
-        PhotoOptions.Output = "";
-        EmbedOptions.Output = "";
-        // A map browsed out of that folder can't outlive it: without this the
-        // pane keeps rendering it with no folder and no drop hero behind it.
-        ResetPreview();
-        // Nor can a finished run's results: without these, ✕ after a run left
-        // Step == Done with the preview nulled, which is precisely the
-        // done-card state — outputs and warnings listed over no folder.
-        Outputs.Clear();
-        Warnings.Clear();
+        ResetDerivedSourceState();
         Step = FlowStep.Pick;
     }
 
@@ -509,6 +573,37 @@ public partial class WorkspaceViewModel : FlowViewModel
             await RunSetupAsync();
             return;
         }
+        // A file in the slot with a folder-only mode selected: say which folder
+        // the mode wants instead of failing into the CLI's usage error (#346
+        // discipline — reach-aware guidance in the panel's own language).
+        if (SelectedFile is not null && !mode.Sources.HasFlag(SourceKinds.File))
+        {
+            Fail(mode.Kind switch
+            {
+                WorkspaceModeKind.FlightMap =>
+                    "Flight map works on a folder of footage — pick the folder "
+                    + "that holds your flights, not a single file.",
+                WorkspaceModeKind.PhotoMap =>
+                    "Photo map works on a folder of pictures — pick the folder "
+                    + "that holds your photos, not a single file.",
+                WorkspaceModeKind.Embed =>
+                    "Embed telemetry works on a folder of videos with their .SRT "
+                    + "flight logs — pick that folder, not a single file.",
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode.Kind, null),
+            });
+            return;
+        }
+        if (mode.Kind == WorkspaceModeKind.Convert && SelectedFile is { } source)
+        {
+            // No folder, no scan, no overtake window: snapshot and go.
+            var single = ConvertOptions.ToOptions();
+            ResetPreview();
+            await ExecuteFlowAsync(async () =>
+                await RunStepAsync("Converting…",
+                    CommandBuilder.Convert(source, batch: false, single))
+                && await PrimePreviewAsync());
+            return;
+        }
         if (SelectedFolder is not { } folder)
         {
             return;
@@ -519,6 +614,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         var flight = FlightOptions.ToOptions();
         var photo = PhotoOptions.ToOptions();
         var embed = EmbedOptions.ToOptions();
+        var convert = ConvertOptions.ToOptions();
         var contents = await Task.Run(() => _inspectFolder(folder));
         // The scan runs before ExecuteFlowAsync sets Step = Running, so the
         // folder can be cleared or replaced underneath us while it is in
@@ -594,6 +690,24 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
                     CommandBuilder.Embed(folder, embed)));
+                return;
+            case WorkspaceModeKind.Convert
+                when !(contents.HasTopLevelFlightLogs || contents.HasTopLevelVideos):
+                // convert -b globs one directory level (SRT/MP4/MOV) and has no
+                // recursive flag at all — same reach rule as embed (#333/#338).
+                Fail(contents.HasFlightLogs || contents.HasVideos
+                    ? "Those files are in subfolders — Convert reads only the "
+                      + "folder you pick. Pick the subfolder that holds the "
+                      + "flight logs or videos."
+                    : "No flight logs (.SRT) or drone videos were found in "
+                      + "that folder. Pick the folder that holds the footage "
+                      + "to convert.");
+                return;
+            case WorkspaceModeKind.Convert:
+                await ExecuteFlowAsync(async () =>
+                    await RunStepAsync("Converting…",
+                        CommandBuilder.Convert(folder, batch: true, convert))
+                    && await PrimePreviewAsync());
                 return;
         }
     }

@@ -122,7 +122,9 @@ task-flow pages. The mode strip tops out at six modes (Embed, Flight map,
 Photo map, Convert, Verify, Setup); M1 wires up four (Flight map, Photo map,
 Embed, Setup), with Convert and Verify joining in M4. Options stay curated,
 not exhaustive: they arrive in M3+, one *Advanced* expander per mode for the
-long tail, exotic flags remain CLI-only. A WebView is now allowed, but
+long tail, exotic flags remain CLI-only. As of M4a, the SOURCE door also
+accepts a single telemetry file (`.SRT`/`.MP4`/`.MOV`), not just a folder,
+and Convert turns it (or a folder) into GPX/CSV/GeoJSON/KML/an HTML map/CoT. A WebView is now allowed, but
 solely for the preview pane (arrives M2) — no other embedded browser
 surface. There is still no settings dialog; the only state the app persists
 is MRU folders and window bounds. The thin-frontend architecture is
