@@ -171,6 +171,32 @@ public class FolderInspectorTests : IDisposable
     }
 
     [Fact]
+    public void Distinguishes_top_level_media_from_nested_only()
+    {
+        Touch("DJI_0001.SRT");
+        Touch("sub", "IMG_0001.JPG");
+        Touch("sub", "DJI_0001.MP4");
+
+        var c = FolderInspector.Inspect(_dir);
+
+        Assert.True(c.HasTopLevelFlightLogs);
+        Assert.True(c.HasPhotos);
+        Assert.False(c.HasTopLevelPhotos);
+        Assert.True(c.HasVideos);
+        Assert.False(c.HasTopLevelVideos);
+    }
+
+    [Fact]
+    public void Trailing_separator_on_the_picked_folder_does_not_break_top_level()
+    {
+        Touch("IMG_0001.JPG");
+
+        var c = FolderInspector.Inspect(_dir + Path.DirectorySeparatorChar);
+
+        Assert.True(c.HasTopLevelPhotos);
+    }
+
+    [Fact]
     public void A_kind_that_is_absent_has_no_timestamp()
     {
         Touch("IMG_1.JPG");

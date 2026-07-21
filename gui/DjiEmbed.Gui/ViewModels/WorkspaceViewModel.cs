@@ -22,11 +22,13 @@ public partial class WorkspaceViewModel : FlowViewModel
     private readonly Action _openCliDiscovery;
     private readonly Func<string?>? _cliResolver;
     private readonly Func<bool> _previewAvailable;
+    private readonly Func<string, FolderContents> _inspectFolder;
 
     public WorkspaceViewModel(string? cli, DjiEmbedRunner runner,
         IMapServer mapServer, Action openCliDiscovery,
         Func<string?>? cliResolver = null,
-        Func<bool>? previewAvailable = null)
+        Func<bool>? previewAvailable = null,
+        Func<string, FolderContents>? folderInspector = null)
         : base(cli, runner, static () => { })
     {
         _mapServer = mapServer;
@@ -34,6 +36,10 @@ public partial class WorkspaceViewModel : FlowViewModel
         _cliResolver = cliResolver;
         _previewAvailable = previewAvailable
             ?? (static () => WebViewSupport.IsLikelyAvailable);
+        // The folder scan is injectable (#340): FolderInspector is static
+        // and deliberately has no early exit, so only a seam lets a test
+        // hold a scan open and prove the busy window is closed.
+        _inspectFolder = folderInspector ?? FolderInspector.Inspect;
         FlightOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
         PhotoOptions.PropertyChanged += (_, _) =>
@@ -79,6 +85,19 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     [ObservableProperty]
     public partial bool AllGood { get; set; }
+
+    /// <summary>
+    /// True from the first line of a run to its last — including the folder
+    /// scan that precedes <see cref="FlowViewModel.Step"/> becoming
+    /// <see cref="FlowStep.Running"/> (#340). Everything that feeds a run
+    /// (folder, mode, options) freezes on this, so the CLI strip's promise
+    /// — what is shown is what runs — holds for the whole run.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsBusy { get; private set; }
+
+    partial void OnIsBusyChanged(bool value) =>
+        OpenExistingMapCommand.NotifyCanExecuteChanged();
 
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
 
@@ -240,7 +259,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// </summary>
     public async Task SetFolderAsync(string folder)
     {
-        if (Step == FlowStep.Running)
+        if (IsBusy)
         {
             return;
         }
@@ -249,7 +268,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         // and the map probe that depends on its timestamps.
         var scan = await Task.Run(() =>
         {
-            var contents = FolderInspector.Inspect(folder);
+            var contents = _inspectFolder(folder);
             return (contents, maps: ExistingMapFinder.Find(folder, contents));
         });
         // A second pick can land while this scan is in flight; the newest
@@ -292,12 +311,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void ClearFolder()
     {
-        // Inert once the flow proper is running: pulling the folder out from
-        // under a running job would also discard the output overrides. This
-        // covers only Step == Running — a run's folder scan happens BEFORE
-        // ExecuteFlowAsync sets that, and that earlier window is closed on
-        // the other side, by RunAsync's ownership re-check after the scan.
-        if (Step == FlowStep.Running)
+        // Inert while a run is in flight: pulling the folder out from under
+        // a running job would also discard the output overrides. IsBusy
+        // spans the run's folder scan too, and RunAsync's ownership
+        // re-check after the scan stays as defence in depth.
+        if (IsBusy)
         {
             return;
         }
@@ -341,7 +359,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>A run owns the preview pane while it is in flight. Private:
     /// it raises no PropertyChanged, so nothing may bind it — a button gets
     /// this gate from the command's own CanExecute.</summary>
-    private bool CanOpenExistingMap => Step != FlowStep.Running;
+    private bool CanOpenExistingMap => !IsBusy;
 
     /// <summary>
     /// Show a map the folder already had, in the pane a finished run would
@@ -458,6 +476,22 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
+        // Busy for the run's entire lifetime, from before the folder scan:
+        // AsyncRelayCommand only covers the button, and Step only turns
+        // Running later, inside ExecuteFlowAsync (#340).
+        IsBusy = true;
+        try
+        {
+            await RunCoreAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task RunCoreAsync()
+    {
         CliPath ??= _cliResolver?.Invoke();
         if (!EnsureCli())
         {
@@ -465,7 +499,11 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
         SetupItems.Clear();
         AllGood = false;
-        if (SelectedMode.Kind == WorkspaceModeKind.Setup)
+        // Captured with the folder and options below: SelectedMode is a
+        // bare bindable property, so only captures guarantee a mid-scan
+        // change cannot pair this run's folder with another mode.
+        var mode = SelectedMode;
+        if (mode.Kind == WorkspaceModeKind.Setup)
         {
             ResetPreview();
             await RunSetupAsync();
@@ -475,7 +513,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             return;
         }
-        var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        // Option snapshots are taken BEFORE the awaited scan: the strip
+        // shows this exact command when the button is pressed, and a run
+        // owns what it showed — a mid-scan edit must not repair into it.
+        var flight = FlightOptions.ToOptions();
+        var photo = PhotoOptions.ToOptions();
+        var embed = EmbedOptions.ToOptions();
+        var contents = await Task.Run(() => _inspectFolder(folder));
         // The scan runs before ExecuteFlowAsync sets Step = Running, so the
         // folder can be cleared or replaced underneath us while it is in
         // flight. The newest pick owns the state — same rule SetFolderAsync
@@ -487,24 +531,40 @@ public partial class WorkspaceViewModel : FlowViewModel
         // Reset only now, past the awaited scan: clearing the preview any
         // earlier flashes the stale done card while a live map is still up.
         ResetPreview();
-        switch (SelectedMode.Kind)
+        // The scan is recursive, but embed reads one directory level and
+        // the map commands recurse only with -r — so each guard asks "is
+        // the media where THIS command will look" (#333, #338), and the
+        // guidance names the panel's own controls, never the CLI's flags.
+        switch (mode.Kind)
         {
-            case WorkspaceModeKind.FlightMap when !contents.HasFlightLogs:
-                Fail("No drone flight logs (.SRT) were found in that folder. "
-                     + "Pick the folder that contains your footage — "
-                     + "subfolders are included automatically.");
+            case WorkspaceModeKind.FlightMap
+                when !(flight.Recursive
+                    ? contents.HasFlightLogs : contents.HasTopLevelFlightLogs):
+                Fail(contents.HasFlightLogs
+                    ? "Those flight logs are in subfolders — turn on "
+                      + "Include subfolders."
+                    : "No drone flight logs (.SRT) were found in that "
+                      + "folder. Pick the folder that contains your footage"
+                      + (flight.Recursive
+                          ? " — subfolders are included automatically." : "."));
                 return;
             case WorkspaceModeKind.FlightMap:
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your flights…",
-                        CommandBuilder.FlightMap(folder, FlightOptions.ToOptions()))
+                        CommandBuilder.FlightMap(folder, flight))
                     && await PrimePreviewAsync());
                 return;
-            case WorkspaceModeKind.PhotoMap when !contents.HasPhotos:
-                Fail("No photos were found in that folder. Pick the folder "
-                     + "that contains your pictures — subfolders are "
-                     + "included automatically.");
+            case WorkspaceModeKind.PhotoMap
+                when !(photo.Recursive
+                    ? contents.HasPhotos : contents.HasTopLevelPhotos):
+                Fail(contents.HasPhotos
+                    ? "Those photos are in subfolders — turn on "
+                      + "Include subfolders."
+                    : "No photos were found in that folder. Pick the folder "
+                      + "that contains your pictures"
+                      + (photo.Recursive
+                          ? " — subfolders are included automatically." : "."));
                 return;
             case WorkspaceModeKind.PhotoMap:
                 // --link-originals defaults on: it's what powers the embedded
@@ -515,18 +575,25 @@ public partial class WorkspaceViewModel : FlowViewModel
                 await ExecuteFlowAsync(async () =>
                     await RunStepAsync(
                         "Mapping your photos…",
-                        CommandBuilder.PhotoMap(folder, PhotoOptions.ToOptions()))
+                        CommandBuilder.PhotoMap(folder, photo))
                     && await PrimePreviewAsync());
                 return;
-            case WorkspaceModeKind.Embed when !contents.HasVideos:
-                Fail("No videos (.MP4) were found in that folder. Pick the "
-                     + "folder that holds the drone videos together with "
-                     + "their .SRT flight logs.");
+            case WorkspaceModeKind.Embed when !contents.HasTopLevelVideos:
+                // embed has no recursive form at all, so subfolder-only
+                // videos would end as a "Done" card over a zero-file
+                // warning run (#338) — say so before spending the run.
+                Fail(contents.HasVideos
+                    ? "The videos are in subfolders, and Embed reads only "
+                      + "the folder you pick — pick the subfolder that "
+                      + "holds the videos."
+                    : "No videos (.MP4) were found in that folder. Pick the "
+                      + "folder that holds the drone videos together with "
+                      + "their .SRT flight logs.");
                 return;
             case WorkspaceModeKind.Embed:
                 await ExecuteFlowAsync(() => RunStepAsync(
                     "Embedding flight data into new copies…",
-                    CommandBuilder.Embed(folder, EmbedOptions.ToOptions())));
+                    CommandBuilder.Embed(folder, embed)));
                 return;
         }
     }

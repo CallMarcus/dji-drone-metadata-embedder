@@ -50,7 +50,12 @@
 
                 <StackPanel>
                     <TextBlock Classes="zone" Text="SOURCE" Margin="2,0,0,6" />
-                    <suki:GlassCard Padding="14">
+                    <!-- SOURCE, MODE and the options panels freeze while a
+                         run is in flight (#340): the CLI strip's promise is
+                         "what is shown is what runs", so nothing that feeds
+                         it may change until the run ends. -->
+                    <suki:GlassCard Name="SourceCard" Padding="14"
+                                    IsEnabled="{Binding !IsBusy}">
                         <StackPanel Spacing="10">
                             <Border Name="DropZone" DragDrop.AllowDrop="True"
                                     CornerRadius="10">
@@ -93,7 +98,8 @@
                     </suki:GlassCard>
 
                     <TextBlock Classes="zone" Text="MODE" />
-                    <suki:GlassCard Padding="8">
+                    <suki:GlassCard Name="ModeCard" Padding="8"
+                                    IsEnabled="{Binding !IsBusy}">
                         <StackPanel Spacing="6">
                             <ListBox Name="ModeStrip"
                                      ItemsSource="{Binding Modes}"
@@ -161,7 +167,8 @@
                     </Border>
 
                     <Border Name="FlightOptionsPanel"
-                            IsVisible="{Binding IsFlightMapMode}">
+                            IsVisible="{Binding IsFlightMapMode}"
+                            IsEnabled="{Binding !IsBusy}">
                         <StackPanel>
                             <TextBlock Classes="zone" Text="OPTIONS" />
                             <suki:GlassCard Padding="14">
@@ -283,7 +290,8 @@
                     </Border>
 
                     <Border Name="PhotoOptionsPanel"
-                            IsVisible="{Binding IsPhotoMapMode}">
+                            IsVisible="{Binding IsPhotoMapMode}"
+                            IsEnabled="{Binding !IsBusy}">
                         <StackPanel>
                             <TextBlock Classes="zone" Text="OPTIONS" />
                             <suki:GlassCard Padding="14">
@@ -421,7 +429,8 @@
                     </Border>
 
                     <Border Name="EmbedOptionsPanel"
-                            IsVisible="{Binding IsEmbedMode}">
+                            IsVisible="{Binding IsEmbedMode}"
+                            IsEnabled="{Binding !IsBusy}">
                         <StackPanel>
                             <TextBlock Classes="zone" Text="OPTIONS" />
                             <suki:GlassCard Padding="14">
