@@ -25,7 +25,7 @@ public enum SourceKinds
 
 /// <summary>
 /// One entry in the workspace mode strip (GUI 2.0 spec). M1 ships four;
-/// Convert and Verify join in M4.
+/// Convert joins in M4a, Verify pending M4b.
 /// </summary>
 public sealed record WorkspaceMode(
     WorkspaceModeKind Kind,
@@ -45,6 +45,9 @@ public sealed record WorkspaceMode(
         new(WorkspaceModeKind.Embed, "Embed telemetry", "Embed telemetry",
             Sources: SourceKinds.Folder,
             "Something went wrong while embedding the flight data."),
+        new(WorkspaceModeKind.Convert, "Convert telemetry", "Convert",
+            Sources: SourceKinds.Folder | SourceKinds.File,
+            "Something went wrong while converting the telemetry."),
         new(WorkspaceModeKind.Setup, "Setup", "Check my setup",
             Sources: SourceKinds.None,
             "The setup check could not be completed."),

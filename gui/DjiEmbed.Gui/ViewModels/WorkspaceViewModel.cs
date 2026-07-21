@@ -49,6 +49,8 @@ public partial class WorkspaceViewModel : FlowViewModel
         };
         EmbedOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
+        ConvertOptions.PropertyChanged += (_, _) =>
+            OnPropertyChanged(nameof(CommandPreview));
     }
 
     /// <summary>
@@ -71,6 +73,10 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Curated option state for the Embed telemetry mode (M3d). Feeds
     /// both the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public EmbedTelemetryOptionsViewModel EmbedOptions { get; } = new();
+
+    /// <summary>Curated option state for the Convert telemetry mode (M4a). Feeds
+    /// both the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
+    public ConvertOptionsViewModel ConvertOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -168,6 +174,9 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Whether the Embed telemetry options panel applies to the current mode.</summary>
     public bool IsEmbedMode => SelectedMode.Kind == WorkspaceModeKind.Embed;
 
+    /// <summary>Whether the Convert telemetry options panel applies to the current mode.</summary>
+    public bool IsConvertMode => SelectedMode.Kind == WorkspaceModeKind.Convert;
+
     /// <summary>
     /// True when a Photo map's "Save map to" override would leave the pins
     /// unable to find the original photos. <c>photomap --link-originals</c>
@@ -236,6 +245,12 @@ public partial class WorkspaceViewModel : FlowViewModel
                     CommandBuilder.PhotoMap(folder!, PhotoOptions.ToOptions()),
                 WorkspaceModeKind.Embed =>
                     CommandBuilder.Embed(folder!, EmbedOptions.ToOptions()),
+                WorkspaceModeKind.Convert =>
+                    SelectedFile is { } file
+                        ? CommandBuilder.Convert(file, batch: false,
+                            ConvertOptions.ToOptions())
+                        : CommandBuilder.Convert(folder!, batch: true,
+                            ConvertOptions.ToOptions()),
                 _ => CommandBuilder.Build(SelectedMode.Kind, folder),
             };
             return CommandLine.Format("dji-embed", argv);
@@ -274,6 +289,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(IsFlightMapMode));
         OnPropertyChanged(nameof(IsPhotoMapMode));
         OnPropertyChanged(nameof(IsEmbedMode));
+        OnPropertyChanged(nameof(IsConvertMode));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -301,6 +317,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         FlightOptions.Output = "";
         PhotoOptions.Output = "";
         EmbedOptions.Output = "";
+        ConvertOptions.Output = "";
         ResetPreview();
     }
 
@@ -361,7 +378,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         SelectedFile = path;
-        SuggestedMode = null;   // becomes Convert in Task 6
+        SuggestedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        SelectedMode = SuggestedMode;
         ResetDerivedSourceState();
         Step = FlowStep.Pick;
     }

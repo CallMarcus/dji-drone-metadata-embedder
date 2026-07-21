@@ -34,12 +34,12 @@ public class WorkspaceScreenTests
             previewAvailable: static () => false);
 
     [AvaloniaFact]
-    public void Mode_strip_shows_exactly_the_four_m1_modes()
+    public void Mode_strip_shows_exactly_the_five_m1_plus_m4a_modes()
     {
         var window = ShowWorkspace();
         var strip = window.GetVisualDescendants().OfType<ListBox>()
             .Single(l => l.Name == "ModeStrip");
-        Assert.Equal(4, strip.ItemCount);
+        Assert.Equal(5, strip.ItemCount);
     }
 
     [AvaloniaFact]

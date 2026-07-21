@@ -151,12 +151,43 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
-    public void File_pick_suggests_nothing_yet()
+    public void File_pick_suggests_and_selects_convert_mode()
     {
-        // Becomes "suggests Convert" when the Convert mode lands (M4a Task 6).
         var vm = Vm("unused");
         vm.SetFile("C:/clips/DJI_0001.SRT");
-        Assert.Null(vm.SuggestedMode);
+        Assert.Equal(WorkspaceModeKind.Convert, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.Convert, vm.SuggestedMode!.Kind);
+    }
+
+    [Fact]
+    public void Convert_strip_previews_batch_for_folders_and_bare_for_files()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        Assert.Equal("dji-embed convert gpx <folder> -b", vm.CommandPreview);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("dji-embed convert gpx C:/clips/DJI_0001.SRT",
+            vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Convert_options_repaint_the_strip()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        vm.ConvertOptions.SelectedFormat = vm.ConvertOptions.Formats
+            .First(f => f.Key == "kml");
+        Assert.Contains("convert kml", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Source_changes_clear_the_convert_output_override_too()
+    {
+        var vm = Vm("unused",
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        vm.ConvertOptions.Output = "C:/elsewhere/track.gpx";
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal("", vm.ConvertOptions.Output);
     }
 
     [Fact]
