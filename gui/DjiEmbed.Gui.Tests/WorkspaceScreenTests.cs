@@ -870,7 +870,7 @@ public class WorkspaceScreenTests
 
         vm.EmbedOptions.ExtractHome = true;
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Drop);
+            .Single(p => p.Value == TelemetryPrivacy.Drop);
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
         Assert.True(note.IsEffectivelyVisible);
@@ -924,10 +924,10 @@ public class WorkspaceScreenTests
         window.UpdateLayout();
 
         var privacy = window.GetVisualDescendants().OfType<ComboBox>()
-            .Single(c => c.Name == "EmbedPrivacyCombo");
+            .Single(c => c.Name == "TelemetryPrivacyCombo");
         Assert.Same(vm.EmbedOptions.PrivacyOptions, privacy.ItemsSource);
         privacy.SelectedItem = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Drop);
+            .Single(p => p.Value == TelemetryPrivacy.Drop);
 
         var container = window.GetVisualDescendants().OfType<ComboBox>()
             .Single(c => c.Name == "ContainerCombo");

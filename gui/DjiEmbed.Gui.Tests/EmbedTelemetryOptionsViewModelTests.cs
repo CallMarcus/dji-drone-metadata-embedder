@@ -16,7 +16,7 @@ public class EmbedTelemetryOptionsViewModelTests
     {
         var vm = new EmbedTelemetryOptionsViewModel();
         Assert.Equal("mp4", vm.SelectedContainer.Key);
-        Assert.Equal(EmbedPrivacy.Keep, vm.SelectedPrivacy.Value);
+        Assert.Equal(TelemetryPrivacy.Keep, vm.SelectedPrivacy.Value);
         Assert.False(vm.ExtractHome);
         Assert.False(vm.UseExifTool);
         Assert.False(vm.AudioSidecar);
@@ -29,7 +29,7 @@ public class EmbedTelemetryOptionsViewModelTests
     {
         var vm = new EmbedTelemetryOptionsViewModel();
         Assert.Equal(
-            [EmbedPrivacy.Keep, EmbedPrivacy.Fuzz, EmbedPrivacy.Drop],
+            [TelemetryPrivacy.Keep, TelemetryPrivacy.Fuzz, TelemetryPrivacy.Drop],
             vm.PrivacyOptions.Select(p => p.Value));
     }
 
@@ -53,10 +53,10 @@ public class EmbedTelemetryOptionsViewModelTests
         };
         vm.SelectedContainer = vm.Containers.Single(c => c.Key == "mkv");
         vm.SelectedPrivacy =
-            vm.PrivacyOptions.Single(p => p.Value == EmbedPrivacy.Drop);
+            vm.PrivacyOptions.Single(p => p.Value == TelemetryPrivacy.Drop);
 
         Assert.Equal(new EmbedTelemetryOptions(
-            Privacy: EmbedPrivacy.Drop,
+            Privacy: TelemetryPrivacy.Drop,
             Container: "mkv",
             ExtractHome: true,
             UseExifTool: true,
@@ -79,11 +79,11 @@ public class EmbedTelemetryOptionsViewModelTests
         Assert.False(vm.ShowsHomeEmptiedNote);          // Keep + extracting
 
         vm.SelectedPrivacy =
-            vm.PrivacyOptions.Single(p => p.Value == EmbedPrivacy.Fuzz);
+            vm.PrivacyOptions.Single(p => p.Value == TelemetryPrivacy.Fuzz);
         Assert.False(vm.ShowsHomeEmptiedNote);          // Fuzz still records one
 
         vm.SelectedPrivacy =
-            vm.PrivacyOptions.Single(p => p.Value == EmbedPrivacy.Drop);
+            vm.PrivacyOptions.Single(p => p.Value == TelemetryPrivacy.Drop);
         Assert.True(vm.ShowsHomeEmptiedNote);           // Drop + extracting
 
         vm.ExtractHome = false;
@@ -98,7 +98,7 @@ public class EmbedTelemetryOptionsViewModelTests
         vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
 
         vm.SelectedPrivacy =
-            vm.PrivacyOptions.Single(p => p.Value == EmbedPrivacy.Drop);
+            vm.PrivacyOptions.Single(p => p.Value == TelemetryPrivacy.Drop);
         vm.ExtractHome = true;
 
         Assert.Equal(2, notified.Count(

@@ -284,7 +284,7 @@ public class ScreenshotCaptureTests
             height: 1100);
 
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Drop);
+            .Single(p => p.Value == TelemetryPrivacy.Drop);
         vm.EmbedOptions.ExtractHome = true;
         vm.EmbedOptions.DatAuto = true;
         vm.EmbedOptions.Output = @"C:\Users\demo\Desktop\embedded";

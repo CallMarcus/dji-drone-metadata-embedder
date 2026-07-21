@@ -152,9 +152,9 @@ public static class CommandBuilder
         var args = new List<string> { "embed", folder };
         var redact = opts.Privacy switch
         {
-            EmbedPrivacy.Keep => null,
-            EmbedPrivacy.Fuzz => "fuzz",
-            EmbedPrivacy.Drop => "drop",
+            TelemetryPrivacy.Keep => null,
+            TelemetryPrivacy.Fuzz => "fuzz",
+            TelemetryPrivacy.Drop => "drop",
             _ => throw new ArgumentOutOfRangeException(
                 nameof(opts), opts.Privacy, null),
         };

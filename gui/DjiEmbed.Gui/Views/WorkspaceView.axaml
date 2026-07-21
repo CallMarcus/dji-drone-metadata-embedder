@@ -459,12 +459,12 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
-                                        <ComboBox Name="EmbedPrivacyCombo"
+                                        <ComboBox Name="TelemetryPrivacyCombo"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding EmbedOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding EmbedOptions.SelectedPrivacy}">
                                             <ComboBox.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:EmbedPrivacyChoice">
+                                                <DataTemplate x:DataType="vm:TelemetryPrivacyChoice">
                                                     <TextBlock Text="{Binding Label}" />
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>

@@ -1,25 +1,6 @@
 namespace DjiEmbed.Gui.ViewModels;
 
 /// <summary>
-/// What happens to GPS coordinates on the way into the copies. Deliberately
-/// NOT <see cref="MapPrivacy"/>: <c>embed --redact</c> accepts
-/// <c>none|drop|fuzz</c>, while <c>flightmap</c>/<c>photomap</c> accept only
-/// <c>none|fuzz</c> and would reject <c>drop</c>. One enum per command keeps
-/// each mode total over what its own CLI accepts.
-/// </summary>
-public enum EmbedPrivacy
-{
-    /// <summary>Coordinates pass through untouched (flag omitted).</summary>
-    Keep,
-
-    /// <summary>Coarsened to ~100 m (<c>--redact fuzz</c>).</summary>
-    Fuzz,
-
-    /// <summary>Removed entirely (<c>--redact drop</c>).</summary>
-    Drop,
-}
-
-/// <summary>
 /// Immutable, typed state for an Embed telemetry run (GUI 2.0 spec, M3d). It
 /// is the single input to <see cref="Services.CommandBuilder.Embed"/>, so the
 /// argv is a pure function of this record — golden-testable. Every field maps
@@ -32,7 +13,7 @@ public enum EmbedPrivacy
 /// drops.</param>
 /// <param name="ExtractHome">Write the launch point into the JSON sidecar
 /// (<c>--extract-home</c>). Never written into the video, and redacted along
-/// with everything else — <see cref="EmbedPrivacy.Drop"/> empties it.</param>
+/// with everything else — <see cref="TelemetryPrivacy.Drop"/> empties it.</param>
 /// <param name="UseExifTool">Also write GPS metadata with ExifTool
 /// (the flag is <c>--exiftool</c>, not <c>--use-exiftool</c>).</param>
 /// <param name="DatAuto">Scan for a DAT flight log sitting beside each video
@@ -42,7 +23,7 @@ public enum EmbedPrivacy
 /// <param name="Output">Destination directory for the copies; empty means the
 /// CLI default, a <c>processed</c> folder inside the source folder.</param>
 public sealed record EmbedTelemetryOptions(
-    EmbedPrivacy Privacy,
+    TelemetryPrivacy Privacy,
     string Container,
     bool ExtractHome,
     bool UseExifTool,
@@ -51,7 +32,7 @@ public sealed record EmbedTelemetryOptions(
     string Output)
 {
     public static readonly EmbedTelemetryOptions Defaults = new(
-        Privacy: EmbedPrivacy.Keep,
+        Privacy: TelemetryPrivacy.Keep,
         Container: "mp4",
         ExtractHome: false,
         UseExifTool: false,

@@ -1289,7 +1289,7 @@ public class WorkspaceViewModelTests : IDisposable
         ]);
         var vm = Vm(cli);
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Drop);
+            .Single(p => p.Value == TelemetryPrivacy.Drop);
         vm.EmbedOptions.SelectedContainer =
             vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
         vm.EmbedOptions.DatAuto = true;
@@ -1452,7 +1452,7 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.SetFolderAsync(MakeFolder(videos: true));
         Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
-            .Single(p => p.Value == EmbedPrivacy.Fuzz);
+            .Single(p => p.Value == TelemetryPrivacy.Fuzz);
         vm.EmbedOptions.SelectedContainer =
             vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
         vm.EmbedOptions.ExtractHome = true;

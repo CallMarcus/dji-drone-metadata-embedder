@@ -335,7 +335,7 @@ public class CommandBuilderTests
 
     // Every option switched on; shared by the two CLI-only guards below.
     private static readonly EmbedTelemetryOptions EverythingOn = new(
-        Privacy: EmbedPrivacy.Drop, Container: "mkv", ExtractHome: true,
+        Privacy: TelemetryPrivacy.Drop, Container: "mkv", ExtractHome: true,
         UseExifTool: true, AudioSidecar: true, DatAuto: true,
         Output: "/out/copies");
 
@@ -356,10 +356,10 @@ public class CommandBuilderTests
     }
 
     [Theory]
-    [InlineData(EmbedPrivacy.Fuzz, "fuzz")]
-    [InlineData(EmbedPrivacy.Drop, "drop")]
+    [InlineData(TelemetryPrivacy.Fuzz, "fuzz")]
+    [InlineData(TelemetryPrivacy.Drop, "drop")]
     public void Embed_passes_a_non_default_privacy_stance(
-        EmbedPrivacy privacy, string value)
+        TelemetryPrivacy privacy, string value)
     {
         var argv = CommandBuilder.Embed("/x",
             EmbedTelemetryOptions.Defaults with { Privacy = privacy });
@@ -439,7 +439,7 @@ public class CommandBuilderTests
     [Fact]
     public void Embed_all_options_compose_in_a_stable_order()
     {
-        var opts = EverythingOn with { Privacy = EmbedPrivacy.Fuzz };
+        var opts = EverythingOn with { Privacy = TelemetryPrivacy.Fuzz };
         Assert.Equal(
             ["embed", "/x", "--redact", "fuzz", "--container", "mkv",
              "--extract-home", "--exiftool", "--audio-sidecar", "--dat-auto",
