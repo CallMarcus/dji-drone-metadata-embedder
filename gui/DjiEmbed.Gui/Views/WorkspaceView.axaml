@@ -167,7 +167,8 @@
                             <suki:GlassCard Padding="14">
                                 <StackPanel Spacing="12">
                                     <DockPanel>
-                                        <ToggleSwitch DockPanel.Dock="Right"
+                                        <ToggleSwitch Name="FlightRecursiveToggle"
+                                                      DockPanel.Dock="Right"
                                                       IsChecked="{Binding FlightOptions.Recursive}" />
                                         <TextBlock Text="Include subfolders"
                                                    VerticalAlignment="Center" />
@@ -176,7 +177,8 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Map style" Opacity="0.7"
                                                    FontSize="12" />
-                                        <ComboBox HorizontalAlignment="Stretch"
+                                        <ComboBox Name="FlightStyleCombo"
+                                                  HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding FlightOptions.TileStyles}"
                                                   SelectedItem="{Binding FlightOptions.SelectedTileStyle}">
                                             <ComboBox.ItemTemplate>
@@ -190,7 +192,8 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
-                                        <ComboBox HorizontalAlignment="Stretch"
+                                        <ComboBox Name="FlightPrivacyCombo"
+                                                  HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding FlightOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding FlightOptions.SelectedPrivacy}">
                                             <ComboBox.ItemTemplate>
@@ -209,7 +212,8 @@
                                             <TextBlock Text="Join split recordings within"
                                                        Opacity="0.7" FontSize="12" />
                                         </DockPanel>
-                                        <Slider Minimum="0" Maximum="60"
+                                        <Slider Name="JoinGapSlider"
+                                                Minimum="0" Maximum="60"
                                                 TickFrequency="1" IsSnapToTickEnabled="True"
                                                 Value="{Binding FlightOptions.JoinGap}" />
                                         <TextBlock Text="0 = keep split clips as separate flights"
@@ -219,20 +223,23 @@
                                     <Expander Name="FlightAdvanced" Header="Advanced"
                                               IsExpanded="False">
                                         <StackPanel Spacing="12" Margin="0,8,0,0">
-                                            <CheckBox IsChecked="{Binding FlightOptions.ExportAll}"
+                                            <CheckBox Name="FlightExportAllCheck"
+                                                      IsChecked="{Binding FlightOptions.ExportAll}"
                                                       Content="Also export KML + GeoJSON" />
 
                                             <StackPanel Spacing="4">
                                                 <TextBlock Text="Time zone of the clips"
                                                            Opacity="0.7" FontSize="12" />
-                                                <TextBox Text="{Binding FlightOptions.TzOffset}"
+                                                <TextBox Name="FlightTzBox"
+                                                         Text="{Binding FlightOptions.TzOffset}"
                                                          PlaceholderText="auto" />
                                             </StackPanel>
 
                                             <StackPanel Spacing="4">
                                                 <TextBlock Text="Map title" Opacity="0.7"
                                                            FontSize="12" />
-                                                <TextBox Text="{Binding FlightOptions.Title}"
+                                                <TextBox Name="FlightTitleBox"
+                                                         Text="{Binding FlightOptions.Title}"
                                                          PlaceholderText="(folder name)" />
                                             </StackPanel>
 
@@ -282,7 +289,8 @@
                             <suki:GlassCard Padding="14">
                                 <StackPanel Spacing="12">
                                     <DockPanel>
-                                        <ToggleSwitch DockPanel.Dock="Right"
+                                        <ToggleSwitch Name="PhotoRecursiveToggle"
+                                                      DockPanel.Dock="Right"
                                                       IsChecked="{Binding PhotoOptions.Recursive}" />
                                         <TextBlock Text="Include subfolders"
                                                    VerticalAlignment="Center" />
@@ -291,7 +299,8 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Map style" Opacity="0.7"
                                                    FontSize="12" />
-                                        <ComboBox HorizontalAlignment="Stretch"
+                                        <ComboBox Name="PhotoStyleCombo"
+                                                  HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding PhotoOptions.TileStyles}"
                                                   SelectedItem="{Binding PhotoOptions.SelectedTileStyle}">
                                             <ComboBox.ItemTemplate>
@@ -305,7 +314,8 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
-                                        <ComboBox HorizontalAlignment="Stretch"
+                                        <ComboBox Name="PhotoPrivacyCombo"
+                                                  HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding PhotoOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding PhotoOptions.SelectedPrivacy}">
                                             <ComboBox.ItemTemplate>
@@ -354,13 +364,15 @@
                                     <Expander Name="PhotoAdvanced" Header="Advanced"
                                               IsExpanded="False">
                                         <StackPanel Spacing="12" Margin="0,8,0,0">
-                                            <CheckBox IsChecked="{Binding PhotoOptions.ExportAll}"
+                                            <CheckBox Name="PhotoExportAllCheck"
+                                                      IsChecked="{Binding PhotoOptions.ExportAll}"
                                                       Content="Also export KML + GeoJSON" />
 
                                             <StackPanel Spacing="4">
                                                 <TextBlock Text="Map title" Opacity="0.7"
                                                            FontSize="12" />
-                                                <TextBox Text="{Binding PhotoOptions.Title}"
+                                                <TextBox Name="PhotoTitleBox"
+                                                         Text="{Binding PhotoOptions.Title}"
                                                          PlaceholderText="(folder name)" />
                                             </StackPanel>
 

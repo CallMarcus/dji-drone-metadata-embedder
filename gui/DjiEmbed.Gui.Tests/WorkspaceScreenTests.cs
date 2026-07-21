@@ -205,6 +205,89 @@ public class WorkspaceScreenTests
         Assert.False(panel.IsEffectivelyVisible);
     }
 
+    // #336: the Flight panel had zero interactive-control binding tests.
+    // Compiled bindings catch a mistyped property PATH at build time; the
+    // surviving failure modes are a control bound to the wrong OBJECT
+    // (PhotoOptions.Recursive here compiles fine) or a dropped binding
+    // attribute — so flip every control from the CONTROL side and assert its
+    // own options VM moved, and the strip with it.
+    [AvaloniaFact]
+    public void Flight_map_controls_bind_to_the_flight_options_view_model()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+        var recursive = window.GetVisualDescendants().OfType<ToggleSwitch>()
+            .Single(t => t.Name == "FlightRecursiveToggle");
+        Assert.True(recursive.IsChecked);
+        recursive.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.FlightOptions.Recursive);
+        Assert.DoesNotContain(" -r", vm.CommandPreview);
+
+        var style = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "FlightStyleCombo");
+        Assert.Same(vm.FlightOptions.TileStyles, style.ItemsSource);
+        style.SelectedItem =
+            vm.FlightOptions.TileStyles.Single(t => t.Key == "opentopomap");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("opentopomap", vm.FlightOptions.SelectedTileStyle.Key);
+        Assert.Contains("--tile-style opentopomap", vm.CommandPreview);
+
+        var privacy = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "FlightPrivacyCombo");
+        Assert.Same(vm.FlightOptions.PrivacyOptions, privacy.ItemsSource);
+        privacy.SelectedItem = vm.FlightOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Fuzz);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(MapPrivacy.Fuzz, vm.FlightOptions.SelectedPrivacy.Value);
+        Assert.Contains("--redact fuzz", vm.CommandPreview);
+
+        var joinGap = window.GetVisualDescendants().OfType<Slider>()
+            .Single(s => s.Name == "JoinGapSlider");
+        joinGap.Value = 0;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(0, vm.FlightOptions.JoinGap);
+        Assert.Contains("--join-gap 0", vm.CommandPreview);
+
+        var exportAll = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightExportAllCheck");
+        exportAll.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.FlightOptions.ExportAll);
+        Assert.Contains("--format all", vm.CommandPreview);
+
+        var tz = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "FlightTzBox");
+        tz.Text = "+02:00";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("+02:00", vm.FlightOptions.TzOffset);
+        Assert.Contains("--tz-offset +02:00", vm.CommandPreview);
+
+        var title = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "FlightTitleBox");
+        title.Text = "Alps";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Alps", vm.FlightOptions.Title);
+        Assert.Contains("--title Alps", vm.CommandPreview);
+    }
+
+    [AvaloniaFact]
+    public void Flight_map_clear_output_button_is_bound_to_its_command()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.FlightOptions.Output = "/out/map.html";
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var clear = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "ClearOutputButton");
+        // A Button with a NULL Command still reports IsEffectivelyEnabled ==
+        // true, so identity is the only assertion that proves the binding.
+        Assert.Same(vm.FlightOptions.ClearOutputCommand, clear.Command);
+    }
+
     [AvaloniaFact]
     public async Task A_folder_with_an_existing_map_shows_the_already_here_panel()
     {
@@ -388,6 +471,85 @@ public class WorkspaceScreenTests
         Assert.Contains("--popup-fields", vm.CommandPreview);
     }
 
+    // #336, Photo panel: the controls the camera-checkbox test above does not
+    // reach — including the four popup checkboxes that were named but never
+    // driven. Cumulative unchecks walk --popup-fields down to one name, so
+    // every flip shows up in the strip, not just in the VM.
+    [AvaloniaFact]
+    public void Photo_map_controls_bind_to_the_photo_options_view_model()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var recursive = window.GetVisualDescendants().OfType<ToggleSwitch>()
+            .Single(t => t.Name == "PhotoRecursiveToggle");
+        Assert.True(recursive.IsChecked);
+        recursive.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.Recursive);
+        Assert.DoesNotContain(" -r", vm.CommandPreview);
+
+        var style = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "PhotoStyleCombo");
+        Assert.Same(vm.PhotoOptions.TileStyles, style.ItemsSource);
+        style.SelectedItem =
+            vm.PhotoOptions.TileStyles.Single(t => t.Key == "cyclosm");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("cyclosm", vm.PhotoOptions.SelectedTileStyle.Key);
+        Assert.Contains("--tile-style cyclosm", vm.CommandPreview);
+
+        var privacy = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "PhotoPrivacyCombo");
+        Assert.Same(vm.PhotoOptions.PrivacyOptions, privacy.ItemsSource);
+        privacy.SelectedItem = vm.PhotoOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Fuzz);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(MapPrivacy.Fuzz, vm.PhotoOptions.SelectedPrivacy.Value);
+        Assert.Contains("--redact fuzz", vm.CommandPreview);
+
+        var checkboxes = window.GetVisualDescendants().OfType<CheckBox>().ToList();
+        var name = checkboxes.Single(c => c.Name == "PopupNameCheck");
+        name.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.ShowName);
+        Assert.Contains("--popup-fields timestamp,camera,altitude,credit",
+            vm.CommandPreview);
+
+        var time = checkboxes.Single(c => c.Name == "PopupTimeCheck");
+        time.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.ShowTimestamp);
+        Assert.Contains("--popup-fields camera,altitude,credit", vm.CommandPreview);
+
+        var altitude = checkboxes.Single(c => c.Name == "PopupAltitudeCheck");
+        altitude.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.ShowAltitude);
+        Assert.Contains("--popup-fields camera,credit", vm.CommandPreview);
+
+        var credit = checkboxes.Single(c => c.Name == "PopupCreditCheck");
+        credit.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.PhotoOptions.ShowCredit);
+        Assert.Contains("--popup-fields camera", vm.CommandPreview);
+
+        var exportAll = checkboxes.Single(c => c.Name == "PhotoExportAllCheck");
+        exportAll.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.PhotoOptions.ExportAll);
+        Assert.Contains("--format all", vm.CommandPreview);
+
+        var title = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "PhotoTitleBox");
+        title.Text = "Beach";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Beach", vm.PhotoOptions.Title);
+        Assert.Contains("--title Beach", vm.CommandPreview);
+    }
+
     [AvaloniaFact]
     public void Photo_map_clear_output_button_is_bound_to_its_command()
     {
@@ -539,6 +701,34 @@ public class WorkspaceScreenTests
         Dispatcher.UIThread.RunJobs();
         Assert.True(vm.EmbedOptions.DatAuto);
         Assert.Contains("--dat-auto", vm.CommandPreview);
+    }
+
+    // #336, Embed panel: the two Advanced checkboxes that were named but
+    // never driven by the sibling test above.
+    [AvaloniaFact]
+    public void Embed_advanced_checkboxes_bind_to_the_embed_options_view_model()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var exiftool = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "ExifToolCheck");
+        Assert.False(exiftool.IsChecked);
+        exiftool.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.EmbedOptions.UseExifTool);
+        Assert.Contains("--exiftool", vm.CommandPreview);
+
+        var audio = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "AudioSidecarCheck");
+        Assert.False(audio.IsChecked);
+        audio.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.EmbedOptions.AudioSidecar);
+        Assert.Contains("--audio-sidecar", vm.CommandPreview);
     }
 
     [AvaloniaFact]
