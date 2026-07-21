@@ -841,6 +841,32 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.ShowDoneCard);
     }
 
+    // The fallback half of OpenExistingMapAsync's contract: no usable inline
+    // preview means the user's ask is answered by the browser — still through
+    // the map server, so the 360° pano viewer works — and never by preview
+    // state a webview-less pane could not render.
+    [Fact]
+    public async Task Existing_map_open_without_preview_goes_to_the_browser()
+    {
+        var server = new FakeMapServer(FakeUrl);
+        var vm = Vm("cli", mapServer: server,
+            previewAvailable: static () => false);
+        var launched = new List<string>();
+        vm.UrlLauncher = launched.Add;
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        var map = Assert.Single(vm.ExistingMaps);
+
+        await vm.OpenExistingMapCommand.ExecuteAsync(map);
+
+        Assert.Equal([FakeUrl], launched);          // the browser answered the ask
+        Assert.Equal([map.Path], server.Requests);  // via the server, not file://
+        Assert.Null(vm.PreviewUrl);                 // and no preview state at all
+        Assert.Null(vm.PreviewPath);
+        Assert.False(vm.ShowPreview);
+        Assert.False(vm.PreviewUnavailable);        // a browsed map is not a degradation
+        Assert.True(vm.ShowIdle);
+    }
+
     [Fact]
     public async Task Picking_another_folder_drops_a_browsed_preview()
     {

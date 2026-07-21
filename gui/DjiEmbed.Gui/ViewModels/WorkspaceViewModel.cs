@@ -45,6 +45,15 @@ public partial class WorkspaceViewModel : FlowViewModel
             OnPropertyChanged(nameof(CommandPreview));
     }
 
+    /// <summary>
+    /// Opens a served map URL with the OS default handler — the user's
+    /// browser. A test seam in the <see cref="DjiEmbed.Gui.Views.WorkspaceView.WebViewGate"/>
+    /// mould, defaulting to the real launch, so headless tests can pin it
+    /// and assert the browser-fallback path without spawning anything.
+    /// </summary>
+    internal Action<string> UrlLauncher { get; set; } = static url =>
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+
     /// <summary>Curated option state for the Flight map mode (M3b). Feeds both
     /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public FlightMapOptionsViewModel FlightOptions { get; } = new();
@@ -557,7 +566,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                 CliPath, path, CancellationToken.None);
             if (url is not null)
             {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                UrlLauncher(url);
                 return;
             }
         }
