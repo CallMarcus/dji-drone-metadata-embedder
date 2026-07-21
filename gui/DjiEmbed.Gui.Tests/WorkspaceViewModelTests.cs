@@ -170,12 +170,15 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Source_display_shows_folder_path_but_file_name_only()
+    public async Task Source_display_shows_folder_path_but_file_name_only()
     {
         var vm = Vm("unused");
         Assert.Null(vm.SourceDisplay);
         vm.SetFile("C:/clips/DJI_0001.SRT");
         Assert.Equal("DJI_0001.SRT", vm.SourceDisplay);
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+        Assert.Equal(folder, vm.SourceDisplay);
     }
 
     [Fact]

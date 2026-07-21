@@ -281,6 +281,30 @@ public partial class WorkspaceViewModel : FlowViewModel
         SelectedMode.FailureMessage;
 
     /// <summary>
+    /// An absolute output override ("Save map to", "Save copies to")
+    /// belongs to the source it was chosen for — carried to a new source it
+    /// either overwrites that source's outputs or writes nowhere the new
+    /// source shows. Every other option (tile style, privacy, container,
+    /// popup fields, title, timezone, ...) is deliberately app-session
+    /// state that survives a source change (GUI 2.0 spec).
+    ///
+    /// A new source (or none) disowns everything derived from the
+    /// old one: the previous run's outputs/warnings, per-source output
+    /// overrides, the browsed/primed preview. Shared by SetFolderAsync,
+    /// SetFile and ClearSource so the three doors stay in step.
+    /// </summary>
+    private void ResetDerivedSourceState()
+    {
+        ExistingMaps.Clear();
+        Outputs.Clear();
+        Warnings.Clear();
+        FlightOptions.Output = "";
+        PhotoOptions.Output = "";
+        EmbedOptions.Output = "";
+        ResetPreview();
+    }
+
+    /// <summary>
     /// Folder drop/pick: remember it, suggest the likely mode. A new folder
     /// is a fresh start — Done/Failed flip back to the idle pane. Ignored
     /// while a run is in flight.
@@ -314,25 +338,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             SelectedMode = SuggestedMode;
         }
-        ExistingMaps.Clear();
+        // A new folder is a fresh start: the previous run's outputs and
+        // warnings must not frame a map that was already sitting here.
+        ResetDerivedSourceState();
         foreach (var map in scan.maps)
         {
             ExistingMaps.Add(map);
         }
-        // A new folder is a fresh start: the previous run's outputs and
-        // warnings must not frame a map that was already sitting here.
-        Outputs.Clear();
-        Warnings.Clear();
-        // An absolute output override ("Save map to", "Save copies to")
-        // belongs to the folder it was chosen for — carried to a new folder it
-        // either overwrites that folder's outputs or writes nowhere the new
-        // folder shows. Every other option (tile style, privacy, container,
-        // popup fields, title, timezone, ...) is deliberately app-session
-        // state that survives a folder change (GUI 2.0 spec).
-        FlightOptions.Output = "";
-        PhotoOptions.Output = "";
-        EmbedOptions.Output = "";
-        ResetPreview();
         Step = FlowStep.Pick;
     }
 
@@ -349,15 +361,9 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         SelectedFile = path;
-        ExistingMaps.Clear();
-        Outputs.Clear();
-        Warnings.Clear();
-        FlightOptions.Output = "";
-        PhotoOptions.Output = "";
-        EmbedOptions.Output = "";
-        ResetPreview();
-        Step = FlowStep.Pick;
         SuggestedMode = null;   // becomes Convert in Task 6
+        ResetDerivedSourceState();
+        Step = FlowStep.Pick;
     }
 
     [RelayCommand]
@@ -374,26 +380,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         SelectedFolder = null;
         SelectedFile = null;
         SuggestedMode = null;
-        ExistingMaps.Clear();
-        // The same ownership rule SetFolderAsync explains: an output override
-        // belongs to the source it was chosen for, and removing the source
-        // leaves it with no owner at all. The strip is where that shows —
-        // it would go on advertising `--output <path>` beside the `<folder>`
-        // placeholder. (Each Output setter raises through the ctor's options
-        // subscription, so the strip repaints with the cleared value. The
-        // SelectedFolder/SelectedFile raises above fire before these lines
-        // and still see the old path.)
-        FlightOptions.Output = "";
-        PhotoOptions.Output = "";
-        EmbedOptions.Output = "";
-        // A map browsed out of that folder can't outlive it: without this the
-        // pane keeps rendering it with no source and no drop hero behind it.
-        ResetPreview();
-        // Nor can a finished run's results: without these, ✕ after a run left
-        // Step == Done with the preview nulled, which is precisely the
-        // done-card state — outputs and warnings listed over no source.
-        Outputs.Clear();
-        Warnings.Clear();
+        ResetDerivedSourceState();
         Step = FlowStep.Pick;
     }
 
