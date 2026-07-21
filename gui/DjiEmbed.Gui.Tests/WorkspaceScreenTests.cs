@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DjiEmbed.Gui.Services;
@@ -176,6 +177,26 @@ public class WorkspaceScreenTests
         Assert.DoesNotContain("--progress", strip.Text);  // teaching form, not the machine flag
         Assert.Single(window.GetVisualDescendants().OfType<Button>(),
             b => b.Name == "CopyCommandButton");
+    }
+
+    // Manual plan §2.6 "Copy is exact": the strip's Copy button must put the
+    // preview on the clipboard byte-identically — a transformation on the way
+    // out would break the paste-into-a-terminal promise.
+    [AvaloniaFact]
+    public async Task Copy_command_puts_the_exact_preview_on_the_clipboard()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+        window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "CopyCommandButton")
+            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(
+                Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        var copied = await window.Clipboard!.TryGetTextAsync();
+        Assert.Equal(vm.CommandPreview, copied);
+        Assert.Equal("dji-embed flightmap <folder> -r", copied);
     }
 
     // M3b: the Flight map options panel renders only for Flight map, with the

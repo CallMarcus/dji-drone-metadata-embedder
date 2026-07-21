@@ -212,6 +212,19 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains("folder", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    // The mirror guard: the test above covers flightmap-on-photos, this one
+    // photomap-on-videos — the only wrong-content arm that had no test.
+    [Fact]
+    public async Task Photo_map_on_a_videos_folder_fails_before_launching_anything()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(videos: true));   // suggests Embed
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("photos", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task Setup_mode_parses_the_doctor_checklist()
     {
