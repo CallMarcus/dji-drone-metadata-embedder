@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -23,6 +24,24 @@ public partial class WorkspaceView : UserControl
     /// </summary>
     internal Func<bool> WebViewGate { get; set; } =
         static () => WebViewSupport.IsLikelyAvailable;
+
+    /// <summary>
+    /// Save-file picking for the two map panels' Choose… buttons — a test
+    /// seam (#335) defaulting to the real save dialog, which cannot open
+    /// headless: (anchor, title, suggestedName) → the chosen path, or null
+    /// when dismissed.
+    /// </summary>
+    internal Func<Control, string, string, Task<string?>> SavePicker
+    { get; set; } = FolderPicking.PickSaveAsync;
+
+    /// <summary>
+    /// Folder picking for Embed's Choose… button (its <c>-o</c> is a
+    /// directory, not a file) — the same seam shape as
+    /// <see cref="SavePicker"/>: (anchor, title) → the chosen path, or
+    /// null when dismissed.
+    /// </summary>
+    internal Func<Control, string, Task<string?>> OutputFolderPicker
+    { get; set; } = FolderPicking.PickFolderAsync;
 
     public WorkspaceView()
     {
@@ -116,31 +135,31 @@ public partial class WorkspaceView : UserControl
 
     private async void OnChooseOutputClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is WorkspaceViewModel vm)
+        if (DataContext is WorkspaceViewModel vm
+            && await SavePicker(this, "Save the flight map as", "flightmap.html")
+                is { } path)
         {
-            await FolderPicking.SaveMapAsync(
-                this, p => vm.FlightOptions.Output = p,
-                "Save the flight map as", "flightmap.html");
+            vm.FlightOptions.Output = path;
         }
     }
 
     private async void OnChoosePhotoOutputClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is WorkspaceViewModel vm)
+        if (DataContext is WorkspaceViewModel vm
+            && await SavePicker(this, "Save the photo map as", "photomap.html")
+                is { } path)
         {
-            await FolderPicking.SaveMapAsync(
-                this, p => vm.PhotoOptions.Output = p,
-                "Save the photo map as", "photomap.html");
+            vm.PhotoOptions.Output = path;
         }
     }
 
     private async void OnChooseEmbedOutputClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is WorkspaceViewModel vm)
+        if (DataContext is WorkspaceViewModel vm
+            && await OutputFolderPicker(
+                this, "Choose where to save the embedded copies") is { } path)
         {
-            await FolderPicking.ChooseOutputFolderAsync(
-                this, p => vm.EmbedOptions.Output = p,
-                "Choose where to save the embedded copies");
+            vm.EmbedOptions.Output = path;
         }
     }
 

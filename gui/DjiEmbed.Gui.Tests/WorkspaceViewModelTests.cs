@@ -212,6 +212,19 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains("folder", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    // The mirror guard: the test above covers flightmap-on-photos, this one
+    // photomap-on-videos — the only wrong-content arm that had no test.
+    [Fact]
+    public async Task Photo_map_on_a_videos_folder_fails_before_launching_anything()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(videos: true));   // suggests Embed
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("photos", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task Setup_mode_parses_the_doctor_checklist()
     {
@@ -828,6 +841,32 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.ShowDoneCard);
     }
 
+    // The fallback half of OpenExistingMapAsync's contract: no usable inline
+    // preview means the user's ask is answered by the browser — still through
+    // the map server, so the 360° pano viewer works — and never by preview
+    // state a webview-less pane could not render.
+    [Fact]
+    public async Task Existing_map_open_without_preview_goes_to_the_browser()
+    {
+        var server = new FakeMapServer(FakeUrl);
+        var vm = Vm("cli", mapServer: server,
+            previewAvailable: static () => false);
+        var launched = new List<string>();
+        vm.UrlLauncher = launched.Add;
+        await vm.SetFolderAsync(MakeFolder(srt: true, flightMap: true));
+        var map = Assert.Single(vm.ExistingMaps);
+
+        await vm.OpenExistingMapCommand.ExecuteAsync(map);
+
+        Assert.Equal([FakeUrl], launched);          // the browser answered the ask
+        Assert.Equal([map.Path], server.Requests);  // via the server, not file://
+        Assert.Null(vm.PreviewUrl);                 // and no preview state at all
+        Assert.Null(vm.PreviewPath);
+        Assert.False(vm.ShowPreview);
+        Assert.False(vm.PreviewUnavailable);        // a browsed map is not a degradation
+        Assert.True(vm.ShowIdle);
+    }
+
     [Fact]
     public async Task Picking_another_folder_drops_a_browsed_preview()
     {
@@ -1010,6 +1049,129 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.False(vm.IsFlightMapMode);
         Assert.False(vm.IsPhotoMapMode);
         Assert.Contains(nameof(WorkspaceViewModel.IsEmbedMode), notified);
+    }
+
+    // #334: the CLI transparency strip's whole promise is that the command it
+    // shows IS the command the runner executes — the runner may append only
+    // the machine-only `--progress jsonl`. Argv-fragment tests and preview
+    // tests each cover one side; these pin the two sides to each other, one
+    // per mode, argv-to-argv (via SplitPreview) so CommandLine.Format's
+    // display quoting stays free to change.
+    private static void AssertStripEqualsExecutedArgv(
+        string preview, string argsFile)
+    {
+        var executed = File.ReadAllLines(argsFile);
+        Assert.Equal(["--progress", "jsonl"], executed[^2..]);
+        var shown = SplitPreview(preview);
+        Assert.Equal("dji-embed", shown[0]);
+        Assert.Equal(shown.Skip(1), executed[..^2]);
+    }
+
+    /// <summary>Splits the strip's display string back into an argv,
+    /// honouring the double quotes CommandLine.Format adds around arguments
+    /// with spaces. Deliberately test-side: the promise under test is about
+    /// the rendered string, whatever quoting produced it.</summary>
+    private static List<string> SplitPreview(string preview)
+    {
+        var tokens = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuotes = false;
+        var hasToken = false;   // distinguishes "" (an empty argument) from nothing
+        foreach (var c in preview)
+        {
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+                hasToken = true;
+            }
+            else if (char.IsWhiteSpace(c) && !inQuotes)
+            {
+                if (hasToken)
+                {
+                    tokens.Add(current.ToString());
+                    current.Clear();
+                    hasToken = false;
+                }
+            }
+            else
+            {
+                current.Append(c);
+                hasToken = true;
+            }
+        }
+        if (hasToken)
+        {
+            tokens.Add(current.ToString());
+        }
+        return tokens;
+    }
+
+    [Fact]
+    public async Task Flight_map_strip_equals_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "argv-strip-fm.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.FlightOptions.SelectedTileStyle =
+            vm.FlightOptions.TileStyles.Single(t => t.Key == "opentopomap");
+        vm.FlightOptions.SelectedPrivacy =
+            vm.FlightOptions.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
+        vm.FlightOptions.JoinGap = 0;
+        vm.FlightOptions.Title = "My Alps Trip";   // quoted in the strip
+        var preview = vm.CommandPreview;
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        AssertStripEqualsExecutedArgv(preview, argsFile);
+    }
+
+    [Fact]
+    public async Task Photo_map_strip_equals_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "argv-strip-pm.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, PhotomapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
+        vm.PhotoOptions.SelectedTileStyle =
+            vm.PhotoOptions.TileStyles.Single(t => t.Key == "cyclosm");
+        vm.PhotoOptions.ShowName = false;    // forces a --popup-fields subset
+        vm.PhotoOptions.ShowCredit = false;
+        vm.PhotoOptions.ExportAll = true;
+        var preview = vm.CommandPreview;
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        AssertStripEqualsExecutedArgv(preview, argsFile);
+    }
+
+    [Fact]
+    public async Task Embed_strip_equals_the_executed_argv()
+    {
+        var argsFile = Path.Combine(_dir, "argv-strip-em.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile,
+        [
+            """{"v": 1, "event": "start", "command": "embed", "total": 1}""",
+            """{"v": 1, "event": "result", "ok": true, "outputs": ["/footage/processed"], "summary": {}}""",
+        ]);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
+            .Single(p => p.Value == EmbedPrivacy.Fuzz);
+        vm.EmbedOptions.SelectedContainer =
+            vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
+        vm.EmbedOptions.ExtractHome = true;
+        vm.EmbedOptions.AudioSidecar = true;
+        var preview = vm.CommandPreview;
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Done, vm.Step);
+        AssertStripEqualsExecutedArgv(preview, argsFile);
     }
 
     [Fact]

@@ -34,6 +34,17 @@ public class ExistingMapFinderTests : IDisposable
         Assert.Empty(ExistingMapFinder.Find(_dir, Contents()));
     }
 
+    // Only the CLI's default output names count (#328 spec): a map renamed
+    // or redirected by "Save map to" is deliberately out of scope, so an
+    // arbitrary .html must never surface as an existing map.
+    [Fact]
+    public void A_non_default_html_name_is_not_an_existing_map()
+    {
+        Map("myflight.html", Recent);
+
+        Assert.Empty(ExistingMapFinder.Find(_dir, Contents()));
+    }
+
     [Fact]
     public void Finds_the_flight_map_with_its_title_and_path()
     {
