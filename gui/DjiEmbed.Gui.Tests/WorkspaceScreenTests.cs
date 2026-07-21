@@ -994,4 +994,21 @@ public class WorkspaceScreenTests
             Directory.Delete(dir, recursive: true);
         }
     }
+
+    // M4a: the SOURCE card's second button ("Choose a file…") routes
+    // through the same test-seam mould as SavePicker/OutputFolderPicker —
+    // pinned here so the picked path lands on SelectedFile without ever
+    // touching a real file dialog headless.
+    [AvaloniaFact]
+    public void Choose_file_button_routes_through_the_file_picker_seam()
+    {
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        var vm = NewWorkspaceViewModel();
+        view.FilePicker = static (_) => Task.FromResult<string?>("C:/x/DJI_1.SRT");
+        view.DataContext = vm;
+        var button = view.FindControl<Button>("ChooseFileButton")!;
+        button.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("C:/x/DJI_1.SRT", vm.SelectedFile);
+    }
 }

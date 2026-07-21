@@ -43,10 +43,18 @@ public partial class WorkspaceView : UserControl
     internal Func<Control, string, Task<string?>> OutputFolderPicker
     { get; set; } = FolderPicking.PickFolderAsync;
 
+    /// <summary>
+    /// Single-file picking for the source card's "Choose a file…"
+    /// button — a test seam in the <see cref="SavePicker"/> mould:
+    /// (anchor) → the chosen path, or null when dismissed.
+    /// </summary>
+    internal Func<Control, Task<string?>> FilePicker
+    { get; set; } = FolderPicking.PickSourceFileAsync;
+
     public WorkspaceView()
     {
         InitializeComponent();
-        FolderPicking.EnableDrop(this, SetFolderAsync, DropZone);
+        FolderPicking.EnableDrop(this, SetFolderAsync, DropZone, SetFileAsync);
         DataContextChanged += (_, _) =>
         {
             if (_vm is not null)
@@ -133,6 +141,15 @@ public partial class WorkspaceView : UserControl
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>
         await FolderPicking.ChooseAsync(this, SetFolderAsync);
 
+    private async void OnChooseFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is WorkspaceViewModel vm
+            && await FilePicker(this) is { } path)
+        {
+            vm.SetFile(path);
+        }
+    }
+
     private async void OnChooseOutputClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is WorkspaceViewModel vm
@@ -183,4 +200,10 @@ public partial class WorkspaceView : UserControl
         DataContext is WorkspaceViewModel vm
             ? vm.SetFolderAsync(folder)
             : System.Threading.Tasks.Task.CompletedTask;
+
+    private Task SetFileAsync(string file)
+    {
+        (DataContext as WorkspaceViewModel)?.SetFile(file);
+        return Task.CompletedTask;
+    }
 }
