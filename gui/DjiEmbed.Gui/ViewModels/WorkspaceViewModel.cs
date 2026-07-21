@@ -570,7 +570,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         // A file in the slot with a folder-only mode selected: say which folder
         // the mode wants instead of failing into the CLI's usage error (#346
         // discipline — reach-aware guidance in the panel's own language).
-        if (SelectedFile is { } file && !mode.Sources.HasFlag(SourceKinds.File))
+        if (SelectedFile is not null && !mode.Sources.HasFlag(SourceKinds.File))
         {
             Fail(mode.Kind switch
             {
@@ -580,9 +580,10 @@ public partial class WorkspaceViewModel : FlowViewModel
                 WorkspaceModeKind.PhotoMap =>
                     "Photo map works on a folder of pictures — pick the folder "
                     + "that holds your photos, not a single file.",
-                _ =>
+                WorkspaceModeKind.Embed =>
                     "Embed telemetry works on a folder of videos with their .SRT "
                     + "flight logs — pick that folder, not a single file.",
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode.Kind, null),
             });
             return;
         }
@@ -689,11 +690,12 @@ public partial class WorkspaceViewModel : FlowViewModel
                 // convert -b globs one directory level (SRT/MP4/MOV) and has no
                 // recursive flag at all — same reach rule as embed (#333/#338).
                 Fail(contents.HasFlightLogs || contents.HasVideos
-                    ? "Those files are in subfolders — Convert reads only the folder "
-                      + "you pick. Pick the subfolder that holds the flight logs or "
-                      + "videos."
-                    : "No flight logs (.SRT) or drone videos were found in that "
-                      + "folder. Pick the folder that holds the footage to convert.");
+                    ? "Those files are in subfolders — Convert reads only the "
+                      + "folder you pick. Pick the subfolder that holds the "
+                      + "flight logs or videos."
+                    : "No flight logs (.SRT) or drone videos were found in "
+                      + "that folder. Pick the folder that holds the footage "
+                      + "to convert.");
                 return;
             case WorkspaceModeKind.Convert:
                 await ExecuteFlowAsync(async () =>
