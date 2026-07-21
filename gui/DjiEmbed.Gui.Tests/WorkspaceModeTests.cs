@@ -14,10 +14,11 @@ public class WorkspaceModeTests
     }
 
     [Fact]
-    public void Only_setup_runs_without_a_folder()
+    public void Folder_modes_take_folders_setup_takes_nothing()
     {
-        Assert.All(WorkspaceMode.All, m =>
-            Assert.Equal(m.Kind != WorkspaceModeKind.Setup, m.NeedsFolder));
+        Assert.All(WorkspaceMode.All, m => Assert.Equal(
+            m.Kind == WorkspaceModeKind.Setup ? SourceKinds.None : SourceKinds.Folder,
+            m.Sources));
     }
 
     [Fact]

@@ -146,7 +146,7 @@ public partial class WorkspaceViewModel : FlowViewModel
     partial void OnPreviewUrlChanged(string? value) => RaiseGateChanged();
 
     /// <summary>The action button lights up as soon as a run could work.</summary>
-    public bool CanRun => !SelectedMode.NeedsFolder || SelectedFolder is not null;
+    public bool CanRun => SelectedMode.Sources == SourceKinds.None || SelectedFolder is not null;
 
     /// <summary>Whether the Flight map options panel applies to the current mode.</summary>
     public bool IsFlightMapMode => SelectedMode.Kind == WorkspaceModeKind.FlightMap;
@@ -213,9 +213,9 @@ public partial class WorkspaceViewModel : FlowViewModel
         get
         {
             var folder = SelectedFolder
-                ?? (SelectedMode.NeedsFolder ? "<folder>" : null);
+                ?? (SelectedMode.Sources.HasFlag(SourceKinds.Folder) ? "<folder>" : null);
             // folder! is safe in the three explicit arms below: each of those
-            // modes has NeedsFolder true, so the line above yields the
+            // modes has Sources including Folder, so the line above yields the
             // "<folder>" placeholder (never null) when no folder is picked.
             var argv = SelectedMode.Kind switch
             {
