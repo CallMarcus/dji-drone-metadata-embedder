@@ -30,10 +30,31 @@ public class WorkspaceViewModelTests : IDisposable
     // deterministic on every OS.
     private static WorkspaceViewModel Vm(
         string? cli, Func<string?>? cliResolver = null,
-        IMapServer? mapServer = null, Func<bool>? previewAvailable = null) =>
+        IMapServer? mapServer = null, Func<bool>? previewAvailable = null,
+        Func<string, FolderContents>? folderInspector = null) =>
         new(cli, new DjiEmbedRunner(), mapServer ?? new FakeMapServer(null),
             () => { }, cliResolver,
-            previewAvailable ?? (static () => false));
+            previewAvailable ?? (static () => false),
+            folderInspector);
+
+    private static FolderContents Contents(
+        bool logs = false, bool photos = false, bool videos = false,
+        bool topLogs = false, bool topPhotos = false, bool topVideos = false) =>
+        new(logs, photos, videos, topLogs, topPhotos, topVideos, null, null);
+
+    [Fact]
+    public async Task Folder_scans_go_through_the_injected_inspector()
+    {
+        var inspected = new List<string>();
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"), folderInspector: dir =>
+        {
+            inspected.Add(dir);
+            return Contents(photos: true, topPhotos: true);
+        });
+        await vm.SetFolderAsync("Z:/nowhere");           // scan site 1
+        await vm.RunCommand.ExecuteAsync(null);          // scan site 2
+        Assert.Equal(["Z:/nowhere", "Z:/nowhere"], inspected);
+    }
 
     [Fact]
     public void Starts_idle_with_flight_map_selected_and_no_folder()

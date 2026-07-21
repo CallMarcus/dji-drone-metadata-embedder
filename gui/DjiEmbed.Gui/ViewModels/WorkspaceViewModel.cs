@@ -22,11 +22,13 @@ public partial class WorkspaceViewModel : FlowViewModel
     private readonly Action _openCliDiscovery;
     private readonly Func<string?>? _cliResolver;
     private readonly Func<bool> _previewAvailable;
+    private readonly Func<string, FolderContents> _inspectFolder;
 
     public WorkspaceViewModel(string? cli, DjiEmbedRunner runner,
         IMapServer mapServer, Action openCliDiscovery,
         Func<string?>? cliResolver = null,
-        Func<bool>? previewAvailable = null)
+        Func<bool>? previewAvailable = null,
+        Func<string, FolderContents>? folderInspector = null)
         : base(cli, runner, static () => { })
     {
         _mapServer = mapServer;
@@ -34,6 +36,10 @@ public partial class WorkspaceViewModel : FlowViewModel
         _cliResolver = cliResolver;
         _previewAvailable = previewAvailable
             ?? (static () => WebViewSupport.IsLikelyAvailable);
+        // The folder scan is injectable (#340): FolderInspector is static
+        // and deliberately has no early exit, so only a seam lets a test
+        // hold a scan open and prove the busy window is closed.
+        _inspectFolder = folderInspector ?? FolderInspector.Inspect;
         FlightOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
         PhotoOptions.PropertyChanged += (_, _) =>
@@ -249,7 +255,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         // and the map probe that depends on its timestamps.
         var scan = await Task.Run(() =>
         {
-            var contents = FolderInspector.Inspect(folder);
+            var contents = _inspectFolder(folder);
             return (contents, maps: ExistingMapFinder.Find(folder, contents));
         });
         // A second pick can land while this scan is in flight; the newest
@@ -475,7 +481,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             return;
         }
-        var contents = await Task.Run(() => FolderInspector.Inspect(folder));
+        var contents = await Task.Run(() => _inspectFolder(folder));
         // The scan runs before ExecuteFlowAsync sets Step = Running, so the
         // folder can be cleared or replaced underneath us while it is in
         // flight. The newest pick owns the state — same rule SetFolderAsync
