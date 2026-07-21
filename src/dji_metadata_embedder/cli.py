@@ -226,7 +226,8 @@ def _jsonl_terminal(
         raise
 
 
-# Shared by photomap/flightmap/embed/check. Contract: docs/PROGRESS_JSONL.md.
+# Shared by every progress-wired command (photomap/flightmap/embed/check/
+# doctor/convert/validate/verify-sun). Contract: docs/PROGRESS_JSONL.md.
 _progress_option = click.option(
     "--progress",
     "progress_mode",
@@ -447,6 +448,7 @@ def check(
     help="Opt-in: extract the HOME/launch point (operator location) into "
     "gpx/csv/geojson output. Subject to --redact.",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-q", "--quiet", is_flag=True)
 def convert(
@@ -462,6 +464,7 @@ def convert(
     footprint_interval: float,
     model: str | None,
     extract_home: bool,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -470,66 +473,91 @@ def convert(
     The html format embeds the flight data but loads Leaflet and the map tiles
     from the internet, so the produced file needs a connection to render.
     """
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet)
-
-    try:
-        offset = parse_utc_offset(tz_offset)
-    except ValueError as e:
-        raise click.BadParameter(str(e), param_hint="--tz-offset")
-
     src = Path(input)
-    if batch and not src.is_dir():
-        raise click.ClickException("--batch requires a directory input")
-
-    # -o pointing at an existing directory means "write <stem>.<ext> in there",
-    # matching embed -o semantics (#257).
-    if output is not None and Path(output).is_dir():
-        suffix = ".cot.xml" if command == "cot" else f".{command}"
-        output = str(Path(output) / (src.stem + suffix))
-
-    def run_one(srt: Path, out: str | None) -> None:
-        if command == "gpx":
-            extract_telemetry_to_gpx(srt, out, tz_offset=offset,
-                                     extract_home=extract_home, redact=redact)
-        elif command == "csv":
-            extract_telemetry_to_csv(srt, out, tz_offset=offset,
-                                     extract_home=extract_home, redact=redact)
-        elif command == "geojson":
-            convert_to_geojson(
-                srt, out, redact=redact,
-                footprint=footprint, footprint_interval=footprint_interval, model=model,
-                extract_home=extract_home,
-            )
-        elif command == "kml":
-            convert_to_kml(
-                srt, out, redact=redact,
-                footprint=footprint, footprint_interval=footprint_interval, model=model,
-            )
-        elif command == "cot":
-            convert_to_cot(
-                srt, out, redact=redact, tz_offset=offset,
-                interval=interval, cot_type=cot_type,
-            )
-        else:  # html
-            convert_to_html(srt, out, redact=redact)
-
-    if batch:
-        patterns = ("*.SRT", "*.srt", "*.MP4", "*.mp4", "*.MOV", "*.mov")
-        seen: set[Path] = set()
-        for pattern in patterns:
-            for path in src.glob(pattern):
-                if path in seen:
-                    continue
-                seen.add(path)
-                try:
-                    run_one(path, None)
-                except Mp4TelemetryError as e:
-                    click.echo(f"Skipping {path.name}: {e}", err=True)
-    else:
+    # Batch file count is unknown until the directory is scanned inside.
+    with _jsonl_terminal(progress, "convert", total=None if batch else 1):
         try:
-            run_one(src, output)
-        except Mp4TelemetryError as e:
-            raise click.ClickException(str(e))
+            offset = parse_utc_offset(tz_offset)
+        except ValueError as e:
+            raise click.BadParameter(str(e), param_hint="--tz-offset")
+
+        if batch and not src.is_dir():
+            raise click.ClickException("--batch requires a directory input")
+
+        # -o pointing at an existing directory means "write <stem>.<ext> in
+        # there", matching embed -o semantics (#257).
+        if output is not None and Path(output).is_dir():
+            suffix = ".cot.xml" if command == "cot" else f".{command}"
+            output = str(Path(output) / (src.stem + suffix))
+
+        def run_one(srt: Path, out: str | None) -> Path:
+            if command == "gpx":
+                return extract_telemetry_to_gpx(
+                    srt, out, tz_offset=offset,
+                    extract_home=extract_home, redact=redact)
+            elif command == "csv":
+                return extract_telemetry_to_csv(
+                    srt, out, tz_offset=offset,
+                    extract_home=extract_home, redact=redact)
+            elif command == "geojson":
+                return convert_to_geojson(
+                    srt, out, redact=redact,
+                    footprint=footprint, footprint_interval=footprint_interval,
+                    model=model, extract_home=extract_home,
+                )
+            elif command == "kml":
+                return convert_to_kml(
+                    srt, out, redact=redact,
+                    footprint=footprint, footprint_interval=footprint_interval,
+                    model=model,
+                )
+            elif command == "cot":
+                return convert_to_cot(
+                    srt, out, redact=redact, tz_offset=offset,
+                    interval=interval, cot_type=cot_type,
+                )
+            else:  # html
+                return convert_to_html(srt, out, redact=redact)
+
+        outputs: list[Path] = []
+        skipped = 0
+        if batch:
+            patterns = ("*.SRT", "*.srt", "*.MP4", "*.mp4", "*.MOV", "*.mov")
+            seen: set[Path] = set()
+            targets: list[Path] = []
+            for pattern in patterns:
+                for path in src.glob(pattern):
+                    if path not in seen:
+                        seen.add(path)
+                        targets.append(path)
+            for index, path in enumerate(targets, start=1):
+                progress.advance(index, len(targets), item=path.name)
+                try:
+                    outputs.append(run_one(path, None))
+                except Mp4TelemetryError as e:
+                    skipped += 1
+                    progress.warning(str(e), item=path.name)
+                    if not progress.active:
+                        click.echo(f"Skipping {path.name}: {e}", err=True)
+        else:
+            progress.advance(1, 1, item=src.name)
+            try:
+                outputs.append(run_one(src, output))
+            except Mp4TelemetryError as e:
+                raise click.ClickException(str(e))
+        progress.result(
+            ok=True,
+            outputs=[str(p.resolve()) for p in outputs],
+            summary={
+                "converted": len(outputs),
+                "skipped": skipped,
+                "format": command,
+            },
+        )
 
 
 @main.command()
@@ -1115,6 +1143,7 @@ def doctor(
     default="text",
     help="Output format for drift report",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 @click.pass_context
@@ -1123,21 +1152,45 @@ def validate(
     directory: str,
     drift_threshold: float,
     format: str,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
     """Validate SRT/MP4 pairs and generate drift analysis report."""
+    if progress_mode and format.lower() == "json":
+        raise click.UsageError(
+            "--format json cannot be combined with --progress jsonl (the "
+            "result event's summary already carries the full report)"
+        )
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     log_json = ctx.obj.get('log_json', False)
     setup_logging(verbose, quiet, log_json)
-    
+
+    if progress.active:
+        with _jsonl_terminal(progress, "validate"):
+            from .core.validator import validate_directory
+
+            validation_result = validate_directory(
+                Path(directory), drift_threshold=drift_threshold
+            )
+            # Findings are a report, not a command failure: one warning per
+            # issue, full report in the summary, exit 0 (text mode keeps
+            # ExitCode.VALIDATION_ERROR for scripts).
+            for issue in validation_result.get("issues", []):
+                progress.warning(issue)
+            progress.result(ok=True, outputs=[], summary=validation_result)
+        return
+
     try:
         from .core.validator import validate_directory
-        
+
         validation_result = validate_directory(
             Path(directory),
             drift_threshold=drift_threshold
         )
-        
+
         if format == "json" or log_json:
             click.echo(json.dumps(validation_result))
         else:
@@ -1183,6 +1236,7 @@ def validate(
     show_default=True,
     help="Output format",
 )
+@_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
 @click.pass_context
@@ -1191,6 +1245,7 @@ def verify_sun(
     srt: str,
     tz_offset: str,
     fmt: str,
+    progress_mode: str | None,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -1199,8 +1254,30 @@ def verify_sun(
     Computes solar azimuth/elevation for each GPS point so analysts can compare
     shadow direction/length in the footage against the astronomical sun.
     """
+    if progress_mode and fmt.lower() == "json":
+        raise click.UsageError(
+            "--format json cannot be combined with --progress jsonl (the "
+            "result event's summary already carries the full report)"
+        )
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
     log_json = ctx.obj.get("log_json", False)
     setup_logging(verbose, quiet, log_json)
+
+    if progress.active:
+        with _jsonl_terminal(progress, "verify-sun"):
+            try:
+                offset = parse_utc_offset(tz_offset)
+            except ValueError as e:
+                raise click.BadParameter(str(e), param_hint="--tz-offset")
+            sun_summary = summarize_sun(Path(srt), tz_offset=offset)
+            # Flags (night, very_low_sun, sun_not_computable) are findings
+            # about the footage, not command failures: warn and stay ok.
+            for flag in sun_summary["flags"]:
+                progress.warning(flag)
+            progress.result(ok=True, outputs=[], summary=sun_summary)
+        return
 
     try:
         offset = parse_utc_offset(tz_offset)

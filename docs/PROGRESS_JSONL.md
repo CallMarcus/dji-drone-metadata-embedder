@@ -1,7 +1,7 @@
 # `--progress jsonl` — machine-readable progress events
 
-`photomap`, `flightmap`, `embed`, `check`, and `doctor` accept
-`--progress jsonl`. In
+`photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`, `validate`,
+and `verify-sun` accept `--progress jsonl`. In
 this mode a command writes **one JSON object per line to stdout** and nothing
 else — human/informational output is suppressed, and warnings and log
 messages go to stderr. A non-zero exit code always means the run failed;
@@ -103,6 +103,36 @@ field, never by arrival order.
   code 0 (same reading rule as `embed`).
 - The opt-in online update check **never** runs under `--progress jsonl`;
   consent for going online stays interactive-only.
+
+### `convert`
+- Single-file mode: `start` carries `total: 1` and one `progress` event
+  fires for the input. Batch mode (`-b`): `start` has no `total` (the
+  directory is scanned inside the run); one `progress` event per candidate
+  file, `total` on the `progress` events.
+- Batch files whose telemetry cannot be read (`Mp4TelemetryError`) are
+  skipped with one `warning` each (`item` = file name); in single-file mode
+  the same failure is fatal (`error` event, non-zero exit).
+- `outputs` = absolute paths of every file written. `summary`:
+  `{"converted": N, "skipped": N, "format": "gpx"}`.
+
+### `validate`
+- No `progress` events; `start` has no `total`. One `warning` per issue
+  found. `outputs` is empty; `summary` is the full validation report
+  (`total_files`, `valid_pairs`, `issues`, `warnings`, `file_analyses`).
+- Findings are a report, not a command failure: a run with issues still
+  **exits 0** and ends in `result` with `"ok": true` — read
+  `summary.issues`. (Text mode keeps the non-zero `VALIDATION_ERROR` exit
+  for scripts.)
+- `--format json` cannot be combined with `--progress jsonl` (the `result`
+  summary already carries the full report).
+
+### `verify-sun`
+- No `progress` events. One `warning` per analysis flag (`night`,
+  `very_low_sun`, `sun_not_computable` — the flag name is the `message`).
+  Flags are findings about the footage, not failures: `"ok": true`.
+- `outputs` is empty; `summary` is the sun summary dict (`file`, `points`,
+  `sun_computed`, `utc_start`/`utc_end`, elevation/azimuth stats, `flags`).
+- `--format json` cannot be combined with `--progress jsonl`.
 
 ## Relation to `--log-json`
 

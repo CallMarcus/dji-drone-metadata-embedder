@@ -439,6 +439,197 @@ def test_doctor_jsonl_missing_tool_warns_but_exits_zero(monkeypatch):
     assert result["summary"]["tools"]["ffmpeg"]["present"] is False
 
 
+# --- convert / validate / verify-sun (GUI 2.0 M4 prerequisite) ------------
+
+FLIGHT_TIMED = (
+    "1\n00:00:00,000 --> 00:00:01,000\n"
+    '<font size="28">FrameCnt: 1, DiffTime: 1000ms\n'
+    "2026-06-15 16:00:00.000\n"
+    "[latitude: 34.0] [longitude: -84.0] "
+    "[rel_alt: 1.000 abs_alt: 100.0]</font>\n\n"
+    "2\n00:00:01,000 --> 00:00:02,000\n"
+    '<font size="28">FrameCnt: 2, DiffTime: 1000ms\n'
+    "2026-06-15 16:00:01.000\n"
+    "[latitude: 34.001] [longitude: -84.001] "
+    "[rel_alt: 1.000 abs_alt: 101.0]</font>\n"
+)
+
+
+def test_convert_jsonl_happy_single_file(tmp_path):
+    src = tmp_path / "DJI_0001.SRT"
+    src.write_text(FLIGHT_A, encoding="utf-8")
+    res = CliRunner().invoke(
+        main, ["convert", "gpx", str(src), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["command"] == "convert" and events[0]["total"] == 1
+    progress = [e for e in events if e["event"] == "progress"]
+    assert len(progress) == 1 and progress[0]["item"] == "DJI_0001.SRT"
+    assert progress[0]["current"] == progress[0]["total"] == 1
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["outputs"] == [str((tmp_path / "DJI_0001.gpx").resolve())]
+    assert last["summary"] == {"converted": 1, "skipped": 0, "format": "gpx"}
+
+
+def test_convert_jsonl_batch_warns_per_skipped_file(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+    from dji_metadata_embedder.mp4_telemetry import Mp4TelemetryError
+
+    def fake_gpx(srt_file, output_file=None, **kwargs):
+        path = Path(srt_file)
+        if path.suffix.upper() == ".MP4":
+            raise Mp4TelemetryError("no djmd stream")
+        out = path.with_suffix(".gpx")
+        out.write_text("<gpx/>", encoding="utf-8")
+        return out
+
+    monkeypatch.setattr(cli_mod, "extract_telemetry_to_gpx", fake_gpx)
+    (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
+    (tmp_path / "DJI_0002.MP4").write_bytes(b"fake")
+    res = CliRunner().invoke(
+        main, ["convert", "gpx", str(tmp_path), "-b", "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert "total" not in events[0]  # batch: count unknown until scanned
+    progress = [e for e in events if e["event"] == "progress"]
+    assert {p["item"] for p in progress} == {"DJI_0001.SRT", "DJI_0002.MP4"}
+    assert progress[-1]["total"] == 2
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1 and warnings[0]["item"] == "DJI_0002.MP4"
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["outputs"] == [str((tmp_path / "DJI_0001.gpx").resolve())]
+    assert last["summary"] == {"converted": 1, "skipped": 1, "format": "gpx"}
+
+
+def test_convert_jsonl_fatal_error_event(tmp_path):
+    src = tmp_path / "DJI_0001.SRT"
+    src.write_text(FLIGHT_A, encoding="utf-8")
+    res = CliRunner().invoke(
+        main,
+        ["convert", "gpx", str(src), "--tz-offset", "banana",
+         "--progress", "jsonl"],
+    )
+    assert res.exit_code != 0
+    events = _events(res.stdout)
+    assert events[-1]["event"] == "error"
+    assert "tz-offset" in events[-1]["message"]
+
+
+def _mock_validate_directory(monkeypatch, canned):
+    from dji_metadata_embedder.core import validator
+
+    monkeypatch.setattr(
+        validator, "validate_directory", lambda directory, drift_threshold: canned
+    )
+
+
+def test_validate_jsonl_happy_directory(monkeypatch, tmp_path):
+    canned = {
+        "total_files": 2,
+        "valid_pairs": 2,
+        "issues": [],
+        "warnings": [],
+        "file_analyses": [],
+    }
+    _mock_validate_directory(monkeypatch, canned)
+    res = CliRunner().invoke(
+        main, ["validate", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["command"] == "validate"
+    assert "total" not in events[0]
+    assert not any(e["event"] == "warning" for e in events)
+    last = events[-1]
+    assert last["ok"] is True and last["outputs"] == []
+    assert last["summary"] == canned
+
+
+def test_validate_jsonl_issues_become_warnings_and_exit_zero(
+    monkeypatch, tmp_path
+):
+    canned = {
+        "total_files": 2,
+        "valid_pairs": 1,
+        "issues": ["No SRT file found for DJI_0002.mp4"],
+        "warnings": ["Drift above threshold in DJI_0001.mp4"],
+        "file_analyses": [],
+    }
+    _mock_validate_directory(monkeypatch, canned)
+    res = CliRunner().invoke(
+        main, ["validate", str(tmp_path), "--progress", "jsonl"]
+    )
+    # Findings are a report, not a command failure: exit 0 in progress mode
+    # (text mode keeps ExitCode.VALIDATION_ERROR for scripts).
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert [w["message"] for w in warnings] == canned["issues"]
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["summary"] == canned
+
+
+def test_validate_jsonl_rejects_format_json(tmp_path):
+    res = CliRunner().invoke(
+        main,
+        ["validate", str(tmp_path), "--format", "json", "--progress", "jsonl"],
+    )
+    assert res.exit_code != 0
+    assert "--format" in res.output and "--progress" in res.output
+
+
+def test_verify_sun_jsonl_happy_path(tmp_path):
+    src = tmp_path / "DJI_0001.SRT"
+    src.write_text(FLIGHT_TIMED, encoding="utf-8")
+    res = CliRunner().invoke(
+        main,
+        ["verify-sun", str(src), "--tz-offset", "+0", "--progress", "jsonl"],
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["command"] == "verify-sun"
+    assert not any(e["event"] == "warning" for e in events)
+    last = events[-1]
+    assert last["ok"] is True and last["outputs"] == []
+    assert last["summary"]["file"] == "DJI_0001.SRT"
+    assert last["summary"]["points"] == 2
+    assert last["summary"]["sun_computed"] == 2
+    assert last["summary"]["flags"] == []
+
+
+def test_verify_sun_jsonl_flags_become_warnings(tmp_path):
+    src = tmp_path / "DJI_0001.SRT"
+    src.write_text(FLIGHT_A, encoding="utf-8")  # no absolute datetimes
+    res = CliRunner().invoke(
+        main,
+        ["verify-sun", str(src), "--tz-offset", "+0", "--progress", "jsonl"],
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert "sun_not_computable" in warnings[0]["message"]
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["summary"]["flags"] == ["sun_not_computable"]
+
+
+def test_verify_sun_jsonl_rejects_format_json(tmp_path):
+    src = tmp_path / "DJI_0001.SRT"
+    src.write_text(FLIGHT_A, encoding="utf-8")
+    res = CliRunner().invoke(
+        main,
+        ["verify-sun", str(src), "--format", "json", "--progress", "jsonl"],
+    )
+    assert res.exit_code != 0
+    assert "--format" in res.output and "--progress" in res.output
+
+
 def test_doctor_jsonl_never_runs_the_online_update_check(monkeypatch):
     # Consent for going online is interactive-only; a machine consumer of
     # the event stream must never trigger the network path.
