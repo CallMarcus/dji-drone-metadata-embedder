@@ -33,6 +33,72 @@ public class WorkspaceScreenTests
         new("unused", new DjiEmbedRunner(), new FakeMapServer(null), () => { },
             previewAvailable: static () => false);
 
+    private static (WorkspaceViewModel Vm, string Folder, IDisposable Cleanup)
+        RecentsVm()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-recents-screen");
+        var folder = Directory.CreateDirectory(
+            Path.Combine(dir.FullName, "flights")).FullName;
+        File.WriteAllText(Path.Combine(folder, "DJI_0001.SRT"), "");
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(folder);
+        var vm = new WorkspaceViewModel(
+            "unused", new DjiEmbedRunner(), new FakeMapServer(null),
+            () => { }, previewAvailable: static () => false,
+            stateStore: store);
+        return (vm, folder, new TempDir(dir.FullName));
+    }
+
+    private sealed class TempDir(string path) : IDisposable
+    {
+        public void Dispose() => Directory.Delete(path, recursive: true);
+    }
+
+    [AvaloniaFact]
+    public void Hero_lists_recent_folders_with_the_pinned_header()
+    {
+        var (vm, folder, cleanup) = RecentsVm();
+        using var _ = cleanup;
+        var window = ShowWorkspace(vm);
+
+        var section = window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(p => p.Name == "RecentFoldersSection");
+        Assert.True(section.IsVisible);
+        var texts = section.GetVisualDescendants()
+            .OfType<TextBlock>().Select(t => t.Text).ToList();
+        Assert.Contains("Recent folders", texts);
+        Assert.Contains("flights", texts);   // leaf name, not the full path
+        Assert.DoesNotContain(folder, texts);
+    }
+
+    [AvaloniaFact]
+    public void Clicking_a_recent_selects_the_folder_and_hides_the_list()
+    {
+        var (vm, folder, cleanup) = RecentsVm();
+        using var _ = cleanup;
+        var window = ShowWorkspace(vm);
+
+        var list = window.GetVisualDescendants().OfType<ItemsControl>()
+            .Single(c => c.Name == "RecentFoldersList");
+        var button = list.GetVisualDescendants().OfType<Button>().Single();
+        Assert.Same(vm.ChooseRecentCommand, button.Command);
+        button.Command!.Execute(button.CommandParameter);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        Assert.Equal(folder, vm.SelectedFolder);
+        Assert.False(window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(p => p.Name == "RecentFoldersSection").IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void No_recents_means_no_hero_section_visible()
+    {
+        var window = ShowWorkspace();
+        Assert.False(window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(p => p.Name == "RecentFoldersSection").IsVisible);
+    }
+
     [AvaloniaFact]
     public void Mode_strip_shows_exactly_the_six_modes()
     {
@@ -1232,6 +1298,10 @@ public class WorkspaceScreenTests
             Assert.False(byName("ConvertOptionsPanel").IsEnabled);
             Assert.False(byName("VerifyOptionsPanel").IsEnabled);
             Assert.True(byName("CopyCommandButton").IsEffectivelyEnabled);
+            // Recents disappear while a run is in flight: ShowRecentFolders
+            // gates on !IsBusy, so a mid-run click can never swap the source.
+            Assert.False(window.GetVisualDescendants().OfType<StackPanel>()
+                .Single(p => p.Name == "RecentFoldersSection").IsVisible);
 
             gate.SetResult();
             await run;

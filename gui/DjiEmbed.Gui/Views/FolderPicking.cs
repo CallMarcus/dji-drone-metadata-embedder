@@ -20,25 +20,34 @@ internal static class FolderPicking
     /// <c>-o</c> is a directory, not a file, so its Choose… button routes
     /// here rather than to <see cref="PickSaveAsync"/>'s save dialog.
     /// </summary>
-    internal static async Task<string?> PickFolderAsync(Control anchor, string title)
+    internal static async Task<string?> PickFolderAsync(
+        Control anchor, string title, string? startFolder = null)
     {
         if (TopLevel.GetTopLevel(anchor) is not { } top)
         {
             return null;
         }
+        // Best-effort: an unreachable start folder means the picker's
+        // own default, nothing more.
+        var start = startFolder is null
+            ? null
+            : await top.StorageProvider.TryGetFolderFromPathAsync(startFolder);
         var folders = await top.StorageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions
             {
                 AllowMultiple = false,
                 Title = title,
+                SuggestedStartLocation = start,
             });
         return folders.FirstOrDefault()?.TryGetLocalPath();
     }
 
     internal static async Task ChooseAsync(
-        Control anchor, Func<string, Task> onFolder)
+        Control anchor, Func<string, Task> onFolder,
+        string? startFolder = null)
     {
-        if (await PickFolderAsync(anchor, "Choose the folder with your footage")
+        if (await PickFolderAsync(
+                anchor, "Choose the folder with your footage", startFolder)
             is { } path)
         {
             await onFolder(path);

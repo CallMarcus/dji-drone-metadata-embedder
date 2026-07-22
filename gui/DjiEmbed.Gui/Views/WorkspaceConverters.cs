@@ -27,6 +27,21 @@ public static class WorkspaceConverters
     public static readonly FuncValueConverter<string?, string?> FileNameOnly =
         new(static p => p is null ? null : Path.GetFileName(p));
 
+    /// <summary>A recent folder's leaf name. Manual separator split: on
+    /// Linux <c>Path.GetFileName</c> does not split '\', and stored paths
+    /// are wire-format text (the VerifyReport.FileName lesson).</summary>
+    public static readonly FuncValueConverter<string?, string?> FolderLeafName =
+        new(static p =>
+        {
+            if (p is null)
+            {
+                return null;
+            }
+            var trimmed = p.TrimEnd('/', '\\');
+            var cut = trimmed.LastIndexOfAny(['/', '\\']);
+            return cut < 0 ? trimmed : trimmed[(cut + 1)..];
+        });
+
     /// <summary>
     /// An existing map's age in words ("2 days ago"). The clock is read here
     /// so <see cref="RelativeTime"/> itself stays pure. It is read once per
