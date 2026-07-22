@@ -379,7 +379,13 @@ def check(
     unreadable_dirs: list[str] = []
     for raw in paths:
         p = Path(raw)
-        if p.is_dir():
+        try:
+            # is_dir itself raises when an ancestor denies traversal.
+            is_dir = p.is_dir()
+        except OSError:
+            unreadable_dirs.append(raw)
+            continue
+        if is_dir:
             try:
                 found = media_files_in(p)
             except OSError:
