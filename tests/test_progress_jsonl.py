@@ -383,6 +383,8 @@ def test_check_jsonl_expands_directories(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_mod, "check_metadata", lambda target: dict(canned))
     (tmp_path / "DJI_0001.MP4").write_bytes(b"fake")
     (tmp_path / "IMG_0002.JPG").write_bytes(b"fake")
+    (tmp_path / "IMG_0003.JPEG").write_bytes(b"fake")
+    (tmp_path / "IMG_0004.DNG").write_bytes(b"fake")
     (tmp_path / "notes.txt").write_text("not media", encoding="utf-8")
     sub = tmp_path / "sub"
     sub.mkdir()
@@ -392,12 +394,17 @@ def test_check_jsonl_expands_directories(monkeypatch, tmp_path):
     )
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
-    assert events[0]["total"] == 2
-    expected = [str(tmp_path / "DJI_0001.MP4"), str(tmp_path / "IMG_0002.JPG")]
+    assert events[0]["total"] == 4
+    expected = [
+        str(tmp_path / "DJI_0001.MP4"),
+        str(tmp_path / "IMG_0002.JPG"),
+        str(tmp_path / "IMG_0003.JPEG"),
+        str(tmp_path / "IMG_0004.DNG"),
+    ]
     progress = [e for e in events if e["event"] == "progress"]
     assert [p["item"] for p in progress] == expected
-    assert events[-1]["summary"]["checked"] == 2
-    assert sorted(events[-1]["summary"]["files"]) == expected
+    assert events[-1]["summary"]["checked"] == 4
+    assert sorted(events[-1]["summary"]["files"]) == sorted(expected)
 
 
 def test_check_jsonl_warns_on_empty_directory(tmp_path):

@@ -1,4 +1,4 @@
-"""Validation module for SRT/MP4 pairs and drift analysis."""
+"""Validation module for SRT/MP4/MOV pairs and drift analysis."""
 
 import logging
 from pathlib import Path
@@ -174,7 +174,7 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> Dic
 
 
 def validate_directory(directory: Path, drift_threshold: float = 1.0) -> Dict[str, Any]:
-    """Validate all SRT/MP4 pairs in a directory."""
+    """Validate all SRT/MP4/MOV pairs in a directory."""
     result: Dict[str, Any] = {
         "directory": str(directory),
         "timestamp": datetime.now().isoformat(),
@@ -186,11 +186,16 @@ def validate_directory(directory: Path, drift_threshold: float = 1.0) -> Dict[st
     }
     
     try:
-        # Find MP4 files
-        mp4_files = list(directory.glob("*.mp4")) + list(directory.glob("*.MP4"))
-        result["total_files"] = len(mp4_files)
-        
-        for mp4_file in mp4_files:
+        # Find video files. Deduplicated via a set — a case-insensitive
+        # filesystem (Windows, macOS) matches "*.mp4" and "*.MP4" with the
+        # same file — and sorted for a deterministic report order.
+        video_globs = ("*.mp4", "*.MP4", "*.mov", "*.MOV")
+        video_files = sorted(
+            {f for pattern in video_globs for f in directory.glob(pattern)}
+        )
+        result["total_files"] = len(video_files)
+
+        for mp4_file in video_files:
             # Look for corresponding SRT
             srt_candidates = [
                 mp4_file.with_suffix(".SRT"),

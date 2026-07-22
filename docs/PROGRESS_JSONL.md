@@ -93,7 +93,7 @@ field, never by arrival order.
   `warning` event (`"Not found or unreadable"`) — the run still ends in
   `result` with `"ok": true`.
 - A directory argument stands for its **top-level** media files
-  (`*.mp4`/`*.mov`/`*.jpg`, case-insensitive, no recursion):
+  (`*.mp4`/`*.mov`/`*.jpg`/`*.jpeg`/`*.dng`, case-insensitive, no recursion):
   `start.total`, the `progress` events and `summary.files` all name the
   expanded files, never the directory itself. A directory with no media
   files contributes nothing and yields one `warning` event

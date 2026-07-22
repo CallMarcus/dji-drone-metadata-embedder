@@ -12,6 +12,7 @@ from dji_metadata_embedder.utilities import parse_telemetry_points
 from dji_metadata_embedder.core.validator import (
     validate_srt_format,
     normalize_telemetry_units,
+    validate_directory,
 )
 from tests.fixtures.golden_srt_samples import (
     GOLDEN_SAMPLES, 
@@ -379,6 +380,26 @@ class TestComprehensiveValidation:
                 case_dir = edge_cases_dir / case_name
                 assert case_dir.exists()
                 assert (case_dir / "clip.SRT").exists()
+
+
+class TestValidateDirectoryVideoGlobs:
+    """validate_directory must reach .MOV clips, not just .mp4/.MP4 (M4b)."""
+
+    def test_mov_srt_pair_is_counted(self):
+        """A folder holding only a .MOV + matching .SRT is not reported empty."""
+        srt_content = GOLDEN_SAMPLES["mini_3_4_pro"]["srt_content"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            (directory / "DJI_0001.MOV").write_bytes(b"fake video bytes")
+            (directory / "DJI_0001.SRT").write_text(srt_content, encoding="utf-8")
+
+            result = validate_directory(directory)
+
+            assert result["total_files"] == 1
+            assert result["valid_pairs"] == 1
+            assert not any(
+                "No SRT file found" in issue for issue in result["issues"]
+            )
 
 
 if __name__ == "__main__":

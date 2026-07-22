@@ -192,7 +192,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
 
     Available commands:
       embed     Embed telemetry from SRT files into MP4 videos
-      validate  Validate SRT/MP4 pairs and report drift
+      validate  Validate SRT/MP4/MOV pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
       flightmap Map every flight in a folder of SRT logs on one combined map (experimental)
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
@@ -1184,7 +1184,7 @@ def validate(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Validate SRT/MP4 pairs and generate drift analysis report."""
+    """Validate SRT/MP4/MOV pairs and generate drift analysis report."""
     if progress_mode and format.lower() == "json":
         raise click.UsageError(
             "--format json cannot be combined with --progress jsonl (the "

@@ -82,7 +82,18 @@ def check_metadata(path: str | Path) -> Dict[str, bool]:
     return check_file(file_path)
 
 
-_MEDIA_GLOBS = ("*.mp4", "*.MP4", "*.mov", "*.MOV", "*.jpg", "*.JPG")
+_MEDIA_GLOBS = (
+    "*.mp4",
+    "*.MP4",
+    "*.mov",
+    "*.MOV",
+    "*.jpg",
+    "*.JPG",
+    "*.jpeg",
+    "*.JPEG",
+    "*.dng",
+    "*.DNG",
+)
 
 
 def media_files_in(directory: Path) -> list[Path]:
