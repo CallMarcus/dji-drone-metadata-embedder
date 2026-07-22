@@ -2164,6 +2164,22 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Clicking_a_recent_whose_folder_vanished_drops_it_instead_of_crashing()
+    {
+        var doomed = MakeFolder(srt: true);
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(doomed);
+        var vm = Vm(cli: null, stateStore: store);
+        Assert.Equal([doomed], vm.RecentFolders);
+        Directory.Delete(doomed, recursive: true);
+
+        await vm.ChooseRecentCommand.ExecuteAsync(doomed);
+
+        Assert.Null(vm.SelectedFolder);      // nothing was selected
+        Assert.Empty(vm.RecentFolders);      // the dead entry is gone
+    }
+
+    [Fact]
     public async Task Hero_recents_show_only_when_nothing_is_selected()
     {
         var kept = MakeFolder(srt: true);

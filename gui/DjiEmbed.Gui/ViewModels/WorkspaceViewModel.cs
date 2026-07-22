@@ -546,6 +546,15 @@ public partial class WorkspaceViewModel : FlowViewModel
     private void RememberFolder(string folder)
     {
         _stateStore.PushRecent(folder);
+        RefreshRecents();
+    }
+
+    /// <summary>Rebuilds the displayed recents list from the store, pruned to
+    /// folders that still exist. Shared by <see cref="RememberFolder"/> (a
+    /// fresh push) and <see cref="ChooseRecentAsync"/> (a stale entry found
+    /// dead at click time).</summary>
+    private void RefreshRecents()
+    {
         RecentFolders.Clear();
         foreach (var f in _stateStore.ExistingRecents())
         {
@@ -554,9 +563,20 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(MostRecentExistingFolder));
     }
 
-    /// <summary>Hero recents click: identical to dropping the folder.</summary>
+    /// <summary>Hero recents click: identical to dropping the folder.
+    /// The list prunes at seed and on push, not on filesystem change —
+    /// an SD card ejected mid-session leaves a dead entry, and clicking
+    /// it must drop it, not crash in the folder scan.</summary>
     [RelayCommand]
-    private Task ChooseRecentAsync(string folder) => SetFolderAsync(folder);
+    private async Task ChooseRecentAsync(string folder)
+    {
+        if (!Directory.Exists(folder))
+        {
+            RefreshRecents();
+            return;
+        }
+        await SetFolderAsync(folder);
+    }
 
     /// <summary>A run owns the preview pane while it is in flight. Private:
     /// it raises no PropertyChanged, so nothing may bind it — a button gets
