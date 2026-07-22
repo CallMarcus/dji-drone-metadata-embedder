@@ -36,7 +36,8 @@ public class A11yNamesTests
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
 
-            foreach (var control in InteractiveControls(window))
+            foreach (var control in InteractiveControls(window)
+                         .Concat(ExpanderContentControls(window)))
             {
                 if (EffectiveLabel(control) is null)
                 {
@@ -80,6 +81,27 @@ public class A11yNamesTests
                     @"C:\demo\footage\flightmap.html", "Flight map",
                     DateTime.UtcNow, Stale: false));
             }
+            // Each mode's "Save as" Clear-output button is only IsVisible
+            // once Output is set, and only carries a name via its
+            // (realized) content — set Output so this mode's window scans
+            // it. (Other windows still structurally contain this button,
+            // collapsed; the IsEffectivelyVisible filter below skips it
+            // there rather than flagging a control nobody can see.)
+            switch (mode.Kind)
+            {
+                case WorkspaceModeKind.FlightMap:
+                    vm.FlightOptions.Output = @"C:\demo\custom-map.html";
+                    break;
+                case WorkspaceModeKind.PhotoMap:
+                    vm.PhotoOptions.Output = @"C:\demo\custom-photomap.html";
+                    break;
+                case WorkspaceModeKind.Embed:
+                    vm.EmbedOptions.Output = @"C:\demo\custom-processed";
+                    break;
+                case WorkspaceModeKind.Convert:
+                    vm.ConvertOptions.Output = @"C:\demo\custom.gpx";
+                    break;
+            }
             yield return Wrap(vm);
         }
 
@@ -122,7 +144,45 @@ public class A11yNamesTests
         window.GetVisualDescendants().OfType<Control>()
             .Where(static c => c is Button or ComboBox or TextBox
                 or Slider or ListBox or Expander)
-            .Where(static c => c.TemplatedParent is null);
+            .Where(static c => c.TemplatedParent is null)
+            // A control collapsed by an ancestor (e.g. a Save-as row whose
+            // section IsVisible depends on a field this window's VM never
+            // sets) never realizes template/content, so it can't earn a
+            // label here. It isn't dead code — some other representative
+            // window puts it in the state where it IS shown, and that
+            // window's pass checks it for real.
+            .Where(static c => c.IsEffectivelyVisible);
+
+    // SukiUI's Expander stamps TemplatedParent = the Expander on every
+    // control in its authored content, so the main walk's
+    // "TemplatedParent is null" filter silently skips everything inside an
+    // expanded "Advanced" section (e.g. ConvertTzBox, CotIntervalSlider).
+    // Widening that filter to admit Expander's TemplatedParent readmits
+    // SukiUI's own unnamed template chrome (PART_ borders, header toggle),
+    // which lives outside Content — so instead we walk each Expander's
+    // Content subtree directly and accept only controls whose
+    // TemplatedParent is null (plain authored control) or is the Expander
+    // itself (authored control sitting directly in Content); anything
+    // deeper with its own TemplatedParent (e.g. a TextBox's internal parts)
+    // is template-internal and stays excluded.
+    private static IEnumerable<Control> ExpanderContentControls(Window window) =>
+        window.GetVisualDescendants().OfType<Expander>()
+            .Where(static e => e.Content is Control)
+            .SelectMany(static expander =>
+            {
+                var content = (Control)expander.Content!;
+                return new[] { content }.Concat(content.GetVisualDescendants().OfType<Control>())
+                    .Where(c => c is Button or ComboBox or TextBox
+                        or Slider or ListBox or Expander)
+                    .Where(c => c.TemplatedParent is null
+                        || ReferenceEquals(c.TemplatedParent, expander))
+                    .Where(c => c.IsEffectivelyVisible);
+            });
+
+    // Known blind spot: a control added to an IsVisible branch that none of
+    // RepresentativeWindows() ever sets True for is never realized, so it
+    // is not scanned by either walk above. When adding a new pane/branch,
+    // extend RepresentativeWindows() to visit it.
 
     private static string? EffectiveLabel(Control control)
     {
