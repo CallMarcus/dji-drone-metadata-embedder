@@ -418,6 +418,31 @@ def test_check_jsonl_warns_on_empty_directory(tmp_path):
     assert last["summary"] == {"checked": 0, "files": {}}
 
 
+def test_check_jsonl_warns_on_unreadable_directory(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    unreadable = tmp_path / "unreadable"
+    unreadable.mkdir()
+    monkeypatch.setattr(
+        cli_mod,
+        "media_files_in",
+        lambda p: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    res = CliRunner().invoke(
+        main, ["check", str(unreadable), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["total"] == 0
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert warnings[0]["item"] == str(unreadable)
+    assert warnings[0]["message"] == "Not found or unreadable"
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["summary"] == {"checked": 0, "files": {}}
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(

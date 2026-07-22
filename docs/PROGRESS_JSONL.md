@@ -98,7 +98,10 @@ field, never by arrival order.
   expanded files, never the directory itself. A directory with no media
   files contributes nothing and yields one `warning` event
   (`"No media files found"`, `item` = the directory) — the run still
-  ends in `result` with `"ok": true`.
+  ends in `result` with `"ok": true`. A directory that cannot be listed
+  (e.g. a permissions error) is handled the same way: it contributes
+  nothing and yields one `warning` event (`"Not found or unreadable"`,
+  `item` = the directory) rather than aborting the run.
 
 ### `doctor`
 - No `progress` events. One `warning` per missing tool (`item` = tool

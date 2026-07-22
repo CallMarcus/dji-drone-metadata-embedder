@@ -376,10 +376,15 @@ def check(
     # targets, not directory names.
     targets: list[str] = []
     empty_dirs: list[str] = []
+    unreadable_dirs: list[str] = []
     for raw in paths:
         p = Path(raw)
         if p.is_dir():
-            found = media_files_in(p)
+            try:
+                found = media_files_in(p)
+            except OSError:
+                unreadable_dirs.append(raw)
+                continue
             if found:
                 targets.extend(str(f) for f in found)
             else:
@@ -393,6 +398,10 @@ def check(
             progress.warning("No media files found", item=directory)
             if not progress.active:
                 click.echo(f"{directory}: no media files found")
+        for directory in unreadable_dirs:
+            progress.warning("Not found or unreadable", item=directory)
+            if not progress.active:
+                click.echo(f"{directory}: not found or unreadable")
         files: dict[str, dict] = {}
         for index, target in enumerate(targets, start=1):
             progress.advance(index, len(targets), item=target)
