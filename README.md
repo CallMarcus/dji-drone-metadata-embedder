@@ -54,6 +54,16 @@ and run it — you get the **DJI Metadata Embedder** desktop app in the Start
 menu plus the full `dji-embed` command line in any terminal, with FFmpeg and
 ExifTool bundled. No admin rights needed.
 
+The app gives you all of it without a terminal — drop a folder, pick a
+mode, and the finished map opens right in the app:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/docs/assets/gui/workspace-home.png" alt="The DJI Metadata Embedder workspace" width="49%" />
+  <img src="https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/docs/assets/gui/workspace-preview.png" alt="Inline map preview" width="49%" />
+</p>
+
+More in the [desktop app guide](https://callmarcus.github.io/dji-drone-metadata-embedder/desktop-app/).
+
 Prefer a script? Open PowerShell and paste:
 
 ```powershell

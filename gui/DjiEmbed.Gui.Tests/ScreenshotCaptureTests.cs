@@ -435,6 +435,14 @@ public class ScreenshotCaptureTests
         window.Show();
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
+        // Let the M5b enter animations finish: captures must never show
+        // a region mid-fade. Interleaved ticks are required.
+        for (var i = 0; i < 80; i++)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
 
         var frame = window.CaptureRenderedFrame();
         Assert.NotNull(frame);

@@ -31,6 +31,45 @@
         <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.copyLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
+
+        <!-- Enter-only polish (M5b spec): a short fade (plus a 6px rise
+             for the hero and the state cards) when a region appears.
+             Disappearances are deliberately instant — hide-animations
+             against IsVisible bindings are where Avalonia timing bugs
+             live, and the headless tests assert visibility, never
+             opacity. -->
+        <Style Selector="StackPanel#RecentFoldersSection[IsVisible=True],
+                         StackPanel#DoneCard[IsVisible=True],
+                         StackPanel#FailedPane[IsVisible=True]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="TranslateTransform.Y" Value="6" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                        <Setter Property="TranslateTransform.Y" Value="0" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border#FlightOptionsPanel[IsVisible=True],
+                         Border#PhotoOptionsPanel[IsVisible=True],
+                         Border#EmbedOptionsPanel[IsVisible=True],
+                         Border#ConvertOptionsPanel[IsVisible=True],
+                         Border#VerifyOptionsPanel[IsVisible=True]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
     </UserControl.Styles>
 
     <Grid ColumnDefinitions="420,*" Margin="16">
@@ -63,7 +102,7 @@
                                     <Rectangle Classes="dropOutline"
                                                StrokeThickness="2" StrokeDashArray="5,3"
                                                RadiusX="10" RadiusY="10" />
-                                    <StackPanel Margin="20,26" Spacing="6"
+                                    <StackPanel Margin="20,30" Spacing="8"
                                                 HorizontalAlignment="Center">
                                         <TextBlock Text="Drop a folder of footage here"
                                                    FontSize="15"
@@ -209,6 +248,7 @@
                                 <StackPanel Spacing="12">
                                     <DockPanel>
                                         <ToggleSwitch Name="FlightRecursiveToggle"
+                                                      AutomationProperties.Name="Include subfolders"
                                                       DockPanel.Dock="Right"
                                                       IsChecked="{Binding FlightOptions.Recursive}" />
                                         <TextBlock Text="Include subfolders"
@@ -219,6 +259,7 @@
                                         <TextBlock Text="Map style" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="FlightStyleCombo"
+                                                  AutomationProperties.Name="Map style"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding FlightOptions.TileStyles}"
                                                   SelectedItem="{Binding FlightOptions.SelectedTileStyle}">
@@ -234,6 +275,7 @@
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="FlightPrivacyCombo"
+                                                  AutomationProperties.Name="Privacy"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding FlightOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding FlightOptions.SelectedPrivacy}">
@@ -254,6 +296,7 @@
                                                        Opacity="0.7" FontSize="12" />
                                         </DockPanel>
                                         <Slider Name="JoinGapSlider"
+                                                AutomationProperties.Name="Join split recordings within, seconds"
                                                 Minimum="0" Maximum="60"
                                                 TickFrequency="1" IsSnapToTickEnabled="True"
                                                 Value="{Binding FlightOptions.JoinGap}" />
@@ -272,6 +315,7 @@
                                                 <TextBlock Text="Time zone of the clips"
                                                            Opacity="0.7" FontSize="12" />
                                                 <TextBox Name="FlightTzBox"
+                                                         AutomationProperties.Name="Time zone of the clips"
                                                          Text="{Binding FlightOptions.TzOffset}"
                                                          PlaceholderText="auto" />
                                             </StackPanel>
@@ -280,6 +324,7 @@
                                                 <TextBlock Text="Map title" Opacity="0.7"
                                                            FontSize="12" />
                                                 <TextBox Name="FlightTitleBox"
+                                                         AutomationProperties.Name="Map title"
                                                          Text="{Binding FlightOptions.Title}"
                                                          PlaceholderText="(folder name)" />
                                             </StackPanel>
@@ -332,6 +377,7 @@
                                 <StackPanel Spacing="12">
                                     <DockPanel>
                                         <ToggleSwitch Name="PhotoRecursiveToggle"
+                                                      AutomationProperties.Name="Include subfolders"
                                                       DockPanel.Dock="Right"
                                                       IsChecked="{Binding PhotoOptions.Recursive}" />
                                         <TextBlock Text="Include subfolders"
@@ -342,6 +388,7 @@
                                         <TextBlock Text="Map style" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="PhotoStyleCombo"
+                                                  AutomationProperties.Name="Map style"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding PhotoOptions.TileStyles}"
                                                   SelectedItem="{Binding PhotoOptions.SelectedTileStyle}">
@@ -357,6 +404,7 @@
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="PhotoPrivacyCombo"
+                                                  AutomationProperties.Name="Privacy"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding PhotoOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding PhotoOptions.SelectedPrivacy}">
@@ -414,6 +462,7 @@
                                                 <TextBlock Text="Map title" Opacity="0.7"
                                                            FontSize="12" />
                                                 <TextBox Name="PhotoTitleBox"
+                                                         AutomationProperties.Name="Map title"
                                                          Text="{Binding PhotoOptions.Title}"
                                                          PlaceholderText="(folder name)" />
                                             </StackPanel>
@@ -473,6 +522,7 @@
                                         <TextBlock Text="Video container" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="ContainerCombo"
+                                                  AutomationProperties.Name="Video container"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding EmbedOptions.Containers}"
                                                   SelectedItem="{Binding EmbedOptions.SelectedContainer}">
@@ -488,6 +538,7 @@
                                         <TextBlock Text="Privacy" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="EmbedPrivacyCombo"
+                                                  AutomationProperties.Name="Privacy"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding EmbedOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding EmbedOptions.SelectedPrivacy}">
@@ -593,6 +644,7 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Convert to" Opacity="0.7" FontSize="12" />
                                         <ComboBox Name="ConvertFormatCombo"
+                                                  AutomationProperties.Name="Convert to"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding ConvertOptions.Formats}"
                                                   SelectedItem="{Binding ConvertOptions.SelectedFormat}">
@@ -607,6 +659,7 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Privacy" Opacity="0.7" FontSize="12" />
                                         <ComboBox Name="ConvertPrivacyCombo"
+                                                  AutomationProperties.Name="Privacy"
                                                   HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding ConvertOptions.PrivacyOptions}"
                                                   SelectedItem="{Binding ConvertOptions.SelectedPrivacy}">
@@ -632,10 +685,12 @@
                                                 <TextBlock Text="Sample every" Opacity="0.7" FontSize="12" />
                                             </DockPanel>
                                             <Slider Name="FootprintIntervalSlider"
+                                                    AutomationProperties.Name="Footprint sample interval, seconds"
                                                     Minimum="1" Maximum="10"
                                                     TickFrequency="1" IsSnapToTickEnabled="True"
                                                     Value="{Binding ConvertOptions.FootprintInterval}" />
                                             <ComboBox Name="ConvertModelCombo"
+                                                      AutomationProperties.Name="Camera model"
                                                       HorizontalAlignment="Stretch"
                                                       ItemsSource="{Binding ConvertOptions.Models}"
                                                       SelectedItem="{Binding ConvertOptions.SelectedModel}">
@@ -659,6 +714,7 @@
                                                 <TextBlock Text="Time zone of the clips"
                                                            Opacity="0.7" FontSize="12" />
                                                 <TextBox Name="ConvertTzBox"
+                                                         AutomationProperties.Name="Time zone of the clips"
                                                          Text="{Binding ConvertOptions.TzOffset}"
                                                          PlaceholderText="auto" />
                                             </StackPanel>
@@ -672,12 +728,14 @@
                                                     <TextBlock Text="CoT sampling interval" Opacity="0.7" FontSize="12" />
                                                 </DockPanel>
                                                 <Slider Name="CotIntervalSlider"
+                                                        AutomationProperties.Name="CoT sampling interval, seconds"
                                                         Minimum="1" Maximum="10"
                                                         TickFrequency="1" IsSnapToTickEnabled="True"
                                                         Value="{Binding ConvertOptions.CotInterval}" />
                                                 <TextBlock Text="CoT event type" Opacity="0.7"
                                                            FontSize="12" />
                                                 <TextBox Name="CotTypeBox"
+                                                         AutomationProperties.Name="CoT event type"
                                                          Text="{Binding ConvertOptions.CotType}"
                                                          PlaceholderText="a-n-A" />
                                             </StackPanel>
@@ -765,6 +823,7 @@
                                                                Opacity="0.7" FontSize="12" />
                                                 </DockPanel>
                                                 <Slider Name="DriftThresholdSlider"
+                                                        AutomationProperties.Name="Drift threshold, seconds"
                                                         Minimum="0.5" Maximum="5"
                                                         TickFrequency="0.5" IsSnapToTickEnabled="True"
                                                         Value="{Binding VerifyOptions.DriftThreshold}" />
@@ -774,6 +833,7 @@
                                                 <TextBlock Text="Time zone of the clip"
                                                            Opacity="0.7" FontSize="12" />
                                                 <TextBox Name="VerifyTzBox"
+                                                         AutomationProperties.Name="Time zone of the clip"
                                                          Text="{Binding VerifyOptions.TzOffset}"
                                                          PlaceholderText="auto" />
                                             </StackPanel>
@@ -836,10 +896,17 @@
                         </Border.Background>
                     </Border>
                     <StackPanel VerticalAlignment="Bottom" Margin="28,0,28,28"
-                                Spacing="8">
+                                Spacing="10">
+                        <Image Name="IdleAppIcon"
+                               Source="avares://DjiEmbed.Gui/Assets/app-icon.png"
+                               Width="52" Height="52"
+                               HorizontalAlignment="Left" />
                         <TextBlock Text="What do you want to make today?"
                                    FontSize="22" FontWeight="SemiBold"
                                    Foreground="White" />
+                        <TextBlock Text="Flight maps and photo maps from your footage, GPS embedded into your videos, telemetry converted and verified."
+                                   Foreground="White" Opacity="0.85"
+                                   TextWrapping="Wrap" FontSize="13" />
                         <TextBlock Text="Drop a folder on the left — the likely mode is picked for you. Everything stays on this computer."
                                    Foreground="White" Opacity="0.75"
                                    TextWrapping="Wrap" FontSize="13" />
@@ -860,7 +927,9 @@
                                      Converter={x:Static ObjectConverters.IsNull}}" />
                     <TextBlock Text="{Binding ProgressDetail}" Opacity="0.6"
                                FontSize="12" />
-                    <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                    <Button Name="CancelRunButton"
+                            AutomationProperties.Name="Cancel"
+                            HorizontalAlignment="Center" Margin="0,10,0,0"
                             Command="{Binding CancelCommand}">
                         <TextBlock Text="Cancel" />
                     </Button>
@@ -868,7 +937,7 @@
 
                 <!-- Done, card flavour: setup checklist, embed outputs,
                      and maps when the inline preview can't render. -->
-                <StackPanel IsVisible="{Binding ShowDoneCard}"
+                <StackPanel Name="DoneCard" IsVisible="{Binding ShowDoneCard}"
                             Spacing="16" MaxWidth="480"
                             VerticalAlignment="Center" Margin="28,0">
                     <TextBlock Text="✅ Done" FontSize="20" FontWeight="SemiBold" />
@@ -879,7 +948,8 @@
                                 <DockPanel Margin="0,4">
                                     <Button DockPanel.Dock="Right" Margin="12,0,0,0"
                                             Command="{Binding $parent[ItemsControl].((vm:WorkspaceViewModel)DataContext).OpenOutputCommand}"
-                                            CommandParameter="{Binding}">
+                                            CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding StringFormat='Open {0}'}">
                                         <TextBlock Text="Open" />
                                     </Button>
                                     <TextBlock Text="{Binding}" VerticalAlignment="Center"
@@ -956,7 +1026,9 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                    <Button Name="ProcessAnotherButton"
+                            AutomationProperties.Name="Process another"
+                            HorizontalAlignment="Center" Margin="0,10,0,0"
                             Command="{Binding GoHomeCommand}">
                         <TextBlock Text="Process another" />
                     </Button>
@@ -977,11 +1049,13 @@
                                 </Button>
                                 <Button Name="ShowInFolderButton"
                                         Command="{Binding ShowInFolderCommand}"
+                                        AutomationProperties.Name="Show in folder"
                                         ToolTip.Tip="Show the map file in its folder">
                                     <TextBlock Text="Show in folder" FontSize="12" />
                                 </Button>
                                 <Button Name="ClosePreviewButton"
                                         Command="{Binding GoHomeCommand}"
+                                        AutomationProperties.Name="Close this map"
                                         ToolTip.Tip="Close this map and go back to the start">
                                     <TextBlock FontSize="12"
                                                Text="{Binding Step,
@@ -995,7 +1069,9 @@
                                        TextTrimming="CharacterEllipsis" />
                         </DockPanel>
                     </Border>
-                    <Expander DockPanel.Dock="Top" Margin="14,0,14,8"
+                    <Expander Name="PreviewWarningsExpander"
+                              AutomationProperties.Name="Warnings"
+                              DockPanel.Dock="Top" Margin="14,0,14,8"
                               IsVisible="{Binding !!Warnings.Count}">
                         <Expander.Header>
                             <TextBlock Text="{Binding Warnings.Count,
@@ -1025,7 +1101,8 @@
                 </DockPanel>
 
                 <!-- Failed -->
-                <StackPanel IsVisible="{Binding Step,
+                <StackPanel Name="FailedPane"
+                            IsVisible="{Binding Step,
                                 Converter={x:Static ObjectConverters.Equal},
                                 ConverterParameter={x:Static vm:FlowStep.Failed}}"
                             Spacing="16" MaxWidth="480"
@@ -1044,13 +1121,17 @@
                                            FontFamily="Consolas,Menlo,monospace"
                                            FontSize="12" />
                             </ScrollViewer>
-                            <Button HorizontalAlignment="Left"
+                            <Button Name="CopyDetailsButton"
+                                    AutomationProperties.Name="Copy details"
+                                    HorizontalAlignment="Left"
                                     Click="OnCopyDetailsClick">
                                 <TextBlock Text="Copy details" FontSize="12" />
                             </Button>
                         </StackPanel>
                     </Expander>
-                    <Button HorizontalAlignment="Center" Margin="0,10,0,0"
+                    <Button Name="FailedBackButton"
+                            AutomationProperties.Name="Back"
+                            HorizontalAlignment="Center" Margin="0,10,0,0"
                             Command="{Binding GoHomeCommand}">
                         <TextBlock Text="Back" />
                     </Button>

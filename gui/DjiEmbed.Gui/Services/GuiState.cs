@@ -87,10 +87,14 @@ public sealed record GuiState(
     }
 
     /// <summary>Best-effort atomic write: temp file in the target
-    /// directory, then move over the target. Failure is swallowed —
-    /// losing recents must never crash the app.</summary>
+    /// directory, then move over the target. Expected environmental
+    /// failures (I/O, permissions, unsupported paths) are swallowed —
+    /// losing recents must never crash the app — and the orphaned temp
+    /// file is best-effort deleted; anything else is a programming
+    /// error and surfaces.</summary>
     public static void Save(GuiState state, string path)
     {
+        var temp = path + ".tmp";
         try
         {
             if (Path.GetDirectoryName(path) is { Length: > 0 } dir)
@@ -109,13 +113,20 @@ public sealed record GuiState(
                     : null,
                 RecentFolders = state.RecentFolders.ToList(),
             };
-            var temp = path + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(dto, Json));
             File.Move(temp, path, overwrite: true);
         }
         catch (Exception e) when (e is IOException
             or UnauthorizedAccessException or NotSupportedException)
         {
+            try
+            {
+                File.Delete(temp);
+            }
+            catch (Exception cleanup) when (cleanup is IOException
+                or UnauthorizedAccessException or NotSupportedException)
+            {
+            }
         }
     }
 

@@ -552,13 +552,18 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Rebuilds the displayed recents list from the store, pruned to
     /// folders that still exist. Shared by <see cref="RememberFolder"/> (a
     /// fresh push) and <see cref="ChooseRecentAsync"/> (a stale entry found
-    /// dead at click time).</summary>
+    /// dead at click time). Skips the rebuild when nothing changed — every
+    /// run start lands here, and Clear+Add churn re-renders for nothing.</summary>
     private void RefreshRecents()
     {
-        RecentFolders.Clear();
-        foreach (var f in _stateStore.ExistingRecents())
+        var existing = _stateStore.ExistingRecents();
+        if (!existing.SequenceEqual(RecentFolders))
         {
-            RecentFolders.Add(f);
+            RecentFolders.Clear();
+            foreach (var f in existing)
+            {
+                RecentFolders.Add(f);
+            }
         }
         OnPropertyChanged(nameof(MostRecentExistingFolder));
     }
@@ -801,6 +806,17 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
         if (SelectedFolder is not { } folder)
         {
+            return;
+        }
+        // The folder can vanish between selection and Run — an ejected
+        // SD card is the realistic path (#354). Catch it before the scan
+        // throws on the UI thread, and let the hero list drop the dead
+        // entry too.
+        if (!Directory.Exists(folder))
+        {
+            RefreshRecents();
+            Fail("That folder is no longer there — was the card ejected? "
+                + "Pick it again.");
             return;
         }
         // Option snapshots are taken BEFORE the awaited scan: the strip

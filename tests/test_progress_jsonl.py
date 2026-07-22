@@ -450,6 +450,35 @@ def test_check_jsonl_warns_on_unreadable_directory(monkeypatch, tmp_path):
     assert last["summary"] == {"checked": 0, "files": {}}
 
 
+def test_check_jsonl_warns_when_a_path_cannot_be_probed(monkeypatch, tmp_path):
+    # Traversal denied on an ancestor makes even Path.is_dir raise —
+    # the expansion loop must degrade to the same "Not found or
+    # unreadable" warning instead of crashing the whole check.
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    real_is_dir = Path.is_dir
+
+    def deny(self, *args, **kwargs):
+        if self == blocked:
+            raise PermissionError(13, "denied", str(self))
+        return real_is_dir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_dir", deny)
+    res = CliRunner().invoke(
+        main, ["check", str(blocked), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["total"] == 0
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert warnings[0]["item"] == str(blocked)
+    assert warnings[0]["message"] == "Not found or unreadable"
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["summary"] == {"checked": 0, "files": {}}
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(

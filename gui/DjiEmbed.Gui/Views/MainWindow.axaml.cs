@@ -40,6 +40,8 @@ public partial class MainWindow : Window
         }
         _normalPosition = Position;
         _normalSize = new Size(Width, Height);
+        // These subscriptions are never torn down — deliberately: this is
+        // the app's only window and it lives for the process lifetime.
         PositionChanged += (_, e) =>
         {
             if (WindowState == WindowState.Normal)

@@ -95,6 +95,18 @@ public class GuiStateTests : IDisposable
     }
 
     [Fact]
+    public void Save_failure_leaves_no_temp_file_behind()
+    {
+        // Same forced failure as Save_failure_is_swallowed: the target
+        // IS a directory, so the final move fails after the temp file
+        // was already written beside it.
+        var target = Path.Combine(_dir, "sub");
+        Directory.CreateDirectory(target);
+        GuiState.Save(GuiState.Empty.WithRecent("a"), target);
+        Assert.False(File.Exists(target + ".tmp"));
+    }
+
+    [Fact]
     public void WithRecent_pushes_to_the_front()
     {
         var state = GuiState.Empty.WithRecent("a").WithRecent("b");
