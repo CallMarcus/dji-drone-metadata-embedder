@@ -376,6 +376,80 @@ def test_check_jsonl_warns_on_missing_path(monkeypatch, tmp_path):
     assert warnings[0]["item"] == str(tmp_path / "nope.mp4")
 
 
+def test_check_jsonl_expands_directories(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    canned = {"gps": True, "altitude": True, "creation_time": True}
+    monkeypatch.setattr(cli_mod, "check_metadata", lambda target: dict(canned))
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"fake")
+    (tmp_path / "IMG_0002.JPG").write_bytes(b"fake")
+    (tmp_path / "IMG_0003.JPEG").write_bytes(b"fake")
+    (tmp_path / "IMG_0004.DNG").write_bytes(b"fake")
+    (tmp_path / "notes.txt").write_text("not media", encoding="utf-8")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "DJI_0003.MP4").write_bytes(b"fake")  # below top level: excluded
+    res = CliRunner().invoke(
+        main, ["check", str(tmp_path), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["total"] == 4
+    expected = [
+        str(tmp_path / "DJI_0001.MP4"),
+        str(tmp_path / "IMG_0002.JPG"),
+        str(tmp_path / "IMG_0003.JPEG"),
+        str(tmp_path / "IMG_0004.DNG"),
+    ]
+    progress = [e for e in events if e["event"] == "progress"]
+    assert [p["item"] for p in progress] == expected
+    assert events[-1]["summary"]["checked"] == 4
+    assert sorted(events[-1]["summary"]["files"]) == sorted(expected)
+
+
+def test_check_jsonl_warns_on_empty_directory(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    res = CliRunner().invoke(
+        main, ["check", str(empty), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["total"] == 0
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert warnings[0]["item"] == str(empty)
+    assert warnings[0]["message"] == "No media files found"
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["summary"] == {"checked": 0, "files": {}}
+
+
+def test_check_jsonl_warns_on_unreadable_directory(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+
+    unreadable = tmp_path / "unreadable"
+    unreadable.mkdir()
+    monkeypatch.setattr(
+        cli_mod,
+        "media_files_in",
+        lambda p: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    res = CliRunner().invoke(
+        main, ["check", str(unreadable), "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["total"] == 0
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert warnings[0]["item"] == str(unreadable)
+    assert warnings[0]["message"] == "Not found or unreadable"
+    last = events[-1]
+    assert last["ok"] is True
+    assert last["summary"] == {"checked": 0, "files": {}}
+
+
 def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(

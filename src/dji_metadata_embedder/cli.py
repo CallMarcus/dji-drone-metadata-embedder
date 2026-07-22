@@ -14,7 +14,7 @@ from typing import Any
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
 from .utils.provision import EXIFTOOL_VERSION, provision_exiftool
-from .metadata_check import check_metadata
+from .metadata_check import check_metadata, media_files_in
 from .telemetry_converter import (
     extract_telemetry_to_gpx,
     extract_telemetry_to_csv,
@@ -192,7 +192,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
 
     Available commands:
       embed     Embed telemetry from SRT files into MP4 videos
-      validate  Validate SRT/MP4 pairs and report drift
+      validate  Validate SRT/MP4/MOV pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
       flightmap Map every flight in a folder of SRT logs on one combined map (experimental)
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
@@ -371,12 +371,40 @@ def check(
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet)
-    with _jsonl_terminal(progress, "check", total=len(paths)):
+    # A directory argument stands for its top-level media files (GUI
+    # M4b). Expanded before the start event so its total counts real
+    # targets, not directory names.
+    targets: list[str] = []
+    empty_dirs: list[str] = []
+    unreadable_dirs: list[str] = []
+    for raw in paths:
+        p = Path(raw)
+        if p.is_dir():
+            try:
+                found = media_files_in(p)
+            except OSError:
+                unreadable_dirs.append(raw)
+                continue
+            if found:
+                targets.extend(str(f) for f in found)
+            else:
+                empty_dirs.append(raw)
+        else:
+            targets.append(raw)
+    with _jsonl_terminal(progress, "check", total=len(targets)):
         if not paths:
             raise click.ClickException("No file or directory specified")
+        for directory in empty_dirs:
+            progress.warning("No media files found", item=directory)
+            if not progress.active:
+                click.echo(f"{directory}: no media files found")
+        for directory in unreadable_dirs:
+            progress.warning("Not found or unreadable", item=directory)
+            if not progress.active:
+                click.echo(f"{directory}: not found or unreadable")
         files: dict[str, dict] = {}
-        for index, target in enumerate(paths, start=1):
-            progress.advance(index, len(paths), item=target)
+        for index, target in enumerate(targets, start=1):
+            progress.advance(index, len(targets), item=target)
             result = check_metadata(target)
             files[target] = result
             if not result:
@@ -386,7 +414,7 @@ def check(
         progress.result(
             ok=True,
             outputs=[],
-            summary={"checked": len(paths), "files": files},
+            summary={"checked": len(targets), "files": files},
         )
 
 
@@ -1156,7 +1184,7 @@ def validate(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Validate SRT/MP4 pairs and generate drift analysis report."""
+    """Validate SRT/MP4/MOV pairs and generate drift analysis report."""
     if progress_mode and format.lower() == "json":
         raise click.UsageError(
             "--format json cannot be combined with --progress jsonl (the "

@@ -304,6 +304,27 @@ public class WorkspaceViewModelTests : IDisposable
         """{"v": 1, "event": "result", "ok": true, "outputs": ["DJI_0001.gpx"], "summary": {"converted": 1, "skipped": 0, "format": "gpx"}}""",
     ];
 
+    private static readonly string[] CheckStream =
+    [
+        """{"v": 1, "event": "start", "command": "check", "total": 1}""",
+        """{"v": 1, "event": "progress", "current": 1, "total": 1, "item": "DJI_0001.MP4"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"checked": 1, "files": {"DJI_0001.MP4": {"gps": true, "altitude": true, "creation_time": true}}}}""",
+    ];
+
+    private static readonly string[] ValidateStream =
+    [
+        """{"v": 1, "event": "start", "command": "validate"}""",
+        """{"v": 1, "event": "warning", "message": "No SRT file found for: DJI_0002.MP4"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"total_files": 2, "valid_pairs": 1, "issues": ["No SRT file found for: DJI_0002.MP4"], "warnings": [], "file_analyses": []}}""",
+    ];
+
+    private static readonly string[] SunStream =
+    [
+        """{"v": 1, "event": "start", "command": "verify-sun"}""",
+        """{"v": 1, "event": "warning", "message": "night"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"file": "DJI_0001.SRT", "points": 120, "sun_computed": 120, "utc_start": "2026-07-01T20:00:00Z", "utc_end": "2026-07-01T20:02:00Z", "elevation_min": -8.1, "elevation_max": -5.2, "azimuth_start": 310.5, "azimuth_end": 312.9, "flags": ["night"]}}""",
+    ];
+
     private static readonly string[] DoctorStream =
     [
         """{"v": 1, "event": "start", "command": "doctor"}""",
@@ -1844,6 +1865,193 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(Path.Combine(_dir, "copies"), vm.EmbedOptions.Output);
         gate.SetResult();
         await run;
+    }
+
+    [Fact]
+    public void Verify_strip_teaches_bare_check_before_a_source_is_picked()
+    {
+        var vm = Vm("cli");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Assert.Equal("dji-embed check <source>", vm.CommandPreview);
+    }
+
+    [Fact]
+    public void Verify_sub_action_enablement_follows_the_source_shape()
+    {
+        var vm = Vm("cli");
+        Assert.True(vm.VerifyValidateEnabled);
+        Assert.True(vm.VerifySunEnabled);
+        Assert.Null(vm.VerifySubActionNote);
+        vm.SetFile("/clips/DJI_0001.SRT");
+        Assert.False(vm.VerifyValidateEnabled);
+        Assert.True(vm.VerifySunEnabled);
+        Assert.Equal(
+            "Validate pairing compares a whole folder of videos with "
+            + "their flight logs — choose a folder.",
+            vm.VerifySubActionNote);
+    }
+
+    [Fact]
+    public async Task Verify_sub_action_enablement_for_a_folder_source()
+    {
+        var vm = Vm("cli");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        Assert.True(vm.VerifyValidateEnabled);
+        Assert.False(vm.VerifySunEnabled);
+        Assert.Equal(
+            "Sun check reads one flight log or video — drop a single file.",
+            vm.VerifySubActionNote);
+    }
+
+    [Fact]
+    public async Task Verify_sub_action_snaps_back_to_check_when_disabled()
+    {
+        var vm = Vm("cli");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        vm.VerifyOptions.SubAction = VerifySubAction.Validate;
+        vm.SetFile("/clips/DJI_0001.SRT");
+        Assert.Equal(VerifySubAction.Check, vm.VerifyOptions.SubAction);
+        vm.VerifyOptions.SubAction = VerifySubAction.Sun;
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        Assert.Equal(VerifySubAction.Check, vm.VerifyOptions.SubAction);
+    }
+
+    [Fact]
+    public void Action_verb_follows_the_verify_sub_action()
+    {
+        var vm = Vm("cli");
+        Assert.Equal("Generate flight map", vm.ActionVerb);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Assert.Equal("Check metadata", vm.ActionVerb);
+        vm.VerifyOptions.SubAction = VerifySubAction.Validate;
+        Assert.Equal("Validate pairing", vm.ActionVerb);
+        vm.VerifyOptions.SubAction = VerifySubAction.Sun;
+        Assert.Equal("Check the sun", vm.ActionVerb);
+    }
+
+    [Fact]
+    public async Task Verify_check_runs_bare_on_a_single_file()
+    {
+        var argsFile = Path.Combine(_dir, "argv.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, CheckStream);
+        var vm = Vm(cli);
+        var mp4 = Path.Combine(_dir, "DJI_0001.MP4");
+        File.WriteAllText(mp4, "fake");
+        vm.SetFile(mp4);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllLines(argsFile);
+        Assert.Equal(["check", mp4], argv.Take(2).ToArray());
+        Assert.DoesNotContain("--drift-threshold", argv);
+        Assert.Equal("Checked 1 file", vm.VerifyHeadline);
+        var card = Assert.Single(vm.VerifyCards);
+        Assert.Equal(VerifyStatus.Ok, card.Status);
+    }
+
+    [Fact]
+    public async Task Verify_validate_runs_on_a_folder_and_hides_raw_warnings()
+    {
+        var argsFile = Path.Combine(_dir, "argv.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, ValidateStream);
+        var vm = Vm(cli);
+        var folder = MakeFolder(videos: true);
+        await vm.SetFolderAsync(folder);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        vm.VerifyOptions.SubAction = VerifySubAction.Validate;
+        vm.VerifyOptions.DriftThreshold = 2.5;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        var argv = File.ReadAllLines(argsFile);
+        Assert.Equal(["validate", folder, "--drift-threshold", "2.5"],
+            argv.Take(4).ToArray());
+        Assert.Equal("1 of 2 pairs check out", vm.VerifyHeadline);
+        Assert.Single(vm.VerifyCards);
+        // The report IS the curated rendering of the same warning event:
+        Assert.Single(vm.Warnings);
+        Assert.False(vm.ShowDoneWarnings);
+    }
+
+    [Fact]
+    public async Task Verify_sun_runs_on_a_single_file_with_tz()
+    {
+        var argsFile = Path.Combine(_dir, "argv.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, SunStream);
+        var vm = Vm(cli);
+        var srt = Path.Combine(_dir, "DJI_0001.SRT");
+        File.WriteAllText(srt, "fake");
+        vm.SetFile(srt);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        vm.VerifyOptions.SubAction = VerifySubAction.Sun;
+        vm.VerifyOptions.TzOffset = "+02:00";
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Equal(["verify-sun", srt, "--tz-offset", "+02:00"],
+            File.ReadAllLines(argsFile).Take(4).ToArray());
+        Assert.Equal("Sun position over DJI_0001.SRT", vm.VerifyHeadline);
+        Assert.Equal(5, vm.VerifyCards.Count);
+    }
+
+    [Fact]
+    public async Task Verify_check_blocks_an_srt_file_with_guidance()
+    {
+        var vm = Vm("cli");
+        vm.SetFile("/clips/DJI_0001.SRT");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Check metadata reads the video or photo itself — a .SRT "
+            + "flight log has no embedded metadata to check. Use Sun "
+            + "check for flight logs.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Verify_check_blocks_a_folder_without_media_with_guidance()
+    {
+        var vm = Vm("cli");
+        await vm.SetFolderAsync(MakeFolder(srt: true));   // logs, no media
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No videos or photos were found in that folder. Pick the "
+            + "folder that holds the drone footage to check.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Verify_validate_blocks_a_folder_without_videos_with_guidance()
+    {
+        var vm = Vm("cli");
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        vm.VerifyOptions.SubAction = VerifySubAction.Validate;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No videos (.MP4) were found in that folder. Validate "
+            + "pairing needs the folder that holds the videos together "
+            + "with their .SRT flight logs.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task New_source_clears_the_verify_report()
+    {
+        var argsFile = Path.Combine(_dir, "argv.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, CheckStream);
+        var vm = Vm(cli);
+        var mp4 = Path.Combine(_dir, "DJI_0001.MP4");
+        File.WriteAllText(mp4, "fake");
+        vm.SetFile(mp4);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.NotEmpty(vm.VerifyCards);
+        vm.SetFile(mp4);   // fresh start through the same door
+        Assert.Empty(vm.VerifyCards);
+        Assert.Null(vm.VerifyHeadline);
     }
 
     private sealed class ThrowingMapServer : IMapServer

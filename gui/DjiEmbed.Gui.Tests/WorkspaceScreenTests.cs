@@ -34,12 +34,12 @@ public class WorkspaceScreenTests
             previewAvailable: static () => false);
 
     [AvaloniaFact]
-    public void Mode_strip_shows_exactly_the_five_m1_plus_m4a_modes()
+    public void Mode_strip_shows_exactly_the_six_modes()
     {
         var window = ShowWorkspace();
         var strip = window.GetVisualDescendants().OfType<ListBox>()
             .Single(l => l.Name == "ModeStrip");
-        Assert.Equal(5, strip.ItemCount);
+        Assert.Equal(6, strip.ItemCount);
     }
 
     [AvaloniaFact]
@@ -182,6 +182,254 @@ public class WorkspaceScreenTests
     // Manual plan §2.6 "Copy is exact": the strip's Copy button must put the
     // preview on the clipboard byte-identically — a transformation on the way
     // out would break the paste-into-a-terminal promise.
+    // M4b: the Verify options panel renders only for Verify, with the
+    // advanced expander hidden entirely for the default sub-action (Check
+    // has no advanced options at all).
+    [AvaloniaFact]
+    public void Verify_mode_shows_the_options_panel_with_advanced_hidden_for_check()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "VerifyOptionsPanel");
+        Assert.True(panel.IsEffectivelyVisible);
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "FlightOptionsPanel").IsEffectivelyVisible);
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PhotoOptionsPanel").IsEffectivelyVisible);
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "EmbedOptionsPanel").IsEffectivelyVisible);
+        Assert.False(window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "ConvertOptionsPanel").IsEffectivelyVisible);
+
+        var check = window.GetVisualDescendants().OfType<RadioButton>()
+            .Single(r => r.Name == "CheckSubActionRadio");
+        Assert.True(check.IsChecked);
+
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "VerifyAdvanced");
+        Assert.False(advanced.IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Non_verify_mode_hides_the_verify_options_panel()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "VerifyOptionsPanel");
+        Assert.False(panel.IsEffectivelyVisible);
+    }
+
+    // #336-style: flip every control from the CONTROL side and assert the
+    // strip moved, catching a wrong-OBJECT binding that a compiled-binding
+    // build would let through.
+    [AvaloniaFact]
+    public void Verify_controls_flow_into_the_command_strip()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var validate = window.GetVisualDescendants().OfType<RadioButton>()
+            .Single(r => r.Name == "ValidateSubActionRadio");
+        validate.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(VerifySubAction.Validate, vm.VerifyOptions.SubAction);
+        Assert.Contains("validate", vm.CommandPreview);
+
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "VerifyAdvanced");
+        advanced.IsExpanded = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var drift = window.GetVisualDescendants().OfType<Slider>()
+            .Single(s => s.Name == "DriftThresholdSlider");
+        drift.Value = 2.5;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("--drift-threshold 2.5", vm.CommandPreview);
+
+        vm.SetFile("/clips/DJI_0001.SRT");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var sun = window.GetVisualDescendants().OfType<RadioButton>()
+            .Single(r => r.Name == "SunSubActionRadio");
+        sun.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("verify-sun", vm.CommandPreview);
+        window.UpdateLayout();
+        var tz = window.GetVisualDescendants().OfType<TextBox>()
+            .Single(t => t.Name == "VerifyTzBox");
+        tz.Text = "+02:00";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("--tz-offset +02:00", vm.CommandPreview);
+    }
+
+    // At most one sub-action segment is ever disabled: a file disables only
+    // Validate, a folder only Sun, and the inline note explains whichever
+    // one it is.
+    [AvaloniaFact]
+    public async Task Verify_sub_action_radios_grey_out_by_source_shape()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var validate = window.GetVisualDescendants().OfType<RadioButton>()
+            .Single(r => r.Name == "ValidateSubActionRadio");
+        var sun = window.GetVisualDescendants().OfType<RadioButton>()
+            .Single(r => r.Name == "SunSubActionRadio");
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "VerifySubActionNoteText");
+
+        // No source: both enabled, note invisible.
+        Assert.True(validate.IsEnabled);
+        Assert.True(sun.IsEnabled);
+        Assert.False(note.IsEffectivelyVisible);
+
+        vm.SetFile("/clips/DJI_0001.SRT");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(validate.IsEnabled);
+        Assert.True(sun.IsEnabled);
+        Assert.True(note.IsEffectivelyVisible);
+        Assert.Equal("Validate pairing compares a whole folder of videos with "
+            + "their flight logs — choose a folder.", note.Text);
+
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-verify-source").FullName;
+        try
+        {
+            await vm.SetFolderAsync(dir);
+            vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.True(validate.IsEnabled);
+            Assert.False(sun.IsEnabled);
+            Assert.True(note.IsEffectivelyVisible);
+            Assert.Equal("Sun check reads one flight log or video — drop a "
+                + "single file.", note.Text);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Verify_contextual_sections_follow_the_sub_action()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        vm.VerifyOptions.SubAction = VerifySubAction.Validate;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "VerifyAdvanced");
+        Assert.True(advanced.IsEffectivelyVisible);
+        advanced.IsExpanded = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var driftSection = window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(s => s.Name == "DriftSection");
+        var tzSection = window.GetVisualDescendants().OfType<StackPanel>()
+            .Single(s => s.Name == "VerifyTzSection");
+        Assert.True(driftSection.IsEffectivelyVisible);
+        Assert.False(tzSection.IsEffectivelyVisible);
+
+        vm.VerifyOptions.SubAction = VerifySubAction.Sun;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(driftSection.IsEffectivelyVisible);
+        Assert.True(tzSection.IsEffectivelyVisible);
+        Assert.True(advanced.IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public void Run_button_verb_follows_the_verify_sub_action()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var runButton = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "RunButton");
+        var label = runButton.GetVisualDescendants().OfType<TextBlock>().Single();
+        Assert.Equal("Check metadata", label.Text);
+
+        var validate = window.GetVisualDescendants().OfType<RadioButton>()
+            .Single(r => r.Name == "ValidateSubActionRadio");
+        validate.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Validate pairing", label.Text);
+
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Generate flight map", label.Text);
+    }
+
+    // Same fixture as WorkspaceViewModelTests's ValidateStream — duplicated
+    // here rather than hoisted, since nothing in this file shares fixtures
+    // with that one today.
+    private static readonly string[] ValidateStream =
+    [
+        """{"v": 1, "event": "start", "command": "validate"}""",
+        """{"v": 1, "event": "warning", "message": "No SRT file found for: DJI_0002.MP4"}""",
+        """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"total_files": 2, "valid_pairs": 1, "issues": ["No SRT file found for: DJI_0002.MP4"], "warnings": [], "file_analyses": []}}""",
+    ];
+
+    [AvaloniaFact]
+    public async Task Verify_done_pane_renders_the_report_and_hides_raw_warnings()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-screen-verify-done").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "DJI_0001.MP4"), "");
+            File.WriteAllText(Path.Combine(dir, "DJI_0002.MP4"), "");
+            var cli = FakeCli.WriteEventStream(dir, ValidateStream);
+            var vm = new WorkspaceViewModel(cli, new DjiEmbedRunner(),
+                new FakeMapServer(null), () => { },
+                previewAvailable: static () => false);
+            var window = ShowWorkspace(vm);
+            await vm.SetFolderAsync(dir);
+            vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+            vm.VerifyOptions.SubAction = VerifySubAction.Validate;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+
+            await vm.RunCommand.ExecuteAsync(null);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+
+            var report = window.GetVisualDescendants().OfType<StackPanel>()
+                .Single(s => s.Name == "VerifyReportSection");
+            Assert.True(report.IsEffectivelyVisible);
+            var headline = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => t.Name == "VerifyHeadlineText");
+            Assert.Equal("1 of 2 pairs check out", headline.Text);
+            var warnings = window.GetVisualDescendants().OfType<ItemsControl>()
+                .Single(i => i.Name == "DoneWarningsList");
+            Assert.False(warnings.IsEffectivelyVisible);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Copy_command_puts_the_exact_preview_on_the_clipboard()
     {
@@ -982,6 +1230,7 @@ public class WorkspaceScreenTests
             Assert.False(byName("PhotoOptionsPanel").IsEnabled);
             Assert.False(byName("EmbedOptionsPanel").IsEnabled);
             Assert.False(byName("ConvertOptionsPanel").IsEnabled);
+            Assert.False(byName("VerifyOptionsPanel").IsEnabled);
             Assert.True(byName("CopyCommandButton").IsEffectivelyEnabled);
 
             gate.SetResult();
