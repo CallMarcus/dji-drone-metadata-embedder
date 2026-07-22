@@ -23,6 +23,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.0.0] - 2026-07-22
+
+### Added
+
+- **cli**: Check expands directory args to top-level media (M4b) (b2fd611)
+- **cli**: Extend --progress jsonl to convert, validate, and verify-sun (3b69f36)
+- **geo**: Photomap hover previews become a viewer-side toggle (#345) (9aa9e74)
+- **gui**: Convert joins the mode strip with typed options (M4a) (2f914a1)
+- **gui**: Convert options panel with conditional sections (M4a) (6b4fdf5)
+- **gui**: Convert runs single files and batch folders, guarded (M4a) (4d2ab5b)
+- **gui**: ConvertTelemetryOptions + CommandBuilder.Convert (M4a) (d48ff81)
+- **gui**: GuiState record — load/save/WithRecent/RestorableOn (M5a) (2f9ebbf)
+- **gui**: GuiStateStore owns state.json at runtime (M5a) (7bf90d5)
+- **gui**: MRU push on run + hero recents view-model (M5a) (6b9f038)
+- **gui**: SOURCE accepts a single file — SelectedFile, ClearSource, SetFile (M4a) (40c1ba8)
+- **gui**: Verify mode — catalogue, guards, sub-action runs, report state (M4b) (0003647)
+- **gui**: Verify options panel + done-pane report cards (M4b) (07b165a)
+- **gui**: VerifyReport parsers — check/validate/sun summaries to cards (M4b) (1076bee)
+- **gui**: VerifyTelemetryOptions + CommandBuilder.Verify (M4b) (6146724)
+- **gui**: Accessible names on every interactive control, pinned by contract test (M5b) (1d75242)
+- **gui**: Drop or browse a single telemetry file into SOURCE (M4a) (7d38c16)
+- **gui**: Enter-only fade/rise animations on the workspace state swaps (M5b) (d32a08c)
+- **gui**: Hero recents list + picker starts in the last folder (M5a) (816589b)
+- **gui**: Idle preview pane becomes the welcome hero (M5b) (7908e93)
+- **gui**: Window remembers bounds; state.json wired at startup (M5a) (4822c39)
+🚨 - Remove the deprecated 'dji-embed ui' local web UI (v2.0.0 prep) (0099ac4) **[BREAKING]**
+
+### Changed
+
+- **gui**: EmbedPrivacy becomes the shared TelemetryPrivacy (M4a) (e2c3985)
+- **gui**: WorkspaceMode.NeedsFolder becomes SourceKinds (M4a) (e927311)
+- **gui**: One ResetDerivedSourceState shared by the three source doors (M4a) (0960a93)
+- **gui**: Tighten the folder-only guard per review (M4a) (5d8502e)
+
+### Fixed
+
+- **cli**: Check expansion survives a traversal-denied is_dir probe (M5b) (b4df7cb)
+- **cli**: Check/validate globs match the GUI's media reach (M4b) (d0fe167)
+🚨 - **cli**: Unreadable check directory is a warning, not a stream-breaking crash (M4b) (8110cc2) **[BREAKING]**
+- **embed**: A missing DAT log now warns instead of silently no-opping (20f04cd)
+- **gui**: CoT interval becomes a slider — culture-proof input (M4a) (177781c)
+- **gui**: FolderInspector reports per-kind top-level presence (#333/#338) (d976c9b)
+- **gui**: M5a review riding minors — .tmp cleanup, no-churn recents, bare-root leaf names (M5b) (4dd5c40)
+- **gui**: A run is busy from its first line and owns its captured inputs (#340) (b1e9ae3)
+- **gui**: Clicking a stale recent drops it instead of crashing (M5a) (4012bcc)
+- **gui**: Inject the folder inspector into WorkspaceViewModel (#340) (d92a46f)
+- **gui**: Keep the embed panel's per-mode control name (M4a) (3dc5a43)
+- **gui**: Pre-flight guards match each command's reach (#333, #338) (e62458a)
+- **gui**: Run on a vanished folder fails calmly instead of crashing (#354, M5b) (b9c898e)
+- **gui**: The left column freezes while a run is in flight (#340) (b5a8e05)
+
+### Documentation
+
+- **gui**: M4a design — single-file sources + Convert mode (a9bf042)
+- **gui**: Verify capture + HELP/AGENTS entries (M4b) (6a1e671)
+- **gui**: Spec for recursion-mismatch guards and busy gating (#333/#338/#340) (3d3da42)
+- **outreach**: Add FlipPilots.com sample-request post draft (fedbf82)
+- **spec**: GUI M5a persisted state — state.json MRU + window bounds (fab884f)
+- **spec**: GUI M5b visual polish + queued cleanup design (ab909d3)
+- Convert mode lists all six export formats (M5b final-review minor) (314cc38)
+- GUI M4b Verify-mode design spec (c31e0a9)
+- Auto-generate changelog for v1.27.0 (3b3cca9)
+- Decision table says SRT/video — validate pairs MOV too now (M4b) (082c31b)
+- Desktop-app guide + workspace screenshots in README (M5b) (5193c5f)
+- Spec for the durable browser-test suite (Track B) (80f0846)
+- Spec for the photomap hover-preview toggle (#345) (5afe4c5)
+
+### Testing
+
+- **gui**: Convert panel tests match the house conventions (M4a) (21a0e2e)
+- **gui**: T6 review fixes — CoT label, strip-order dedupe, parity tests (M4a) (6cd2cb5)
+- **gui**: A11y contract also scans inside SukiUI expander content (M5b) (7fbf43d)
+- **gui**: A11y contract covers running/preview/footprint/cot/sun states (M5b) (e804fc3)
+- **gui**: Cover the file-clears-folder direction too (M4a) (df85269)
+- **gui**: Existing-map Open falls back to the browser, via the server (69b6aa4)
+- **gui**: Name every options control and pin its binding (#336) (977c00b)
+- **gui**: Pin the CLI strip to the executed argv, per mode (#334) (a6282cd)
+- **gui**: Run map option combos through the real CLI end to end (2f54c3f)
+- **gui**: Seam the Choose… pickers and pin each button's routing (#335) (5eb48a1)
+- **gui**: Three uncovered corners from the coverage map (390c8eb)
+- **gui**: Tighten Convert builder coverage; fix "rejects" wording (M4a) (5f770b0)
+- Durable browser suite for generated maps (Track B) (0dd1b74)
+
+### Other
+
+- Prepare version 2.0.0 (d66310f)
+
+
 ## [1.27.0] - 2026-07-20
 
 ### Added
