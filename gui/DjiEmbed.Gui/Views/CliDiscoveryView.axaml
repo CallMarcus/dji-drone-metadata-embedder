@@ -50,6 +50,7 @@
                                     <Button DockPanel.Dock="Right"
                                             VerticalAlignment="Center"
                                             Margin="8,0,0,0"
+                                            AutomationProperties.Name="{Binding Command, StringFormat='Copy: {0}'}"
                                             Click="OnCopyCommandClick">
                                         <TextBlock Text="Copy" FontSize="12" />
                                     </Button>
