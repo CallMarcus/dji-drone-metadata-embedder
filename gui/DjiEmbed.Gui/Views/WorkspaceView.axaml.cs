@@ -42,7 +42,7 @@ public partial class WorkspaceView : UserControl
     /// null when dismissed.
     /// </summary>
     internal Func<Control, string, Task<string?>> OutputFolderPicker
-    { get; set; } = FolderPicking.PickFolderAsync;
+    { get; set; } = (anchor, title) => FolderPicking.PickFolderAsync(anchor, title);
 
     /// <summary>
     /// Single-file picking for the source card's "Choose a file…"
@@ -146,7 +146,8 @@ public partial class WorkspaceView : UserControl
     };
 
     private async void OnChooseFolderClick(object? sender, RoutedEventArgs e) =>
-        await FolderPicking.ChooseAsync(this, SetFolderAsync);
+        await FolderPicking.ChooseAsync(this, SetFolderAsync,
+            (DataContext as WorkspaceViewModel)?.MostRecentExistingFolder);
 
     private async void OnChooseFileClick(object? sender, RoutedEventArgs e)
     {

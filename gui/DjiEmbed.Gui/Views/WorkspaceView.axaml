@@ -76,6 +76,34 @@
                                     </StackPanel>
                                 </Panel>
                             </Border>
+                            <StackPanel Name="RecentFoldersSection" Spacing="4"
+                                        IsVisible="{Binding ShowRecentFolders}">
+                                <TextBlock Text="Recent folders"
+                                           Opacity="0.6" FontSize="12" />
+                                <ItemsControl Name="RecentFoldersList"
+                                              ItemsSource="{Binding RecentFolders}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="2" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Button Command="{Binding $parent[ItemsControl].((vm:WorkspaceViewModel)DataContext).ChooseRecentCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip.Tip="{Binding}"
+                                                    AutomationProperties.Name="{Binding}"
+                                                    HorizontalAlignment="Stretch"
+                                                    Background="Transparent"
+                                                    Padding="6,3">
+                                                <TextBlock Text="{Binding Converter={x:Static views:WorkspaceConverters.FolderLeafName}}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                             <DockPanel IsVisible="{Binding SourceDisplay,
                                            Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <Button DockPanel.Dock="Right"

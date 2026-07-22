@@ -151,6 +151,36 @@ public class ScreenshotCaptureTests
         CaptureView(view, Path.Combine(dir!, "workspace-preview.png"));
     }
 
+    [AvaloniaFact]
+    public void Captures_hero_recents_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the hero recents.");
+        Directory.CreateDirectory(dir!);
+
+        var temp = Directory.CreateTempSubdirectory("djiembed-recents-capture");
+        try
+        {
+            var store = GuiStateStore.Ephemeral();
+            foreach (var name in new[] { "alps-trip", "harbor-flight" })
+            {
+                store.PushRecent(Directory.CreateDirectory(
+                    Path.Combine(temp.FullName, name)).FullName);
+            }
+            var vm = new WorkspaceViewModel(
+                null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+                previewAvailable: static () => false, stateStore: store);
+            var view = new WorkspaceView { WebViewGate = static () => false };
+            view.DataContext = vm;
+            CaptureView(view, Path.Combine(dir!, "workspace-hero-recents.png"));
+        }
+        finally
+        {
+            Directory.Delete(temp.FullName, recursive: true);
+        }
+    }
+
     /// <summary>
     /// Done step on a machine without a usable WebView2: the done card
     /// with the WebView2-unavailable note visible instead of the inline

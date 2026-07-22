@@ -41,11 +41,12 @@ public class WorkspaceViewModelTests : IDisposable
     private static WorkspaceViewModel Vm(
         string? cli, Func<string?>? cliResolver = null,
         IMapServer? mapServer = null, Func<bool>? previewAvailable = null,
-        Func<string, FolderContents>? folderInspector = null) =>
+        Func<string, FolderContents>? folderInspector = null,
+        GuiStateStore? stateStore = null) =>
         new(cli, new DjiEmbedRunner(), mapServer ?? new FakeMapServer(null),
             () => { }, cliResolver,
             previewAvailable ?? (static () => false),
-            folderInspector);
+            folderInspector, stateStore);
 
     private static FolderContents Contents(
         bool logs = false, bool photos = false, bool videos = false,
@@ -2066,5 +2067,162 @@ public class WorkspaceViewModelTests : IDisposable
         public Task<string?> GetUrlAsync(
             string cliPath, string htmlPath, CancellationToken cancellationToken) =>
             throw new OperationCanceledException();
+    }
+
+    // ---- M5a: MRU + hero recents ----------------------------------------
+
+    [Fact]
+    public async Task Starting_a_run_on_a_folder_remembers_it()
+    {
+        var store = GuiStateStore.Ephemeral();
+        var vm = Vm(cli: null, stateStore: store,
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        var folder = MakeFolder(srt: true);
+        await vm.SetFolderAsync(folder);
+
+        // No CLI on purpose: the push happens as the run starts, before
+        // anything can fail — a guard-blocked run still counts.
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal([folder], store.State.RecentFolders);
+        Assert.Equal([folder], vm.RecentFolders);
+    }
+
+    [Fact]
+    public async Task File_runs_remember_nothing()
+    {
+        var store = GuiStateStore.Ephemeral();
+        var vm = Vm(cli: null, stateStore: store);
+        vm.SetFile(Path.Combine(_dir, "DJI_0001.SRT"));
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Empty(store.State.RecentFolders);
+    }
+
+    [Fact]
+    public async Task Setup_runs_remember_nothing()
+    {
+        var store = GuiStateStore.Ephemeral();
+        var vm = Vm(cli: null, stateStore: store,
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        await vm.SetFolderAsync(MakeFolder(srt: true));
+        vm.SelectedMode = WorkspaceMode.All[^1];   // Setup ignores the source
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Empty(store.State.RecentFolders);
+    }
+
+    [Fact]
+    public async Task Opening_an_existing_map_remembers_the_folder()
+    {
+        var store = GuiStateStore.Ephemeral();
+        var server = new FakeMapServer(FakeUrl);
+        var vm = Vm("cli", mapServer: server,
+            previewAvailable: static () => false, stateStore: store);
+        vm.UrlLauncher = _ => { };
+        var folder = MakeFolder(srt: true, flightMap: true);
+        await vm.SetFolderAsync(folder);
+        var map = Assert.Single(vm.ExistingMaps);
+
+        await vm.OpenExistingMapCommand.ExecuteAsync(map);
+
+        Assert.Equal([folder], store.State.RecentFolders);
+    }
+
+    [Fact]
+    public void Recents_seed_from_the_store_pruned_to_existing_folders()
+    {
+        var kept = MakeFolder(srt: true);
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(Path.Combine(_dir, "gone"));
+        store.PushRecent(kept);
+
+        var vm = Vm(cli: null, stateStore: store);
+
+        Assert.Equal([kept], vm.RecentFolders);
+    }
+
+    [Fact]
+    public async Task Choosing_a_recent_is_identical_to_dropping_it()
+    {
+        var kept = MakeFolder(srt: true);
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(kept);
+        var inspected = new List<string>();
+        var vm = Vm(cli: null, stateStore: store, folderInspector: dir =>
+        {
+            inspected.Add(dir);
+            return Contents(logs: true, topLogs: true);
+        });
+
+        await vm.ChooseRecentCommand.ExecuteAsync(kept);
+
+        Assert.Equal(kept, vm.SelectedFolder);
+        Assert.Equal([kept], inspected);   // the normal SetFolderAsync flow ran
+    }
+
+    [Fact]
+    public async Task Clicking_a_recent_whose_folder_vanished_drops_it_instead_of_crashing()
+    {
+        var doomed = MakeFolder(srt: true);
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(doomed);
+        var vm = Vm(cli: null, stateStore: store);
+        Assert.Equal([doomed], vm.RecentFolders);
+        Directory.Delete(doomed, recursive: true);
+
+        await vm.ChooseRecentCommand.ExecuteAsync(doomed);
+
+        Assert.Null(vm.SelectedFolder);      // nothing was selected
+        Assert.Empty(vm.RecentFolders);      // the dead entry is gone
+    }
+
+    [Fact]
+    public async Task Hero_recents_show_only_when_nothing_is_selected()
+    {
+        var kept = MakeFolder(srt: true);
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(kept);
+        var vm = Vm(cli: null, stateStore: store,
+            folderInspector: _ => Contents(logs: true, topLogs: true));
+        Assert.True(vm.ShowRecentFolders);
+
+        await vm.SetFolderAsync(kept);
+        Assert.False(vm.ShowRecentFolders);
+
+        vm.ClearSourceCommand.Execute(null);
+        Assert.True(vm.ShowRecentFolders);
+    }
+
+    [Fact]
+    public void No_recents_means_no_hero_section()
+    {
+        Assert.False(Vm(cli: null).ShowRecentFolders);
+    }
+
+    [Fact]
+    public void Most_recent_existing_folder_feeds_the_picker_start()
+    {
+        var older = MakeFolder(srt: true);
+        var newer = MakeFolder(srt: true);
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(older);
+        store.PushRecent(newer);
+
+        Assert.Equal(newer, Vm(cli: null, stateStore: store)
+            .MostRecentExistingFolder);
+        Assert.Null(Vm(cli: null).MostRecentExistingFolder);
+    }
+
+    [Fact]
+    public void Recents_never_touch_the_command_preview()
+    {
+        var store = GuiStateStore.Ephemeral();
+        store.PushRecent(MakeFolder(srt: true));
+        // State never affects argv: same strip with and without recents.
+        Assert.Equal(Vm(cli: null).CommandPreview,
+            Vm(cli: null, stateStore: store).CommandPreview);
     }
 }
