@@ -56,15 +56,18 @@ public class WorkspaceViewModelTests : IDisposable
     [Fact]
     public async Task Folder_scans_go_through_the_injected_inspector()
     {
+        // The folder must exist on disk: RunCoreAsync's #354 guard checks
+        // Directory.Exists before ever reaching the injected inspector.
+        var folder = MakeFolder();
         var inspected = new List<string>();
         var vm = Vm(Path.Combine(_dir, "does-not-exist"), folderInspector: dir =>
         {
             inspected.Add(dir);
             return Contents(photos: true, topPhotos: true);
         });
-        await vm.SetFolderAsync("Z:/nowhere");           // scan site 1
-        await vm.RunCommand.ExecuteAsync(null);          // scan site 2
-        Assert.Equal(["Z:/nowhere", "Z:/nowhere"], inspected);
+        await vm.SetFolderAsync(folder);           // scan site 1
+        await vm.RunCommand.ExecuteAsync(null);    // scan site 2
+        Assert.Equal([folder, folder], inspected);
     }
 
     [Fact]
@@ -283,6 +286,26 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(folder, vm.SelectedFolder);
         gate.SetResult();
         await run;
+    }
+
+    [Fact]
+    public async Task Run_on_a_vanished_folder_fails_calmly_instead_of_crashing()
+    {
+        // #354: the folder can disappear between selection and Run — an
+        // ejected SD card is the realistic path. The unguarded scan used
+        // to throw DirectoryNotFoundException straight through the
+        // command, and Program.cs has no global handler.
+        var cli = FakeCli.WriteEventStream(_dir, FlightmapStream);
+        var vm = Vm(cli);           // real FolderInspector on purpose
+        var folder = MakeFolder(videos: true);
+        await vm.SetFolderAsync(folder);
+        Directory.Delete(folder, recursive: true);
+
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("no longer there", vm.ErrorMessage);
+        Assert.False(vm.IsBusy);
     }
 
     private static readonly string[] FlightmapStream =

@@ -808,6 +808,17 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             return;
         }
+        // The folder can vanish between selection and Run — an ejected
+        // SD card is the realistic path (#354). Catch it before the scan
+        // throws on the UI thread, and let the hero list drop the dead
+        // entry too.
+        if (!Directory.Exists(folder))
+        {
+            RefreshRecents();
+            Fail("That folder is no longer there — was the card ejected? "
+                + "Pick it again.");
+            return;
+        }
         // Option snapshots are taken BEFORE the awaited scan: the strip
         // shows this exact command when the button is pressed, and a run
         // owns what it showed — a mid-scan edit must not repair into it.
