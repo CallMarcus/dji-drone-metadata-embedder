@@ -564,4 +564,46 @@ public class CommandBuilderTests
     public void Build_convert_arm_uses_defaults_batch()
         => Assert.Equal(["convert", "gpx", "F", "-b"],
             CommandBuilder.Build(WorkspaceModeKind.Convert, "F"));
+
+    [Fact]
+    public void Verify_defaults_run_bare_check() =>
+        Assert.Equal(["check", "/f"],
+            CommandBuilder.Verify("/f", VerifyTelemetryOptions.Defaults));
+
+    [Fact]
+    public void Verify_validate_omits_the_default_drift_threshold()
+    {
+        var opts = VerifyTelemetryOptions.Defaults with
+        { SubAction = VerifySubAction.Validate };
+        Assert.Equal(["validate", "/f"], CommandBuilder.Verify("/f", opts));
+    }
+
+    [Fact]
+    public void Verify_validate_emits_drift_threshold_invariantly()
+    {
+        var opts = VerifyTelemetryOptions.Defaults with
+        { SubAction = VerifySubAction.Validate, DriftThreshold = 2.5 };
+        Assert.Equal(["validate", "/f", "--drift-threshold", "2.5"],
+            CommandBuilder.Verify("/f", opts));
+    }
+
+    [Fact]
+    public void Verify_sun_emits_tz_offset_when_set()
+    {
+        var opts = VerifyTelemetryOptions.Defaults with
+        { SubAction = VerifySubAction.Sun, TzOffset = "+02:00" };
+        Assert.Equal(["verify-sun", "/clip.SRT", "--tz-offset", "+02:00"],
+            CommandBuilder.Verify("/clip.SRT", opts));
+    }
+
+    [Fact]
+    public void Verify_sun_treats_empty_and_auto_tz_as_default()
+    {
+        var sun = VerifyTelemetryOptions.Defaults with
+        { SubAction = VerifySubAction.Sun };
+        Assert.Equal(["verify-sun", "/c.SRT"],
+            CommandBuilder.Verify("/c.SRT", sun));
+        Assert.Equal(["verify-sun", "/c.SRT"],
+            CommandBuilder.Verify("/c.SRT", sun with { TzOffset = " auto " }));
+    }
 }

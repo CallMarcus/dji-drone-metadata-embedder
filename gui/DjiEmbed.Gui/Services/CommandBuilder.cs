@@ -279,6 +279,48 @@ public static class CommandBuilder
     }
 
     /// <summary>
+    /// The Verify argv from typed <paramref name="opts"/> (GUI 2.0 spec,
+    /// M4b): one of three sub-commands behind the panel's sub-action
+    /// switch. Flags are omitted at their defaults so an untouched run
+    /// reads <c>check &lt;source&gt;</c>. Order is fixed for golden
+    /// tests. No <c>--progress</c>: the runner appends that. No
+    /// <c>--format</c>: the CLI rejects <c>--format json</c> alongside
+    /// <c>--progress jsonl</c>, and the result summary already carries
+    /// the full report.
+    /// </summary>
+    public static string[] Verify(string source, VerifyTelemetryOptions opts)
+    {
+        switch (opts.SubAction)
+        {
+            case VerifySubAction.Check:
+                return ["check", source];
+            case VerifySubAction.Validate:
+                var validate = new List<string> { "validate", source };
+                if (opts.DriftThreshold
+                    != VerifyTelemetryOptions.Defaults.DriftThreshold)
+                {
+                    validate.Add("--drift-threshold");
+                    validate.Add(opts.DriftThreshold.ToString(
+                        CultureInfo.InvariantCulture));
+                }
+                return validate.ToArray();
+            case VerifySubAction.Sun:
+                var sun = new List<string> { "verify-sun", source };
+                var tz = opts.TzOffset.Trim();
+                if (tz.Length > 0
+                    && !tz.Equals("auto", StringComparison.OrdinalIgnoreCase))
+                {
+                    sun.Add("--tz-offset");
+                    sun.Add(tz);
+                }
+                return sun.ToArray();
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(opts), opts.SubAction, null);
+        }
+    }
+
+    /// <summary>
     /// The <c>--popup-fields</c> value, or <c>null</c> to omit the flag.
     /// Names follow the CLI's own <c>POPUP_FIELDS</c> order. "Nothing ticked"
     /// MUST encode as <c>none</c>: <c>parse_popup_fields</c> raises on an
