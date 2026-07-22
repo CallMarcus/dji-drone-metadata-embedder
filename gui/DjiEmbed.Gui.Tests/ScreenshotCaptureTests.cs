@@ -350,6 +350,51 @@ public class ScreenshotCaptureTests
         Capture(window, Path.Combine(dir!, "workspace-convert-options-advanced.png"));
     }
 
+    /// <summary>
+    /// The Verify curated options (M4b): a folder selected (so the
+    /// Validate segment is live and the Sun note explains why Sun check
+    /// is greyed) with Validate pairing chosen and Advanced open — the
+    /// state that shows the panel's full shape: the sub-action switch,
+    /// the note, and the drift-threshold Advanced row together.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Captures_verify_options_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the Verify options.");
+        Directory.CreateDirectory(dir!);
+
+        var folder = Path.Combine(Path.GetTempPath(),
+            "djiembed-capture-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
+
+        var vm = new WorkspaceViewModel(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+        await vm.SetFolderAsync(folder);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        var view = new WorkspaceView { WebViewGate = static () => false };
+        view.DataContext = vm;
+        var window = new Window { Width = 1140, Height = 1200, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        view.FindControl<RadioButton>("ValidateSubActionRadio")!.IsChecked = true;
+        view.FindControl<Expander>("VerifyAdvanced")!.IsExpanded = true;
+        // The expander reveals its content with an animation; without
+        // advancing the headless render clock the capture catches it
+        // half-open and the Advanced rows are clipped away. Interleaved
+        // ticks are required — one big tick count does NOT settle it.
+        for (var i = 0; i < 80; i++)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+        Capture(window, Path.Combine(dir!, "workspace-verify-options.png"));
+    }
+
     private static void CaptureView(
         Control view, string outPath, double width = 1140, double height = 720) =>
         Capture(new Window { Width = width, Height = height, Content = view },
