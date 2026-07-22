@@ -198,7 +198,6 @@ def main(ctx: click.Context, log_json: bool) -> None:
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
-      ui        Launch the legacy local web UI (deprecated)
     """
     ctx.ensure_object(dict)
     ctx.obj['log_json'] = log_json
@@ -1350,47 +1349,6 @@ def verify_sun(
             click.echo(f"  WARNING: {flag}")
 
     sys.exit(ExitCode.SUCCESS)
-
-
-# Deprecated 2026-07 in favour of the desktop app (Windows installer) and
-# `photomap --serve`; slated for removal in a future minor release.
-@main.command(deprecated=True)
-@click.option(
-    "--host",
-    default="127.0.0.1",
-    show_default=True,
-    help="Host to bind. Only 127.0.0.1/localhost are intended for use.",
-)
-@click.option(
-    "--port",
-    type=int,
-    default=None,
-    help="Port to bind (default: a random free port).",
-)
-@click.option(
-    "--no-browser",
-    is_flag=True,
-    help="Do not open the browser automatically.",
-)
-def ui(host: str, port: int | None, no_browser: bool) -> None:
-    """Launch the legacy local web UI in your default browser.
-
-    Deprecated: use the Windows desktop app (bundled with the installer)
-    or 'dji-embed photomap <folder> --serve' for maps. This command will
-    be removed in a future release.
-
-    Requires the ``[ui]`` extra:
-
-        pip install 'dji-drone-metadata-embedder[ui]'
-    """
-    try:
-        from .ui.server import run_server
-    except ImportError as exc:  # pragma: no cover - defensive
-        raise click.ClickException(f"UI module could not be loaded: {exc}")
-    try:
-        run_server(host=host, port=port, open_browser=not no_browser)
-    except RuntimeError as exc:
-        raise click.ClickException(str(exc))
 
 
 if __name__ == "__main__":  # pragma: no cover

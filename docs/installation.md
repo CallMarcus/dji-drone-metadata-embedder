@@ -89,19 +89,11 @@ copy in your user directory.
 docker run --rm -v "$PWD":/data callmarcus/dji-embed embed /data
 ```
 
-## Optional: browser-based UI
+## Prefer clicking over typing?
 
-If you'd rather drive the tool from a browser than the terminal, install
-the `[ui]` extra and launch it:
-
-```bash
-pip install 'dji-drone-metadata-embedder[ui]'
-dji-embed ui
-```
-
-The UI binds to `127.0.0.1` only and opens in your default browser.
-**Deprecated:** superseded by the Windows desktop app and
-`dji-embed photomap --serve`; it will be removed in a future release.
+On Windows, the installer bundles the [desktop app](desktop-app.md) —
+folder in, map or telemetry out, no terminal. For viewing maps from any
+OS there's `dji-embed photomap <folder> --serve`.
 See the [User Guide](user_guide.md#web-ui-deprecated) for details.
 
 <details>

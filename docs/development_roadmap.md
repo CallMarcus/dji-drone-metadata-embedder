@@ -36,12 +36,10 @@ from pre-existing environmental gaps.
 - DAT flight-log parsing and per-frame embedding helpers.
 
 ### UI
-- Local web UI shipped as an optional extra (`pip install
-  'dji-drone-metadata-embedder[ui]'`) and launched via `dji-embed ui`.
-  Implemented in `src/dji_metadata_embedder/ui/` (Flask + templates + static
-  assets + background job runner).
-- The web UI is the supported interactive surface. A legacy `gui/` Tk
-  skeleton was removed in the 2026-06 cleanup pass; no Tk work is planned.
+- The Avalonia desktop app (`gui/`, Windows installer) is the supported
+  interactive surface. The Flask-based `dji-embed ui` local web UI was
+  removed in v2.0.0 after a deprecation cycle; a legacy Tk skeleton was
+  removed earlier, in the 2026-06 cleanup pass.
 
 ### Testing & CI
 - Unit test suite (`tests/`, 264 tests) covering parsing, embedding, DAT,
