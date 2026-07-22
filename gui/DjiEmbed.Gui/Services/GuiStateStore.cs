@@ -32,6 +32,10 @@ public sealed class GuiStateStore
         SaveNow();
     }
 
+    /// <summary>Saves the window bounds. Note the save also prunes dead
+    /// recent folders as a side effect: <see cref="SaveNow"/> rewrites the
+    /// whole state, and window close is as good a moment as a push to
+    /// drop them.</summary>
     public void SaveWindow(WindowBounds bounds)
     {
         State = State with { Window = bounds };

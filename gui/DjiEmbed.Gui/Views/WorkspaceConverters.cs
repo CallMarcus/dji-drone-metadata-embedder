@@ -29,7 +29,8 @@ public static class WorkspaceConverters
 
     /// <summary>A recent folder's leaf name. Manual separator split: on
     /// Linux <c>Path.GetFileName</c> does not split '\', and stored paths
-    /// are wire-format text (the VerifyReport.FileName lesson).</summary>
+    /// are wire-format text (the VerifyReport.FileName lesson). A bare
+    /// root ("/", "\") has no leaf and falls back to the path itself.</summary>
     public static readonly FuncValueConverter<string?, string?> FolderLeafName =
         new(static p =>
         {
@@ -38,6 +39,10 @@ public static class WorkspaceConverters
                 return null;
             }
             var trimmed = p.TrimEnd('/', '\\');
+            if (trimmed.Length == 0)
+            {
+                return p;
+            }
             var cut = trimmed.LastIndexOfAny(['/', '\\']);
             return cut < 0 ? trimmed : trimmed[(cut + 1)..];
         });

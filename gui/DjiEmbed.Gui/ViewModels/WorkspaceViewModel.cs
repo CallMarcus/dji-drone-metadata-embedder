@@ -552,13 +552,18 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Rebuilds the displayed recents list from the store, pruned to
     /// folders that still exist. Shared by <see cref="RememberFolder"/> (a
     /// fresh push) and <see cref="ChooseRecentAsync"/> (a stale entry found
-    /// dead at click time).</summary>
+    /// dead at click time). Skips the rebuild when nothing changed — every
+    /// run start lands here, and Clear+Add churn re-renders for nothing.</summary>
     private void RefreshRecents()
     {
-        RecentFolders.Clear();
-        foreach (var f in _stateStore.ExistingRecents())
+        var existing = _stateStore.ExistingRecents();
+        if (!existing.SequenceEqual(RecentFolders))
         {
-            RecentFolders.Add(f);
+            RecentFolders.Clear();
+            foreach (var f in existing)
+            {
+                RecentFolders.Add(f);
+            }
         }
         OnPropertyChanged(nameof(MostRecentExistingFolder));
     }

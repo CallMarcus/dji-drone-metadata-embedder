@@ -47,6 +47,21 @@ public class MainWindowStateTests
     }
 
     [AvaloniaFact]
+    public void Unmaximizing_after_a_maximized_restore_lands_on_the_saved_normal_bounds()
+    {
+        var window = new MainWindow(
+            StoreWith(new WindowBounds(50, 60, 1200, 800, Maximized: true)))
+        { DataContext = new MainViewModel() };
+        window.Show();
+
+        window.WindowState = WindowState.Normal;
+
+        Assert.Equal(1200, window.Width);
+        Assert.Equal(800, window.Height);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public void No_store_keeps_the_default_shape()
     {
         var window = new MainWindow { DataContext = new MainViewModel() };

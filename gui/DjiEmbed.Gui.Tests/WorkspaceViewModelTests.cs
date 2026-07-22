@@ -2089,6 +2089,30 @@ public class WorkspaceViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Re_running_the_same_folder_does_not_rebuild_the_recents_list()
+    {
+        // RememberFolder fires on every run start; when the pruned list
+        // is unchanged the observable collection must not be rebuilt —
+        // Clear+Add churn re-renders the hero list for nothing.
+        var store = GuiStateStore.Ephemeral();
+        var folder = MakeFolder(srt: true);
+        var vm = Vm(null, stateStore: store);
+        await vm.SetFolderAsync(folder);
+
+        // First run pushes the folder (cli is null so the run itself
+        // fails fast — the push happens before that and is all we need).
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(new[] { folder }, vm.RecentFolders);
+
+        var churn = 0;
+        vm.RecentFolders.CollectionChanged += (_, _) => churn++;
+        await vm.RunCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, churn);
+        Assert.Equal(new[] { folder }, vm.RecentFolders);
+    }
+
+    [Fact]
     public async Task File_runs_remember_nothing()
     {
         var store = GuiStateStore.Ephemeral();
