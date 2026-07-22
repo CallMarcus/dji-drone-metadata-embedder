@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
 using DjiEmbed.Gui.Views;
 
@@ -17,9 +18,12 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            // The one persisted GUI state (workspace spec): MRU folders +
+            // window bounds in %APPDATA%/DjiEmbed/state.json.
+            var store = new GuiStateStore(GuiState.DefaultPath);
+            desktop.MainWindow = new MainWindow(store)
             {
-                DataContext = new MainViewModel(),
+                DataContext = new MainViewModel(store),
             };
         }
 
