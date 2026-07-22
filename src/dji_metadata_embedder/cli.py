@@ -14,7 +14,7 @@ from typing import Any
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
 from .utils.provision import EXIFTOOL_VERSION, provision_exiftool
-from .metadata_check import check_metadata
+from .metadata_check import check_metadata, media_files_in
 from .telemetry_converter import (
     extract_telemetry_to_gpx,
     extract_telemetry_to_csv,
@@ -371,12 +371,31 @@ def check(
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
     setup_logging(verbose, quiet)
-    with _jsonl_terminal(progress, "check", total=len(paths)):
+    # A directory argument stands for its top-level media files (GUI
+    # M4b). Expanded before the start event so its total counts real
+    # targets, not directory names.
+    targets: list[str] = []
+    empty_dirs: list[str] = []
+    for raw in paths:
+        p = Path(raw)
+        if p.is_dir():
+            found = media_files_in(p)
+            if found:
+                targets.extend(str(f) for f in found)
+            else:
+                empty_dirs.append(raw)
+        else:
+            targets.append(raw)
+    with _jsonl_terminal(progress, "check", total=len(targets)):
         if not paths:
             raise click.ClickException("No file or directory specified")
+        for directory in empty_dirs:
+            progress.warning("No media files found", item=directory)
+            if not progress.active:
+                click.echo(f"{directory}: no media files found")
         files: dict[str, dict] = {}
-        for index, target in enumerate(paths, start=1):
-            progress.advance(index, len(paths), item=target)
+        for index, target in enumerate(targets, start=1):
+            progress.advance(index, len(targets), item=target)
             result = check_metadata(target)
             files[target] = result
             if not result:
@@ -386,7 +405,7 @@ def check(
         progress.result(
             ok=True,
             outputs=[],
-            summary={"checked": len(paths), "files": files},
+            summary={"checked": len(targets), "files": files},
         )
 
 

@@ -92,6 +92,13 @@ field, never by arrival order.
   bool}`. A path that does not exist or cannot be read yields `{}` and a
   `warning` event (`"Not found or unreadable"`) — the run still ends in
   `result` with `"ok": true`.
+- A directory argument stands for its **top-level** media files
+  (`*.mp4`/`*.mov`/`*.jpg`, case-insensitive, no recursion):
+  `start.total`, the `progress` events and `summary.files` all name the
+  expanded files, never the directory itself. A directory with no media
+  files contributes nothing and yields one `warning` event
+  (`"No media files found"`, `item` = the directory) — the run still
+  ends in `result` with `"ok": true`.
 
 ### `doctor`
 - No `progress` events. One `warning` per missing tool (`item` = tool

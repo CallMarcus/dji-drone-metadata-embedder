@@ -82,6 +82,21 @@ def check_metadata(path: str | Path) -> Dict[str, bool]:
     return check_file(file_path)
 
 
+_MEDIA_GLOBS = ("*.mp4", "*.MP4", "*.mov", "*.MOV", "*.jpg", "*.JPG")
+
+
+def media_files_in(directory: Path) -> list[Path]:
+    """Top-level media files a directory-shaped ``check`` argument means.
+
+    Deduplicated via a set — a case-insensitive filesystem (Windows,
+    macOS) matches ``*.mp4`` and ``*.MP4`` with the same file — and
+    sorted for a deterministic report order.
+    """
+    return sorted(
+        {f for pattern in _MEDIA_GLOBS for f in directory.glob(pattern)}
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check DJI media files for embedded flight metadata"
@@ -99,12 +114,7 @@ def main() -> None:
     for p in args.paths:
         path = Path(p)
         if path.is_dir():
-            files.extend(path.glob("*.mp4"))
-            files.extend(path.glob("*.MP4"))
-            files.extend(path.glob("*.mov"))
-            files.extend(path.glob("*.MOV"))
-            files.extend(path.glob("*.jpg"))
-            files.extend(path.glob("*.JPG"))
+            files.extend(media_files_in(path))
         else:
             files.append(path)
 
