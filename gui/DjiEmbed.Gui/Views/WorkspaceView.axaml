@@ -31,6 +31,45 @@
         <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.copyLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
+
+        <!-- Enter-only polish (M5b spec): a short fade (plus a 6px rise
+             for the hero and the state cards) when a region appears.
+             Disappearances are deliberately instant — hide-animations
+             against IsVisible bindings are where Avalonia timing bugs
+             live, and the headless tests assert visibility, never
+             opacity. -->
+        <Style Selector="StackPanel#RecentFoldersSection[IsVisible=True],
+                         StackPanel#DoneCard[IsVisible=True],
+                         StackPanel#FailedPane[IsVisible=True]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="TranslateTransform.Y" Value="6" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                        <Setter Property="TranslateTransform.Y" Value="0" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border#FlightOptionsPanel[IsVisible=True],
+                         Border#PhotoOptionsPanel[IsVisible=True],
+                         Border#EmbedOptionsPanel[IsVisible=True],
+                         Border#ConvertOptionsPanel[IsVisible=True],
+                         Border#VerifyOptionsPanel[IsVisible=True]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
     </UserControl.Styles>
 
     <Grid ColumnDefinitions="420,*" Margin="16">
@@ -891,7 +930,7 @@
 
                 <!-- Done, card flavour: setup checklist, embed outputs,
                      and maps when the inline preview can't render. -->
-                <StackPanel IsVisible="{Binding ShowDoneCard}"
+                <StackPanel Name="DoneCard" IsVisible="{Binding ShowDoneCard}"
                             Spacing="16" MaxWidth="480"
                             VerticalAlignment="Center" Margin="28,0">
                     <TextBlock Text="✅ Done" FontSize="20" FontWeight="SemiBold" />
@@ -1055,7 +1094,8 @@
                 </DockPanel>
 
                 <!-- Failed -->
-                <StackPanel IsVisible="{Binding Step,
+                <StackPanel Name="FailedPane"
+                            IsVisible="{Binding Step,
                                 Converter={x:Static ObjectConverters.Equal},
                                 ConverterParameter={x:Static vm:FlowStep.Failed}}"
                             Spacing="16" MaxWidth="480"
