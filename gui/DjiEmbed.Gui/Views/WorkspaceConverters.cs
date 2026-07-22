@@ -42,4 +42,13 @@ public static class WorkspaceConverters
     /// been processed when the map on screen was already in the folder.</summary>
     public static readonly FuncValueConverter<FlowStep, string> PreviewGoHomeLabel =
         new(static step => step == FlowStep.Done ? "Process another" : "Close map");
+
+    /// <summary>A Verify report row's at-a-glance glyph.</summary>
+    public static readonly IValueConverter VerifyGlyph =
+        new FuncValueConverter<VerifyStatus, string>(status => status switch
+        {
+            VerifyStatus.Ok => "✅",
+            VerifyStatus.Attention => "⚠️",
+            _ => "❌",
+        });
 }

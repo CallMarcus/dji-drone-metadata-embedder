@@ -691,13 +691,78 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Name="VerifyOptionsPanel"
+                            IsVisible="{Binding IsVerifyMode}"
+                            IsEnabled="{Binding !IsBusy}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="What to verify"
+                                                   Opacity="0.7" FontSize="12" />
+                                        <RadioButton Name="CheckSubActionRadio"
+                                                     GroupName="VerifySubAction"
+                                                     IsChecked="{Binding VerifyOptions.IsCheck}"
+                                                     Content="Check metadata" />
+                                        <RadioButton Name="ValidateSubActionRadio"
+                                                     GroupName="VerifySubAction"
+                                                     IsChecked="{Binding VerifyOptions.IsValidate}"
+                                                     IsEnabled="{Binding VerifyValidateEnabled}"
+                                                     Content="Validate pairing" />
+                                        <RadioButton Name="SunSubActionRadio"
+                                                     GroupName="VerifySubAction"
+                                                     IsChecked="{Binding VerifyOptions.IsSun}"
+                                                     IsEnabled="{Binding VerifySunEnabled}"
+                                                     Content="Sun check" />
+                                        <TextBlock Name="VerifySubActionNoteText"
+                                                   Text="{Binding VerifySubActionNote}"
+                                                   IsVisible="{Binding VerifySubActionNote,
+                                                       Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                   TextWrapping="Wrap" Opacity="0.5"
+                                                   FontSize="11" />
+                                    </StackPanel>
+
+                                    <Expander Name="VerifyAdvanced" Header="Advanced"
+                                              IsExpanded="False"
+                                              IsVisible="{Binding VerifyOptions.ShowsAdvancedOptions}">
+                                        <StackPanel Spacing="12" Margin="0,8,0,0">
+                                            <StackPanel Name="DriftSection" Spacing="4"
+                                                        IsVisible="{Binding VerifyOptions.ShowsDriftOptions}">
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right"
+                                                               Text="{Binding VerifyOptions.DriftThreshold, StringFormat='{}{0} s'}"
+                                                               Opacity="0.7" FontSize="12" />
+                                                    <TextBlock Text="Flag pairs drifting more than"
+                                                               Opacity="0.7" FontSize="12" />
+                                                </DockPanel>
+                                                <Slider Name="DriftThresholdSlider"
+                                                        Minimum="0.5" Maximum="5"
+                                                        TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                                        Value="{Binding VerifyOptions.DriftThreshold}" />
+                                            </StackPanel>
+                                            <StackPanel Name="VerifyTzSection" Spacing="4"
+                                                        IsVisible="{Binding VerifyOptions.ShowsTzOptions}">
+                                                <TextBlock Text="Time zone of the clip"
+                                                           Opacity="0.7" FontSize="12" />
+                                                <TextBox Name="VerifyTzBox"
+                                                         Text="{Binding VerifyOptions.TzOffset}"
+                                                         PlaceholderText="auto" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Classes="zone" Text="ACTION" />
                     <Button Name="RunButton" Classes="Flat"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
                             Padding="0,12"
                             Command="{Binding RunCommand}">
-                        <TextBlock Text="{Binding SelectedMode.Verb}"
+                        <TextBlock Text="{Binding ActionVerb}"
                                    FontSize="15" FontWeight="SemiBold" />
                     </Button>
                     <!-- CLI transparency strip (GUI 2.0 spec, M3a): the exact
@@ -824,8 +889,37 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
-                    <ItemsControl ItemsSource="{Binding Warnings}"
-                                  IsVisible="{Binding !!Warnings.Count}">
+                    <StackPanel Name="VerifyReportSection" Spacing="10"
+                                IsVisible="{Binding VerifyHeadline,
+                                    Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Name="VerifyHeadlineText" FontSize="16"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding VerifyHeadline}" />
+                        <ItemsControl ItemsSource="{Binding VerifyCards}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="svc:VerifyCard">
+                                    <DockPanel Margin="0,3">
+                                        <TextBlock DockPanel.Dock="Left" Width="28"
+                                                   Opacity="0.8" FontSize="12"
+                                                   Text="{Binding Status,
+                                                       Converter={x:Static views:WorkspaceConverters.VerifyGlyph}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Detail}"
+                                                       Opacity="0.6" FontSize="12"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding Detail,
+                                                           Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <ItemsControl Name="DoneWarningsList"
+                                  ItemsSource="{Binding Warnings}"
+                                  IsVisible="{Binding ShowDoneWarnings}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="x:String">
                                 <TextBlock Text="{Binding StringFormat='⚠️ {0}'}"
