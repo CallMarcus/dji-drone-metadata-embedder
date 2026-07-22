@@ -118,11 +118,53 @@ public class A11yNamesTests
         failed.ErrorDetails = "stack";
         yield return Wrap(failed);
 
-        // Preview toolbar.
+        // Preview toolbar, including its warnings expander.
         var preview = NewVm();
         preview.PreviewPath = "C:/demo/footage/flight_map.html";
+        // PreviewUrl (not just PreviewPath) is what ShowPreview actually
+        // gates on — without it the whole toolbar stays collapsed.
+        preview.PreviewUrl = "file:///C:/demo/footage/flight_map.html";
         preview.Step = FlowStep.Done;
+        preview.Warnings.Add("Some clips look duplicated.");
         yield return Wrap(preview);
+
+        // Running step: progress + Cancel.
+        var running = NewVm();
+        running.Step = FlowStep.Running;
+        yield return Wrap(running);
+
+        // Convert → KML with footprints on: realizes the footprint
+        // interval slider and camera-model combo, which only show once
+        // Footprints is true (and only for geojson/kml formats).
+        var convertFootprints = NewVm();
+        convertFootprints.SetFile(@"C:\demo\DJI_0001.SRT");
+        convertFootprints.SelectedMode = WorkspaceMode.All.First(
+            static m => m.Kind == WorkspaceModeKind.Convert);
+        convertFootprints.ConvertOptions.SelectedFormat =
+            convertFootprints.ConvertOptions.Formats.First(
+                static f => f.Key == "kml");
+        convertFootprints.ConvertOptions.Footprints = true;
+        yield return Wrap(convertFootprints);
+
+        // Convert → CoT: realizes the CoT sampling controls, which only
+        // show for the "cot" format.
+        var convertCot = NewVm();
+        convertCot.SetFile(@"C:\demo\DJI_0001.SRT");
+        convertCot.SelectedMode = WorkspaceMode.All.First(
+            static m => m.Kind == WorkspaceModeKind.Convert);
+        convertCot.ConvertOptions.SelectedFormat =
+            convertCot.ConvertOptions.Formats.First(static f => f.Key == "cot");
+        yield return Wrap(convertCot);
+
+        // Verify → Sun check: realizes the timezone box, which only shows
+        // for that sub-action (the existing per-mode Verify window above
+        // exercises Validate, which pins the drift slider instead).
+        var verifySun = NewVm();
+        verifySun.SelectedFolder = @"C:\demo\footage";
+        verifySun.SelectedMode = WorkspaceMode.All.First(
+            static m => m.Kind == WorkspaceModeKind.Verify);
+        verifySun.VerifyOptions.IsSun = true;
+        yield return Wrap(verifySun);
 
         // The CLI discovery page.
         yield return new Window
@@ -156,7 +198,7 @@ public class A11yNamesTests
     // SukiUI's Expander stamps TemplatedParent = the Expander on every
     // control in its authored content, so the main walk's
     // "TemplatedParent is null" filter silently skips everything inside an
-    // expanded "Advanced" section (e.g. ConvertTzBox, CotIntervalSlider).
+    // expanded "Advanced" section (e.g. ConvertTzBox).
     // Widening that filter to admit Expander's TemplatedParent readmits
     // SukiUI's own unnamed template chrome (PART_ borders, header toggle),
     // which lives outside Content — so instead we walk each Expander's
