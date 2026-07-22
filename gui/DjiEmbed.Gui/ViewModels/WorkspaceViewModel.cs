@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -23,12 +24,14 @@ public partial class WorkspaceViewModel : FlowViewModel
     private readonly Func<string?>? _cliResolver;
     private readonly Func<bool> _previewAvailable;
     private readonly Func<string, FolderContents> _inspectFolder;
+    private readonly GuiStateStore _stateStore;
 
     public WorkspaceViewModel(string? cli, DjiEmbedRunner runner,
         IMapServer mapServer, Action openCliDiscovery,
         Func<string?>? cliResolver = null,
         Func<bool>? previewAvailable = null,
-        Func<string, FolderContents>? folderInspector = null)
+        Func<string, FolderContents>? folderInspector = null,
+        GuiStateStore? stateStore = null)
         : base(cli, runner, static () => { })
     {
         _mapServer = mapServer;
@@ -60,6 +63,14 @@ public partial class WorkspaceViewModel : FlowViewModel
             OnPropertyChanged(nameof(ShowDoneWarnings));
         VerifyCards.CollectionChanged += (_, _) =>
             OnPropertyChanged(nameof(ShowDoneWarnings));
+
+        _stateStore = stateStore ?? GuiStateStore.Ephemeral();
+        foreach (var f in _stateStore.ExistingRecents())
+        {
+            RecentFolders.Add(f);
+        }
+        RecentFolders.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(ShowRecentFolders));
     }
 
     /// <summary>
@@ -106,6 +117,20 @@ public partial class WorkspaceViewModel : FlowViewModel
     public string? SourceDisplay =>
         SelectedFolder ?? (SelectedFile is { } f ? Path.GetFileName(f) : null);
 
+    /// <summary>Recent folders that still exist — the hero's quick
+    /// re-entry list (M5a), most-recent-first, rebuilt on every push.</summary>
+    public ObservableCollection<string> RecentFolders { get; } = [];
+
+    /// <summary>The hero shows recents only while there is nothing else
+    /// to look at: no source selected, no run in flight.</summary>
+    public bool ShowRecentFolders =>
+        RecentFolders.Count > 0 && SourceDisplay is null && !IsBusy;
+
+    /// <summary>Where the folder picker starts: the most recent folder
+    /// still on disk, or null for the picker's own default.</summary>
+    public string? MostRecentExistingFolder =>
+        _stateStore.ExistingRecents().FirstOrDefault();
+
     [ObservableProperty]
     public partial WorkspaceMode SelectedMode { get; set; } = WorkspaceMode.All[0];
 
@@ -125,8 +150,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     [ObservableProperty]
     public partial bool IsBusy { get; private set; }
 
-    partial void OnIsBusyChanged(bool value) =>
+    partial void OnIsBusyChanged(bool value)
+    {
         OpenExistingMapCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ShowRecentFolders));
+    }
 
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
 
@@ -349,6 +377,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(VerifyValidateEnabled));
         OnPropertyChanged(nameof(VerifySunEnabled));
         OnPropertyChanged(nameof(VerifySubActionNote));
+        OnPropertyChanged(nameof(ShowRecentFolders));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -372,6 +401,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(VerifyValidateEnabled));
         OnPropertyChanged(nameof(VerifySunEnabled));
         OnPropertyChanged(nameof(VerifySubActionNote));
+        OnPropertyChanged(nameof(ShowRecentFolders));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -511,6 +541,23 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
     }
 
+    /// <summary>A run started on this folder (M5a MRU signal): push it,
+    /// rebuild the pruned display list.</summary>
+    private void RememberFolder(string folder)
+    {
+        _stateStore.PushRecent(folder);
+        RecentFolders.Clear();
+        foreach (var f in _stateStore.ExistingRecents())
+        {
+            RecentFolders.Add(f);
+        }
+        OnPropertyChanged(nameof(MostRecentExistingFolder));
+    }
+
+    /// <summary>Hero recents click: identical to dropping the folder.</summary>
+    [RelayCommand]
+    private Task ChooseRecentAsync(string folder) => SetFolderAsync(folder);
+
     /// <summary>A run owns the preview pane while it is in flight. Private:
     /// it raises no PropertyChanged, so nothing may bind it — a button gets
     /// this gate from the command's own CanExecute.</summary>
@@ -526,6 +573,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand(CanExecute = nameof(CanOpenExistingMap))]
     private async Task OpenExistingMapAsync(ExistingMap map)
     {
+        // Browsing an existing map is real work with the folder (M5a).
+        if (SelectedFolder is { } mapFolder)
+        {
+            RememberFolder(mapFolder);
+        }
         if (!_previewAvailable() || CliPath is null)
         {
             // OpenOutputCoreAsync still routes through the map server, so the
@@ -633,6 +685,15 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
+        // A run starting on a folder is the MRU signal (M5a) — before
+        // anything can fail, so guard-blocked runs still count: the user
+        // chose to work with this folder. Setup ignores the source and
+        // file runs have no folder; neither pushes.
+        if (SelectedFile is null && SelectedFolder is { } mruFolder
+            && SelectedMode.Kind != WorkspaceModeKind.Setup)
+        {
+            RememberFolder(mruFolder);
+        }
         // Busy for the run's entire lifetime, from before the folder scan:
         // AsyncRelayCommand only covers the button, and Step only turns
         // Running later, inside ExecuteFlowAsync (#340).

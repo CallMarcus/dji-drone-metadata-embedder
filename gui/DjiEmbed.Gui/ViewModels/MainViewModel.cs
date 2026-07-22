@@ -19,11 +19,11 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly WorkspaceViewModel _workspace;
 
-    public MainViewModel()
+    public MainViewModel(GuiStateStore? store = null)
     {
         _workspace = new WorkspaceViewModel(
             CliLocator.Find(), new DjiEmbedRunner(), _mapServer,
-            OpenCliDiscovery, CliLocator.Find);
+            OpenCliDiscovery, CliLocator.Find, stateStore: store);
         CurrentPage = _workspace;
     }
 
