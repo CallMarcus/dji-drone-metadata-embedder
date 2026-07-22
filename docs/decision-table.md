@@ -58,7 +58,7 @@ This guide helps you choose the right command and approach for your specific use
 | **Purpose** | **Command** | **Use Case** |
 |-------------|-------------|--------------|
 | Check existing metadata | `dji-embed check /path/to/files` | See what's already embedded |
-| Validate SRT/MP4 sync | `dji-embed validate /path/to/videos` | Check for timing drift issues |
+| Validate SRT/video sync | `dji-embed validate /path/to/videos` | Check for timing drift issues |
 | System diagnostics | `dji-embed doctor` | Troubleshoot installation problems |
 | Version information | `dji-embed --version` | Check tool and dependency versions |
 
