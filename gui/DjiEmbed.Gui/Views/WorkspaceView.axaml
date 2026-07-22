@@ -102,7 +102,7 @@
                                     <Rectangle Classes="dropOutline"
                                                StrokeThickness="2" StrokeDashArray="5,3"
                                                RadiusX="10" RadiusY="10" />
-                                    <StackPanel Margin="20,26" Spacing="6"
+                                    <StackPanel Margin="20,30" Spacing="8"
                                                 HorizontalAlignment="Center">
                                         <TextBlock Text="Drop a folder of footage here"
                                                    FontSize="15"
@@ -896,10 +896,17 @@
                         </Border.Background>
                     </Border>
                     <StackPanel VerticalAlignment="Bottom" Margin="28,0,28,28"
-                                Spacing="8">
+                                Spacing="10">
+                        <Image Name="IdleAppIcon"
+                               Source="avares://DjiEmbed.Gui/Assets/app-icon.png"
+                               Width="52" Height="52"
+                               HorizontalAlignment="Left" />
                         <TextBlock Text="What do you want to make today?"
                                    FontSize="22" FontWeight="SemiBold"
                                    Foreground="White" />
+                        <TextBlock Text="Flight maps and photo maps from your footage, GPS embedded into your videos, telemetry converted and verified."
+                                   Foreground="White" Opacity="0.85"
+                                   TextWrapping="Wrap" FontSize="13" />
                         <TextBlock Text="Drop a folder on the left — the likely mode is picked for you. Everything stays on this computer."
                                    Foreground="White" Opacity="0.75"
                                    TextWrapping="Wrap" FontSize="13" />

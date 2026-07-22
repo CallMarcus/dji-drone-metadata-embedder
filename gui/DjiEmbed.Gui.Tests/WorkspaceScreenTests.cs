@@ -146,6 +146,22 @@ public class WorkspaceScreenTests
         Assert.Contains(images, i => i.Source is not null);
     }
 
+    [AvaloniaFact]
+    public void Idle_pane_shows_the_welcome_hero()
+    {
+        var window = ShowWorkspace();
+
+        Assert.Contains(window.GetVisualDescendants().OfType<Image>(),
+            i => i.Name == "IdleAppIcon" && i.Source is not null);
+        var texts = window.GetVisualDescendants().OfType<TextBlock>()
+            .Select(t => t.Text).ToList();
+        Assert.Contains("What do you want to make today?", texts);
+        Assert.Contains(texts, t =>
+            t?.Contains("GPS embedded into your videos") == true);
+        Assert.Contains(texts, t =>
+            t?.Contains("Everything stays on this computer") == true);
+    }
+
     // Hidden controls stay in the visual tree, so existence checks prove
     // nothing about the IsVisible bindings — these two tests assert
     // IsEffectivelyVisible in both directions instead.
