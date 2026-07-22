@@ -10,6 +10,7 @@ public enum WorkspaceModeKind
     PhotoMap,
     Embed,
     Convert,
+    Verify,
     Setup,
 }
 
@@ -25,7 +26,7 @@ public enum SourceKinds
 
 /// <summary>
 /// One entry in the workspace mode strip (GUI 2.0 spec). M1 ships four;
-/// Convert joins in M4a, Verify pending M4b.
+/// Convert joins in M4a, Verify in M4b.
 /// </summary>
 public sealed record WorkspaceMode(
     WorkspaceModeKind Kind,
@@ -48,6 +49,9 @@ public sealed record WorkspaceMode(
         new(WorkspaceModeKind.Convert, "Convert telemetry", "Convert",
             Sources: SourceKinds.Folder | SourceKinds.File,
             "Something went wrong while converting the telemetry."),
+        new(WorkspaceModeKind.Verify, "Verify footage", "Check metadata",
+            Sources: SourceKinds.Folder | SourceKinds.File,
+            "Something went wrong while verifying the footage."),
         new(WorkspaceModeKind.Setup, "Setup", "Check my setup",
             Sources: SourceKinds.None,
             "The setup check could not be completed."),

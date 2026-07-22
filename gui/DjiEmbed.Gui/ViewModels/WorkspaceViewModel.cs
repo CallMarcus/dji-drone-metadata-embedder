@@ -51,6 +51,15 @@ public partial class WorkspaceViewModel : FlowViewModel
             OnPropertyChanged(nameof(CommandPreview));
         ConvertOptions.PropertyChanged += (_, _) =>
             OnPropertyChanged(nameof(CommandPreview));
+        VerifyOptions.PropertyChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(CommandPreview));
+            OnPropertyChanged(nameof(ActionVerb));
+        };
+        Warnings.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(ShowDoneWarnings));
+        VerifyCards.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(ShowDoneWarnings));
     }
 
     /// <summary>
@@ -77,6 +86,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Curated option state for the Convert telemetry mode (M4a). Feeds
     /// both the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>.</summary>
     public ConvertOptionsViewModel ConvertOptions { get; } = new();
+
+    /// <summary>Curated option state for the Verify mode (M4b). Feeds both
+    /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>
+    /// and the sub-action-shaped <see cref="ActionVerb"/>.</summary>
+    public VerifyOptionsViewModel VerifyOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -115,6 +129,13 @@ public partial class WorkspaceViewModel : FlowViewModel
         OpenExistingMapCommand.NotifyCanExecuteChanged();
 
     public ObservableCollection<SetupItem> SetupItems { get; } = [];
+
+    /// <summary>The last Verify run's report rows (M4b), rendered as
+    /// cards in the done pane.</summary>
+    public ObservableCollection<VerifyCard> VerifyCards { get; } = [];
+
+    [ObservableProperty]
+    public partial string? VerifyHeadline { get; set; }
 
     /// <summary>Maps this folder already had when it was picked (#328) —
     /// what is on disk, independent of the selected mode.</summary>
@@ -176,6 +197,51 @@ public partial class WorkspaceViewModel : FlowViewModel
 
     /// <summary>Whether the Convert telemetry options panel applies to the current mode.</summary>
     public bool IsConvertMode => SelectedMode.Kind == WorkspaceModeKind.Convert;
+
+    /// <summary>Whether the Verify options panel applies to the current mode.</summary>
+    public bool IsVerifyMode => SelectedMode.Kind == WorkspaceModeKind.Verify;
+
+    /// <summary>Validate pairing needs a folder — a single file greys its
+    /// segment out (the M4b enablement table).</summary>
+    public bool VerifyValidateEnabled => SelectedFile is null;
+
+    /// <summary>Sun check needs a single file — a folder greys its
+    /// segment out.</summary>
+    public bool VerifySunEnabled => SelectedFolder is null;
+
+    /// <summary>The one inline sentence that explains the one greyed
+    /// sub-action segment (at most one is ever disabled: a file disables
+    /// only Validate, a folder only Sun). Null when nothing is greyed.</summary>
+    public string? VerifySubActionNote =>
+        SelectedFile is not null
+            ? "Validate pairing compares a whole folder of videos with "
+              + "their flight logs — choose a folder."
+            : SelectedFolder is not null
+                ? "Sun check reads one flight log or video — drop a "
+                  + "single file."
+                : null;
+
+    /// <summary>The action button's verb. Verify is the one mode whose
+    /// verb follows a sub-action switch; everywhere else it is the mode's
+    /// own.</summary>
+    public string ActionVerb =>
+        SelectedMode.Kind == WorkspaceModeKind.Verify
+            ? VerifyOptions.SubAction switch
+            {
+                VerifySubAction.Check => "Check metadata",
+                VerifySubAction.Validate => "Validate pairing",
+                VerifySubAction.Sun => "Check the sun",
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(VerifyOptions), VerifyOptions.SubAction, null),
+            }
+            : SelectedMode.Verb;
+
+    /// <summary>The done card's raw warning list hides while a Verify
+    /// report is showing: validate and verify-sun emit their findings
+    /// BOTH as warning events and in the summary, and the report is the
+    /// curated rendering of the same facts.</summary>
+    public bool ShowDoneWarnings =>
+        Warnings.Count > 0 && VerifyCards.Count == 0;
 
     /// <summary>The Save-as override only exists for single-file sources:
     /// the CLI's batch loop writes every output beside its source.</summary>
@@ -255,6 +321,10 @@ public partial class WorkspaceViewModel : FlowViewModel
                             ConvertOptions.ToOptions())
                         : CommandBuilder.Convert(folder!, batch: true,
                             ConvertOptions.ToOptions()),
+                WorkspaceModeKind.Verify =>
+                    CommandBuilder.Verify(
+                        SelectedFile ?? SelectedFolder ?? "<source>",
+                        VerifyOptions.ToOptions()),
                 _ => CommandBuilder.Build(SelectedMode.Kind, folder),
             };
             return CommandLine.Format("dji-embed", argv);
@@ -266,12 +336,19 @@ public partial class WorkspaceViewModel : FlowViewModel
         if (value is not null)
         {
             SelectedFile = null;
+            if (VerifyOptions.SubAction == VerifySubAction.Sun)
+            {
+                VerifyOptions.SubAction = VerifySubAction.Check;
+            }
         }
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(PhotoLinksCannotReachOriginals));
         OnPropertyChanged(nameof(SourceDisplay));
         OnPropertyChanged(nameof(ConvertSaveApplies));
+        OnPropertyChanged(nameof(VerifyValidateEnabled));
+        OnPropertyChanged(nameof(VerifySunEnabled));
+        OnPropertyChanged(nameof(VerifySubActionNote));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -280,11 +357,21 @@ public partial class WorkspaceViewModel : FlowViewModel
         if (value is not null)
         {
             SelectedFolder = null;
+            if (VerifyOptions.SubAction == VerifySubAction.Validate)
+            {
+                // A disabled segment must not stay selected: the strip and
+                // the action button would describe a run this source can't
+                // feed.
+                VerifyOptions.SubAction = VerifySubAction.Check;
+            }
         }
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(SourceDisplay));
         OnPropertyChanged(nameof(ConvertSaveApplies));
+        OnPropertyChanged(nameof(VerifyValidateEnabled));
+        OnPropertyChanged(nameof(VerifySunEnabled));
+        OnPropertyChanged(nameof(VerifySubActionNote));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -296,6 +383,8 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(IsPhotoMapMode));
         OnPropertyChanged(nameof(IsEmbedMode));
         OnPropertyChanged(nameof(IsConvertMode));
+        OnPropertyChanged(nameof(IsVerifyMode));
+        OnPropertyChanged(nameof(ActionVerb));
         RunCommand.NotifyCanExecuteChanged();
     }
 
@@ -320,6 +409,8 @@ public partial class WorkspaceViewModel : FlowViewModel
         ExistingMaps.Clear();
         Outputs.Clear();
         Warnings.Clear();
+        VerifyCards.Clear();
+        VerifyHeadline = null;
         FlightOptions.Output = "";
         PhotoOptions.Output = "";
         EmbedOptions.Output = "";
@@ -479,6 +570,8 @@ public partial class WorkspaceViewModel : FlowViewModel
         // render: the finished run's outputs and warnings must not follow it.
         Outputs.Clear();
         Warnings.Clear();
+        VerifyCards.Clear();
+        VerifyHeadline = null;
         Step = FlowStep.Pick;
     }
 
@@ -562,6 +655,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             return;
         }
         SetupItems.Clear();
+        VerifyCards.Clear();
+        VerifyHeadline = null;
         AllGood = false;
         // Captured with the folder and options below: SelectedMode is a
         // bare bindable property, so only captures guarantee a mid-scan
@@ -604,6 +699,25 @@ public partial class WorkspaceViewModel : FlowViewModel
                 && await PrimePreviewAsync());
             return;
         }
+        if (mode.Kind == WorkspaceModeKind.Verify && SelectedFile is { } vfile)
+        {
+            var vopts = VerifyOptions.ToOptions();
+            // The greyed switch removes shape mismatches, but not this
+            // content one: check reads embedded metadata and a .SRT
+            // sidecar has none — say so instead of showing three ✗ (#346
+            // discipline).
+            if (vopts.SubAction == VerifySubAction.Check
+                && vfile.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
+            {
+                Fail("Check metadata reads the video or photo itself — a "
+                     + ".SRT flight log has no embedded metadata to check. "
+                     + "Use Sun check for flight logs.");
+                return;
+            }
+            ResetPreview();
+            await RunVerifyAsync(vfile, vopts);
+            return;
+        }
         if (SelectedFolder is not { } folder)
         {
             return;
@@ -615,6 +729,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         var photo = PhotoOptions.ToOptions();
         var embed = EmbedOptions.ToOptions();
         var convert = ConvertOptions.ToOptions();
+        var verify = VerifyOptions.ToOptions();
         var contents = await Task.Run(() => _inspectFolder(folder));
         // The scan runs before ExecuteFlowAsync sets Step = Running, so the
         // folder can be cleared or replaced underneath us while it is in
@@ -709,8 +824,82 @@ public partial class WorkspaceViewModel : FlowViewModel
                         CommandBuilder.Convert(folder, batch: true, convert))
                     && await PrimePreviewAsync());
                 return;
+            case WorkspaceModeKind.Verify
+                when verify.SubAction == VerifySubAction.Check
+                     && !(contents.HasTopLevelVideos || contents.HasTopLevelPhotos):
+                // check expands one directory level (Task 1) — same reach
+                // rule as embed/convert (#333, #338).
+                Fail(contents.HasVideos || contents.HasPhotos
+                    ? "Those files are in subfolders — Check reads only "
+                      + "the folder you pick. Pick the subfolder that "
+                      + "holds the videos or photos."
+                    : "No videos or photos were found in that folder. "
+                      + "Pick the folder that holds the drone footage to "
+                      + "check.");
+                return;
+            case WorkspaceModeKind.Verify
+                when verify.SubAction == VerifySubAction.Validate
+                     && !contents.HasTopLevelVideos:
+                // validate pairs each top-level .MP4 with its .SRT — no
+                // top-level videos means a hollow "0 pairs" report.
+                Fail(contents.HasVideos
+                    ? "Those videos are in subfolders — Validate reads "
+                      + "only the folder you pick. Pick the subfolder "
+                      + "that holds the videos and their flight logs."
+                    : "No videos (.MP4) were found in that folder. "
+                      + "Validate pairing needs the folder that holds the "
+                      + "videos together with their .SRT flight logs.");
+                return;
+            case WorkspaceModeKind.Verify:
+                // Sun + folder is unreachable: the segment greys out and
+                // the selection snaps back to Check on a folder pick.
+                await RunVerifyAsync(folder, verify);
+                return;
         }
     }
+
+    /// <summary>
+    /// One Verify run (M4b): all three sub-commands produce no outputs —
+    /// their result summary IS the deliverable, parsed into the report
+    /// cards the done pane renders. The RunSetupAsync idiom, not
+    /// RunStepAsync: the summary must be read, not just the outputs.
+    /// </summary>
+    private Task RunVerifyAsync(string source, VerifyTelemetryOptions opts) =>
+        ExecuteFlowAsync(async () =>
+        {
+            var status = opts.SubAction switch
+            {
+                VerifySubAction.Check => "Checking metadata…",
+                VerifySubAction.Validate => "Validating pairs…",
+                VerifySubAction.Sun => "Checking the sun…",
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(opts), opts.SubAction, null),
+            };
+            var result = await RunCliAsync(
+                status, CommandBuilder.Verify(source, opts));
+            if (result.ExitCode != 0
+                || result.Terminal is not { Kind: ProgressEventKind.Result } t)
+            {
+                Fail(result.Terminal?.Message ?? GenericFailureMessage,
+                    string.IsNullOrWhiteSpace(result.StderrText)
+                        ? null : result.StderrText);
+                return false;
+            }
+            var report = opts.SubAction switch
+            {
+                VerifySubAction.Check => VerifyReport.FromCheck(t.Summary),
+                VerifySubAction.Validate => VerifyReport.FromValidate(t.Summary),
+                VerifySubAction.Sun => VerifyReport.FromSun(t.Summary),
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(opts), opts.SubAction, null),
+            };
+            VerifyHeadline = report.Headline;
+            foreach (var card in report.Cards)
+            {
+                VerifyCards.Add(card);
+            }
+            return true;
+        });
 
     private Task RunSetupAsync() => ExecuteFlowAsync(async () =>
     {

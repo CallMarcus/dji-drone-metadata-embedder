@@ -26,6 +26,8 @@ public static class CommandBuilder
         WorkspaceModeKind.Embed => Embed(folder!, EmbedTelemetryOptions.Defaults),
         WorkspaceModeKind.Convert =>
             Convert(folder!, batch: true, ConvertTelemetryOptions.Defaults),
+        WorkspaceModeKind.Verify =>
+            Verify(folder!, VerifyTelemetryOptions.Defaults),
         WorkspaceModeKind.Setup => ["doctor"],
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
