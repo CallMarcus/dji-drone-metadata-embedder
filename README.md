@@ -160,9 +160,7 @@ works in a terminal by passing just a folder: `dji-embed /path/to/footage`.
 
 **Prefer clicking over typing?** On Windows, install the **desktop app**
 (see above) — folder in, map or telemetry out, no terminal. For viewing
-maps there's also `dji-embed photomap <folder> --serve`. (The older
-`dji-embed ui` local web UI is deprecated and will be removed in a future
-release.)
+maps there's also `dji-embed photomap <folder> --serve`.
 
 > **Privacy note:** maps and exports reveal where you fly. Share them
 > deliberately, or add `--redact fuzz` to coarsen every position to ~100 m.
@@ -640,33 +638,6 @@ Set `DJIEMBED_NO_UPDATE_CHECK=1` to hard-disable the check regardless of the
 remembered choice. Non-interactive runs (no terminal, or `CI` set) never
 prompt and never check. The ExifTool-vs-pin comparison needs no network and
 is always shown when your ExifTool is older than the pinned release.
-
-### `dji-embed ui` - Local Web UI (deprecated)
-
-> **Deprecated:** superseded by the Windows desktop app and
-> `dji-embed photomap --serve`; this command will be removed in a future
-> release.
-
-Launch the local web UI in your browser (requires the `[ui]` extra). It runs
-entirely on `127.0.0.1` and uses your installed browser, so there is no
-separate signed app to trust.
-
-```bash
-pip install 'dji-drone-metadata-embedder[ui]'
-dji-embed ui                       # opens http://127.0.0.1:<free-port>
-dji-embed ui --no-browser          # print the URL instead of opening
-dji-embed ui --port 8765           # pin to a fixed port
-```
-
-Every tab (Doctor / Embed / Validate / Convert / Check) is a thin wrapper
-over the matching CLI command. The **Map** tab renders a processed clip's
-flight path on an interactive map (Leaflet + OpenStreetMap) with an altitude
-profile and a play-the-flight scrubber — only the basemap tiles load from the
-network; the flight data and all other assets stay local, and redaction is
-applied server-side so exact coordinates never reach the browser when set.
-Access is gated by a per-session token that is injected into the opened URL;
-requests without the token return `403`. Chromium-based browsers will offer
-"Install app" for a standalone window.
 
 ## Output
 
