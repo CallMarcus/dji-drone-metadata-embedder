@@ -31,7 +31,8 @@ likely mode is picked for you. The **Mode** strip offers:
 - **Embed telemetry** — writes each flight log's GPS track into the video
   files themselves (as copies — originals are never touched).
 - **Convert telemetry** — one flight log or video into GPX, KML, CSV,
-  GeoJSON or CoT, for Google Earth and mapping tools.
+  GeoJSON, CoT or a standalone web map, for Google Earth and mapping
+  tools.
 - **Verify** — checks embedded metadata, video/log pairing drift, or
   cross-checks the recorded time and place against the sun's position.
 - **Setup** — confirms FFmpeg and ExifTool are ready, and can install
