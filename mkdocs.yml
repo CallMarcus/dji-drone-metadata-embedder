@@ -9,6 +9,7 @@ exclude_docs: |
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Desktop App: desktop-app.md
   - User Guide: user_guide.md
   - Maps & Panoramas: geospatial.md
   - Decision Table: decision-table.md
