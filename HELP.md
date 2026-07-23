@@ -75,6 +75,7 @@ dji-embed flightmap <folder>    HTML map of all flights from the .SRT logs
 dji-embed convert <fmt> <file>  SRT → gpx | csv | geojson | kml | cot | html
 dji-embed check <folder>        What metadata do these files already carry?
 dji-embed validate <folder>     Are SRT and MP4 in sync? (drift report)
+dji-embed serve <folder>        Serve an existing map locally (enables the 360° viewer)
 dji-embed doctor                Diagnostics: versions, FFmpeg/ExifTool present?
 dji-embed verify-sun <file>     Sun position over a clip (shadow plausibility)
 ```
@@ -121,8 +122,11 @@ Every command accepts `--help` for its options.
   for **any** GPS-tagged photos, not just DJI's.
 - The Windows app is a front end over the same CLI: anything the app does,
   the `dji-embed` command can do with more options.
-- On mobile browsers the map skips hover previews and enlarges pin tap
-  targets; tap a pin to open its popup, tap the popup photo to open a 360°.
+- Photo-map pins open their popup on click/tap; thumbnail previews on hover
+  are **off by default** — a "Hover previews" toggle in the map's top-right
+  corner (mouse devices only; the browser remembers the choice) turns them
+  on. Mobile browsers enlarge pin tap targets; tap the popup photo to open
+  a 360°.
 
 ## When something fails
 
@@ -134,4 +138,4 @@ Every command accepts `--help` for its options.
    <https://github.com/CallMarcus/dji-drone-metadata-embedder/issues>
 
 *This document ships with the project and is updated alongside it; it
-describes v1.21+ behavior.*
+describes v2.0+ behavior.*
