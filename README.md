@@ -475,6 +475,9 @@ Notes:
   flight data itself is embedded, so the HTML file is portable but needs a
   connection to render. A flight map publishes where you fly — share it
   deliberately, or use `--redact fuzz`.
+- `--3d` renders the flights over real 3D terrain (MapLibre + Mapterhorn/
+  Copernicus, keyless) as a separate `flightmap-3d.html`, instead of the
+  flat basemap.
 
 ### `dji-embed photomap` - Map Still Photos
 

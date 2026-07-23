@@ -246,6 +246,28 @@ and `cyclosm` (cycling-oriented, detailed paths). Each style carries its
 provider's attribution automatically. KML and GeoJSON outputs have no
 basemap and are unchanged.
 
+### 3D terrain view
+
+```bash
+dji-embed flightmap ./footage --3d               # -> footage/flightmap-3d.html
+```
+
+`--3d` writes a separate `flightmap-3d.html` next to (never instead of) the
+regular `flightmap.html` — `-o` overrides the output path as usual, and
+combining `--3d` with `--format kml|geojson|all` errors, since the 3D map is
+HTML-only. Both maps read the same flight data and honor `--redact fuzz`
+(~100 m coarsened tracks) before either file is written.
+
+Rendered with MapLibre GL instead of Leaflet, tracks are draped on the
+terrain surface — they follow the ground under a tilted camera rather than
+floating at altitude; altitude numbers are still available in the track
+popups. Terrain comes from Mapterhorn (Copernicus elevation data), loaded
+keylessly over the network — like the 2D map it needs a connection to
+render, and if the terrain tiles can't load, it falls back to a flat view
+with an on-map notice. Browsers without WebGL get a plain HTML message
+instead. `--tile-style` has no effect in 3D (ignored, with a warning), and
+there's no playback in the 3D view.
+
 ## Photo map (`photomap`)
 
 ```bash
