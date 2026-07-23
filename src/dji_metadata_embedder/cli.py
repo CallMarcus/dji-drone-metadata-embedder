@@ -36,6 +36,7 @@ from .geo import (
     serve_directory,
     write_flights_geojson,
     write_flights_html,
+    write_flights_3d_html,
     write_flights_kml,
     write_photos_geojson,
     parse_popup_fields,
@@ -834,6 +835,14 @@ def photomap(
     "detects it from each file's mtime; pass it explicitly when the files "
     "were copied through zip/cloud transfers that rewrote the mtimes.",
 )
+@click.option(
+    "--3d",
+    "three_d",
+    is_flag=True,
+    help="Write a 3D terrain map (MapLibre GL, draped tracks) instead of "
+    "the flat map. HTML only; defaults to flightmap-3d.html so the 2D "
+    "map is never overwritten.",
+)
 @_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -847,6 +856,7 @@ def flightmap(
     redact: str,
     join_gap: float,
     tz_offset: str,
+    three_d: bool,
     tile_style: str,
     progress_mode: str | None,
     verbose: bool,
@@ -870,6 +880,13 @@ def flightmap(
             offset = parse_utc_offset(tz_offset)
         except ValueError as e:
             raise click.BadParameter(str(e), param_hint="--tz-offset")
+        if three_d and fmt.lower() != "html":
+            raise click.UsageError(
+                "--3d renders only HTML; drop --format " + fmt.lower()
+            )
+        if three_d and tile_style.lower() != DEFAULT_TILE_STYLE:
+            progress.warning("--tile-style is ignored with --3d")
+            click.echo("Note: --tile-style is ignored with --3d", err=True)
         src = Path(directory)
         tracks, skipped = scan_flights(
             src,
@@ -918,14 +935,18 @@ def flightmap(
             ]
         else:
             f = fmt.lower()
-            out = Path(output) if output else src / f"flightmap.{f}"
+            default_name = "flightmap-3d.html" if three_d else f"flightmap.{f}"
+            out = Path(output) if output else src / default_name
             targets = [(f, out)]
         for f, out in targets:
             try:
                 if f == "html":
-                    write_flights_html(
-                        tracks, out, map_title, tile_style=tile_style.lower()
-                    )
+                    if three_d:
+                        write_flights_3d_html(tracks, out, map_title)
+                    else:
+                        write_flights_html(
+                            tracks, out, map_title, tile_style=tile_style.lower()
+                        )
                 elif f == "kml":
                     write_flights_kml(tracks, out, map_title)
                 else:
