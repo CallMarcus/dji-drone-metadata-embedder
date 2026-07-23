@@ -209,3 +209,57 @@ def test_flightmap_tile_style_rejects_unknown(tmp_path):
     )
     assert res.exit_code != 0
     assert "watercolor" in res.output
+
+
+def test_flightmap_3d_writes_sibling_file(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A, "DJI_0002.SRT": FLIGHT_B})
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--3d"])
+    assert res.exit_code == 0, res.output
+    out = tmp_path / "flightmap-3d.html"
+    assert out.exists()
+    text = out.read_text(encoding="utf-8")
+    assert "maplibre-gl@5.24.0" in text
+    assert "leaflet" not in text.lower()
+    assert not (tmp_path / "flightmap.html").exists()  # 2D untouched
+
+
+def test_flightmap_3d_output_override(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    out = tmp_path / "custom.html"
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--3d", "-o", str(out)]
+    )
+    assert res.exit_code == 0, res.output
+    assert out.exists()
+
+
+def test_flightmap_3d_rejects_non_html_formats(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    for fmt in ("kml", "geojson", "all"):
+        res = CliRunner().invoke(
+            main, ["flightmap", str(tmp_path), "--3d", "-f", fmt]
+        )
+        assert res.exit_code != 0
+        assert "--3d" in res.output
+
+
+def test_flightmap_3d_warns_on_tile_style(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "--3d", "--tile-style", "opentopomap"],
+    )
+    assert res.exit_code == 0, res.output
+    assert "--tile-style is ignored" in res.output
+    assert (tmp_path / "flightmap-3d.html").exists()
+
+
+def test_flightmap_3d_jsonl_reports_output(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--3d", "--progress", "jsonl"]
+    )
+    assert res.exit_code == 0, res.output
+    events = [json.loads(line) for line in res.output.splitlines() if line]
+    result = next(e for e in events if e["event"] == "result")
+    assert result["outputs"][0].endswith("flightmap-3d.html")

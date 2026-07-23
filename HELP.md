@@ -104,6 +104,10 @@ Every command accepts `--help` for its options.
 - **"Export a flight for Google Earth / an editor":**
   `dji-embed convert kml DJI_0001.SRT` (or `gpx`, `csv`, …); add `-b` on a
   folder for batch.
+- **"See my flights over real terrain in 3D":**
+  `dji-embed flightmap D:\Footage --3d` → writes `flightmap-3d.html` (the
+  flat `flightmap.html` is untouched); tracks follow the terrain surface,
+  altitudes are in the popups; needs internet for the terrain tiles.
 
 ## Facts that answer most confusion
 

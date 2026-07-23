@@ -23,6 +23,24 @@ folder onto `dji-embed.exe`**:
 dji-embed /path/to/footage    # -> flightmap.html (and photomap.html) open in the browser
 ```
 
+## 3D terrain view
+
+`dji-embed flightmap <folder> --3d` writes a second map, `flightmap-3d.html`,
+next to (never instead of) the regular `flightmap.html` — `-o` still picks
+the output path:
+
+```bash
+dji-embed flightmap /path/to/footage --3d    # -> footage/flightmap-3d.html
+```
+
+Instead of a flat basemap, tracks are draped on the terrain surface: tilt
+the camera and they follow the ground below, with altitude available from
+the track popups. Terrain tiles come from Mapterhorn (Copernicus elevation
+data) over the network — like every map here, it needs a connection to
+render — and if the terrain tiles can't load, the map falls back to a flat
+view with an on-map notice. `--tile-style` doesn't apply in 3D (it's
+ignored, with a warning).
+
 ## Common options
 
 - `-o DIR` – choose an output directory

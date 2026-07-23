@@ -8,6 +8,7 @@ from .flightmap import (
     write_flights_geojson,
     write_flights_kml,
 )
+from .flightmap3d_html import flights_to_3d_html, write_flights_3d_html
 from .flightmap_html import flights_to_html, write_flights_html
 from .footprint import FOV_TABLE, Footprint, build_footprints, lens_for
 from .geojson import convert_to_geojson, track_to_geojson
@@ -69,5 +70,7 @@ __all__ = [
     "write_flights_kml",
     "flights_to_html",
     "write_flights_html",
+    "flights_to_3d_html",
+    "write_flights_3d_html",
     "serve_directory",
 ]

@@ -47,6 +47,7 @@ This guide helps you choose the right command and approach for your specific use
 | Directory of SRT files | Multiple CSV files | `dji-embed convert csv /path/to/srt/dir --batch` |
 | Directory of SRT files | Multiple HTML maps | `dji-embed convert html /path/to/srt/dir --batch` |
 | Directory of SRT files | ONE combined HTML/KML/GeoJSON map | `dji-embed flightmap /path/to/srt/dir` |
+| Directory of SRT files | 3D terrain map (draped tracks, no playback; the 2D map above keeps basemap styles + playback) | `dji-embed flightmap /path/to/srt/dir --3d` |
 | Custom output filename | Specific output file | `dji-embed convert gpx input.SRT -o custom.gpx` |
 | MP4 with no sidecar SRT (Air 3S, Mini 5 Pro) | GPX/CSV/GeoJSON/KML track | `dji-embed convert <fmt> FILE.MP4` (ExifTool-backed; needs recent ExifTool — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md)) |
 | MP4 with no sidecar SRT (Air 3S, Mini 5 Pro) | Sun/shadow verification | `dji-embed verify-sun FILE.MP4` (ExifTool-backed; needs recent ExifTool — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md)) |
