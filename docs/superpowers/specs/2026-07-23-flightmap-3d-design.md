@@ -42,9 +42,11 @@ A sibling of `flightmap_html.py` with the same contract and structure:
   changes to `flightmap.py` or the GeoJSON shape. Data is embedded in the
   same `<script type="application/json">` block with the same
   backslash-u003c escaping of `<` (no `</script>` breakout).
-- MapLibre GL JS (v6.x, exact version resolved at implementation time)
-  loaded from unpkg with pinned version **and SRI hashes**, matching the
-  Leaflet pins in the 2D writers.
+- MapLibre GL JS **5.24.0** loaded from unpkg with pinned version **and
+  SRI hashes**, matching the Leaflet pins in the 2D writers. (v6 was
+  evaluated 2026-07-23 and rejected: it is ESM-only — no UMD bundle —
+  and its multi-file module graph defeats the single-script-tag + SRI
+  pattern every template here uses. v5 is the maintained UMD line.)
 - Module docstring documents AWS Terrarium
   (`s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`,
   `encoding: "terrarium"`) as the drop-in replacement terrain source if
@@ -61,9 +63,10 @@ A sibling of `flightmap_html.py` with the same contract and structure:
 - **Camera:** starts pitched (~60°) and fitted to the union of track
   bounds.
 - **Tracks:** one line layer per flight in the same color rotation as the
-  2D map, rendered at per-point altitude (third GeoJSON coordinate).
-  Single-fix `Point` features (degenerate flights) render as a marker,
-  not a line — the data walk must not assume LineString.
+  2D map, **draped on the terrain surface** (MapLibre line layers are
+  strictly 2D — see "Altitude representation" below). Single-fix `Point`
+  features (degenerate flights) render as a circle layer, not a line —
+  the data walk must not assume LineString.
 - **Popups:** click a track → popup with the same summary fields the 2D
   map shows (name, start, duration, altitude summary).
 - **Flight toggle:** a plain HTML overlay panel with one checkbox per
@@ -71,21 +74,24 @@ A sibling of `flightmap_html.py` with the same contract and structure:
 - **Attribution:** OSM contributors + Mapterhorn/Copernicus, always
   visible per both providers' terms.
 
-## Altitude anchoring (the datum problem)
+## Altitude representation (amended 2026-07-23)
 
-DJI "absolute" altitude and the Copernicus DEM do not share a vertical
-datum exactly; rendered naively, tracks sit visibly under or above the
-ground. Fix — exploit the physical fact that every flight starts on the
-ground: after terrain loads, query `map.queryTerrainElevation()` at each
-flight's first point and vertically offset that entire flight so its
-start touches the terrain surface.
+The original design called for tracks rendered *at* recorded altitude
+with a takeoff-anchoring correction. Verification against the MapLibre
+style spec killed that: **MapLibre has no way to render line layers at
+an elevation** — no `line-z-offset` (that is Mapbox-proprietary), and
+elevated flight paths are an open upstream request
+([maplibre-gl-js#644](https://github.com/maplibre/maplibre-gl-js/issues/644),
+duplicate [#6755](https://github.com/maplibre/maplibre-gl-js/issues/6755)
+filed for exactly this drone use case).
 
-- Per-flight offset, so mixed-site archives stay correct.
-- `--redact fuzz` shifts the lookup point ≤ ~100 m; the resulting ground
-  error is marginal and accepted.
-- A small corner note — "altitudes anchored to terrain at takeoff" —
-  keeps the adjustment honest.
-- If terrain is unavailable (see below) no offset is applied.
+Decision (Marcus, 2026-07-23): **draped tracks.** Lines follow the
+terrain surface like a GPS ground trace; the 3D value is the terrain
+relief itself under a tilted camera. Altitude numbers stay in the
+popups (height-above-takeoff preferred, as in 2D). The whole anchoring
+scheme is dropped — there is nothing for it to act on. At-altitude
+rendering (fill-extrusion "curtains" or a deck.gl overlay, or native
+support if #644 lands) is explicitly a follow-up, not this slice.
 
 ## Degradation
 
@@ -107,8 +113,8 @@ Python (pytest, mirroring `test_flightmap_html` structure):
   non-HTML formats, `--tile-style` warning, JSONL `result.outputs`.
 - Generated HTML: embedded GeoJSON present and parseable, pinned MapLibre
   URL + SRI attributes, Mapterhorn TileJSON URL, both attribution
-  strings, anchoring JS present, `<` escaping (no literal
-  `</script>` in data), single-fix flight handled.
+  strings, `<` escaping (no literal `</script>` in data), single-fix
+  flight handled.
 
 Browser (durable browser suite, Track B pattern): one test that loads a
 generated `flightmap-3d.html` and asserts the map initializes and the
@@ -129,6 +135,8 @@ not rendered pixels.
 
 - Playback in 3D (file only if the viewer earns it; `times_s` is already
   in the data).
+- Tracks rendered at altitude — blocked upstream (MapLibre #644);
+  curtain-extrusion and deck.gl approaches were considered and deferred.
 - Basemap style choice in 3D.
 - GUI exposure: follow-up issue — Flight map options checkbox +
   `CommandBuilder` + `ExistingMapFinder` probing `flightmap-3d.html`
