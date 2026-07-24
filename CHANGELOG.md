@@ -23,6 +23,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.1.0] - 2026-07-24
+
+### Added
+
+- **cli**: Flightmap --3d writes a MapLibre terrain map (#268) (6c73614)
+- **geo**: 3D terrain flight map writer — MapLibre + Mapterhorn (#268) (b013ea4)
+
+### Changed
+
+- **geo**: Extract shared flight-popup JS for the 3D map (#268) (d190b1e)
+
+### Documentation
+
+- **spec**: 3D flightmap — draped tracks + MapLibre 5.24.0 UMD pin (amendments) (b0b0844)
+- **spec**: Flightmap 3D terrain view design (#268) (469ecfb)
+- Auto-generate changelog for v2.0.0 (1334442)
+- Flightmap --3d terrain view (#268) (af6061e)
+- Post-2.0 sweep — hover-preview toggle, roadmap refresh, index links (5dc7033)
+
+### Testing
+
+- Durable browser coverage for the 3D flightmap (#268) (2dc283b)
+
+### CI/CD
+
+- Auto-changelog opens a PR on tag pushes too (master push is ruleset-blocked) (4806707)
+- Harden workflows per CodeQL findings (#367) (2cdaa7c)
+- Trigger required checks on the bot-created changelog PR (99cbd70)
+
+### Maintenance
+
+- **deps**: Bump cryptography from 46.0.7 to 48.0.1 (#364) (0b22e91)
+- **deps**: Bump setuptools from 82.0.1 to 83.0.0 (#363) (87354de)
+
+### Other
+
+- Prepare version 2.1.0 (#368) (e08e18f)
+
+
 ## [2.0.0] - 2026-07-22
 
 ### Added
