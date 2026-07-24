@@ -6,6 +6,9 @@ on:  # yamllint disable-line rule:truthy
     branches: [master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
