@@ -44,11 +44,19 @@ jobs:
       - name: Determine release version
         id: meta
         shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            $ver = '${{ inputs.version }}'
+          if ($env:EVENT_NAME -eq 'workflow_dispatch') {
+            $ver = $env:INPUT_VERSION
           } else {
-            $ver = '${{ github.event.workflow_run.head_branch }}'.TrimStart('v')
+            $ver = $env:HEAD_BRANCH.TrimStart('v')
+          }
+          # The version feeds later step interpolations: accept strict X.Y.Z only.
+          if ($ver -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "unexpected version: $ver"
           }
           "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=v$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
