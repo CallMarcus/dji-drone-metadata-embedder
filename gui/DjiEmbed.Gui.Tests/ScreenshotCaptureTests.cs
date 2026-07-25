@@ -425,6 +425,71 @@ public class ScreenshotCaptureTests
         Capture(window, Path.Combine(dir!, "workspace-verify-options.png"));
     }
 
+    /// <summary>
+    /// One capture per workspace mode at option defaults — the state a
+    /// novice meets — for the callmarcus.com mode pages. Folder modes use
+    /// a fake selected folder; Convert uses a single fake .SRT (its
+    /// save-as row applies to files); Verify needs a real temp folder
+    /// because its panel gates on folder contents; Setup reuses the
+    /// setup-done construction so the page shows the green checks.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Captures_mode_defaults_to_dir_when_requested()
+    {
+        var dir = Environment.GetEnvironmentVariable("DJIEMBED_CAPTURE_DIR");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir),
+            "Set DJIEMBED_CAPTURE_DIR=<dir> to capture the mode defaults.");
+        Directory.CreateDirectory(dir!);
+
+        string Png(string name) => Path.Combine(dir!, name + ".png");
+
+        static WorkspaceViewModel NewVm() => new(
+            null, new DjiEmbedRunner(), new FakeMapServer(null), () => { },
+            previewAvailable: static () => false);
+
+        static void CaptureMode(WorkspaceViewModel vm, string outPath)
+        {
+            var view = new WorkspaceView { WebViewGate = static () => false };
+            view.DataContext = vm;
+            CaptureView(view, outPath, height: 1100);
+        }
+
+        foreach (var (kind, name) in new (WorkspaceModeKind, string)[]
+                 {
+                     (WorkspaceModeKind.FlightMap, "mode-flight-map"),
+                     (WorkspaceModeKind.PhotoMap, "mode-photo-map"),
+                     (WorkspaceModeKind.Embed, "mode-embed"),
+                 })
+        {
+            var vm = NewVm();
+            vm.SelectedFolder = @"C:\Users\demo\Videos\flight";
+            vm.SelectedMode = WorkspaceMode.Of(kind);
+            CaptureMode(vm, Png(name));
+        }
+
+        var convert = NewVm();
+        convert.SetFile(@"C:\Users\demo\Videos\flight\DJI_0001.SRT");
+        CaptureMode(convert, Png("mode-convert"));
+
+        var folder = Path.Combine(Path.GetTempPath(),
+            "djiembed-capture-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
+        var verify = NewVm();
+        await verify.SetFolderAsync(folder);
+        verify.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        CaptureMode(verify, Png("mode-verify"));
+
+        var setup = NewVm();
+        setup.Step = FlowStep.Done;
+        setup.AllGood = true;
+        setup.SetupItems.Add(new SetupItem(
+            "Video tools (FFmpeg)", true, "version 7.1"));
+        setup.SetupItems.Add(new SetupItem(
+            "Photo tools (ExifTool)", true, "version 13.29"));
+        CaptureMode(setup, Png("mode-setup"));
+    }
+
     private static void CaptureView(
         Control view, string outPath, double width = 1140, double height = 720) =>
         Capture(new Window { Width = width, Height = height, Content = view },
