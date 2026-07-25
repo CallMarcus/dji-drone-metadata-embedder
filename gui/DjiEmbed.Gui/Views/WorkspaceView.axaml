@@ -256,11 +256,28 @@
                                     </DockPanel>
 
                                     <StackPanel Spacing="4">
+                                        <DockPanel>
+                                            <ToggleSwitch Name="FlightThreeDToggle"
+                                                          AutomationProperties.Name="3D terrain map"
+                                                          DockPanel.Dock="Right"
+                                                          IsChecked="{Binding FlightOptions.ThreeD}" />
+                                            <TextBlock Text="3D terrain map"
+                                                       VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <TextBlock Name="FlightThreeDNote"
+                                                   Text="Map style and KML/GeoJSON export don't apply to the 3D map."
+                                                   IsVisible="{Binding FlightOptions.ThreeD}"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
                                         <TextBlock Text="Map style" Opacity="0.7"
                                                    FontSize="12" />
                                         <ComboBox Name="FlightStyleCombo"
                                                   AutomationProperties.Name="Map style"
                                                   HorizontalAlignment="Stretch"
+                                                  IsEnabled="{Binding !FlightOptions.ThreeD}"
                                                   ItemsSource="{Binding FlightOptions.TileStyles}"
                                                   SelectedItem="{Binding FlightOptions.SelectedTileStyle}">
                                             <ComboBox.ItemTemplate>
@@ -309,6 +326,7 @@
                                         <StackPanel Spacing="12" Margin="0,8,0,0">
                                             <CheckBox Name="FlightExportAllCheck"
                                                       IsChecked="{Binding FlightOptions.ExportAll}"
+                                                      IsEnabled="{Binding !FlightOptions.ThreeD}"
                                                       Content="Also export KML + GeoJSON" />
 
                                             <StackPanel Spacing="4">

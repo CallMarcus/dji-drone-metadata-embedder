@@ -145,4 +145,44 @@ public class ExistingMapFinderTests : IDisposable
 
         Assert.False(map.Stale);
     }
+
+    // #366: the 3D map is the third deterministic default output. Same
+    // staleness source as the 2D flight map — both are built from the
+    // flight logs.
+    [Fact]
+    public void Finds_the_3d_flight_map_with_its_title_and_path()
+    {
+        var path = Map("flightmap-3d.html", Recent);
+
+        var map = Assert.Single(ExistingMapFinder.Find(_dir, Contents()));
+
+        Assert.Equal(path, map.Path);
+        Assert.Equal("Flight map (3D)", map.Title);
+        Assert.Equal(Recent, map.WrittenUtc);
+        Assert.False(map.Stale);
+    }
+
+    [Fact]
+    public void A_3d_map_older_than_the_flight_logs_is_stale()
+    {
+        Map("flightmap-3d.html", Old);
+
+        var map = Assert.Single(
+            ExistingMapFinder.Find(_dir, Contents(newestFlightLog: Recent)));
+
+        Assert.True(map.Stale);
+    }
+
+    [Fact]
+    public void Lists_flight_then_3d_then_photo()
+    {
+        Map("photomap.html", Recent);
+        Map("flightmap-3d.html", Recent);
+        Map("flightmap.html", Recent);
+
+        var maps = ExistingMapFinder.Find(_dir, Contents());
+
+        Assert.Equal(["Flight map", "Flight map (3D)", "Photo map"],
+            maps.Select(m => m.Title).ToArray());
+    }
 }
