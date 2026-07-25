@@ -160,8 +160,11 @@ public partial class WorkspaceView : UserControl
 
     private async void OnChooseOutputClick(object? sender, RoutedEventArgs e)
     {
+        // The suggested name tracks the toggle: a 3D run's default output
+        // is flightmap-3d.html (#366). Handler untestable headless (#335).
         if (DataContext is WorkspaceViewModel vm
-            && await SavePicker(this, "Save the flight map as", "flightmap.html")
+            && await SavePicker(this, "Save the flight map as",
+                vm.FlightOptions.ThreeD ? "flightmap-3d.html" : "flightmap.html")
                 is { } path)
         {
             vm.FlightOptions.Output = path;

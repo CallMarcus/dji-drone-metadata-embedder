@@ -623,6 +623,50 @@ public class WorkspaceScreenTests
         Assert.Contains("--title Alps", vm.CommandPreview);
     }
 
+    // #366: the 3D toggle binds to the options VM, surfaces --3d in the
+    // strip, and greys the two controls whose flags the builder suppresses
+    // (Map style: CLI-ignored; export all: CLI UsageError). Choices made
+    // before entering 3D must come back when it is unchecked.
+    [AvaloniaFact]
+    public void Three_d_toggle_binds_and_greys_the_flat_map_options()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+        var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>()
+            .Single(t => t.Name == "FlightThreeDToggle");
+        Assert.False(toggle.IsChecked);
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FlightThreeDNote");
+        Assert.False(note.IsVisible);
+
+        toggle.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.FlightOptions.ThreeD);
+        Assert.Contains("--3d", vm.CommandPreview);
+        Assert.True(note.IsVisible);
+
+        var style = window.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => c.Name == "FlightStyleCombo");
+        Assert.False(style.IsEnabled);
+
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "FlightAdvanced");
+        advanced.IsExpanded = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        var exportAll = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightExportAllCheck");
+        Assert.False(exportAll.IsEnabled);
+
+        toggle.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.DoesNotContain("--3d", vm.CommandPreview);
+        Assert.True(style.IsEnabled);
+        Assert.True(exportAll.IsEnabled);
+        Assert.False(note.IsVisible);
+    }
+
     [AvaloniaFact]
     public void Flight_map_clear_output_button_is_bound_to_its_command()
     {
