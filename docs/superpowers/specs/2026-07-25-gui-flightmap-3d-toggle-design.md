@@ -71,7 +71,7 @@ Verified against `cli.py` (v2.1.0):
   (composes with the panel-level `!IsBusy`).
 - Advanced "Also export KML + GeoJSON" `CheckBox`: same `IsEnabled`
   binding.
-- One quiet note (FontSize 12, Opacity 0.7 — the `LinkReachNote`
+- One quiet note (FontSize 11, Opacity 0.5 — the `LinkReachNote`
   precedent), visible only while 3D is on: *"Map style and KML/GeoJSON
   export don't apply to the 3D map."* It exists because the export toggle
   hides inside the collapsed Advanced expander, where its greying would

@@ -183,9 +183,8 @@ public class CommandBuilderTests
             TileStyle = "opentopomap",
             ExportAll = true,
         };
-        var args = CommandBuilder.FlightMap("/x", opts);
-        Assert.DoesNotContain("--tile-style", args);
-        Assert.DoesNotContain("--format", args);
+        Assert.Equal(["flightmap", "/x", "-r", "--3d"],
+            CommandBuilder.FlightMap("/x", opts));
     }
 
     [Fact]
