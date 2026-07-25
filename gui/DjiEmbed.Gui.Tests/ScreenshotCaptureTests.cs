@@ -477,6 +477,14 @@ public class ScreenshotCaptureTests
         File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
         var verify = NewVm();
         await verify.SetFolderAsync(folder);
+        // SetFolderAsync's real temp folder is only there to make the
+        // panel's folder-gated state (VerifyValidateEnabled etc.) real —
+        // the rendered PNG must never show the host's temp path, so swap
+        // in the same fake Windows path every other mode capture uses.
+        // Reassigning SelectedFolder (rather than calling SetFolderAsync
+        // again) doesn't touch ExistingMaps/Outputs/Warnings or the
+        // already-default SubAction, so the panel stays at its defaults.
+        verify.SelectedFolder = @"C:\Users\demo\Videos\flight";
         verify.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
         CaptureMode(verify, Png("mode-verify"));
 
