@@ -37,7 +37,8 @@ Two ways to use it — same engine:
    pick a mode (*Flight map*, *Photo map*, *Embed telemetry*,
    *Convert telemetry*, *Verify footage*, *Setup*), and press the action
    button; finished maps render right in the app's preview pane, with an
-   *Open in browser* pop-out. No terminal. The workspace also accepts a
+   *Open in browser* pop-out. The Flight map mode has a *3D terrain map* toggle for a MapLibre
+   terrain view (`flightmap-3d.html`). No terminal. The workspace also accepts a
    single telemetry file (`.SRT`/`.MP4`/`.MOV`) as the source, and
    *Convert telemetry* turns it (or a folder) into GPX, CSV, GeoJSON, KML,
    an HTML map, or CoT. *Verify footage* answers three questions about what

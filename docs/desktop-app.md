@@ -25,7 +25,10 @@ Drop a folder (or a single `.SRT`/`.MP4` file) into **Source** and the
 likely mode is picked for you. The **Mode** strip offers:
 
 - **Flight map** — one interactive map of every flight in the folder,
-  with playback. Needs videos with their `.SRT` flight logs.
+  with playback. Needs videos with their `.SRT` flight logs. A **3D
+  terrain map** toggle renders the flights draped over real terrain
+  instead (writes `flightmap-3d.html`, so the flat map is never
+  overwritten).
 - **Photo map** — your still photos pinned on a map, including a full
   360° panorama viewer for drone panoramas.
 - **Embed telemetry** — writes each flight log's GPS track into the video
