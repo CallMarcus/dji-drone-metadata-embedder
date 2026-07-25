@@ -149,6 +149,64 @@ public class CommandBuilderTests
             CommandBuilder.FlightMap("/x", opts));
     }
 
+    // #366: --3d switches the run to the MapLibre terrain map. It sits
+    // right after -r (fixed position for these goldens), and it suppresses
+    // the two flags the CLI would reject or ignore: --format all is a
+    // UsageError with --3d, --tile-style a warning. The strip must never
+    // show either alongside --3d.
+    [Fact]
+    public void Three_d_emits_the_flag_after_recursive()
+    {
+        var opts = FlightMapOptions.Defaults with { ThreeD = true };
+        Assert.Equal(["flightmap", "/x", "-r", "--3d"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Three_d_without_recursive_follows_the_folder()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            Recursive = false,
+            ThreeD = true,
+        };
+        Assert.Equal(["flightmap", "/x", "--3d"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Three_d_suppresses_tile_style_and_export_all()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            ThreeD = true,
+            TileStyle = "opentopomap",
+            ExportAll = true,
+        };
+        var args = CommandBuilder.FlightMap("/x", opts);
+        Assert.DoesNotContain("--tile-style", args);
+        Assert.DoesNotContain("--format", args);
+    }
+
+    [Fact]
+    public void Three_d_passes_the_compatible_flags_through()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            ThreeD = true,
+            Privacy = MapPrivacy.Fuzz,
+            JoinGap = 0,
+            TzOffset = "+02:00",
+            Title = "Trip",
+            Output = "/out/flightmap-3d.html",
+        };
+        Assert.Equal(
+            ["flightmap", "/x", "-r", "--3d", "--redact", "fuzz",
+             "--join-gap", "0", "--tz-offset", "+02:00", "--title", "Trip",
+             "--output", "/out/flightmap-3d.html"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
     [Fact]
     public void Title_is_emitted_when_set_and_stays_one_argument()
     {
@@ -176,7 +234,7 @@ public class CommandBuilderTests
     public void All_options_compose_in_a_stable_order()
     {
         var opts = new FlightMapOptions(
-            Recursive: false, TileStyle: "cyclosm", Privacy: MapPrivacy.Fuzz,
+            Recursive: false, ThreeD: false, TileStyle: "cyclosm", Privacy: MapPrivacy.Fuzz,
             JoinGap: 0, ExportAll: true, TzOffset: "-8", Title: "T", Output: "/o.html");
         Assert.Equal(
             ["flightmap", "/x", "--tile-style", "cyclosm", "--redact", "fuzz",

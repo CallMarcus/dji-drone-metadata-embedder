@@ -37,6 +37,10 @@ public static class CommandBuilder
     /// M3b). Flags are omitted at their defaults so an untouched run reads
     /// <c>flightmap &lt;folder&gt; -r</c>, exactly like M3a. Order is fixed for
     /// golden tests. No <c>--progress</c>: the runner appends that.
+    /// When <paramref name="opts"/>.ThreeD is set, <c>--tile-style</c> and
+    /// <c>--format all</c> are suppressed — the CLI ignores the first and
+    /// rejects the second with <c>--3d</c> — so every argv this method
+    /// returns is legal by construction (#366).
     /// </summary>
     public static string[] FlightMap(string folder, FlightMapOptions opts)
     {
@@ -45,7 +49,11 @@ public static class CommandBuilder
         {
             args.Add("-r");
         }
-        if (opts.TileStyle != FlightMapOptions.Defaults.TileStyle)
+        if (opts.ThreeD)
+        {
+            args.Add("--3d");
+        }
+        if (!opts.ThreeD && opts.TileStyle != FlightMapOptions.Defaults.TileStyle)
         {
             args.Add("--tile-style");
             args.Add(opts.TileStyle);
@@ -60,7 +68,7 @@ public static class CommandBuilder
             args.Add("--join-gap");
             args.Add(opts.JoinGap.ToString(CultureInfo.InvariantCulture));
         }
-        if (opts.ExportAll)
+        if (!opts.ThreeD && opts.ExportAll)
         {
             args.Add("--format");
             args.Add("all");

@@ -14,6 +14,10 @@ public enum MapPrivacy
 /// is a pure function of this record — golden-testable. Every field maps to an
 /// existing <c>flightmap</c> flag; defaults reproduce M3a's hardcoded argv.
 /// </summary>
+/// <param name="ThreeD">Write the MapLibre 3D terrain map
+/// (<c>flightmap-3d.html</c>) instead of the flat map. The CLI ignores
+/// <c>--tile-style</c> and rejects <c>--format all</c> with <c>--3d</c>,
+/// so the builder suppresses both while this is set.</param>
 /// <param name="TileStyle">A <c>tiles.py</c> key: <c>osm</c> (default),
 /// <c>osm-hot</c>, <c>opentopomap</c>, or <c>cyclosm</c>.</param>
 /// <param name="JoinGap">Seconds to chain size-split recordings; 15 = the CLI
@@ -23,6 +27,7 @@ public enum MapPrivacy
 /// <param name="TzOffset"><c>auto</c> (default) or an explicit UTC offset.</param>
 public sealed record FlightMapOptions(
     bool Recursive,
+    bool ThreeD,
     string TileStyle,
     MapPrivacy Privacy,
     int JoinGap,
@@ -33,6 +38,7 @@ public sealed record FlightMapOptions(
 {
     public static readonly FlightMapOptions Defaults = new(
         Recursive: true,
+        ThreeD: false,
         TileStyle: "osm",
         Privacy: MapPrivacy.Keep,
         JoinGap: 15,

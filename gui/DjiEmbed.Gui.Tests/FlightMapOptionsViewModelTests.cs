@@ -16,6 +16,7 @@ public class FlightMapOptionsViewModelTests
     {
         var vm = new FlightMapOptionsViewModel();
         Assert.True(vm.Recursive);
+        Assert.False(vm.ThreeD);
         Assert.Equal("osm", vm.SelectedTileStyle.Key);
         Assert.Equal(MapPrivacy.Keep, vm.SelectedPrivacy.Value);
         Assert.Equal(15, vm.JoinGap);
@@ -41,6 +42,7 @@ public class FlightMapOptionsViewModelTests
         var vm = new FlightMapOptionsViewModel
         {
             Recursive = false,
+            ThreeD = true,
             JoinGap = 0,
             ExportAll = true,
             TzOffset = "-8",
@@ -51,8 +53,8 @@ public class FlightMapOptionsViewModelTests
         vm.SelectedPrivacy = vm.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
 
         Assert.Equal(
-            new FlightMapOptions(false, "cyclosm", MapPrivacy.Fuzz, 0, true,
-                "-8", "Trip", "/out/map.html"),
+            new FlightMapOptions(false, true, "cyclosm", MapPrivacy.Fuzz, 0,
+                true, "-8", "Trip", "/out/map.html"),
             vm.ToOptions());
     }
 

@@ -27,6 +27,9 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     public partial bool Recursive { get; set; } = true;
 
     [ObservableProperty]
+    public partial bool ThreeD { get; set; }
+
+    [ObservableProperty]
     public partial TileChoice SelectedTileStyle { get; set; }
 
     [ObservableProperty]
@@ -55,6 +58,7 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
 
     public FlightMapOptions ToOptions() => new(
         Recursive: Recursive,
+        ThreeD: ThreeD,
         TileStyle: SelectedTileStyle.Key,
         Privacy: SelectedPrivacy.Value,
         JoinGap: JoinGap,
