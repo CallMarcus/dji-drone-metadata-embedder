@@ -490,3 +490,17 @@ def test_geojson_vfov_from_median_focal():
     # DEFAULT_LENS aspect 4:3 -> full-frame height 27 mm;
     # vfov = 2*atan(27 / (2*24)) = 58.7 deg.
     assert fc["features"][0]["properties"]["vfov_deg"] == 58.7
+
+
+def test_geojson_redacted_property():
+    assert flights_to_geojson([_ghost_track()])["redacted"] == "none"
+    assert (
+        flights_to_geojson([_ghost_track()], redact="fuzz")["redacted"]
+        == "fuzz"
+    )
+
+
+def test_write_flights_geojson_threads_redact(tmp_path):
+    out = tmp_path / "flights.geojson"
+    write_flights_geojson([_ghost_track()], out, redact="fuzz")
+    assert json.loads(out.read_text(encoding="utf-8"))["redacted"] == "fuzz"

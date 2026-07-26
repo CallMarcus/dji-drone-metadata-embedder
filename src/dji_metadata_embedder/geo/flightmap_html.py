@@ -237,14 +237,15 @@ if (runs.length && maxT > 0) {
 
 
 def flights_to_html(
-    tracks: list[Track], title: str, *, tile_style: str = DEFAULT_TILE_STYLE
+    tracks: list[Track], title: str, *, tile_style: str = DEFAULT_TILE_STYLE,
+    redact: str = "none"
 ) -> str:
     """Return a complete self-contained HTML flight map.
 
     ``tile_style`` (issue #311): a :data:`~.tiles.TILE_STYLES` key selecting
     the basemap drawn under the tracks.
     """
-    geojson = flights_to_geojson(tracks)
+    geojson = flights_to_geojson(tracks, redact=redact)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
@@ -265,10 +266,11 @@ def write_flights_html(
     title: str,
     *,
     tile_style: str = DEFAULT_TILE_STYLE,
+    redact: str = "none"
 ) -> Path:
     """Write *tracks* as an HTML map to *output_path* and return it."""
     output_path.write_text(
-        flights_to_html(tracks, title, tile_style=tile_style), encoding="utf-8"
+        flights_to_html(tracks, title, tile_style=tile_style, redact=redact), encoding="utf-8"
     )
     logger.info("HTML flight map created: %s", output_path)
     return output_path

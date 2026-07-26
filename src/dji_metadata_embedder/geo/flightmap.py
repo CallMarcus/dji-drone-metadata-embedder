@@ -347,7 +347,7 @@ def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
         )
 
 
-def flights_to_geojson(tracks: list[Track]) -> dict:
+def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
     """Return a GeoJSON ``FeatureCollection`` with one feature per flight.
 
     Each flight is a ``LineString`` carrying name/start/duration/altitude
@@ -358,6 +358,7 @@ def flights_to_geojson(tracks: list[Track]) -> dict:
     or more positions in a LineString) and carries no times. Unlike the
     single-track exporter no per-sample Point features are emitted — at
     archive scale they would swamp the map and the file.
+    The top-level ``redacted`` member records the CLI redaction mode so viewers can badge fuzzed positions honestly (#372).
     """
     features: list[dict] = []
     for track in tracks:
@@ -376,13 +377,16 @@ def flights_to_geojson(tracks: list[Track]) -> dict:
                 "properties": properties,
             }
         )
-    return {"type": "FeatureCollection", "features": features}
+    return {"type": "FeatureCollection", "redacted": redact,
+            "features": features}
 
 
-def write_flights_geojson(tracks: list[Track], output_path: Path) -> Path:
+def write_flights_geojson(
+    tracks: list[Track], output_path: Path, redact: str = "none"
+) -> Path:
     """Write *tracks* as GeoJSON to *output_path* and return it."""
     output_path.write_text(
-        json.dumps(flights_to_geojson(tracks), indent=2), encoding="utf-8"
+        json.dumps(flights_to_geojson(tracks, redact=redact), indent=2), encoding="utf-8"
     )
     logger.info("GeoJSON flight map created: %s", output_path)
     return output_path

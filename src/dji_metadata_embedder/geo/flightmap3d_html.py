@@ -240,9 +240,11 @@ function buildPanel() {
 """
 
 
-def flights_to_3d_html(tracks: list[Track], title: str) -> str:
+def flights_to_3d_html(
+    tracks: list[Track], title: str, redact: str = "none"
+) -> str:
     """Return a complete 3D-terrain HTML flight map (draped tracks)."""
-    geojson = flights_to_geojson(tracks)
+    geojson = flights_to_geojson(tracks, redact=redact)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
@@ -262,11 +264,11 @@ def flights_to_3d_html(tracks: list[Track], title: str) -> str:
 
 
 def write_flights_3d_html(
-    tracks: list[Track], output_path: Path, title: str
+    tracks: list[Track], output_path: Path, title: str, redact: str = "none"
 ) -> Path:
     """Write *tracks* as a 3D HTML map to *output_path* and return it."""
     output_path.write_text(
-        flights_to_3d_html(tracks, title), encoding="utf-8"
+        flights_to_3d_html(tracks, title, redact=redact), encoding="utf-8"
     )
     logger.info("3D HTML flight map created: %s", output_path)
     return output_path
