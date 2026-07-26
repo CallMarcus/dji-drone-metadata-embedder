@@ -430,6 +430,68 @@ def test_ghost_mode_hides_sculpture_and_exit_restores_it(serve_map, page):
     assert _vis(page) == "visible"
 
 
+def test_sculpt_settle_repopulates_a_wiped_source_within_budget(serve_map, page):
+    """sculptSettle() must rebuild a wiped source with converted heights
+    inside its own 5 s retry budget.
+
+    This drives the loop deterministically rather than reproducing genuinely
+    cold DEM tiles: a real delayed-tile fixture (``time.sleep`` in the
+    Playwright route handler that serves DEM tiles) was tried first and
+    abandoned, because Playwright's sync route handlers share one dispatcher
+    thread, so sleeping in one stalls every other intercepted request on the
+    page -- reproducibly, across three runs, a single 3 s per-tile delay
+    stalled unrelated Playwright calls (e.g. a plain ``queryTerrainElevation``
+    evaluate) for ~40 s and blew past the loop's real 5 s wall-clock budget
+    before the delayed tile ever arrived, so the source stayed permanently
+    in flat mode and the "recovers from cold tiles" behaviour was never
+    actually observed. This test instead proves the loop runs, terminates,
+    and rebuilds once the terrain is already warm -- it does NOT prove it
+    recovers from genuinely cold tiles.
+    """
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    # Same longitudes and 600 m signal as
+    # test_height_converts_to_true_altitude_over_terrain: start_lon sits on
+    # the 600 m plateau, so a warm probe there reads a non-zero elevation --
+    # the same signal sculptSettle() itself uses to know it can stop
+    # retrying (a genuine 0 m reading is treated as still-cold).
+    start_lon = tile_lon + TILE_DEG * 1.75          # high side (plateau)
+    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    page.evaluate("() => setSculptData()")
+    hs_before = page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0')"
+        ".map(f => f.properties.hgt)")
+    assert hs_before and max(hs_before) > 500, (
+        f"fixture was not warm before the wipe: {hs_before}")
+
+    page.evaluate(
+        "() => map.getSource('sculpt-0')"
+        ".setData({type: 'FeatureCollection', features: []})")
+    page.wait_for_function(
+        "() => map.querySourceFeatures('sculpt-0').length === 0",
+        timeout=5000)
+
+    page.evaluate("() => sculptSettle()")
+    # sculptSettle's own budget is 20 tries x 250 ms = 5 s; assert the
+    # rebuild lands inside that budget rather than polling indefinitely.
+    page.wait_for_function(
+        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=5500)
+    hs_after = page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0')"
+        ".map(f => f.properties.hgt)")
+    assert hs_after, "settle did not repopulate the source"
+    assert max(hs_after) > 500, (
+        f"settle rebuilt without converting to true altitude: {hs_after}")
+
+
 def test_ghost_exit_respects_a_disabled_sculpture(serve_map, page):
     """Leaving ghost mode must not switch a hidden sculpture back on."""
     html = flights_to_3d_html(
