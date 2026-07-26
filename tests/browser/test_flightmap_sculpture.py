@@ -300,3 +300,54 @@ def test_negative_agl_segments_produce_no_planks(serve_map, page):
     # 4 possible segments; the two touching the negative-mean-AGL point
     # (indices 0-1 and 1-2) are dropped, leaving 2.
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 2
+
+
+def _vis(page, layer="sculpt-0-curtain"):
+    return page.evaluate(
+        "id => map.getLayoutProperty(id, 'visibility') || 'visible'", layer)
+
+
+def test_global_toggle_hides_and_restores_sculpture(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    assert _vis(page) == "visible"
+    page.locator("#sculpture-toggle").uncheck()
+    assert _vis(page) == "none"
+    assert _vis(page, "sculpt-0-ribbon") == "none"
+    page.locator("#sculpture-toggle").check()
+    assert _vis(page) == "visible"
+
+
+def test_per_flight_checkbox_hides_its_sculpture(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5),
+         _flight("DJI_0002", 11.0, 21.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    page.locator("#flights-panel input[type=checkbox]").first.uncheck()
+    assert _vis(page, "sculpt-0-curtain") == "none"
+    assert _vis(page, "sculpt-1-curtain") == "visible"
+
+
+def test_per_flight_state_survives_a_global_cycle(serve_map, page):
+    """Re-enabling the sculpture must not un-hide an unchecked flight."""
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5),
+         _flight("DJI_0002", 11.0, 21.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    page.locator("#flights-panel input[type=checkbox]").first.uncheck()
+    page.locator("#sculpture-toggle").uncheck()
+    page.locator("#sculpture-toggle").check()
+    assert _vis(page, "sculpt-0-curtain") == "none"
+    assert _vis(page, "sculpt-1-curtain") == "visible"
+
+
+def test_no_toggle_when_no_flight_has_agl(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [None] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#flights-panel", timeout=15000)
+    assert page.locator("#sculpture-toggle").count() == 0

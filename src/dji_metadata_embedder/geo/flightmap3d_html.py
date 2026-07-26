@@ -64,6 +64,8 @@ _TEMPLATE = """<!DOCTYPE html>
                    font: 13px/1.8 sans-serif; max-height: 60%;
                    overflow-y: auto; }}
   .flights-panel label {{ display: block; cursor: pointer; }}
+  .flights-panel hr {{ border: none; border-top: 1px solid #ddd;
+                      margin: 6px 0; }}
   .map-note {{ position: absolute; top: 10px; left: 50%;
               transform: translateX(-50%); z-index: 6; background: #fffbe6;
               border: 1px solid #e0d8a8; border-radius: 4px;
@@ -261,8 +263,10 @@ function buildPanel() {
     box.type = 'checkbox';
     box.checked = true;
     box.addEventListener('change', () => {
+      f.shown = box.checked;
       map.setLayoutProperty(f.id, 'visibility',
                             box.checked ? 'visible' : 'none');
+      applySculptVisibility();
     });
     label.appendChild(box);
     const swatch = document.createElement('span');
@@ -272,6 +276,21 @@ function buildPanel() {
     label.appendChild(document.createTextNode(f.name));
     panel.appendChild(label);
   });
+  if (flights.some(f => f.sculptSrc)) {
+    panel.appendChild(document.createElement('hr'));
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = 'sculpture-toggle';
+    box.checked = sculpture.on;
+    box.addEventListener('change', () => {
+      sculpture.on = box.checked;
+      applySculptVisibility();
+    });
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(' Sculpture'));
+    panel.appendChild(label);
+  }
   document.body.appendChild(panel);
 }
 
