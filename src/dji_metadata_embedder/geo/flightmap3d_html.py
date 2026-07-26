@@ -71,6 +71,17 @@ _TEMPLATE = """<!DOCTYPE html>
   .map-note button {{ position: absolute; right: 6px; top: 4px; border: none;
                      background: none; cursor: pointer; font-size: 14px; }}
   .ghost-open {{ display: block; margin-top: 6px; cursor: pointer; }}
+  .ghost-hud {{ position: absolute; bottom: 14px; left: 50%;
+               transform: translateX(-50%); z-index: 6;
+               background: rgba(20,20,24,.85); color: #fff;
+               border-radius: 6px; padding: 8px 14px;
+               font: 13px/1.6 sans-serif; display: flex; gap: 12px;
+               align-items: center; max-width: 92vw; flex-wrap: wrap; }}
+  .ghost-hud button {{ border: none; background: #444; color: #fff;
+                      border-radius: 4px; cursor: pointer; font-size: 14px;
+                      padding: 2px 9px; }}
+  .ghost-badge {{ background: #b58900; color: #fff; border-radius: 3px;
+                 padding: 0 6px; font-size: 11px; }}
 </style>
 </head>
 <body>
@@ -375,6 +386,7 @@ function ghostEnter(flightIdx, sampleIdx) {
     map.setVerticalFieldOfView(fl.vfov);
   }
   applyPose(samplePose(fl, ghost.idx));
+  mountHud();
 }
 
 function ghostStep(d) {
@@ -384,6 +396,7 @@ function ghostStep(d) {
   if (next === ghost.idx) return;
   ghost.idx = next;
   applyPose(samplePose(ghost.flight, next));
+  updateHud();
 }
 
 function ghostExit() {
@@ -399,8 +412,69 @@ function ghostExit() {
                pitch: ghost.saved.pitch, bearing: ghost.saved.bearing });
   map.setMaxPitch(ghost.saved.maxPitch);   // after jumpTo: pitch is legal again
   GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
+  unmountHud();
   ghost.flight = null;
   ghost.takeoffElev = null;
+}
+
+function mountHud() {
+  const hud = document.createElement('div');
+  hud.id = 'ghost-hud';
+  hud.className = 'ghost-hud';
+  const mk = (id, text, fn) => {
+    const b = document.createElement('button');
+    b.id = id; b.textContent = text;
+    b.addEventListener('click', fn);
+    return b;
+  };
+  const info = document.createElement('span');
+  info.id = 'ghost-info';
+  const badges = document.createElement('span');
+  badges.id = 'ghost-badges';
+  const exit = mk('ghost-exit', '\\u00d7', ghostExit);
+  exit.setAttribute('aria-label', 'Exit ghost view');
+  hud.append(mk('ghost-prev', '\\u2039', () => ghostStep(-1)),
+             info, badges,
+             mk('ghost-next', '\\u203a', () => ghostStep(1)),
+             exit);
+  document.body.appendChild(hud);
+  ghost.hud = hud;
+  updateHud();
+}
+
+function unmountHud() {
+  if (ghost.hud) { ghost.hud.remove(); ghost.hud = null; }
+}
+
+function updateHud() {
+  if (!ghost.hud) return;
+  const fl = ghost.flight, i = ghost.idx;
+  const pose = samplePose(fl, i);
+  let txt = fl.name;
+  if (fl.times) {
+    txt += ' \\u00b7 ' + fmtDuration(Math.round(fl.times[i])) + ' / '
+         + fmtDuration(Math.round(fl.times[fl.times.length - 1]));
+  }
+  txt += ' \\u00b7 ' + (pose.aglHere != null
+    ? pose.aglHere.toFixed(0) + ' m above takeoff'
+    : fl.pts[i][2].toFixed(0) + ' m (as logged)');
+  if (pose.gimbalYaw != null || pose.gimbalPitch != null) {
+    const deg = v => v != null ? v.toFixed(0) + '\\u00b0' : '\\u2014';
+    txt += ' \\u00b7 gimbal ' + deg(pose.gimbalYaw) + ' / '
+         + deg(pose.gimbalPitch);
+  }
+  ghost.hud.querySelector('#ghost-info').textContent = txt;
+  const badges = ghost.hud.querySelector('#ghost-badges');
+  badges.textContent = '';
+  const badge = t => {
+    const s = document.createElement('span');
+    s.className = 'ghost-badge';
+    s.textContent = t;
+    badges.appendChild(s);
+  };
+  if (pose.clamped) badge('pitch clamped to ' + GHOST_MAX_PITCH + '\\u00b0');
+  if (pose.estimated) badge('estimated view \\u2014 no gimbal data');
+  if (REDACTED === 'fuzz') badge('position fuzzed ~100 m');
 }
 """
 

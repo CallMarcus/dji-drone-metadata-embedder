@@ -126,10 +126,11 @@ def test_ghost_cold_cache_resamples_takeoff_elevation(serve_map, page):
         " && Math.abs(map.queryTerrainElevation([20.0, 10.0]) - 100) < 2",
         timeout=20000,
     )
-    # Let the map's internal loaded()/isMoving() bookkeeping settle before
-    # racing it: triggering ghostEnter() in the same tick as the terrain
-    # query above intermittently lands inside a pending render cycle, so
-    # jumpTo() doesn't get a fresh 'idle' to hook the re-sample onto.
+    # Wait for a known-quiescent map: this test forces areTilesLoaded ->
+    # false on a map that has already settled, so the subsequent jumpTo is
+    # guaranteed to dirty it and produce a fresh 'idle'. Production never
+    # hits this state — the branch only registers while tiles are truly in
+    # flight, when further frames (and an eventual 'idle') are guaranteed.
     page.wait_for_function(
         "() => map.loaded() && !map.isMoving()", timeout=10000
     )
@@ -146,4 +147,55 @@ def test_ghost_cold_cache_resamples_takeoff_elevation(serve_map, page):
     assert first == 52  # cold: fake takeoff elev 0 + rel_alt (50 + 2)
     page.wait_for_function(
         "() => Math.abs(ghost.applied.altitude - 152) < 2", timeout=20000
+    )
+
+
+def test_ghost_hud_content_and_buttons(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight(gyaw=90.0, gpitch=-60.0, agl_base=50.0)], "trip"
+    )
+    _boot(serve_map, page, html)
+    page.evaluate("() => ghostEnter(0, 0)")
+    hud = page.locator("#ghost-hud")
+    expect(hud).to_be_visible(timeout=10000)
+    expect(hud).to_contain_text("DJI_0001")
+    expect(hud).to_contain_text("m above takeoff")
+    lon0 = page.evaluate("() => ghost.applied.lng")
+    page.locator("#ghost-next").click()
+    page.wait_for_function(
+        f"() => ghost.applied.lng > {lon0} + 0.0001",
+        timeout=10000,
+    )
+    page.locator("#ghost-exit").click()
+    page.wait_for_function("() => map.dragPan.isEnabled()", timeout=10000)
+    expect(page.locator("#ghost-hud")).to_have_count(0)
+
+
+def test_ghost_badges(serve_map, page):
+    # No gimbal data -> estimated badge; +20 deg gimbal wants pitch 110 ->
+    # clamped badge; redact="fuzz" -> fuzzed badge.
+    html = flights_to_3d_html(
+        [_flight(name="NOGIMBAL"), _flight(name="UPWARD", gpitch=20.0)],
+        "trip", redact="fuzz",
+    )
+    _boot(serve_map, page, html)
+    page.evaluate("() => ghostEnter(0, 0)")
+    expect(page.locator("#ghost-badges")).to_contain_text(
+        "estimated view", timeout=10000
+    )
+    expect(page.locator("#ghost-badges")).to_contain_text("fuzzed")
+    page.evaluate("() => ghostExit()")
+    page.evaluate("() => ghostEnter(1, 0)")
+    expect(page.locator("#ghost-badges")).to_contain_text(
+        "pitch clamped", timeout=10000
+    )
+
+
+def test_ghost_hud_logged_altitude_label(serve_map, page):
+    # No rel_alt -> the HUD must label the height "(as logged)".
+    html = flights_to_3d_html([_flight(gyaw=90.0, gpitch=-60.0)], "trip")
+    _boot(serve_map, page, html)
+    page.evaluate("() => ghostEnter(0, 0)")
+    expect(page.locator("#ghost-hud")).to_contain_text(
+        "(as logged)", timeout=10000
     )
