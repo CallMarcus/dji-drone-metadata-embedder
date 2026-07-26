@@ -8,7 +8,9 @@ tiles load from the network; the flight data itself is embedded.
 
 Tracks are draped on the terrain surface: MapLibre cannot render line
 layers at an elevation (upstream request maplibre/maplibre-gl-js#644), so
-altitude appears in the popups, not the geometry.
+altitude appears in the popups, not the geometry. The ghost view (#372)
+sidesteps that limit with ``calculateCameraOptionsFromCameraLngLatAltRotation``:
+geometry stays draped, but the camera itself flies the recorded poses.
 
 Terrain source: Mapterhorn (keyless, Copernicus GLO-30 base, global
 coverage). Dormant fallback if Mapterhorn ever disappears: AWS Terrarium
@@ -68,6 +70,7 @@ _TEMPLATE = """<!DOCTYPE html>
               padding: 6px 28px 6px 12px; font: 13px/1.4 sans-serif; }}
   .map-note button {{ position: absolute; right: 6px; top: 4px; border: none;
                      background: none; cursor: pointer; font-size: 14px; }}
+  .ghost-open {{ display: block; margin-top: 6px; cursor: pointer; }}
 </style>
 </head>
 <body>
@@ -86,6 +89,7 @@ _TEMPLATE = """<!DOCTYPE html>
 
 _APP_JS = """
 const data = JSON.parse(document.getElementById('flight-data').textContent);
+const REDACTED = data.redacted || 'none';
 __SHARED_JS__
 
 // Collect flights: draped 2D geometry only — the third GeoJSON coordinate
@@ -104,6 +108,12 @@ const allCoords = [];
   if (f.geometry.type === 'LineString') {
     entry.geometry = { type: 'LineString',
                        coordinates: f.geometry.coordinates.map(c => [c[0], c[1]]) };
+    entry.pts = f.geometry.coordinates;      // full [lon, lat, alt] triples
+    entry.times = p.times_s || null;
+    entry.gyaw = p.gyaw_deg || null;
+    entry.gpitch = p.gpitch_deg || null;
+    entry.agl = p.agl_m || null;
+    entry.vfov = p.vfov_deg || null;
   } else {                                             // single-fix clip
     const c = f.geometry.coordinates;
     entry.geometry = { type: 'Point', coordinates: [c[0], c[1]] };
@@ -187,7 +197,7 @@ if (map) {
 
   map.on('load', () => {
     map.setTerrain({ source: 'terrain', exaggeration: 1 });
-    flights.forEach(f => {
+    flights.forEach((f, fi) => {
       map.addSource(f.id, { type: 'geojson', data: {
         type: 'Feature', geometry: f.geometry, properties: {} } });
       if (f.geometry.type === 'LineString') {
@@ -199,8 +209,21 @@ if (map) {
           paint: { 'circle-color': f.color, 'circle-radius': 6 } });
       }
       map.on('click', f.id, ev => {
-        new maplibregl.Popup({ maxWidth: '320px' })
-          .setLngLat(ev.lngLat).setHTML(popupHtml(f.props)).addTo(map);
+        const el = document.createElement('div');
+        el.innerHTML = popupHtml(f.props);
+        const popup = new maplibregl.Popup({ maxWidth: '320px' })
+          .setLngLat(ev.lngLat).setDOMContent(el).addTo(map);
+        if (f.pts) {
+          const btn = document.createElement('button');
+          btn.className = 'ghost-open';
+          btn.textContent = 'View from here';
+          const ll = ev.lngLat;
+          btn.addEventListener('click', () => {
+            popup.remove();
+            ghostEnter(fi, nearestSample(f, ll));
+          });
+          el.appendChild(btn);
+        }
       });
       map.on('mouseenter', f.id, () => {
         map.getCanvas().style.cursor = 'pointer';
@@ -236,6 +259,129 @@ function buildPanel() {
     panel.appendChild(label);
   });
   document.body.appendChild(panel);
+}
+
+// --- Ghost Camera (#372): fly the free camera to the recorded drone pose ---
+const GHOST_MAX_PITCH = 100;  // spike: setMaxPitch(120) OK, pitch 100 honoured
+const GHOST_EST_PITCH = -30;  // assumed down-tilt when gimbal data is absent
+const GHOST_HANDLERS = ['dragPan', 'dragRotate', 'scrollZoom', 'keyboard',
+                        'doubleClickZoom', 'touchZoomRotate'];
+const ghost = { active: false, flight: null, idx: 0, saved: null,
+                savedFov: null, takeoffElev: null, hud: null,
+                applied: null };
+
+function nearestSample(fl, ll) {
+  const cosLat = Math.cos(ll.lat * Math.PI / 180);
+  let best = 0, bestD = Infinity;
+  fl.pts.forEach((c, i) => {
+    const dx = (c[0] - ll.lng) * cosLat, dy = c[1] - ll.lat;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+function courseBearing(pts, i) {
+  const a = pts[Math.min(i, pts.length - 2)];
+  const b = pts[Math.min(i + 1, pts.length - 1)];
+  const toRad = Math.PI / 180;
+  const dLon = (b[0] - a[0]) * toRad;
+  const la1 = a[1] * toRad, la2 = b[1] * toRad;
+  const y = Math.sin(dLon) * Math.cos(la2);
+  const x = Math.cos(la1) * Math.sin(la2)
+          - Math.sin(la1) * Math.cos(la2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+}
+
+function samplePose(fl, i) {
+  const c = fl.pts[i];
+  let altitude;
+  const aglHere = fl.agl && fl.agl[i] != null ? fl.agl[i] : null;
+  if (ghost.takeoffElev != null && aglHere != null) {
+    altitude = ghost.takeoffElev + aglHere;   // terrain-consistent height
+  } else {
+    altitude = c[2];                          // logged absolute altitude
+  }
+  let bearing, gp, estimated = false;
+  if (fl.gyaw && fl.gyaw[i] != null) bearing = fl.gyaw[i];
+  else { bearing = courseBearing(fl.pts, i); estimated = true; }
+  if (fl.gpitch && fl.gpitch[i] != null) gp = fl.gpitch[i];
+  else { gp = GHOST_EST_PITCH; estimated = true; }
+  const wantPitch = 90 + gp;    // gimbal -90 (nadir) -> 0, 0 (horizon) -> 90
+  return {
+    lngLat: [c[0], c[1]], altitude,
+    bearing, pitch: Math.max(0, Math.min(wantPitch, GHOST_MAX_PITCH)),
+    clamped: wantPitch > GHOST_MAX_PITCH, estimated, aglHere,
+    gimbalYaw: fl.gyaw ? fl.gyaw[i] : null,
+    gimbalPitch: fl.gpitch ? fl.gpitch[i] : null,
+  };
+}
+
+function applyPose(pose, ms) {
+  // roll=0 explicitly: MapLibre 5.24.0 emits a 'roll' key even when the arg
+  // is omitted, and jumpTo/easeTo crash on setRoll(NaN).
+  const opts = map.calculateCameraOptionsFromCameraLngLatAltRotation(
+    pose.lngLat, pose.altitude, pose.bearing, pose.pitch, 0);
+  ghost.applied = { lng: pose.lngLat[0], lat: pose.lngLat[1],
+                    altitude: pose.altitude, bearing: pose.bearing,
+                    pitch: pose.pitch };
+  if (ms) map.easeTo(Object.assign({}, opts, { duration: ms }));
+  else map.jumpTo(opts);
+}
+
+function ghostKeys(ev) {
+  if (ev.key === 'Escape') { ghostExit(); ev.preventDefault(); }
+  else if (ev.key === 'ArrowLeft') { ghostStep(-1); ev.preventDefault(); }
+  else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
+}
+
+function ghostEnter(flightIdx, sampleIdx) {
+  const fl = flights[flightIdx];
+  if (ghost.active || !fl || !fl.pts) return;
+  ghost.active = true;
+  ghost.flight = fl;
+  ghost.idx = sampleIdx;
+  ghost.saved = { center: map.getCenter(), zoom: map.getZoom(),
+                  pitch: map.getPitch(), bearing: map.getBearing(),
+                  maxPitch: map.getMaxPitch() };
+  map.setMaxPitch(GHOST_MAX_PITCH);
+  GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
+  const p0 = fl.pts[0];
+  // Gate on getTerrain(): with terrain failed/off, queryTerrainElevation
+  // returns 0 (spike round 3) and would fake a sea-level takeoff.
+  const elev = map.getTerrain && map.getTerrain()
+    ? map.queryTerrainElevation([p0[0], p0[1]]) : null;
+  ghost.takeoffElev = typeof elev === 'number' ? elev : null;
+  if (fl.vfov && typeof map.setVerticalFieldOfView === 'function') {
+    ghost.savedFov = map.getVerticalFieldOfView();
+    map.setVerticalFieldOfView(fl.vfov);
+  }
+  window.addEventListener('keydown', ghostKeys);
+  applyPose(samplePose(fl, ghost.idx));
+}
+
+function ghostStep(d) {
+  if (!ghost.active) return;
+  const n = ghost.flight.pts.length;
+  const next = Math.max(0, Math.min(ghost.idx + d, n - 1));
+  if (next === ghost.idx) return;
+  ghost.idx = next;
+  applyPose(samplePose(ghost.flight, next));
+}
+
+function ghostExit() {
+  if (!ghost.active) return;
+  ghost.active = false;
+  window.removeEventListener('keydown', ghostKeys);
+  if (ghost.savedFov != null
+      && typeof map.setVerticalFieldOfView === 'function') {
+    map.setVerticalFieldOfView(ghost.savedFov);
+    ghost.savedFov = null;
+  }
+  map.jumpTo({ center: ghost.saved.center, zoom: ghost.saved.zoom,
+               pitch: ghost.saved.pitch, bearing: ghost.saved.bearing });
+  map.setMaxPitch(ghost.saved.maxPitch);   // after jumpTo: pitch is legal again
+  GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
 }
 """
 

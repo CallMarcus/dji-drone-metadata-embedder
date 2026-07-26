@@ -83,9 +83,12 @@ def test_3d_html_has_flight_toggle_panel():
 
 
 def test_3d_html_does_not_render_at_altitude():
-    # Spec amendment: draped tracks only — anchoring/elevation code is banned.
+    # Spec amendment: draped tracks only — line geometry never anchors at
+    # elevation. Ghost Camera (#372) legitimately calls
+    # queryTerrainElevation for camera placement (see
+    # tests/browser/test_flightmap_ghost.py); that's a separate concern
+    # from how track *lines* render, which this still guards.
     html = flights_to_3d_html([_track()], "t")
-    assert "queryTerrainElevation" not in html
     assert "line-z-offset" not in html
 
 
