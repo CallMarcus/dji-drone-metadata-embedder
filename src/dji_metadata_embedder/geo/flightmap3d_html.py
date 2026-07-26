@@ -275,6 +275,7 @@ function buildPanel() {
 // --- Ghost Camera (#372): fly the free camera to the recorded drone pose ---
 const GHOST_MAX_PITCH = 100;  // spike: setMaxPitch(120) OK, pitch 100 honoured
 const GHOST_EST_PITCH = -30;  // assumed down-tilt when gimbal data is absent
+const GHOST_ENTER_MS = 1200, GHOST_STEP_MS = 150;
 const GHOST_HANDLERS = ['dragPan', 'dragRotate', 'scrollZoom', 'keyboard',
                         'doubleClickZoom', 'touchZoomRotate'];
 const ghost = { active: false, flight: null, idx: 0, saved: null,
@@ -385,7 +386,7 @@ function ghostEnter(flightIdx, sampleIdx) {
     ghost.savedFov = map.getVerticalFieldOfView();
     map.setVerticalFieldOfView(fl.vfov);
   }
-  applyPose(samplePose(fl, ghost.idx));
+  applyPose(samplePose(fl, ghost.idx), GHOST_ENTER_MS);
   mountHud();
 }
 
@@ -395,7 +396,7 @@ function ghostStep(d) {
   const next = Math.max(0, Math.min(ghost.idx + d, n - 1));
   if (next === ghost.idx) return;
   ghost.idx = next;
-  applyPose(samplePose(ghost.flight, next));
+  applyPose(samplePose(ghost.flight, next), GHOST_STEP_MS);
   updateHud();
 }
 
@@ -408,10 +409,13 @@ function ghostExit() {
     map.setVerticalFieldOfView(ghost.savedFov);
     ghost.savedFov = null;
   }
-  map.jumpTo({ center: ghost.saved.center, zoom: ghost.saved.zoom,
-               pitch: ghost.saved.pitch, bearing: ghost.saved.bearing });
-  map.setMaxPitch(ghost.saved.maxPitch);   // after jumpTo: pitch is legal again
-  GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
+  const saved = ghost.saved;
+  map.easeTo({ center: saved.center, zoom: saved.zoom, pitch: saved.pitch,
+               bearing: saved.bearing, duration: GHOST_ENTER_MS });
+  map.once('moveend', () => {
+    map.setMaxPitch(saved.maxPitch);
+    GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
+  });
   unmountHud();
   ghost.flight = null;
   ghost.takeoffElev = null;
