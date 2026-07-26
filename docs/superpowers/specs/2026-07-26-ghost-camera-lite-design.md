@@ -81,18 +81,24 @@ properties. To map a queried feature back to the embedded data, the template
 gives each feature a stable id equal to its index in the collection (queried
 features do not otherwise carry their collection index).
 
-**Pose.** Position via `maplibregl.MercatorCoordinate.fromLngLat`, with
-camera height = *terrain elevation at the flight's takeoff point* (one
+**Pose.** *(Amended 2026-07-26 after the Task-1 spike: MapLibre GL JS never
+ported Mapbox's free-camera API — `getFreeCameraOptions` does not exist,
+upstream request maplibre/maplibre-gl-js#1414. Exact placement instead uses
+the API MapLibre added for this purpose.)* The camera is placed with
+`map.calculateCameraOptionsFromCameraLngLatAltRotation(cameraLngLat,
+cameraAltitudeM, bearing, pitch)` → `jumpTo`/`easeTo` — same fidelity: the
+camera sits exactly at the drone's position with the gimbal's orientation.
+Camera height = *terrain elevation at the flight's takeoff point* (one
 `map.queryTerrainElevation` per flight, cached) + `agl_m[i]`. This is
 self-consistent with the rendered terrain, so a disagreement between DJI's
 altitude datum and Mapterhorn's cannot put the ghost underground. Fallbacks:
 absolute altitude from `coordinates` when `agl_m` is absent; terrain-less
 (flat) mode works too — `queryTerrainElevation` returns null → absolute
-altitude. Orientation via `FreeCameraOptions.setPitchBearing`: bearing =
-`gyaw_deg[i]`, camera pitch = `90 + gpitch_deg[i]` (gimbal −90° nadir → 0,
-0° horizon → 90), clamped to the maximum the spike establishes. Vertical FOV
-set from `vfov_deg` on entry (if the spike confirms
-`setVerticalFieldOfView` exists) and restored on exit.
+altitude. Orientation: bearing = `gyaw_deg[i]`, camera pitch =
+`90 + gpitch_deg[i]` (gimbal −90° nadir → 0, 0° horizon → 90), clamped to
+the maximum the spike establishes. Vertical FOV set from `vfov_deg` on entry
+(if the spike confirms `setVerticalFieldOfView` exists) and restored on
+exit.
 
 **Missing gimbal data** (some SRT variants carry none): the button stays
 available — yaw falls back to the course bearing toward the next point,
@@ -102,8 +108,8 @@ otherwise lose the feature; the badge keeps it honest.
 
 **Cockpit scrub.** ←/→ keys and on-screen ‹ › buttons step one sample, with
 hold-to-repeat; each step is a ~150 ms micro-ease. Entering and exiting ghost
-mode is a ~1.2 s hand-rolled position-lerp + orientation-slerp (the free
-camera has no built-in easing). While ghost mode is active the normal map
+mode is a ~1.2 s eased transition (`easeTo` over the computed camera
+options). While ghost mode is active the normal map
 interaction handlers are disabled so they cannot fight the free camera. Esc
 or the HUD's ✕ eases back to the saved overview camera, re-enables handlers,
 and restores the FOV.
@@ -131,14 +137,15 @@ Mapterhorn being unreachable; ghost mode still works in that flat state
 A headless-browser probe against the pinned MapLibre 5.24.0 UMD build,
 results recorded in the plan before any template work:
 
-1. Free-camera pitch range — are orientations past the regular 85° limit
-   honoured?
+1. Camera-pitch range — are pitches past the regular 85° limit honoured
+   (via `setMaxPitch` + `jumpTo`)?
 2. `queryTerrainElevation` behaviour with terrain enabled and disabled.
 3. Does `setVerticalFieldOfView` exist on this build?
 
-Documented fallback if probe 1 fails: the standard-camera approximation
-(`easeTo` on a look-at target projected along the gimbal ray), accepting the
-85° pitch cap and approximate position.
+*Spike outcome 2026-07-26 (probe A):* the Mapbox free-camera API is absent
+from MapLibre GL JS entirely; `calculateCameraOptionsFromCameraLngLatAltRotation`
+is present in the pinned 5.24.0 bundle and is the placement mechanism (see
+the amended Pose section). The remaining probes rerun against it.
 
 ## Testing
 
