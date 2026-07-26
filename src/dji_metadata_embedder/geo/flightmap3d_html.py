@@ -382,6 +382,8 @@ function ghostEnter(flightIdx, sampleIdx) {
   const fl = flights[flightIdx];
   if (ghost.active || !fl || !fl.pts) return;
   ghost.active = true;
+  applySculptVisibility();   // a ribbon at the camera's own altitude would
+                            // sit across the cockpit view
   ghost.flight = fl;
   ghost.idx = Math.max(0, Math.min(sampleIdx, fl.pts.length - 1));
   // Attach Escape/arrows before any failure-prone work: if anything below
@@ -440,6 +442,7 @@ function ghostStep(d) {
 function ghostExit() {
   if (!ghost.active) return;
   ghost.active = false;
+  applySculptVisibility();
   window.removeEventListener('keydown', ghostKeys);
   // Keep this FOV restore ABOVE the easeTo and once('moveend') below:
   // setVerticalFieldOfView fires moveend synchronously, and a listener

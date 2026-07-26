@@ -351,3 +351,27 @@ def test_no_toggle_when_no_flight_has_agl(serve_map, page):
     serve_map(html)
     page.wait_for_selector("#flights-panel", timeout=15000)
     assert page.locator("#sculpture-toggle").count() == 0
+
+
+def test_ghost_mode_hides_sculpture_and_exit_restores_it(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    assert _vis(page) == "visible"
+    page.evaluate("() => ghostEnter(0, 2)")
+    assert _vis(page) == "none"
+    page.evaluate("() => ghostExit()")
+    assert _vis(page) == "visible"
+
+
+def test_ghost_exit_respects_a_disabled_sculpture(serve_map, page):
+    """Leaving ghost mode must not switch a hidden sculpture back on."""
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    page.locator("#sculpture-toggle").uncheck()
+    page.evaluate("() => ghostEnter(0, 2)")
+    page.evaluate("() => ghostExit()")
+    assert _vis(page) == "none"
