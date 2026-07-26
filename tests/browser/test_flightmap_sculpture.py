@@ -198,3 +198,68 @@ def test_null_agl_point_breaks_the_curtain(serve_map, page):
         " && map.getLayer('sculpt-0-curtain')", timeout=15000)
     # 4 possible segments; the two touching the null point are dropped.
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 2
+
+
+def test_sculpture_paint_properties_are_wired_correctly(serve_map, page):
+    """Pin the actual paint expressions, not just that the layers exist."""
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])],
+        "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    curtain_base = page.evaluate(
+        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-base')")
+    curtain_height = page.evaluate(
+        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-height')")
+    ribbon_base = page.evaluate(
+        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-base')")
+    ribbon_height = page.evaluate(
+        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-height')")
+    assert curtain_base == 0
+    assert curtain_height == ["get", "agl"]
+    assert ribbon_base == ["get", "rbase"]
+    assert ribbon_height == ["get", "agl"]
+
+
+def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
+        serve_map, page):
+    """A tall segment's rbase must track agl - 6 exactly.
+
+    ``test_ribbon_base_never_negative`` uses a fixture where every segment
+    clamps to 0, so a constant ``rbase: 0`` implementation would satisfy it.
+    This picks AGLs well above the 6 m ribbon thickness so the clamp never
+    engages, forcing the real formula.
+    """
+    agls = [50.0, 80.0, 120.0, 90.0, 60.0]
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, agls)], "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    planks = page.evaluate("() => planksFor(flights[0], 10)")
+    assert len(planks) == 4
+    for plank in planks:
+        props = plank["properties"]
+        assert props["rbase"] == pytest.approx(props["agl"] - 6)
+
+
+def test_negative_agl_segments_produce_no_planks(serve_map, page):
+    """Finding 1 regression guard: a below-takeoff segment breaks the curtain.
+
+    A rooftop/cliff-top launch can log a negative rel_alt (the repo's own
+    golden fixture carries rel_alt: -400.0). fill-extrusion cannot render
+    below the terrain surface, so a segment whose mean AGL is negative must
+    be dropped exactly like a null-AGL segment is.
+    """
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0, -400.0, 10.0, 10.0, 10.0])],
+        "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer('flight-0')",
+        timeout=15000)
+    # 4 possible segments; the two touching the negative-mean-AGL point
+    # (indices 0-1 and 1-2) are dropped, leaving 2.
+    assert page.evaluate("() => planksFor(flights[0], 10).length") == 2

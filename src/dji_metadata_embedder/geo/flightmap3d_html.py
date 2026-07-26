@@ -537,13 +537,19 @@ function planksFor(fl, widthM) {
     // A null AGL breaks the curtain: the gap length is unknown, so
     // interpolating across it would invent altitude.
     if (aglA == null || aglB == null) continue;
+    const agl = (aglA + aglB) / 2;
+    // A negative mean AGL (rooftop/cliff-top launch: rel_alt is signed and
+    // not clamped upstream) breaks the curtain too: fill-extrusion cannot
+    // render below the terrain surface at all (the style spec floors base
+    // at 0), so a below-takeoff segment has no honest representation.
+    // Breaking the curtain is truthful; inventing a zero-height slab is not.
+    if (agl < 0) continue;
     const mLat = 111320;
     const mLon = 111320 * Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
     const dx = (b[0] - a[0]) * mLon, dy = (b[1] - a[1]) * mLat;
     const len = Math.sqrt(dx * dx + dy * dy);
     if (!len) continue;                 // duplicate fix: no direction
     const ox = -dy / len * half / mLon, oy = dx / len * half / mLat;
-    const agl = (aglA + aglB) / 2;
     feats.push({
       type: 'Feature',
       // rbase is clamped here rather than in a paint expression: the
