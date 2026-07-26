@@ -335,23 +335,37 @@ function ghostKeys(ev) {
   else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
 }
 
-function ghostEnter(flightIdx, sampleIdx) {
-  const fl = flights[flightIdx];
-  if (ghost.active || !fl || !fl.pts) return;
-  ghost.active = true;
-  ghost.flight = fl;
-  ghost.idx = sampleIdx;
-  ghost.saved = { center: map.getCenter(), zoom: map.getZoom(),
-                  pitch: map.getPitch(), bearing: map.getBearing(),
-                  maxPitch: map.getMaxPitch() };
-  map.setMaxPitch(GHOST_MAX_PITCH);
-  GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
+function ghostTakeoffElev(fl) {
   const p0 = fl.pts[0];
   // Gate on getTerrain(): with terrain failed/off, queryTerrainElevation
   // returns 0 (spike round 3) and would fake a sea-level takeoff.
   const elev = map.getTerrain && map.getTerrain()
     ? map.queryTerrainElevation([p0[0], p0[1]]) : null;
-  ghost.takeoffElev = typeof elev === 'number' ? elev : null;
+  return typeof elev === 'number' ? elev : null;
+}
+
+function ghostEnter(flightIdx, sampleIdx) {
+  const fl = flights[flightIdx];
+  if (ghost.active || !fl || !fl.pts) return;
+  ghost.active = true;
+  ghost.flight = fl;
+  ghost.idx = Math.max(0, Math.min(sampleIdx, fl.pts.length - 1));
+  ghost.saved = { center: map.getCenter(), zoom: map.getZoom(),
+                  pitch: map.getPitch(), bearing: map.getBearing(),
+                  maxPitch: map.getMaxPitch() };
+  map.setMaxPitch(GHOST_MAX_PITCH);
+  GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
+  ghost.takeoffElev = ghostTakeoffElev(fl);
+  if (ghost.takeoffElev != null && !map.areTilesLoaded()) {
+    // The takeoff DEM tile may not be in yet, and qte returns 0 until it
+    // is (cold cache -> camera underground). Re-sample once the map
+    // settles and re-apply the current pose.
+    map.once('idle', () => {
+      if (!ghost.active || ghost.flight !== fl) return;
+      ghost.takeoffElev = ghostTakeoffElev(fl);
+      applyPose(samplePose(fl, ghost.idx));
+    });
+  }
   if (fl.vfov && typeof map.setVerticalFieldOfView === 'function') {
     ghost.savedFov = map.getVerticalFieldOfView();
     map.setVerticalFieldOfView(fl.vfov);
@@ -382,6 +396,8 @@ function ghostExit() {
                pitch: ghost.saved.pitch, bearing: ghost.saved.bearing });
   map.setMaxPitch(ghost.saved.maxPitch);   // after jumpTo: pitch is legal again
   GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
+  ghost.flight = null;
+  ghost.takeoffElev = null;
 }
 """
 

@@ -56,7 +56,7 @@ def test_ghost_button_in_popup_and_enters(serve_map, page):
 
 
 def test_ghost_pose_flat_fallback_uses_logged_altitude(serve_map, page):
-    # Terrain failed (default harness) -> queryTerrainElevation is null ->
+    # Terrain failed (default harness) -> getTerrain() is null ->
     # camera height falls back to the logged absolute altitude.
     html = flights_to_3d_html([_flight(gyaw=90.0, gpitch=-60.0)], "trip")
     _boot(serve_map, page, html)
