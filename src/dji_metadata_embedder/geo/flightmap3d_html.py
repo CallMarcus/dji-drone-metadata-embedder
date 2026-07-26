@@ -382,13 +382,13 @@ function ghostEnter(flightIdx, sampleIdx) {
   const fl = flights[flightIdx];
   if (ghost.active || !fl || !fl.pts) return;
   ghost.active = true;
-  applySculptVisibility();   // a ribbon at the camera's own altitude would
-                            // sit across the cockpit view
   ghost.flight = fl;
   ghost.idx = Math.max(0, Math.min(sampleIdx, fl.pts.length - 1));
   // Attach Escape/arrows before any failure-prone work: if anything below
   // throws, the user can still exit instead of a frozen handlerless map.
   window.addEventListener('keydown', ghostKeys);
+  applySculptVisibility();   // a ribbon at the camera's own altitude would
+                            // sit across the cockpit view
   if (!ghost.saved) {
     // Survives exit -> rapid re-enter while the exit ease still runs, so
     // a re-entry never captures a mid-transition camera as "the view to
@@ -442,7 +442,6 @@ function ghostStep(d) {
 function ghostExit() {
   if (!ghost.active) return;
   ghost.active = false;
-  applySculptVisibility();
   window.removeEventListener('keydown', ghostKeys);
   // Keep this FOV restore ABOVE the easeTo and once('moveend') below:
   // setVerticalFieldOfView fires moveend synchronously, and a listener
@@ -463,6 +462,7 @@ function ghostExit() {
     map.setMaxPitch(saved.maxPitch);
     GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
     ghost.saved = null;
+    applySculptVisibility();
   });
   unmountHud();
   ghost.flight = null;

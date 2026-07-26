@@ -362,6 +362,10 @@ def test_ghost_mode_hides_sculpture_and_exit_restores_it(serve_map, page):
     page.evaluate("() => ghostEnter(0, 2)")
     assert _vis(page) == "none"
     page.evaluate("() => ghostExit()")
+    # The exit ease still has the camera up at the drone's altitude; the
+    # ribbon must not pop back until that ease actually finishes.
+    assert _vis(page) == "none"
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
     assert _vis(page) == "visible"
 
 
