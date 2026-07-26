@@ -106,3 +106,95 @@ def test_terrain_occludes_fill_extrusion(serve_map, page):
         f"terrain did NOT occlude the extrusion ({occluded} px visible "
         "behind a 600 m cliff)"
     )
+
+
+def test_sculpture_layers_exist(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])],
+        "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    assert page.evaluate(
+        "() => map.getLayer('sculpt-0-curtain').type") == "fill-extrusion"
+    assert page.evaluate(
+        "() => map.getLayer('sculpt-0-ribbon').type") == "fill-extrusion"
+
+
+def test_source_is_populated_from_the_flight(serve_map, page):
+    """The planks actually reach the map source, not just the builder."""
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])],
+        "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    page.wait_for_function(
+        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=15000)
+
+
+def test_curtain_height_tracks_agl(serve_map, page):
+    agls = [5.0, 20.0, 45.0, 30.0, 12.0]
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, agls)], "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    # planksFor is called directly rather than querySourceFeatures, which
+    # can return the same plank once per covering tile.
+    peak = page.evaluate(
+        "() => Math.max.apply(null,"
+        " planksFor(flights[0], 10).map(f => f.properties.agl))")
+    # Segment AGL is the mean of its endpoints, so the tallest plank is the
+    # mean of the two highest adjacent samples: (20+45)/2 and (45+30)/2 -> 37.5
+    assert abs(peak - 37.5) < 0.1
+
+
+def test_ribbon_base_never_negative(serve_map, page):
+    """A hover below the ribbon thickness must not compute a negative base."""
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [1.0, 2.0, 1.5, 2.5, 1.0])], "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    lo = page.evaluate(
+        "() => Math.min.apply(null,"
+        " planksFor(flights[0], 10).map(f => f.properties.rbase))")
+    assert lo == 0
+
+
+def test_flight_without_agl_gets_no_sculpture(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [None] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer('flight-0')",
+        timeout=15000)
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')") is False
+
+
+def test_single_fix_flight_gets_no_sculpture(serve_map, page):
+    """A one-point flight is a Point feature: no segments, no sculpture."""
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [12.0])],
+                              "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer('flight-0')",
+        timeout=15000)
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')") is False
+
+
+def test_null_agl_point_breaks_the_curtain(serve_map, page):
+    """A null AGL splits the curtain rather than interpolating across it."""
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0, 10.0, None, 10.0, 10.0])],
+        "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map"
+        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+    # 4 possible segments; the two touching the null point are dropped.
+    assert page.evaluate("() => planksFor(flights[0], 10).length") == 2

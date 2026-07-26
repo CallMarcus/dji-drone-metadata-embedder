@@ -115,6 +115,7 @@ const allCoords = [];
     name: p.name || `flight ${i + 1}`,
     color: PALETTE[i % PALETTE.length],
     props: p,
+    shown: true,
   };
   if (f.geometry.type === 'LineString') {
     entry.geometry = { type: 'LineString',
@@ -242,6 +243,7 @@ if (map) {
       map.on('mouseleave', f.id, () => {
         map.getCanvas().style.cursor = '';
       });
+      addSculpture(f, fi);
     });
     buildPanel();
   });
@@ -502,6 +504,98 @@ function updateHud() {
   if (pose.clamped) badge('pitch clamped to ' + GHOST_MAX_PITCH + '\\u00b0');
   if (pose.estimated) badge('estimated view \\u2014 no gimbal data');
   if (REDACTED === 'fuzz') badge('position fuzzed ~100 m');
+}
+
+// --- Flight sculpture (#375): AGL curtain + true-altitude ribbon ---
+// fill-extrusion base/height are measured from the terrain surface (the
+// shader applies get_elevation(a_centroid)), so agl_m drops straight in --
+// no queryTerrainElevation, no cold-DEM race. A custom WebGL layer cannot
+// be used here at all: with terrain on, MapLibre depth-rejects every
+// fragment of a custom '3d' layer (spike, #375).
+const SCULPT_RIBBON_M = 6;    // solid slab thickness at flight altitude
+const SCULPT_PX = 3;          // target plank width, screen pixels
+const SCULPT_MIN_M = 4, SCULPT_MAX_M = 60;
+const sculpture = { on: true, widthM: null };
+
+function sculptWidthM() {
+  // Hold a roughly constant screen width: a fixed metre width vanishes
+  // when you zoom out to see the whole flight, and becomes a slab up close.
+  const mPerPx = 40075016.686 * Math.cos(map.getCenter().lat * Math.PI / 180)
+               / (512 * Math.pow(2, map.getZoom()));
+  return Math.max(SCULPT_MIN_M,
+                  Math.min(mPerPx * SCULPT_PX, SCULPT_MAX_M));
+}
+
+function planksFor(fl, widthM) {
+  // One rectangle per consecutive pair that has AGL at both ends.
+  const feats = [];
+  if (!fl.pts || !fl.agl) return feats;
+  const half = widthM / 2;
+  for (let i = 0; i < fl.pts.length - 1; i++) {
+    const a = fl.pts[i], b = fl.pts[i + 1];
+    const aglA = fl.agl[i], aglB = fl.agl[i + 1];
+    // A null AGL breaks the curtain: the gap length is unknown, so
+    // interpolating across it would invent altitude.
+    if (aglA == null || aglB == null) continue;
+    const mLat = 111320;
+    const mLon = 111320 * Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
+    const dx = (b[0] - a[0]) * mLon, dy = (b[1] - a[1]) * mLat;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (!len) continue;                 // duplicate fix: no direction
+    const ox = -dy / len * half / mLon, oy = dx / len * half / mLat;
+    const agl = (aglA + aglB) / 2;
+    feats.push({
+      type: 'Feature',
+      // rbase is clamped here rather than in a paint expression: the
+      // style spec forbids a negative fill-extrusion-base, and a hover
+      // lower than the ribbon thickness would compute one.
+      properties: { agl: agl, rbase: Math.max(0, agl - SCULPT_RIBBON_M) },
+      geometry: { type: 'Polygon', coordinates: [[
+        [a[0] + ox, a[1] + oy], [b[0] + ox, b[1] + oy],
+        [b[0] - ox, b[1] - oy], [a[0] - ox, a[1] - oy],
+        [a[0] + ox, a[1] + oy],
+      ]] },
+    });
+  }
+  return feats;
+}
+
+function addSculpture(fl, fi) {
+  if (sculpture.widthM == null) sculpture.widthM = sculptWidthM();
+  const feats = planksFor(fl, sculpture.widthM);
+  if (!feats.length) return;
+  const src = 'sculpt-' + fi;
+  map.addSource(src, { type: 'geojson',
+    data: { type: 'FeatureCollection', features: feats } });
+  map.addLayer({ id: src + '-curtain', type: 'fill-extrusion', source: src,
+    paint: { 'fill-extrusion-color': fl.color,
+             'fill-extrusion-base': 0,
+             'fill-extrusion-height': ['get', 'agl'],
+             'fill-extrusion-opacity': 0.35,
+             // Built-in gradient darkens the sides toward the ground: the
+             // fade cannot be alpha (the shader hardcodes colour alpha to
+             // 1.0 and fill-extrusion-opacity is layer-level only).
+             'fill-extrusion-vertical-gradient': true } });
+  map.addLayer({ id: src + '-ribbon', type: 'fill-extrusion', source: src,
+    paint: { 'fill-extrusion-color': fl.color,
+             'fill-extrusion-base': ['get', 'rbase'],
+             'fill-extrusion-height': ['get', 'agl'],
+             'fill-extrusion-opacity': 1,
+             'fill-extrusion-vertical-gradient': false } });
+  fl.sculptSrc = src;
+}
+
+function applySculptVisibility() {
+  flights.forEach(fl => {
+    if (!fl.sculptSrc) return;
+    // Ghost mode hides it: a solid ribbon at the camera's own altitude
+    // would sit across the cockpit view.
+    const v = (sculpture.on && fl.shown && !ghost.active) ? 'visible' : 'none';
+    ['-curtain', '-ribbon'].forEach(sfx => {
+      const id = fl.sculptSrc + sfx;
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v);
+    });
+  });
 }
 """
 
