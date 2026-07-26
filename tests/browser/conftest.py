@@ -21,6 +21,7 @@ import struct
 import threading
 import zlib
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -208,7 +209,8 @@ def serve_map(map_server, page):
                 return r.fulfill(body=dem, content_type="image/png")
 
             target.route(
-                lambda u: "tiles.mapterhorn.com" in u, terrain_route
+                lambda u: urlsplit(u).hostname == "tiles.mapterhorn.com",
+                terrain_route,
             )
 
         url = f"{base_url}/{name}"
