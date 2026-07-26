@@ -158,7 +158,7 @@ when you zoom out to see the whole flight, too wide and it is a slab up close.
 
 ### 3. Layers and controls
 
-Two layers per flight, `sculpture-curtain-<i>` and `sculpture-ribbon-<i>`,
+Two layers per flight, `sculpt-<i>-curtain` and `sculpt-<i>-ribbon`,
 added after the flight's track layer. Per-flight layers (rather than two
 shared layers filtered by a property) keep the existing panel checkbox logic —
 which today flips one `visibility` — a straight extension.
@@ -192,7 +192,8 @@ which today flips one `visibility` — a straight extension.
 ## Testing
 
 - **Browser suite:** sculpture layers exist with type `fill-extrusion`;
-  per-segment `height` tracks `agl_m`; the global toggle hides and restores;
+  per-segment `height` tracks the converted `hgt`; the global toggle hides
+  and restores;
   a per-flight checkbox hides that flight's sculpture; per-flight state
   survives a global off/on cycle; ghost enter hides the sculpture and exit
   restores it; a flight without AGL produces no sculpture layers and no
