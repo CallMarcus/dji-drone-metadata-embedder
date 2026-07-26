@@ -373,14 +373,24 @@ function ghostEnter(flightIdx, sampleIdx) {
   ghost.takeoffElev = ghostTakeoffElev(fl);
   if (ghost.takeoffElev != null && map.areTilesLoaded
       && !map.areTilesLoaded()) {
-    // The takeoff DEM tile may not be in yet, and qte returns 0 until it
-    // is (cold cache -> camera underground). Re-sample once the map
-    // settles and re-apply the current pose.
-    map.once('idle', () => {
+    // 'idle' can park under eased transitions before late DEM tiles land
+    // (the render loop stops at moveend), so poll on a timer instead:
+    // firm up the takeoff height once tiles deliver it, then ease to the
+    // corrected pose. A genuine sea-level 0 just keeps the initial pose.
+    let tries = 20;
+    const retry = () => {
       if (!ghost.active || ghost.flight !== fl) return;
-      ghost.takeoffElev = ghostTakeoffElev(fl);
-      applyPose(samplePose(fl, ghost.idx));
-    });
+      const elev = ghostTakeoffElev(fl);
+      if (typeof elev === 'number' && elev !== 0) {
+        if (elev !== ghost.takeoffElev) {
+          ghost.takeoffElev = elev;
+          applyPose(samplePose(fl, ghost.idx), GHOST_STEP_MS);
+        }
+      } else if (--tries > 0) {
+        setTimeout(retry, 250);
+      }
+    };
+    setTimeout(retry, 250);
   }
   if (fl.vfov && typeof map.setVerticalFieldOfView === 'function') {
     ghost.savedFov = map.getVerticalFieldOfView();

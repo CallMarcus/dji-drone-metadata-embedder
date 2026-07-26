@@ -116,7 +116,8 @@ def test_ghost_step_and_esc_restores(serve_map, page):
 def test_ghost_cold_cache_resamples_takeoff_elevation(serve_map, page):
     # Pin the cold-DEM branch: with tiles reported unloaded and the first
     # elevation query returning 0 (what MapLibre does pre-load), the pose
-    # must start from the wrong height and converge after 'idle' re-sample.
+    # must start from the wrong height and converge once the timer
+    # re-sample sees the real elevation.
     html = flights_to_3d_html(
         [_flight(gyaw=90.0, gpitch=-60.0, agl_base=50.0)], "trip"
     )
@@ -126,11 +127,9 @@ def test_ghost_cold_cache_resamples_takeoff_elevation(serve_map, page):
         " && Math.abs(map.queryTerrainElevation([20.0, 10.0]) - 100) < 2",
         timeout=20000,
     )
-    # Wait for a known-quiescent map: this test forces areTilesLoaded ->
-    # false on a map that has already settled, so the subsequent jumpTo is
-    # guaranteed to dirty it and produce a fresh 'idle'. Production never
-    # hits this state — the branch only registers while tiles are truly in
-    # flight, when further frames (and an eventual 'idle') are guaranteed.
+    # Wait for a known-quiescent map before faking a cold cache: makes the
+    # override's first read deterministic (cold -> exactly 0) independent
+    # of any loading still in flight from the waits above.
     page.wait_for_function(
         "() => map.loaded() && !map.isMoving()", timeout=10000
     )
