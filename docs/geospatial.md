@@ -268,6 +268,27 @@ with an on-map notice. Browsers without WebGL get a plain HTML message
 instead. `--tile-style` has no effect in 3D (ignored, with a warning), and
 there's no playback in the 3D view.
 
+### Ghost camera — see what the drone saw
+
+In the 3D map, every flight's popup has a **View from here** button. It flies
+the map camera to the drone's recorded pose at that moment — position, height
+above takeoff, gimbal direction, and the camera's field of view — so the
+rendered terrain shows what the real camera saw. Step through the flight with
+the ‹ › buttons or arrow keys (hold to scrub); press Esc or × to return to
+the overview.
+
+This doubles as a verification aid: if the rendered ridgelines match the
+skyline in your footage, the telemetry is telling the truth about where the
+camera was.
+
+The heads-up display always shows the *recorded* values and badges anything
+that is not: *pitch clamped* (the recorded gimbal angle exceeds what the map
+camera allows), *estimated view* (this format logs no gimbal direction, so
+the view faces along the flight path), and *position fuzzed ~100 m* (the map
+was generated with `--redact fuzz`). Heights come from the terrain model plus
+the logged height above takeoff; without terrain, the logged altitude is used
+as-is.
+
 ## Photo map (`photomap`)
 
 ```bash
