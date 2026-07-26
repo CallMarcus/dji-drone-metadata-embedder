@@ -98,6 +98,37 @@ thickness would compute a negative base. Clamped, such a segment renders as a
 ground-standing block, which is what a 4 m hover should look like.
 
 Mean AGL per segment matches the centroid-sampling the shader already does.
+
+**Amendment 2026-07-26 (post-Task-6 review): heights are converted to true
+altitude.** As first written this design put `agl_m` straight into
+`fill-extrusion-height`, which was wrong. `agl_m` is height above the
+*takeoff point*, but `fill-extrusion` anchors to the *local terrain under
+each segment*, so the curtain top landed at `local_ground + rel_alt` instead
+of the drone's real altitude of `takeoff_elevation + rel_alt`. The two agree
+only where the ground sits at takeoff level.
+
+That is not merely a labelling error. DJI drones hold altitude, not ground
+clearance, so a level flight toward a rising ridge keeps a constant `rel_alt`
+while its real clearance shrinks. The original geometry would have drawn a
+constant-height curtain riding up the hillside — showing steady clearance
+exactly where the truth is a closing gap, which inverts the safety-relevant
+reading in a feature framed around verification.
+
+Each segment's extrusion height is therefore
+`(takeoff_elevation + mean_AGL) - local_terrain_elevation`, both elevations
+read with `map.queryTerrainElevation` (gated on `map.getTerrain()`, since it
+returns 0 rather than null when terrain is off or tiles are cold). The
+shader then re-adds the local elevation, so the top lands at true altitude
+and the curtain's length is genuine ground clearance. With terrain
+unavailable both elevations are absent and the height falls back to plain
+`mean_AGL`, which is correct there because `get_elevation` returns 0. A
+segment computing a non-positive height — below the rendered surface, from a
+datum artefact or a rooftop launch — is skipped rather than drawn flat.
+
+Cold DEM tiles make the first build a flat-mode approximation, so the
+sculpture re-samples on a bounded timer and rebuilds once tiles land. `idle`
+is not usable for this: it parks under the load-time `fitBounds` ease, a
+gotcha established in #372.
 Tracks are decimated to one point per second upstream (`_decimate_points`), so
 a 20-minute flight yields ~1200 segments — well inside `fill-extrusion`'s
 building-scale budget.
