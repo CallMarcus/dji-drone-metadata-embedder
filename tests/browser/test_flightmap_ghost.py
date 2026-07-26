@@ -198,3 +198,33 @@ def test_ghost_hud_logged_altitude_label(serve_map, page):
     expect(page.locator("#ghost-hud")).to_contain_text(
         "(as logged)", timeout=10000
     )
+
+
+def test_ghost_rapid_reenter_keeps_lock_and_original_view(serve_map, page):
+    # MapLibre fires moveend for interrupted eases too: exiting and
+    # immediately re-entering must not run the stale exit-restore inside
+    # the new session (camera unlock), and the eventual exit must restore
+    # the ORIGINAL pre-ghost view, not a mid-transition one.
+    html = flights_to_3d_html([_flight(gyaw=90.0, gpitch=-60.0)], "trip")
+    _boot(serve_map, page, html)
+    before = page.evaluate(
+        "() => ({p: map.getPitch(), b: map.getBearing(),"
+        " mp: map.getMaxPitch()})"
+    )
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function(
+        "() => Math.abs(map.getBearing() - 90) < 0.5", timeout=10000
+    )
+    page.evaluate("() => { ghostExit(); ghostEnter(0, 2); }")
+    # The stale moveend (if unguarded) fires synchronously inside the
+    # re-enter's easeTo, so these asserts are deterministic.
+    assert page.evaluate("() => map.dragPan.isEnabled()") is False
+    assert page.evaluate("() => map.getMaxPitch()") == 100
+    page.evaluate("() => ghostExit()")
+    page.wait_for_function(
+        f"() => map.dragPan.isEnabled()"
+        f" && Math.abs(map.getPitch() - {before['p']}) < 0.5"
+        f" && Math.abs(map.getBearing() - {before['b']}) < 0.5"
+        f" && map.getMaxPitch() === {before['mp']}",
+        timeout=10000,
+    )

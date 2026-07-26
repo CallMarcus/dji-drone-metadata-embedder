@@ -365,9 +365,14 @@ function ghostEnter(flightIdx, sampleIdx) {
   // Attach Escape/arrows before any failure-prone work: if anything below
   // throws, the user can still exit instead of a frozen handlerless map.
   window.addEventListener('keydown', ghostKeys);
-  ghost.saved = { center: map.getCenter(), zoom: map.getZoom(),
-                  pitch: map.getPitch(), bearing: map.getBearing(),
-                  maxPitch: map.getMaxPitch() };
+  if (!ghost.saved) {
+    // Survives exit -> rapid re-enter while the exit ease still runs, so
+    // a re-entry never captures a mid-transition camera as "the view to
+    // restore". Cleared only when a restore actually completes.
+    ghost.saved = { center: map.getCenter(), zoom: map.getZoom(),
+                    pitch: map.getPitch(), bearing: map.getBearing(),
+                    maxPitch: map.getMaxPitch() };
+  }
   map.setMaxPitch(GHOST_MAX_PITCH);
   GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
   ghost.takeoffElev = ghostTakeoffElev(fl);
@@ -423,8 +428,13 @@ function ghostExit() {
   map.easeTo({ center: saved.center, zoom: saved.zoom, pitch: saved.pitch,
                bearing: saved.bearing, duration: GHOST_ENTER_MS });
   map.once('moveend', () => {
+    // Interrupting this ease (MapLibre fires moveend for aborted eases
+    // too — e.g. a rapid ghost re-entry) must not restore mid-session:
+    // that would unlock the camera inside the new ghost session.
+    if (ghost.active) return;
     map.setMaxPitch(saved.maxPitch);
     GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
+    ghost.saved = null;
   });
   unmountHud();
   ghost.flight = null;
