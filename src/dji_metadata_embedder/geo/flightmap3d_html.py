@@ -350,13 +350,17 @@ function ghostEnter(flightIdx, sampleIdx) {
   ghost.active = true;
   ghost.flight = fl;
   ghost.idx = Math.max(0, Math.min(sampleIdx, fl.pts.length - 1));
+  // Attach Escape/arrows before any failure-prone work: if anything below
+  // throws, the user can still exit instead of a frozen handlerless map.
+  window.addEventListener('keydown', ghostKeys);
   ghost.saved = { center: map.getCenter(), zoom: map.getZoom(),
                   pitch: map.getPitch(), bearing: map.getBearing(),
                   maxPitch: map.getMaxPitch() };
   map.setMaxPitch(GHOST_MAX_PITCH);
   GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
   ghost.takeoffElev = ghostTakeoffElev(fl);
-  if (ghost.takeoffElev != null && !map.areTilesLoaded()) {
+  if (ghost.takeoffElev != null && map.areTilesLoaded
+      && !map.areTilesLoaded()) {
     // The takeoff DEM tile may not be in yet, and qte returns 0 until it
     // is (cold cache -> camera underground). Re-sample once the map
     // settles and re-apply the current pose.
@@ -370,7 +374,6 @@ function ghostEnter(flightIdx, sampleIdx) {
     ghost.savedFov = map.getVerticalFieldOfView();
     map.setVerticalFieldOfView(fl.vfov);
   }
-  window.addEventListener('keydown', ghostKeys);
   applyPose(samplePose(fl, ghost.idx));
 }
 

@@ -111,3 +111,39 @@ def test_ghost_step_and_esc_restores(serve_map, page):
         f" && Math.abs(map.getBearing() - {before['b']}) < 0.5",
         timeout=10000,
     )
+
+
+def test_ghost_cold_cache_resamples_takeoff_elevation(serve_map, page):
+    # Pin the cold-DEM branch: with tiles reported unloaded and the first
+    # elevation query returning 0 (what MapLibre does pre-load), the pose
+    # must start from the wrong height and converge after 'idle' re-sample.
+    html = flights_to_3d_html(
+        [_flight(gyaw=90.0, gpitch=-60.0, agl_base=50.0)], "trip"
+    )
+    _boot(serve_map, page, html, terrain_stub=100.0)
+    page.wait_for_function(
+        "() => map.queryTerrainElevation"
+        " && Math.abs(map.queryTerrainElevation([20.0, 10.0]) - 100) < 2",
+        timeout=20000,
+    )
+    # Let the map's internal loaded()/isMoving() bookkeeping settle before
+    # racing it: triggering ghostEnter() in the same tick as the terrain
+    # query above intermittently lands inside a pending render cycle, so
+    # jumpTo() doesn't get a fresh 'idle' to hook the re-sample onto.
+    page.wait_for_function(
+        "() => map.loaded() && !map.isMoving()", timeout=10000
+    )
+    first = page.evaluate(
+        """() => {
+      map.areTilesLoaded = () => false;
+      const real = map.queryTerrainElevation.bind(map);
+      let cold = true;
+      map.queryTerrainElevation = ll => (cold ? (cold = false, 0) : real(ll));
+      ghostEnter(0, 2);
+      return ghost.applied.altitude;
+    }"""
+    )
+    assert first == 52  # cold: fake takeoff elev 0 + rel_alt (50 + 2)
+    page.wait_for_function(
+        "() => Math.abs(ghost.applied.altitude - 152) < 2", timeout=20000
+    )
