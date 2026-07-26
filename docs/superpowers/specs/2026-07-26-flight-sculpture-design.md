@@ -84,13 +84,18 @@ contract is untouched.
 
 For each consecutive point pair where **both** ends have a non-null AGL, one
 rectangular "plank" polygon centred on the segment, of width *W* (below),
-carrying the pair's mean AGL as a property. Both layers read that one feature
-through different expressions, so the geometry is built and stored once:
+carrying its height as a property. Both layers read that one feature through
+different expressions, so the geometry is built and stored once:
 
 | layer | `fill-extrusion-base` | `fill-extrusion-height` | opacity | vertical-gradient |
 | --- | --- | --- | --- | --- |
-| curtain | `0` | `['get', 'agl']` | 0.35 | on |
-| ribbon | `['max', 0, ['-', ['get', 'agl'], 6]]` | `['get', 'agl']` | 1.0 | off |
+| curtain | `0` | `['get', 'hgt']` | 0.35 | on |
+| ribbon | `['get', 'rbase']` | `['get', 'hgt']` | 1.0 | off |
+
+(`hgt` is height above the local surface — see the amendment below, which
+replaced the original raw `agl` with a true-altitude conversion. `rbase` is
+the ribbon's clamped base, computed in JS rather than as a `max` expression
+so no expression-language support needs assuming.)
 
 The ribbon's base is clamped at 0 because `fill-extrusion-base` has a
 style-spec minimum of 0 — without the clamp a hover below the 6 m ribbon
