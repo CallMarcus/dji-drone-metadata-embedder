@@ -307,8 +307,10 @@ rising ground and the curtain visibly shortens as the clearance closes.
 
 Where the terrain model is unavailable the curtain falls back to plain height
 above takeoff. Segments where the drone works out to be at or below the
-rendered ground — a rooftop launch, or a datum artefact near a cliff — are
-left out rather than drawn flat, so the curtain breaks there.
+rendered ground — a rooftop launch, a datum artefact near a cliff, or a low
+flight over forest (the terrain model is a surface model, so it includes tree
+canopy and buildings) — are left out rather than drawn flat, so the curtain
+breaks there.
 
 Use the **Sculpture** checkbox in the flights panel to hide it. A flight's own
 checkbox hides its track and its sculpture together, and the sculpture steps

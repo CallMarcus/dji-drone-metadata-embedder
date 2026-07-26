@@ -371,8 +371,9 @@ function ghostKeys(ev) {
 }
 
 function terrainElevAt(lngLat) {
-  // Gate on getTerrain(): queryTerrainElevation returns 0, not null, when
-  // terrain is off or its tiles are still cold (#372 spike round 3).
+  // Gate on getTerrain(): queryTerrainElevation returns null when terrain is
+  // off, but 0 (not null) when terrain is on and its tiles are still cold
+  // (#372 spike round 3).
   if (!(map.getTerrain && map.getTerrain())) return null;
   const e = map.queryTerrainElevation(lngLat);
   return typeof e === 'number' ? e : null;
@@ -606,9 +607,14 @@ function planksFor(fl, widthM) {
 }
 
 function addSculpture(fl, fi) {
+  // Gate on the DATA, not on this build's output: with terrain in play a
+  // build can legitimately come back empty (canopy-height flight, cold
+  // tiles) and a later settle must still be able to populate it. Bailing
+  // here would strand the flight without a source, and with it the panel's
+  // Sculpture toggle.
+  if (!(fl.pts && fl.agl && fl.agl.some(v => v != null))) return;
   if (sculpture.widthM == null) sculpture.widthM = sculptWidthM();
   const feats = planksFor(fl, sculpture.widthM);
-  if (!feats.length) return;
   const src = 'sculpt-' + fi;
   map.addSource(src, { type: 'geojson',
     data: { type: 'FeatureCollection', features: feats } });
@@ -661,16 +667,26 @@ function rebuildSculpture() {
 }
 
 function sculptSettle() {
-  // Cold DEM tiles make queryTerrainElevation return 0, so the first build
+  // Cold DEM tiles make queryTerrainElevation answer 0, so the first build
   // is a flat-mode approximation. Re-sample on a bounded timer and rebuild
-  // once tiles land. 'idle' cannot be used: it parks under the load-time
-  // fitBounds ease (#372). A genuine sea-level takeoff is indistinguishable
-  // from "not loaded yet" here, and simply keeps the first build.
+  // when the terrain firms up. 'idle' cannot be used: it parks under the
+  // load-time fitBounds ease (#372). areTilesLoaded() alone is not enough
+  // either -- it counts errored tiles as loaded and can flicker true before
+  // the DEM is usable -- so require a non-zero sample. A genuine sea-level
+  // takeoff is indistinguishable from "not loaded yet" and simply settles
+  // on the final pass. A partially warm DEM can also give mixed readings
+  // (inflated heights, or segments briefly dropped); the rebuild fixes it.
   if (!(map.getTerrain && map.getTerrain())) return;
+  const probe = flights.find(fl => fl.pts && fl.agl);
+  if (!probe) return;
   let tries = 20;
   const retry = () => {
-    if (map.areTilesLoaded && map.areTilesLoaded()) { setSculptData(); return; }
-    if (--tries > 0) setTimeout(retry, 250);
+    const e = takeoffElev(probe);
+    if ((typeof e === 'number' && e !== 0) || --tries <= 0) {
+      setSculptData();
+      return;
+    }
+    setTimeout(retry, 250);
   };
   setTimeout(retry, 250);
 }

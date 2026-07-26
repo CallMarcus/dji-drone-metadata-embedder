@@ -335,6 +335,34 @@ def test_height_converts_to_true_altitude_over_terrain(serve_map, page):
     assert max(hs) > 500, f"height was not converted to true altitude: {hs}"
 
 
+def test_true_altitude_reaches_the_source(serve_map, page):
+    """The converted heights must land in the map source, not just planksFor.
+
+    ``test_height_converts_to_true_altitude_over_terrain`` reads planksFor(...)
+    directly, which proves the conversion formula but not that it actually
+    reaches map.getSource(...). querySourceFeatures can return the same plank
+    once per covering tile, but that does not matter for a max().
+    """
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    start_lon = tile_lon + TILE_DEG * 1.75          # high side
+    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    page.evaluate("() => setSculptData()")
+    hs = page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0')"
+        ".map(f => f.properties.hgt)")
+    assert hs, "no features in source"
+    assert max(hs) > 500, f"true altitude did not reach the source: {hs}"
+
+
 def _vis(page, layer="sculpt-0-curtain"):
     return page.evaluate(
         "id => map.getLayoutProperty(id, 'visibility') || 'visible'", layer)
