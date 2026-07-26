@@ -64,6 +64,8 @@ _TEMPLATE = """<!DOCTYPE html>
                    font: 13px/1.8 sans-serif; max-height: 60%;
                    overflow-y: auto; }}
   .flights-panel label {{ display: block; cursor: pointer; }}
+  .flights-panel hr {{ border: none; border-top: 1px solid #ddd;
+                      margin: 6px 0; }}
   .map-note {{ position: absolute; top: 10px; left: 50%;
               transform: translateX(-50%); z-index: 6; background: #fffbe6;
               border: 1px solid #e0d8a8; border-radius: 4px;
@@ -115,6 +117,7 @@ const allCoords = [];
     name: p.name || `flight ${i + 1}`,
     color: PALETTE[i % PALETTE.length],
     props: p,
+    shown: true,
   };
   if (f.geometry.type === 'LineString') {
     entry.geometry = { type: 'LineString',
@@ -242,7 +245,10 @@ if (map) {
       map.on('mouseleave', f.id, () => {
         map.getCanvas().style.cursor = '';
       });
+      addSculpture(f, fi);
     });
+    map.on('zoomend', rebuildSculpture);
+    sculptSettle();
     buildPanel();
   });
 }
@@ -258,8 +264,10 @@ function buildPanel() {
     box.type = 'checkbox';
     box.checked = true;
     box.addEventListener('change', () => {
+      f.shown = box.checked;
       map.setLayoutProperty(f.id, 'visibility',
                             box.checked ? 'visible' : 'none');
+      applySculptVisibility();
     });
     label.appendChild(box);
     const swatch = document.createElement('span');
@@ -269,6 +277,21 @@ function buildPanel() {
     label.appendChild(document.createTextNode(f.name));
     panel.appendChild(label);
   });
+  if (flights.some(f => f.sculptSrc)) {
+    panel.appendChild(document.createElement('hr'));
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = 'sculpture-toggle';
+    box.checked = sculpture.on;
+    box.addEventListener('change', () => {
+      sculpture.on = box.checked;
+      applySculptVisibility();
+    });
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(' Sculpture'));
+    panel.appendChild(label);
+  }
   document.body.appendChild(panel);
 }
 
@@ -347,13 +370,18 @@ function ghostKeys(ev) {
   else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
 }
 
-function ghostTakeoffElev(fl) {
+function terrainElevAt(lngLat) {
+  // Gate on getTerrain(): queryTerrainElevation returns null when terrain is
+  // off, but 0 (not null) when terrain is on and its tiles are still cold
+  // (#372 spike round 3).
+  if (!(map.getTerrain && map.getTerrain())) return null;
+  const e = map.queryTerrainElevation(lngLat);
+  return typeof e === 'number' ? e : null;
+}
+
+function takeoffElev(fl) {
   const p0 = fl.pts[0];
-  // Gate on getTerrain(): with terrain failed/off, queryTerrainElevation
-  // returns 0 (spike round 3) and would fake a sea-level takeoff.
-  const elev = map.getTerrain && map.getTerrain()
-    ? map.queryTerrainElevation([p0[0], p0[1]]) : null;
-  return typeof elev === 'number' ? elev : null;
+  return terrainElevAt([p0[0], p0[1]]);
 }
 
 function ghostEnter(flightIdx, sampleIdx) {
@@ -365,6 +393,8 @@ function ghostEnter(flightIdx, sampleIdx) {
   // Attach Escape/arrows before any failure-prone work: if anything below
   // throws, the user can still exit instead of a frozen handlerless map.
   window.addEventListener('keydown', ghostKeys);
+  applySculptVisibility();   // a ribbon at the camera's own altitude would
+                            // sit across the cockpit view
   if (!ghost.saved) {
     // Survives exit -> rapid re-enter while the exit ease still runs, so
     // a re-entry never captures a mid-transition camera as "the view to
@@ -375,7 +405,7 @@ function ghostEnter(flightIdx, sampleIdx) {
   }
   map.setMaxPitch(GHOST_MAX_PITCH);
   GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
-  ghost.takeoffElev = ghostTakeoffElev(fl);
+  ghost.takeoffElev = takeoffElev(fl);
   if (ghost.takeoffElev != null && map.areTilesLoaded
       && !map.areTilesLoaded()) {
     // 'idle' can park under eased transitions before late DEM tiles land
@@ -385,7 +415,7 @@ function ghostEnter(flightIdx, sampleIdx) {
     let tries = 20;
     const retry = () => {
       if (!ghost.active || ghost.flight !== fl) return;
-      const elev = ghostTakeoffElev(fl);
+      const elev = takeoffElev(fl);
       if (typeof elev === 'number' && elev !== 0) {
         if (elev !== ghost.takeoffElev) {
           ghost.takeoffElev = elev;
@@ -438,6 +468,7 @@ function ghostExit() {
     map.setMaxPitch(saved.maxPitch);
     GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
     ghost.saved = null;
+    applySculptVisibility();
   });
   unmountHud();
   ghost.flight = null;
@@ -502,6 +533,162 @@ function updateHud() {
   if (pose.clamped) badge('pitch clamped to ' + GHOST_MAX_PITCH + '\\u00b0');
   if (pose.estimated) badge('estimated view \\u2014 no gimbal data');
   if (REDACTED === 'fuzz') badge('position fuzzed ~100 m');
+}
+
+// --- Flight sculpture (#375): AGL curtain + true-altitude ribbon ---
+// fill-extrusion base/height are measured from the LOCAL terrain surface
+// under each segment (the shader applies get_elevation(a_centroid)), but
+// agl_m is height above the single TAKEOFF point -- planksFor() converts
+// through terrainElevAt() so the rendered height is true ground clearance.
+// A custom WebGL layer cannot be used here at all: with terrain on,
+// MapLibre depth-rejects every fragment of a custom '3d' layer (spike, #375).
+const SCULPT_RIBBON_M = 6;    // solid slab thickness at flight altitude
+const SCULPT_PX = 3;          // target plank width, screen pixels
+const SCULPT_MIN_M = 4, SCULPT_MAX_M = 60;
+const sculpture = { on: true, widthM: null };
+
+function sculptWidthM() {
+  // Hold a roughly constant screen width: a fixed metre width vanishes
+  // when you zoom out to see the whole flight, and becomes a slab up close.
+  const mPerPx = 40075016.686 * Math.cos(map.getCenter().lat * Math.PI / 180)
+               / (512 * Math.pow(2, map.getZoom()));
+  return Math.max(SCULPT_MIN_M,
+                  Math.min(mPerPx * SCULPT_PX, SCULPT_MAX_M));
+}
+
+function planksFor(fl, widthM) {
+  // One rectangle per consecutive pair that has AGL at both ends.
+  const feats = [];
+  if (!fl.pts || !fl.agl) return feats;
+  const half = widthM / 2;
+  const tElev = takeoffElev(fl);
+  for (let i = 0; i < fl.pts.length - 1; i++) {
+    const a = fl.pts[i], b = fl.pts[i + 1];
+    const aglA = fl.agl[i], aglB = fl.agl[i + 1];
+    // A null AGL breaks the curtain: the gap length is unknown, so
+    // interpolating across it would invent altitude.
+    if (aglA == null || aglB == null) continue;
+    const agl = (aglA + aglB) / 2;
+    const lElev = tElev == null
+      ? null : terrainElevAt([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+    // agl is height above TAKEOFF, but fill-extrusion measures from the
+    // LOCAL surface under this segment. Converting through both elevations
+    // puts the ribbon at the drone's true altitude, so the curtain's length
+    // is real ground clearance: fly level at a rising ridge and it shortens.
+    // With terrain off both are null and agl is already right, because
+    // get_elevation returns 0 and the extrusion measures from sea level.
+    const hgt = (tElev != null && lElev != null)
+      ? (tElev + agl) - lElev : agl;
+    // Non-positive: the drone is at or below the rendered surface (rooftop
+    // launch, or a DEM/datum artefact near a cliff). fill-extrusion cannot
+    // render below the terrain at all, so break the curtain rather than
+    // invent a flat slab.
+    if (hgt <= 0) continue;
+    const mLat = 111320;
+    const mLon = 111320 * Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
+    const dx = (b[0] - a[0]) * mLon, dy = (b[1] - a[1]) * mLat;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (!len) continue;                 // duplicate fix: no direction
+    const ox = -dy / len * half / mLon, oy = dx / len * half / mLat;
+    feats.push({
+      type: 'Feature',
+      // rbase is clamped here rather than in a paint expression: the
+      // style spec forbids a negative fill-extrusion-base, and a hover
+      // lower than the ribbon thickness would compute one.
+      properties: { hgt: hgt, rbase: Math.max(0, hgt - SCULPT_RIBBON_M) },
+      geometry: { type: 'Polygon', coordinates: [[
+        [a[0] + ox, a[1] + oy], [b[0] + ox, b[1] + oy],
+        [b[0] - ox, b[1] - oy], [a[0] - ox, a[1] - oy],
+        [a[0] + ox, a[1] + oy],
+      ]] },
+    });
+  }
+  return feats;
+}
+
+function addSculpture(fl, fi) {
+  // Gate on the DATA, not on this build's output: with terrain in play a
+  // build can legitimately come back empty (canopy-height flight, cold
+  // tiles) and a later settle must still be able to populate it. Bailing
+  // here would strand the flight without a source, and with it the panel's
+  // Sculpture toggle.
+  if (!(fl.pts && fl.agl && fl.agl.some(v => v != null))) return;
+  if (sculpture.widthM == null) sculpture.widthM = sculptWidthM();
+  const feats = planksFor(fl, sculpture.widthM);
+  const src = 'sculpt-' + fi;
+  map.addSource(src, { type: 'geojson',
+    data: { type: 'FeatureCollection', features: feats } });
+  map.addLayer({ id: src + '-curtain', type: 'fill-extrusion', source: src,
+    paint: { 'fill-extrusion-color': fl.color,
+             'fill-extrusion-base': 0,
+             'fill-extrusion-height': ['get', 'hgt'],
+             'fill-extrusion-opacity': 0.35,
+             // Built-in gradient darkens the sides toward the ground: the
+             // fade cannot be alpha (the shader hardcodes colour alpha to
+             // 1.0 and fill-extrusion-opacity is layer-level only).
+             'fill-extrusion-vertical-gradient': true } });
+  map.addLayer({ id: src + '-ribbon', type: 'fill-extrusion', source: src,
+    paint: { 'fill-extrusion-color': fl.color,
+             'fill-extrusion-base': ['get', 'rbase'],
+             'fill-extrusion-height': ['get', 'hgt'],
+             'fill-extrusion-opacity': 1,
+             'fill-extrusion-vertical-gradient': false } });
+  fl.sculptSrc = src;
+}
+
+function applySculptVisibility() {
+  flights.forEach(fl => {
+    if (!fl.sculptSrc) return;
+    // Ghost mode hides it: a solid ribbon at the camera's own altitude
+    // would sit across the cockpit view.
+    const v = (sculpture.on && fl.shown && !ghost.active) ? 'visible' : 'none';
+    ['-curtain', '-ribbon'].forEach(sfx => {
+      const id = fl.sculptSrc + sfx;
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v);
+    });
+  });
+}
+
+function setSculptData() {
+  flights.forEach(fl => {
+    if (!fl.sculptSrc) return;
+    const src = map.getSource(fl.sculptSrc);
+    if (src) src.setData({ type: 'FeatureCollection',
+                           features: planksFor(fl, sculpture.widthM) });
+  });
+}
+
+function rebuildSculpture() {
+  const w = sculptWidthM();
+  // Ignore trivial changes: setData on every zoom frame would churn.
+  if (sculpture.widthM != null && Math.abs(w - sculpture.widthM) < 0.5) return;
+  sculpture.widthM = w;
+  setSculptData();
+}
+
+function sculptSettle() {
+  // Cold DEM tiles make queryTerrainElevation answer 0, so the first build
+  // is a flat-mode approximation. Re-sample on a bounded timer and rebuild
+  // when the terrain firms up. 'idle' cannot be used: it parks under the
+  // load-time fitBounds ease (#372). areTilesLoaded() alone is not enough
+  // either -- it counts errored tiles as loaded and can flicker true before
+  // the DEM is usable -- so require a non-zero sample. A genuine sea-level
+  // takeoff is indistinguishable from "not loaded yet" and simply settles
+  // on the final pass. A partially warm DEM can also give mixed readings
+  // (inflated heights, or segments briefly dropped); the rebuild fixes it.
+  if (!(map.getTerrain && map.getTerrain())) return;
+  const probe = flights.find(fl => fl.pts && fl.agl);
+  if (!probe) return;
+  let tries = 20;
+  const retry = () => {
+    const e = takeoffElev(probe);
+    if ((typeof e === 'number' && e !== 0) || --tries <= 0) {
+      setSculptData();
+      return;
+    }
+    setTimeout(retry, 250);
+  };
+  setTimeout(retry, 250);
 }
 """
 

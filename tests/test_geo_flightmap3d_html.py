@@ -98,6 +98,13 @@ def test_3d_empty_tracks_still_valid_document():
     assert _embedded_data(html)["features"] == []
 
 
+def test_3d_html_carries_the_sculpture_layers():
+    html = flights_to_3d_html([_track()], "trip")
+    assert "sculpt-" in html
+    assert "fill-extrusion-vertical-gradient" in html
+    assert "sculpture-toggle" in html
+
+
 def test_write_flights_3d_html(tmp_path):
     out = tmp_path / "flightmap-3d.html"
     result = write_flights_3d_html([_track()], out, "trip")

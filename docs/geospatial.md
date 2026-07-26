@@ -290,6 +290,38 @@ was generated with `--redact fuzz`). Heights come from the terrain model plus
 the logged height above takeoff; without terrain, the logged altitude is used
 as-is.
 
+### Flight sculpture — altitude you can see
+
+The 3D map draws each flight as a **sculpture**: a translucent curtain rising
+from the ground to the drone, capped by a solid ribbon at flight altitude, in
+the flight's own colour. Draped tracks all look alike from above — a 30 m
+hover and a 300 m transit trace the same line. The curtain gives that line a
+height, so the shape of the flight stands up out of the landscape.
+
+The ribbon sits at the drone's true altitude, and the curtain beneath it
+measures real ground clearance. The map derives that from the logged height
+above takeoff (`rel_alt`) plus the terrain elevation at the takeoff point,
+which keeps it consistent with the landscape you are looking at instead of
+trusting an absolute altitude whose datum may not match. Fly level toward
+rising ground and the curtain visibly shortens as the clearance closes.
+
+Where the terrain model is unavailable the curtain falls back to plain height
+above takeoff. Segments where the drone works out to be at or below the
+rendered ground — a rooftop launch, a datum artefact near a cliff, or a low
+flight over forest (the terrain model is a surface model, so it includes tree
+canopy and buildings) — are left out rather than drawn flat, so the curtain
+breaks there.
+
+Use the **Sculpture** checkbox in the flights panel to hide it. A flight's own
+checkbox hides its track and its sculpture together, and the sculpture steps
+out of the way while you are in the ghost view.
+
+Flights whose SRT format carries no `rel_alt` get no sculpture; if none of the
+flights on a map has it, the checkbox does not appear at all.
+
+Terrain hides the sculpture the way it hides anything else: a ridge between
+you and the flight blocks it from view.
+
 ## Photo map (`photomap`)
 
 ```bash
