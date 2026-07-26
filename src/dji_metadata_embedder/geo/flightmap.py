@@ -16,10 +16,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from statistics import median
 from xml.sax.saxutils import escape
 
 from .. import utilities
 from ..utilities import load_samples, redact_coords
+from .footprint import DEFAULT_LENS, fov_degrees
 from .geometry import haversine_m
 from .track import Track, TrackPoint, _cue_seconds, build_track_from_samples
 
@@ -319,16 +321,44 @@ def _relative_times(points: list[TrackPoint]) -> list[float]:
     return times
 
 
-def flights_to_geojson(tracks: list[Track]) -> dict:
+def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
+    """Per-point camera-pose arrays for the 3D ghost view (#372).
+
+    Same contract as ``times_s``: parallel to ``coordinates``, null-padded so
+    indices stay aligned, emitted only when at least one point has the value.
+    ``vfov_deg`` is per-flight (median focal length) — DJI zooms mid-flight
+    rarely enough that one value per flight is honest.
+    """
+    for key, attr in (
+        ("gyaw_deg", "gimbal_yaw"),
+        ("gpitch_deg", "gimbal_pitch"),
+        ("agl_m", "rel_alt"),
+    ):
+        vals = [
+            None if getattr(p, attr) is None else round(getattr(p, attr), 1)
+            for p in points
+        ]
+        if any(v is not None for v in vals):
+            properties[key] = vals
+    focals = [p.focal_len for p in points if p.focal_len is not None]
+    if focals:
+        properties["vfov_deg"] = round(
+            fov_degrees(DEFAULT_LENS, median(focals))[1], 1
+        )
+
+
+def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
     """Return a GeoJSON ``FeatureCollection`` with one feature per flight.
 
     Each flight is a ``LineString`` carrying name/start/duration/altitude
     summary properties plus ``times_s`` — per-point seconds relative to the
     flight start — which drives the HTML viewer's playback animation (#267).
+    LineStrings also carry per-point ghost-camera pose arrays (``gyaw_deg``/``gpitch_deg``/``agl_m``) and a per-flight ``vfov_deg`` when the telemetry has them (#372).
     A single-fix clip degrades to a ``Point`` (RFC 7946 §3.1.4 requires two
     or more positions in a LineString) and carries no times. Unlike the
     single-track exporter no per-sample Point features are emitted — at
     archive scale they would swamp the map and the file.
+    The top-level ``redacted`` member records the CLI redaction mode so viewers can badge fuzzed positions honestly (#372).
     """
     features: list[dict] = []
     for track in tracks:
@@ -337,6 +367,7 @@ def flights_to_geojson(tracks: list[Track]) -> dict:
         if len(coords) >= 2:
             geometry: dict = {"type": "LineString", "coordinates": coords}
             properties["times_s"] = _relative_times(track.points)
+            _add_ghost_props(properties, track.points)
         else:
             geometry = {"type": "Point", "coordinates": coords[0]}
         features.append(
@@ -346,13 +377,16 @@ def flights_to_geojson(tracks: list[Track]) -> dict:
                 "properties": properties,
             }
         )
-    return {"type": "FeatureCollection", "features": features}
+    return {"type": "FeatureCollection", "redacted": redact,
+            "features": features}
 
 
-def write_flights_geojson(tracks: list[Track], output_path: Path) -> Path:
+def write_flights_geojson(
+    tracks: list[Track], output_path: Path, redact: str = "none"
+) -> Path:
     """Write *tracks* as GeoJSON to *output_path* and return it."""
     output_path.write_text(
-        json.dumps(flights_to_geojson(tracks), indent=2), encoding="utf-8"
+        json.dumps(flights_to_geojson(tracks, redact=redact), indent=2), encoding="utf-8"
     )
     logger.info("GeoJSON flight map created: %s", output_path)
     return output_path

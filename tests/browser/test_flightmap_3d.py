@@ -62,3 +62,17 @@ def test_3d_toggle_hides_a_flight(serve_map, page):
     assert page.evaluate(
         "() => map.getLayoutProperty('flight-0', 'visibility')"
     ) == "none"
+
+
+def test_terrain_stub_gives_real_elevation(serve_map, page):
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 5)], "trip")
+    serve_map(html, terrain_stub=100.0)
+    # queryTerrainElevation returns 0 (not null) until DEM tiles are live
+    # (spike round 3), so poll for the stub's height directly.
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.queryTerrainElevation"
+        " && Math.abs(map.queryTerrainElevation([20.0, 10.0]) - 100) < 2",
+        timeout=20000,
+    )
+    # Terrain did not fail, so the flat-view banner must not be up.
+    assert page.locator(".map-note").count() == 0

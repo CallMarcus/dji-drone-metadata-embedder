@@ -942,15 +942,19 @@ def flightmap(
             try:
                 if f == "html":
                     if three_d:
-                        write_flights_3d_html(tracks, out, map_title)
+                        write_flights_3d_html(
+                            tracks, out, map_title, redact=redact.lower()
+                        )
                     else:
                         write_flights_html(
-                            tracks, out, map_title, tile_style=tile_style.lower()
+                            tracks, out, map_title,
+                            tile_style=tile_style.lower(),
+                            redact=redact.lower(),
                         )
                 elif f == "kml":
                     write_flights_kml(tracks, out, map_title)
                 else:
-                    write_flights_geojson(tracks, out)
+                    write_flights_geojson(tracks, out, redact=redact.lower())
             except OSError as e:
                 raise click.ClickException(f"Could not write {out}: {e}")
         progress.result(

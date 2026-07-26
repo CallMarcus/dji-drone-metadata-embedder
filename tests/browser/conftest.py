@@ -15,9 +15,13 @@ extra and are unaffected.
 import base64
 import hashlib
 import http.server
+import json
 import re
+import struct
 import threading
+import zlib
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -62,6 +66,69 @@ def _fetch_asset(url: str, integrity: str) -> Path:
     return dest
 
 
+def _dem_png(elev_m: float) -> bytes:
+    """256x256 constant-elevation PNG in mapbox raster-dem encoding.
+
+    The 3D template's terrain sources declare no ``encoding``, so MapLibre
+    decodes tiles as mapbox: h = -10000 + (R*65536 + G*256 + B) * 0.1.
+    """
+    v = round((elev_m + 10000) / 0.1)
+    r, g, b = (v >> 16) & 255, (v >> 8) & 255, v & 255
+    row = b"\x00" + bytes((r, g, b)) * 256  # filter byte 0 + RGB pixels
+    raw = row * 256
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data)) + tag + data
+            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+        )
+
+    ihdr = struct.pack(">IIBBBBB", 256, 256, 8, 2, 0, 0, 0)  # 8-bit RGB
+    return (
+        b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+        + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+    )
+
+
+_STRIP_HILLSHADE_JS = """
+(() => {
+  // SwiftShader (headless CI WebGL) hangs when the hillshade layer renders
+  // real DEM data under pitch — MapLibre 'load' never fires. Terrain-stub
+  // runs strip hillshade: it is presentation-only for these tests.
+  const wrapMap = (M) => {
+    const W = function (opts) {
+      if (opts && opts.style && opts.style.layers) {
+        opts.style.layers = opts.style.layers.filter(
+          (l) => l.type !== 'hillshade');
+        if (opts.style.sources) delete opts.style.sources.hillshade;
+      }
+      return new M(opts);
+    };
+    W.prototype = M.prototype;
+    Object.assign(W, M);
+    return W;
+  };
+  let lib;
+  Object.defineProperty(window, 'maplibregl', {
+    configurable: true,
+    get() { return lib; },
+    set(v) {
+      lib = v;
+      if (!v || typeof v !== 'object') return;
+      if (v.Map) { v.Map = wrapMap(v.Map); return; }
+      let realMap;
+      Object.defineProperty(v, 'Map', {
+        configurable: true,
+        enumerable: true,
+        get() { return realMap; },
+        set(M) { realMap = wrapMap(M); },
+      });
+    },
+  });
+})();
+"""
+
+
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):  # noqa: ARG002 - silence per-request stderr
         pass
@@ -87,11 +154,18 @@ def serve_map(map_server, page):
     """Serve an HTML string and open it, with external traffic stubbed.
 
     ``on`` targets a different Page (e.g. one from a touch-emulating
-    context) instead of the default ``page`` fixture.
+    context) instead of the default ``page`` fixture. ``terrain_stub``
+    opts into fulfilling the Mapterhorn TileJSON + DEM tile requests with
+    a constant-elevation PNG (mapbox raster-dem encoding) instead of the
+    default abort, so terrain-dependent behaviour becomes testable.
+    Terrain-stub runs also strip the ``hillshade`` source/layer before the
+    map constructs: headless SwiftShader hangs rendering it against real
+    DEM data under pitch, and it is presentation-only, so these runs never
+    see it (see ``_STRIP_HILLSHADE_JS``).
     """
     root, base_url = map_server
 
-    def _serve(html: str, *, on=None) -> str:
+    def _serve(html: str, *, on=None, terrain_stub: float | None = None) -> str:
         import uuid
 
         target = on if on is not None else page
@@ -117,6 +191,28 @@ def serve_map(map_server, page):
             return r.abort()
 
         target.route("**/*", route)
+
+        if terrain_stub is not None:
+            target.add_init_script(_STRIP_HILLSHADE_JS)
+            dem = _dem_png(terrain_stub)
+            tilejson = json.dumps({
+                "tilejson": "2.2.0",
+                "tiles": ["https://tiles.mapterhorn.com/dem/{z}/{x}/{y}.png"],
+                "minzoom": 0,
+                "maxzoom": 12,
+            }).encode()
+
+            def terrain_route(r):
+                if r.request.url.endswith("tilejson.json"):
+                    return r.fulfill(body=tilejson,
+                                     content_type="application/json")
+                return r.fulfill(body=dem, content_type="image/png")
+
+            target.route(
+                lambda u: urlsplit(u).hostname == "tiles.mapterhorn.com",
+                terrain_route,
+            )
+
         url = f"{base_url}/{name}"
         target.goto(url)
         return url
