@@ -421,3 +421,72 @@ def test_writers_create_files(tmp_path):
     kml = write_flights_kml(tracks, tmp_path / "f.kml", title="t")
     assert json.loads(geo.read_text(encoding="utf-8"))["type"] == "FeatureCollection"
     assert "<kml" in kml.read_text(encoding="utf-8")
+
+
+def _ghost_track(**overrides):
+    from datetime import datetime, timedelta
+
+    from dji_metadata_embedder.geo.track import Track, TrackPoint
+
+    t0 = datetime(2026, 6, 15, 12, 0, 0)
+    defaults = dict(gimbal_yaw=None, gimbal_pitch=None, rel_alt=None,
+                    focal_len=None)
+    defaults.update(overrides)
+    pts = [
+        TrackPoint(lat=10.0, lon=20.0 + i * 0.001, alt=100.0 + i,
+                   timestamp=f"00:00:{i:02d},000",
+                   utc=t0 + timedelta(seconds=float(i)), **defaults)
+        for i in range(3)
+    ]
+    return Track(name="GHOST", points=pts)
+
+
+def test_geojson_pose_arrays_rounded_and_aligned():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+    from dji_metadata_embedder.geo.track import Track, TrackPoint
+    from datetime import datetime
+
+    pts = [
+        TrackPoint(lat=10.0, lon=20.0, alt=100.0, timestamp="00:00:00,000",
+                   utc=datetime(2026, 6, 15, 12, 0, 0),
+                   gimbal_yaw=90.0, gimbal_pitch=-60.0, rel_alt=50.0),
+        TrackPoint(lat=10.0, lon=20.001, alt=101.0, timestamp="00:00:01,000",
+                   utc=datetime(2026, 6, 15, 12, 0, 1),
+                   gimbal_yaw=91.56, gimbal_pitch=None, rel_alt=51.234),
+    ]
+    fc = flights_to_geojson([Track(name="GHOST", points=pts)])
+    props = fc["features"][0]["properties"]
+    assert props["gyaw_deg"] == [90.0, 91.6]
+    assert props["gpitch_deg"] == [-60.0, None]  # null-padded, stays aligned
+    assert props["agl_m"] == [50.0, 51.2]
+    n = len(fc["features"][0]["geometry"]["coordinates"])
+    assert len(props["gyaw_deg"]) == len(props["agl_m"]) == n
+
+
+def test_geojson_pose_arrays_absent_without_data():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    fc = flights_to_geojson([_ghost_track()])
+    props = fc["features"][0]["properties"]
+    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "vfov_deg"):
+        assert key not in props
+
+
+def test_geojson_pose_arrays_not_on_single_fix_point():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track(gimbal_yaw=45.0, gimbal_pitch=-30.0, rel_alt=20.0)
+    track.points = track.points[:1]
+    fc = flights_to_geojson([track])
+    assert fc["features"][0]["geometry"]["type"] == "Point"
+    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "vfov_deg"):
+        assert key not in fc["features"][0]["properties"]
+
+
+def test_geojson_vfov_from_median_focal():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    fc = flights_to_geojson([_ghost_track(focal_len=24.0)])
+    # DEFAULT_LENS aspect 4:3 -> full-frame height 27 mm;
+    # vfov = 2*atan(27 / (2*24)) = 58.7 deg.
+    assert fc["features"][0]["properties"]["vfov_deg"] == 58.7
