@@ -106,8 +106,9 @@ pitch to a fixed −30° down-tilt (tunable constant), and the HUD badges the
 view as estimated. Decided over hiding the button because whole formats would
 otherwise lose the feature; the badge keeps it honest.
 
-**Cockpit scrub.** ←/→ keys and on-screen ‹ › buttons step one sample, with
-hold-to-repeat; each step is a ~150 ms micro-ease. Entering and exiting ghost
+**Cockpit scrub.** ←/→ keys and on-screen ‹ › buttons step one sample
+(holding an arrow key repeats; buttons are single-step by design); each
+step is a ~150 ms micro-ease. Entering and exiting ghost
 mode is a ~1.2 s eased transition (`easeTo` over the computed camera
 options). While ghost mode is active the normal map
 interaction handlers are disabled so they cannot fight the free camera. Esc

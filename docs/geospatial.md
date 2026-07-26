@@ -274,7 +274,8 @@ In the 3D map, every flight's popup has a **View from here** button. It flies
 the map camera to the drone's recorded pose at that moment — position, height
 above takeoff, gimbal direction, and the camera's field of view — so the
 rendered terrain shows what the real camera saw. Step through the flight with
-the ‹ › buttons or arrow keys (hold to scrub); press Esc or × to return to
+the ‹ › buttons or arrow keys (hold an arrow key to scrub); press Esc or
+× to return to
 the overview.
 
 This doubles as a verification aid: if the rendered ridgelines match the

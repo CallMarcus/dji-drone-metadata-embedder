@@ -70,7 +70,7 @@ def test_terrain_stub_gives_real_elevation(serve_map, page):
     # queryTerrainElevation returns 0 (not null) until DEM tiles are live
     # (spike round 3), so poll for the stub's height directly.
     page.wait_for_function(
-        "() => window.map && map.queryTerrainElevation"
+        "() => typeof map !== 'undefined' && map && map.queryTerrainElevation"
         " && Math.abs(map.queryTerrainElevation([20.0, 10.0]) - 100) < 2",
         timeout=20000,
     )

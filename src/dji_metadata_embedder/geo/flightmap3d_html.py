@@ -419,6 +419,9 @@ function ghostExit() {
   if (!ghost.active) return;
   ghost.active = false;
   window.removeEventListener('keydown', ghostKeys);
+  // Keep this FOV restore ABOVE the easeTo and once('moveend') below:
+  // setVerticalFieldOfView fires moveend synchronously, and a listener
+  // registered first would consume it and self-restore mid-ease.
   if (ghost.savedFov != null
       && typeof map.setVerticalFieldOfView === 'function') {
     map.setVerticalFieldOfView(ghost.savedFov);
