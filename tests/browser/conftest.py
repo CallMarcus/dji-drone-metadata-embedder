@@ -66,15 +66,22 @@ def _fetch_asset(url: str, integrity: str) -> Path:
     return dest
 
 
-def _dem_png(elev_m: float) -> bytes:
-    """256x256 constant-elevation PNG in mapbox raster-dem encoding.
-
-    The 3D template's terrain sources declare no ``encoding``, so MapLibre
-    decodes tiles as mapbox: h = -10000 + (R*65536 + G*256 + B) * 0.1.
-    """
+def _dem_rgb(elev_m: float) -> tuple[int, int, int]:
+    """Mapbox raster-dem encoding: h = -10000 + (R*65536 + G*256 + B) * 0.1."""
     v = round((elev_m + 10000) / 0.1)
-    r, g, b = (v >> 16) & 255, (v >> 8) & 255, v & 255
-    row = b"\x00" + bytes((r, g, b)) * 256  # filter byte 0 + RGB pixels
+    return (v >> 16) & 255, (v >> 8) & 255, v & 255
+
+
+def _dem_png(elev_m: float, high_m: float | None = None) -> bytes:
+    """256x256 raster-dem tile.
+
+    Constant *elev_m* by default. With *high_m*, the left half of the tile is
+    ``elev_m`` and the right half ``high_m`` — a vertical cliff down the
+    middle of every tile, which is what makes terrain occlusion testable.
+    """
+    lo = _dem_rgb(elev_m)
+    hi = _dem_rgb(high_m if high_m is not None else elev_m)
+    row = b"\x00" + bytes(lo) * 128 + bytes(hi) * 128
     raw = row * 256
 
     def chunk(tag: bytes, data: bytes) -> bytes:
@@ -158,14 +165,21 @@ def serve_map(map_server, page):
     opts into fulfilling the Mapterhorn TileJSON + DEM tile requests with
     a constant-elevation PNG (mapbox raster-dem encoding) instead of the
     default abort, so terrain-dependent behaviour becomes testable.
-    Terrain-stub runs also strip the ``hillshade`` source/layer before the
-    map constructs: headless SwiftShader hangs rendering it against real
-    DEM data under pitch, and it is presentation-only, so these runs never
-    see it (see ``_STRIP_HILLSHADE_JS``).
+    ``terrain_steps=(low_m, high_m)`` is the mutually-exclusive alternative:
+    it fulfils a DEM whose left half is ``low_m`` and right half ``high_m``
+    (a cliff down the middle of every tile) at ``maxzoom`` 15 so each tile
+    spans ~1.2 km and the cliff falls inside the viewport — this is what
+    makes terrain occlusion testable. Passing both ``terrain_stub`` and
+    ``terrain_steps`` is a ``ValueError``. Terrain-stub/-steps runs also
+    strip the ``hillshade`` source/layer before the map constructs: headless
+    SwiftShader hangs rendering it against real DEM data under pitch, and it
+    is presentation-only, so these runs never see it (see
+    ``_STRIP_HILLSHADE_JS``).
     """
     root, base_url = map_server
 
-    def _serve(html: str, *, on=None, terrain_stub: float | None = None) -> str:
+    def _serve(html: str, *, on=None, terrain_stub: float | None = None,
+               terrain_steps: tuple[float, float] | None = None) -> str:
         import uuid
 
         target = on if on is not None else page
@@ -192,14 +206,21 @@ def serve_map(map_server, page):
 
         target.route("**/*", route)
 
-        if terrain_stub is not None:
+        if terrain_stub is not None and terrain_steps is not None:
+            raise ValueError("pass terrain_stub or terrain_steps, not both")
+        if terrain_stub is not None or terrain_steps is not None:
             target.add_init_script(_STRIP_HILLSHADE_JS)
-            dem = _dem_png(terrain_stub)
+            if terrain_steps is not None:
+                dem = _dem_png(terrain_steps[0], terrain_steps[1])
+                maxzoom = 15   # ~1.2 km tiles: a cliff fits in the viewport
+            else:
+                dem = _dem_png(terrain_stub)
+                maxzoom = 12
             tilejson = json.dumps({
                 "tilejson": "2.2.0",
                 "tiles": ["https://tiles.mapterhorn.com/dem/{z}/{x}/{y}.png"],
                 "minzoom": 0,
-                "maxzoom": 12,
+                "maxzoom": maxzoom,
             }).encode()
 
             def terrain_route(r):
@@ -208,6 +229,9 @@ def serve_map(map_server, page):
                                      content_type="application/json")
                 return r.fulfill(body=dem, content_type="image/png")
 
+            # Registered AFTER the catch-all route above: Playwright matches
+            # routes in REVERSE registration order, so this must come last
+            # to take priority over the catch-all's abort.
             target.route(
                 lambda u: urlsplit(u).hostname == "tiles.mapterhorn.com",
                 terrain_route,
