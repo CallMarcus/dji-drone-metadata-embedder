@@ -248,6 +248,7 @@ if (map) {
       addSculpture(f, fi);
     });
     map.on('zoomend', rebuildSculpture);
+    sculptSettle();
     buildPanel();
   });
 }
@@ -369,13 +370,17 @@ function ghostKeys(ev) {
   else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
 }
 
-function ghostTakeoffElev(fl) {
+function terrainElevAt(lngLat) {
+  // Gate on getTerrain(): queryTerrainElevation returns 0, not null, when
+  // terrain is off or its tiles are still cold (#372 spike round 3).
+  if (!(map.getTerrain && map.getTerrain())) return null;
+  const e = map.queryTerrainElevation(lngLat);
+  return typeof e === 'number' ? e : null;
+}
+
+function takeoffElev(fl) {
   const p0 = fl.pts[0];
-  // Gate on getTerrain(): with terrain failed/off, queryTerrainElevation
-  // returns 0 (spike round 3) and would fake a sea-level takeoff.
-  const elev = map.getTerrain && map.getTerrain()
-    ? map.queryTerrainElevation([p0[0], p0[1]]) : null;
-  return typeof elev === 'number' ? elev : null;
+  return terrainElevAt([p0[0], p0[1]]);
 }
 
 function ghostEnter(flightIdx, sampleIdx) {
@@ -399,7 +404,7 @@ function ghostEnter(flightIdx, sampleIdx) {
   }
   map.setMaxPitch(GHOST_MAX_PITCH);
   GHOST_HANDLERS.forEach(h => map[h] && map[h].disable());
-  ghost.takeoffElev = ghostTakeoffElev(fl);
+  ghost.takeoffElev = takeoffElev(fl);
   if (ghost.takeoffElev != null && map.areTilesLoaded
       && !map.areTilesLoaded()) {
     // 'idle' can park under eased transitions before late DEM tiles land
@@ -409,7 +414,7 @@ function ghostEnter(flightIdx, sampleIdx) {
     let tries = 20;
     const retry = () => {
       if (!ghost.active || ghost.flight !== fl) return;
-      const elev = ghostTakeoffElev(fl);
+      const elev = takeoffElev(fl);
       if (typeof elev === 'number' && elev !== 0) {
         if (elev !== ghost.takeoffElev) {
           ghost.takeoffElev = elev;
@@ -530,11 +535,12 @@ function updateHud() {
 }
 
 // --- Flight sculpture (#375): AGL curtain + true-altitude ribbon ---
-// fill-extrusion base/height are measured from the terrain surface (the
-// shader applies get_elevation(a_centroid)), so agl_m drops straight in --
-// no queryTerrainElevation, no cold-DEM race. A custom WebGL layer cannot
-// be used here at all: with terrain on, MapLibre depth-rejects every
-// fragment of a custom '3d' layer (spike, #375).
+// fill-extrusion base/height are measured from the LOCAL terrain surface
+// under each segment (the shader applies get_elevation(a_centroid)), but
+// agl_m is height above the single TAKEOFF point -- planksFor() converts
+// through terrainElevAt() so the rendered height is true ground clearance.
+// A custom WebGL layer cannot be used here at all: with terrain on,
+// MapLibre depth-rejects every fragment of a custom '3d' layer (spike, #375).
 const SCULPT_RIBBON_M = 6;    // solid slab thickness at flight altitude
 const SCULPT_PX = 3;          // target plank width, screen pixels
 const SCULPT_MIN_M = 4, SCULPT_MAX_M = 60;
@@ -554,6 +560,7 @@ function planksFor(fl, widthM) {
   const feats = [];
   if (!fl.pts || !fl.agl) return feats;
   const half = widthM / 2;
+  const tElev = takeoffElev(fl);
   for (let i = 0; i < fl.pts.length - 1; i++) {
     const a = fl.pts[i], b = fl.pts[i + 1];
     const aglA = fl.agl[i], aglB = fl.agl[i + 1];
@@ -561,12 +568,21 @@ function planksFor(fl, widthM) {
     // interpolating across it would invent altitude.
     if (aglA == null || aglB == null) continue;
     const agl = (aglA + aglB) / 2;
-    // A negative mean AGL (rooftop/cliff-top launch: rel_alt is signed and
-    // not clamped upstream) breaks the curtain too: fill-extrusion cannot
-    // render below the terrain surface at all (the style spec floors base
-    // at 0), so a below-takeoff segment has no honest representation.
-    // Breaking the curtain is truthful; inventing a zero-height slab is not.
-    if (agl < 0) continue;
+    const lElev = tElev == null
+      ? null : terrainElevAt([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+    // agl is height above TAKEOFF, but fill-extrusion measures from the
+    // LOCAL surface under this segment. Converting through both elevations
+    // puts the ribbon at the drone's true altitude, so the curtain's length
+    // is real ground clearance: fly level at a rising ridge and it shortens.
+    // With terrain off both are null and agl is already right, because
+    // get_elevation returns 0 and the extrusion measures from sea level.
+    const hgt = (tElev != null && lElev != null)
+      ? (tElev + agl) - lElev : agl;
+    // Non-positive: the drone is at or below the rendered surface (rooftop
+    // launch, or a DEM/datum artefact near a cliff). fill-extrusion cannot
+    // render below the terrain at all, so break the curtain rather than
+    // invent a flat slab.
+    if (hgt <= 0) continue;
     const mLat = 111320;
     const mLon = 111320 * Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
     const dx = (b[0] - a[0]) * mLon, dy = (b[1] - a[1]) * mLat;
@@ -578,7 +594,7 @@ function planksFor(fl, widthM) {
       // rbase is clamped here rather than in a paint expression: the
       // style spec forbids a negative fill-extrusion-base, and a hover
       // lower than the ribbon thickness would compute one.
-      properties: { agl: agl, rbase: Math.max(0, agl - SCULPT_RIBBON_M) },
+      properties: { hgt: hgt, rbase: Math.max(0, hgt - SCULPT_RIBBON_M) },
       geometry: { type: 'Polygon', coordinates: [[
         [a[0] + ox, a[1] + oy], [b[0] + ox, b[1] + oy],
         [b[0] - ox, b[1] - oy], [a[0] - ox, a[1] - oy],
@@ -599,7 +615,7 @@ function addSculpture(fl, fi) {
   map.addLayer({ id: src + '-curtain', type: 'fill-extrusion', source: src,
     paint: { 'fill-extrusion-color': fl.color,
              'fill-extrusion-base': 0,
-             'fill-extrusion-height': ['get', 'agl'],
+             'fill-extrusion-height': ['get', 'hgt'],
              'fill-extrusion-opacity': 0.35,
              // Built-in gradient darkens the sides toward the ground: the
              // fade cannot be alpha (the shader hardcodes colour alpha to
@@ -608,7 +624,7 @@ function addSculpture(fl, fi) {
   map.addLayer({ id: src + '-ribbon', type: 'fill-extrusion', source: src,
     paint: { 'fill-extrusion-color': fl.color,
              'fill-extrusion-base': ['get', 'rbase'],
-             'fill-extrusion-height': ['get', 'agl'],
+             'fill-extrusion-height': ['get', 'hgt'],
              'fill-extrusion-opacity': 1,
              'fill-extrusion-vertical-gradient': false } });
   fl.sculptSrc = src;
@@ -627,17 +643,36 @@ function applySculptVisibility() {
   });
 }
 
+function setSculptData() {
+  flights.forEach(fl => {
+    if (!fl.sculptSrc) return;
+    const src = map.getSource(fl.sculptSrc);
+    if (src) src.setData({ type: 'FeatureCollection',
+                           features: planksFor(fl, sculpture.widthM) });
+  });
+}
+
 function rebuildSculpture() {
   const w = sculptWidthM();
   // Ignore trivial changes: setData on every zoom frame would churn.
   if (sculpture.widthM != null && Math.abs(w - sculpture.widthM) < 0.5) return;
   sculpture.widthM = w;
-  flights.forEach(fl => {
-    if (!fl.sculptSrc) return;
-    const src = map.getSource(fl.sculptSrc);
-    if (src) src.setData({ type: 'FeatureCollection',
-                           features: planksFor(fl, w) });
-  });
+  setSculptData();
+}
+
+function sculptSettle() {
+  // Cold DEM tiles make queryTerrainElevation return 0, so the first build
+  // is a flat-mode approximation. Re-sample on a bounded timer and rebuild
+  // once tiles land. 'idle' cannot be used: it parks under the load-time
+  // fitBounds ease (#372). A genuine sea-level takeoff is indistinguishable
+  // from "not loaded yet" here, and simply keeps the first build.
+  if (!(map.getTerrain && map.getTerrain())) return;
+  let tries = 20;
+  const retry = () => {
+    if (map.areTilesLoaded && map.areTilesLoaded()) { setSculptData(); return; }
+    if (--tries > 0) setTimeout(retry, 250);
+  };
+  setTimeout(retry, 250);
 }
 """
 

@@ -146,7 +146,7 @@ def test_curtain_height_tracks_agl(serve_map, page):
     # can return the same plank once per covering tile.
     peak = page.evaluate(
         "() => Math.max.apply(null,"
-        " planksFor(flights[0], 10).map(f => f.properties.agl))")
+        " planksFor(flights[0], 10).map(f => f.properties.hgt))")
     # Segment AGL is the mean of its endpoints, so the tallest plank is the
     # mean of the two highest adjacent samples: (20+45)/2 and (45+30)/2 -> 37.5
     assert abs(peak - 37.5) < 0.1
@@ -234,9 +234,9 @@ def test_sculpture_paint_properties_are_wired_correctly(serve_map, page):
         "() => map.getPaintProperty("
         "'sculpt-0-ribbon', 'fill-extrusion-vertical-gradient')")
     assert curtain_base == 0
-    assert curtain_height == ["get", "agl"]
+    assert curtain_height == ["get", "hgt"]
     assert ribbon_base == ["get", "rbase"]
-    assert ribbon_height == ["get", "agl"]
+    assert ribbon_height == ["get", "hgt"]
     assert curtain_opacity == 0.35
     assert curtain_gradient is True
     assert ribbon_opacity == 1
@@ -245,7 +245,7 @@ def test_sculpture_paint_properties_are_wired_correctly(serve_map, page):
 
 def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
         serve_map, page):
-    """A tall segment's rbase must track agl - 6 exactly.
+    """A tall segment's rbase must track hgt - 6 exactly.
 
     ``test_ribbon_base_never_negative`` uses a fixture where every segment
     clamps to 0, so a constant ``rbase: 0`` implementation would satisfy it.
@@ -262,7 +262,7 @@ def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
     assert len(planks) == 4
     for plank in planks:
         props = plank["properties"]
-        assert props["rbase"] == pytest.approx(props["agl"] - 6)
+        assert props["rbase"] == pytest.approx(props["hgt"] - 6)
 
 
 def test_zooming_out_widens_planks_in_metres(serve_map, page):
@@ -300,6 +300,39 @@ def test_negative_agl_segments_produce_no_planks(serve_map, page):
     # 4 possible segments; the two touching the negative-mean-AGL point
     # (indices 0-1 and 1-2) are dropped, leaving 2.
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 2
+
+
+def test_height_converts_to_true_altitude_over_terrain(serve_map, page):
+    """Crossing from a 600 m plateau into a valley must lengthen the curtain.
+
+    The drone holds its height above takeoff, so its clearance over the
+    valley floor is 600 m greater than over the plateau it launched from.
+    """
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    # queryTerrainElevation resolves DEM tiles one zoom level coarser than
+    # the source's maxzoom (empirically verified: probing terrainElevAt
+    # across this stub shows a clean 0/600 step every TWO z15 tile-widths,
+    # not one), so the low/high split actually falls a full tile-width east
+    # of tile_lon rather than mid-tile. Start on the high side of that
+    # boundary and walk east into the low side.
+    start_lon = tile_lon + TILE_DEG * 1.75          # high side
+    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    page.evaluate("() => setSculptData()")
+    hs = page.evaluate(
+        "() => planksFor(flights[0], 10).map(f => f.properties.hgt)")
+    assert hs, "no planks built"
+    # Plateau segments: ~50 m of clearance. Valley segments: ~650 m.
+    assert min(hs) < 200, f"no plateau-height planks: {hs}"
+    assert max(hs) > 500, f"height was not converted to true altitude: {hs}"
 
 
 def _vis(page, layer="sculpt-0-curtain"):

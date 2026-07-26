@@ -298,11 +298,17 @@ the flight's own colour. Draped tracks all look alike from above — a 30 m
 hover and a 300 m transit trace the same line. The curtain gives that line a
 height, so the shape of the flight stands up out of the landscape.
 
-Curtain height is the logged height **above takeoff** (`rel_alt`), measured
-from the terrain surface beneath it rather than from sea level. That keeps the
-sculpture honest over hills: it stands on the ground the drone actually flew
-over, so it cannot drift from the terrain the way an absolute altitude with a
-mismatched datum would.
+The ribbon sits at the drone's true altitude, and the curtain beneath it
+measures real ground clearance. The map derives that from the logged height
+above takeoff (`rel_alt`) plus the terrain elevation at the takeoff point,
+which keeps it consistent with the landscape you are looking at instead of
+trusting an absolute altitude whose datum may not match. Fly level toward
+rising ground and the curtain visibly shortens as the clearance closes.
+
+Where the terrain model is unavailable the curtain falls back to plain height
+above takeoff. Segments where the drone works out to be at or below the
+rendered ground — a rooftop launch, or a datum artefact near a cliff — are
+left out rather than drawn flat, so the curtain breaks there.
 
 Use the **Sculpture** checkbox in the flights panel to hide it. A flight's own
 checkbox hides its track and its sculpture together, and the sculpture steps
