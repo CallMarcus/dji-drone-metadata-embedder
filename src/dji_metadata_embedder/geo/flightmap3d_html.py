@@ -429,7 +429,7 @@ function ghostExit() {
                bearing: saved.bearing, duration: GHOST_ENTER_MS });
   map.once('moveend', () => {
     // Interrupting this ease (MapLibre fires moveend for aborted eases
-    // too — e.g. a rapid ghost re-entry) must not restore mid-session:
+    // too, e.g. a rapid ghost re-entry) must not restore mid-session:
     // that would unlock the camera inside the new ghost session.
     if (ghost.active) return;
     map.setMaxPitch(saved.maxPitch);
