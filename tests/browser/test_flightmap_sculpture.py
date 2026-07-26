@@ -217,10 +217,30 @@ def test_sculpture_paint_properties_are_wired_correctly(serve_map, page):
         "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-base')")
     ribbon_height = page.evaluate(
         "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-height')")
+    # opacity and vertical-gradient are the only two paint properties that
+    # distinguish the translucent curtain from the solid ribbon: without
+    # pinning them, swapping the two layers' paint would still pass every
+    # other assertion in this test.
+    curtain_opacity = page.evaluate(
+        "() => map.getPaintProperty("
+        "'sculpt-0-curtain', 'fill-extrusion-opacity')")
+    curtain_gradient = page.evaluate(
+        "() => map.getPaintProperty("
+        "'sculpt-0-curtain', 'fill-extrusion-vertical-gradient')")
+    ribbon_opacity = page.evaluate(
+        "() => map.getPaintProperty("
+        "'sculpt-0-ribbon', 'fill-extrusion-opacity')")
+    ribbon_gradient = page.evaluate(
+        "() => map.getPaintProperty("
+        "'sculpt-0-ribbon', 'fill-extrusion-vertical-gradient')")
     assert curtain_base == 0
     assert curtain_height == ["get", "agl"]
     assert ribbon_base == ["get", "rbase"]
     assert ribbon_height == ["get", "agl"]
+    assert curtain_opacity == 0.35
+    assert curtain_gradient is True
+    assert ribbon_opacity == 1
+    assert ribbon_gradient is False
 
 
 def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
@@ -243,6 +263,23 @@ def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
     for plank in planks:
         props = plank["properties"]
         assert props["rbase"] == pytest.approx(props["agl"] - 6)
+
+
+def test_zooming_out_widens_planks_in_metres(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=15000)
+    page.evaluate("() => map.jumpTo({zoom: 16})")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    near = page.evaluate("() => sculpture.widthM")
+    page.evaluate("() => map.jumpTo({zoom: 11})")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    far = page.evaluate("() => sculpture.widthM")
+    assert far > near, f"planks did not widen when zooming out: {near} -> {far}"
+    assert far <= 60 and near >= 4, "width escaped its clamp"
 
 
 def test_negative_agl_segments_produce_no_planks(serve_map, page):

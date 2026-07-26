@@ -245,6 +245,7 @@ if (map) {
       });
       addSculpture(f, fi);
     });
+    map.on('zoomend', rebuildSculpture);
     buildPanel();
   });
 }
@@ -601,6 +602,19 @@ function applySculptVisibility() {
       const id = fl.sculptSrc + sfx;
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v);
     });
+  });
+}
+
+function rebuildSculpture() {
+  const w = sculptWidthM();
+  // Ignore trivial changes: setData on every zoom frame would churn.
+  if (sculpture.widthM != null && Math.abs(w - sculpture.widthM) < 0.5) return;
+  sculpture.widthM = w;
+  flights.forEach(fl => {
+    if (!fl.sculptSrc) return;
+    const src = map.getSource(fl.sculptSrc);
+    if (src) src.setData({ type: 'FeatureCollection',
+                           features: planksFor(fl, w) });
   });
 }
 """
