@@ -214,6 +214,21 @@ def test_fast_playback_seeks_instead_of_playing(serve_map, page,
         "() => document.getElementById('ghost-video').paused") is True
 
 
+def test_5x_playback_seeks_instead_of_playing(serve_map, page, recorded_webm):
+    """Review M2 (#380): 5x is the first speed a user can actually click that
+    is above CROSSFADE_MAX_RATE (4) -- PB_SPEEDS has no value in (1, 4], so
+    the 1x/60x pair alone never exercises the boundary itself."""
+    _serve_with_video(serve_map, recorded_webm,
+                      _flight("DJI_0001", media=[VIDEO_NAME]))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    _wait_video_ready(page)
+    page.evaluate("() => { pb.speed = 5; pbPlay(); }")
+    page.wait_for_function("() => pb.t > 2", timeout=10000)
+    assert page.evaluate(
+        "() => document.getElementById('ghost-video').paused") is True
+
+
 def test_a_broken_video_disables_the_blend_and_names_the_file(serve_map, page):
     """Spec section 8: a moved or undecodable file must not leave a blank
     overlay that reads as 'the camera saw nothing here'."""
@@ -224,6 +239,25 @@ def test_a_broken_video_disables_the_blend_and_names_the_file(serve_map, page):
     page.wait_for_function(
         "() => document.getElementById('ghost-blend').disabled === true",
         timeout=10000)
+    note = page.locator("#ghost-badges").inner_text()
+    assert "gone.webm" in note
+
+
+def test_a_broken_video_stays_disabled_after_a_step(serve_map, page):
+    """Review I1 (#380): the error handler's disable/hide/badge must survive
+    the next render, not just the one that follows ghostEnter -- otherwise
+    one arrow key (or the first sample tick of playback) undoes all three and
+    leaves a LIVE blend slider over a video that will never show a frame."""
+    serve_map(flights_to_3d_html(
+        [_flight("DJI_0001", media=["gone.webm"])], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-blend').disabled === true",
+        timeout=10000)
+    page.evaluate("() => ghostStep(1)")
+    assert page.evaluate(
+        "() => document.getElementById('ghost-blend').disabled") is True
     note = page.locator("#ghost-badges").inner_text()
     assert "gone.webm" in note
 

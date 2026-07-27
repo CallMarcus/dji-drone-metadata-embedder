@@ -1207,6 +1207,10 @@ function mountPlayback() {
   speed.addEventListener('click', () => {
     pb.speed = PB_SPEEDS[(PB_SPEEDS.indexOf(pb.speed) + 1) % PB_SPEEDS.length];
     speed.textContent = pb.speed + '\\u00d7';
+    // The riding/stepping boundary is speed-dependent, not just
+    // playing-dependent -- without this a speed change across
+    // CROSSFADE_MAX_RATE would not take effect until the next sample.
+    syncCrossfadePlayback();
   });
   slider.addEventListener('input', () => {
     pb.t = Number(slider.value);
@@ -1460,9 +1464,13 @@ function gazeLookup(ev) {
 // --- Media crossfade (#380): blend the reconstruction into the footage ---
 // The video is composited by CSS opacity only -- never drawn into a canvas,
 // which would taint it and buy nothing.
-const CROSSFADE_MAX_RATE = 4;     // browsers cannot decode reliably above this
+const CROSSFADE_MAX_RATE = 4;     // browsers cannot decode reliably above
+                                   // this; PB_SPEEDS has no value in (1, 4],
+                                   // so in the shipped UI this is effectively
+                                   // "riding only at 1x"
 const CROSSFADE_DRIFT_S = 0.25;   // re-seek only when playback slips this far
-const cross = { el: null, blend: 0, seg: -1, pending: null };
+const cross = { el: null, blend: 0, seg: -1, pending: null, href: null,
+                 broken: null };
 
 function mediaFor(fl, i) {
   // Which file, and how far into it. The offset is the point's own SRT cue:
@@ -1474,6 +1482,8 @@ function mediaFor(fl, i) {
   return { href: href, seg: seg, t: fl.cue[i] };
 }
 
+// Answers "may we offer the crossfade?", not "does this flight have
+// footage?" -- both call sites want the redaction answer, not the raw one.
 function hasMedia(fl) {
   return REDACTED === 'none'
     && !!(fl && fl.media && fl.cue && fl.media.some(h => h));
@@ -1522,12 +1532,14 @@ function mountCrossfade() {
   });
   v.addEventListener('error', () => {
     // A blank overlay reads as "the camera saw nothing here". Name the file
-    // instead and take the control away.
+    // instead and take the control away -- and record it in cross.broken, so
+    // the next renderCrossfade (one arrow key or one sample tick away) does
+    // not straight-line undo all three the way this used to.
+    cross.broken = cross.href;
     const slider = document.getElementById('ghost-blend');
     if (slider) slider.disabled = true;
     v.style.display = 'none';
-    crossBadge('video unavailable: ' + (cross.el ? cross.el.src.split('/')
-      .pop() : ''));
+    crossBadge('video unavailable: ' + (cross.broken || ''));
   });
   document.getElementById('map').appendChild(v);
   cross.el = v;
@@ -1572,13 +1584,14 @@ function renderCrossfade() {
     // previous file's frame standing over a different part of the flight.
     cross.el.style.display = 'none';
     if (slider) slider.disabled = true;
+    syncCrossfadePlayback();
     return;
   }
-  cross.el.style.display = '';
-  if (slider) slider.disabled = false;
   if (m.seg !== cross.seg) {
     cross.seg = m.seg;
     cross.pending = m.t;
+    cross.broken = null;      // a different file may load fine
+    cross.href = m.href;
     // A src swap resets playback state, so the seek is re-applied from the
     // loadedmetadata handler below rather than now.
     cross.el.src = m.href;
@@ -1589,6 +1602,20 @@ function renderCrossfade() {
       || Math.abs(v.currentTime - m.t) > CROSSFADE_DRIFT_S;
     if (drifted) seekCrossfade(m.t);
   }
+  if (cross.broken) {
+    // The error handler already hid the element, disabled the slider and
+    // posted the badge once. Without this the next render (one arrow key or
+    // one sample tick away) would straight-line undo all three, leaving a
+    // LIVE blend slider over a video that will never show a frame -- the
+    // "camera saw nothing here" reading this posture exists to prevent.
+    cross.el.style.display = 'none';
+    if (slider) slider.disabled = true;
+    crossBadge('video unavailable: ' + cross.broken);
+    syncCrossfadePlayback();
+    return;
+  }
+  cross.el.style.display = '';
+  if (slider) slider.disabled = false;
   syncCrossfadePlayback();
 }
 
