@@ -783,6 +783,13 @@ function gazeRing(fl, i) {
 }
 
 const GAZE_PATCH_OPACITY = 0.25;
+// fill-extrusion can only make VERTICAL prisms measured from the terrain
+// surface, so a slanted ray has to be staircased. Each of the four frustum
+// corner rays becomes GAZE_BEAM_STEPS short prisms; neighbours share their
+// boundary height, so the spans touch or overlap and the silhouette is
+// continuous rather than a ladder.
+const GAZE_BEAM_STEPS = 16;
+const GAZE_BEAM_OPACITY = 0.5;
 const gaze = { dashed: false };
 
 function addGazeLayers() {
@@ -843,21 +850,12 @@ function renderGaze() {
   }
 }
 
-// fill-extrusion can only make VERTICAL prisms measured from the terrain
-// surface, so a slanted ray has to be staircased. Each of the four frustum
-// corner rays becomes GAZE_BEAM_STEPS short prisms; neighbours share their
-// boundary height, so the spans touch or overlap and the silhouette is
-// continuous rather than a ladder.
-const GAZE_BEAM_STEPS = 16;
-const GAZE_BEAM_OPACITY = 0.5;
-
 function beamFor(fl, i, ring) {
   const feats = [];
   if (!ring) return feats;
   const agl = fl.agl[i], c = fl.pts[i];
   const tElev = takeoffElev(fl);
-  const camLocal = tElev == null ? null : terrainElevAt([c[0], c[1]]);
-  const camTrue = (tElev == null || camLocal == null) ? null : tElev + agl;
+  const camTrue = tElev == null ? null : tElev + agl;
   const half = sculptWidthM() / 2;
   const mLat = GAZE_M_PER_DEG_LAT;
   for (let r = 0; r < 4; r++) {
@@ -865,6 +863,12 @@ function beamFor(fl, i, ring) {
     const at = s => [c[0] + (corner[0] - c[0]) * s,
                      c[1] + (corner[1] - c[1]) * s];
     const cornerElev = camTrue == null ? null : terrainElevAt(corner);
+    // gazeRing projected onto the flat plane at tElev; where the DEM at that
+    // corner is above the camera the corner cannot be a ground hit at all
+    // (pitch is always negative here), so fall back to gazeRing's own datum
+    // rather than aiming the ray upward.
+    const farElev = (cornerElev != null && cornerElev > camTrue) ? tElev
+                                                                  : cornerElev;
     // Height at each step BOUNDARY, shared by the two prisms that meet there
     // so joints match by construction. The local surface is sampled per
     // boundary and never interpolated end to end: interpolating cancels the
@@ -881,7 +885,7 @@ function beamFor(fl, i, ring) {
         continue;
       }
       const local = terrainElevAt(at(s));
-      const alt = camTrue + (cornerElev - camTrue) * s;
+      const alt = camTrue + (farElev - camTrue) * s;
       hs.push(local == null ? agl * (1 - s) : alt - local);
     }
     for (let k = 0; k < GAZE_BEAM_STEPS; k++) {

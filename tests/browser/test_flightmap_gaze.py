@@ -291,11 +291,12 @@ def test_beam_stops_at_a_cliff(serve_map, page):
     spec's flat-ground-plane note).
     """
     # MapLibre resolves DEM tiles one zoom COARSER than the source maxzoom, so
-    # the stub's left/right split lands at the z14 tile midpoint -- one full
-    # TILE_DEG east of the enclosing z15 tile's west edge, NOT one TILE_DEG
-    # east of the flight's nominal longitude. Derive it rather than guessing.
-    west = -180 + math.floor((20.0 + 180) / TILE_DEG) * TILE_DEG
-    cliff = west + TILE_DEG
+    # the stub's left/right split lands at the z14 tile midpoint, NOT at
+    # the z15 tile's east edge -- those only coincide when the z15 tile is
+    # the WESTERN half of its z14 parent (true for lon 20.0, but not in
+    # general). Derive the midpoint on the z14 grid directly.
+    parent = 2 * TILE_DEG
+    cliff = -180 + math.floor((20.0 + 180) / parent) * parent + TILE_DEG
     lon = cliff - TILE_DEG * 0.05      # ~60 m west of the wall
     track = _flight("DJI_0001", 10.0, lon, [50.0] * 5,
                     yaws=[90.0] * 5, pitches=[-20.0] * 5, focal=24.0,
@@ -315,11 +316,18 @@ def test_beam_stops_at_a_cliff(serve_map, page):
     assert dropped >= 8, (
         f"only {dropped} of {4 * steps} prisms dropped at the wall -- the "
         "geometry is degenerate and this test proves little")
-    assert all(p["hgt"] > p["base"] for p in props)
+    # Exercises the Math.max(0, ...) clamp on base: the prism straddling the
+    # wall has a lower boundary height around -34 m in this fixture, and
+    # fill-extrusion-base has a style-spec minimum of 0. Without the clamp
+    # this fails.
+    assert all(p["base"] >= 0 for p in props)
 
     # The real claim: no surviving prism sits meaningfully past the wall.
-    # One step of overshoot is expected -- the step that straddles the
-    # crossing is kept whenever its western end is still above ground.
+    # A centroid can land at most half a step past the crossing -- the
+    # straddling step is kept whenever its western end is still above
+    # ground, and the step after it is dropped -- so 0.5 steps of slack
+    # is the tightest bound that cannot false-positive on the straddler
+    # while still catching a surviving prism a full step beyond it.
     centroids = page.evaluate(
         "() => beamFor(flights[0], pb.sample,"
         " gazeRing(flights[0], pb.sample).ring).map(f => {"
@@ -329,7 +337,7 @@ def test_beam_stops_at_a_cliff(serve_map, page):
         "() => { const r = gazeRing(flights[0], pb.sample).ring;"
         " return Math.max(...r.slice(0, 4).map(p => p[0]))"
         "      - flights[0].pts[pb.sample][0]; }")
-    slack = ray_len_deg / steps * 1.5
+    slack = ray_len_deg / steps * 0.5
     beyond = [c for c in centroids if c > cliff + slack]
     assert not beyond, (
         f"{len(beyond)} prisms sit past the wall at {cliff:.6f}: "
@@ -341,14 +349,35 @@ def test_beam_width_tracks_zoom(serve_map, page):
                     yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
+
+    def _beam_width():
+        # Cross-ray width of a beam prism: the gap between its two
+        # camera-side corners, r[0] and r[3] (the ring closes back to r[0]).
+        # This has to read the SOURCE's raw data -- ._data.geojson, exactly
+        # what the last setData() call passed in -- rather than
+        # querySourceFeatures(): a beam prism is only a few metres wide, and
+        # MapLibre's internal geojson-vt tessellation simplifies a feature
+        # that small down to under 4 points at low zoom (verified: every
+        # prism at zoom 11 reads back with 0-3 coordinates through
+        # querySourceFeatures, even though setData() was called with a
+        # proper quad). Reading ._data.geojson is a private field, but it
+        # is what makes this assertion possible to write honestly at all.
+        return page.evaluate(
+            "() => { const r = map.getSource('beam')._data.geojson"
+            ".features[0].geometry.coordinates[0];"
+            " return Math.hypot(r[0][0] - r[3][0], r[0][1] - r[3][1]); }")
+
     page.evaluate("() => map.jumpTo({zoom: 16})")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
     near = page.evaluate("() => sculptWidthM()")
+    near_beam = _beam_width()
     page.evaluate("() => map.jumpTo({zoom: 11})")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
     far = page.evaluate("() => sculptWidthM()")
+    far_beam = _beam_width()
     assert far > near
     # The zoomend rebuild must have refreshed the beam, not left it at the
-    # width it had on load.
-    page.wait_for_function(
-        "() => map.querySourceFeatures('beam').length > 0", timeout=5000)
+    # width it had on load: measure an actual prism's cross-ray width rather
+    # than merely checking the source is non-empty, which holds even for the
+    # load-time beam and would pass with the rebuild hook deleted.
+    assert far_beam > near_beam
