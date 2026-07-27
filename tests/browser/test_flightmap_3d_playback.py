@@ -94,7 +94,7 @@ def test_playback_pauses_at_the_end(serve_map, page):
     # ▶ is the play glyph; written as an escape so the test file stays
     # ASCII like the JS it checks.
     assert page.evaluate("() => document.getElementById('pb-play')"
-                         ".textContent") == "▶"
+                         ".textContent") == "\u25b6"
 
 
 def test_slider_seeks(serve_map, page):

@@ -178,6 +178,9 @@ def test_patch_clears_without_altitude(serve_map, page):
                     yaws=[0.0] * 4, pitches=[-45.0] * 4, focal=24.0)
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
+    _wait_patch(page, True)      # present before the seek, or "cleared" is
+                                  # meaningless -- its sibling above asserts
+                                  # this too
     page.evaluate("() => { pb.t = 3; pbRender(); }")
     _wait_patch(page, False)
     assert page.evaluate("() => document.getElementById('pb-note')"
@@ -251,8 +254,12 @@ def test_beam_is_four_continuous_rays(serve_map, page):
 
 def test_beam_heights_survive_the_elevation_conversion(serve_map, page):
     """A constant-elevation DEM must give the SAME heights as no DEM at all.
-    Skipping the takeoff/local conversion, or interpolating it end to end,
-    breaks this."""
+    Skipping the takeoff/local conversion breaks this. (Interpolating the
+    local surface end to end, rather than sampling it per boundary, does
+    NOT break this: on a constant-elevation DEM the two formulas collapse to
+    the identical h(s) = (A - E_cam)(1 - s) -- see beamFor's own comment.
+    test_beam_stops_at_a_cliff is the test that would actually catch that
+    defect, on a DEM where the two formulas diverge.)"""
     track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
                     yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
     html = flights_to_3d_html([track], "trip")
@@ -493,9 +500,13 @@ def test_clicking_empty_ground_says_so(serve_map, page):
         f"click point {px} is outside the {size} viewport; no click would fire")
     page.mouse.click(px[0], px[1])
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
-    assert "No recorded frame covered this spot" in \
+    assert "No footprint on this map covers this spot" in \
         page.locator(".maplibregl-popup").inner_text()
     assert page.locator(".gaze-pass").count() == 0
+    # Nothing was skipped in this fixture (one flight, shown, with agl), so
+    # the honesty line must not appear -- it would be noise on the common
+    # case.
+    assert page.locator(".gaze-skip").count() == 0
 
 
 def test_a_pass_button_seeks_and_plays(serve_map, page):
@@ -508,6 +519,35 @@ def test_a_pass_button_seeks_and_plays(serve_map, page):
     page.locator(".gaze-pass").first.click()
     assert page.evaluate("() => pb.t") >= 3.0
     assert page.evaluate("() => pb.playing") is True
+
+
+def test_pass_list_caps_at_gaze_max_passes(serve_map, page):
+    """M2 (#378 whole-branch review): GAZE_MAX_PASSES and the "+N more" note
+    had no test at all -- an off-by-one in the slice or a broken note would
+    ship unseen.
+
+    A hover (step=0) with altitude alternating real/None gives more than 12
+    passes cheaply, and DISCONTIGUOUS ones at that: every real-altitude
+    sample sits between two None-altitude samples (no ring, so no hit), so
+    each real sample closes its own one-sample pass instead of merging into
+    a single long run.
+    """
+    n = 30
+    agls = [50.0 if i % 2 == 0 else None for i in range(n)]
+    real_hits = sum(1 for a in agls if a is not None)
+    track = _flight("DJI_0001", 10.0, 20.0, agls,
+                    yaws=[90.0] * n, pitches=[-90.0] * n, focal=24.0,
+                    step=0.0)                       # hover: all rings coincide
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    max_passes = page.evaluate("() => GAZE_MAX_PASSES")
+    assert max_passes == 12
+    assert real_hits > max_passes, "fixture must exceed the cap to test it"
+    _click_inside_ring(page, 0)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    assert page.locator(".gaze-pass").count() == max_passes
+    text = page.locator(".maplibregl-popup").inner_text()
+    assert f"+{real_hits - max_passes} more" in text, text
 
 
 def test_highlight_clears_when_the_popup_closes(serve_map, page):
@@ -527,6 +567,48 @@ def test_highlight_clears_when_the_popup_closes(serve_map, page):
     page.wait_for_function(
         "() => map.querySourceFeatures('gaze-hits').length === 0",
         timeout=5000)
+
+
+def test_two_consecutive_lookups_leave_a_highlight(serve_map, page):
+    """This started as a coverage-gap test (#378 whole-branch review): the
+    review's theory was that MapLibre 5.24 closes the previous popup on a
+    'preclick' event that fires before our own 'click' handler, and that a
+    pinned-version bump could one day break that silently. Checking the
+    ACTUAL bundled bundle found no 'preclick' anywhere in it: closeOnClick
+    binds a plain (non-'once') 'click' listener when a popup opens. On a
+    second click both listeners are registered -- gazeLookup (bound once, at
+    mount, so first) and the FIRST popup's own close listener (bound after
+    it, when that popup opened) -- and they fire in THAT order, so the first
+    popup's belated close ran AFTER gazeLookup had already set the new
+    highlight and wiped it right back out. Not a future-bump risk: a live
+    bug, reproduced against the pinned version this repo actually ships.
+    gazeLookup now closes the previous lookup popup itself, synchronously,
+    before computing the new click's answer, which sidesteps the listener
+    order question entirely -- see gazePopup's own comment.
+
+    A wide step and far-apart samples: _click_inside_ring re-centres the
+    viewport on its own click point every time, so with the default tight
+    spacing the FIRST popup (still open, and repositioned by the recentre
+    like any other map-anchored popup) can visually sit on top of the
+    SECOND click's pixel and swallow the click itself -- proving nothing
+    about MapLibre's click ordering, only about DOM overlap in the test.
+    ~450 m between samples puts the two views (each a couple hundred
+    metres wide at zoom 17) nowhere near each other on screen.
+    """
+    n = 10
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * n,
+                    yaws=[90.0] * n, pitches=[-90.0] * n, focal=24.0,
+                    step=0.004)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_inside_ring(page, 1)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    _click_inside_ring(page, 8)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    assert page.locator(".maplibregl-popup").count() == 1, (
+        "the first popup did not close on the second click")
+    page.wait_for_function(
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
 
 
 def test_estimated_badge_covers_every_matched_sample(serve_map, page):
@@ -561,7 +643,14 @@ def test_estimated_badge_covers_every_matched_sample(serve_map, page):
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
     assert page.locator(".gaze-est").count() == 1, (
         "no estimated warning, though matched samples were extrapolated")
-    assert "no gimbal data" in page.locator(".gaze-est").inner_text()
+    # Yaw is real throughout this fixture (only pitch is dropped), so the
+    # badge's reason must name pitch specifically -- not the old hardcoded
+    # "no gimbal data", which would be true here by coincidence and would
+    # stay wrong the moment yaw was the missing one instead.
+    text = page.locator(".gaze-est").inner_text()
+    assert "no gimbal pitch" in text
+    assert "no gimbal yaw" not in text
+    assert "assumed lens" not in text
 
 
 def test_no_estimated_badge_when_every_sample_is_real(serve_map, page):
@@ -627,3 +716,56 @@ def test_hiding_the_flight_hides_its_gaze(serve_map, page):
     assert page.evaluate(vis, "gaze-cursor-dot") == "none"
     page.locator("#flights-panel input[type=checkbox]").first.check()
     assert page.evaluate(vis, "gaze-fill") == "visible"
+
+
+def test_switching_the_picker_reapplies_gaze_visibility(serve_map, page):
+    """I2 (#378 whole-branch review): applyGazeVisibility derives visibility
+    from pb.run.shown but was never re-run when pb.run itself changes. Hide
+    flight A (the flight the picker starts on) -- every gaze layer goes
+    'none'. Switch the picker to flight B, which is still shown: without the
+    fix, pbRecolour() (called from the picker's own change handler) leaves
+    the layers exactly as hiding A set them, and B's gaze looks dead even
+    though B is visible."""
+    a = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
+                yaws=[90.0] * 4, pitches=[-45.0] * 4, focal=24.0)
+    b = _flight("DJI_0002", 10.01, 20.0, [50.0] * 4,
+                yaws=[90.0] * 4, pitches=[-45.0] * 4, focal=24.0)
+    serve_map(flights_to_3d_html([a, b], "trip"))
+    _ready(page)
+    vis = "(id) => map.getLayoutProperty(id, 'visibility') || 'visible'"
+    assert page.evaluate("() => pb.run.name") == "DJI_0001"
+    page.locator("#flights-panel input[type=checkbox]").first.uncheck()
+    assert page.evaluate(vis, "gaze-fill") == "none"
+    page.evaluate("() => { const s = document.getElementById('pb-flight');"
+                 " s.value = '1'; s.dispatchEvent(new Event('change')); }")
+    assert page.evaluate("() => pb.run.name") == "DJI_0002"
+    assert page.evaluate(vis, "gaze-fill") == "visible", (
+        "gaze-fill stayed 'none' after switching to a shown flight")
+    assert page.evaluate(vis, "gaze-edge") == "visible"
+    assert page.evaluate(vis, "gaze-cursor-dot") == "visible"
+
+
+def test_hiding_any_flight_clears_an_onscreen_highlight(serve_map, page):
+    """M1 (#378 whole-branch review): gaze-hits-line has no single pb.run to
+    follow -- a lookup highlight can span several flights at once, so tying
+    its visibility to whichever flight is selected in the picker either
+    hides a highlight that still belongs to a visible flight, or leaves one
+    drawn for a flight the user just hid. This project's chosen fix is the
+    simple one the review explicitly sanctions: any panel toggle clears the
+    highlight outright rather than trying to work out which of its passes
+    still belong to a shown flight. It can always be reopened by clicking
+    the spot again."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_inside_ring(page, 2)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    page.wait_for_function(
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+    page.locator("#flights-panel input[type=checkbox]").first.uncheck()
+    # GeoJSON source tiles build asynchronously (see _wait_patch above), so
+    # wait rather than sampling the instant after setData.
+    page.wait_for_function(
+        "() => map.querySourceFeatures('gaze-hits').length === 0",
+        timeout=5000)

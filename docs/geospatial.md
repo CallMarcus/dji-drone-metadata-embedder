@@ -325,9 +325,9 @@ you and the flight blocks it from view.
 
 The 3D map has a playback control at the bottom left: play/pause, a speed
 button cycling 1×, 5×, 20×, 60×, a scrubber, a time readout, and — with more
-than one flight on the map — a picker for which one is playing. As the clock
-runs, the camera's ground footprint for that second is drawn on the terrain,
-with four rays connecting the camera to its corners.
+than one playable flight on the map — a picker for which one is playing. As
+the clock runs, the camera's ground footprint for that second is drawn on the
+terrain, with four rays connecting the camera to its corners.
 
 Press play while you are in the ghost view and the camera rides the recorded
 flight in real time instead of stepping sample by sample. An arrow key still
@@ -344,19 +344,25 @@ clock there (and rides it, if you are in the ghost view). The stretches of
 flight line that filmed the spot light up at the same time. Clicking ground
 that was never in frame says so.
 
-Two honesty limits. The gaze is switched off entirely with `--redact fuzz`,
-because a footprint projected from a coordinate that has been moved ~100 m is
-a confident claim about ground the camera never saw; the flights panel says
-so when that happens, and playback still works. And where the telemetry
-carries no gimbal attitude — every Mini-series drone at the time of
-writing — the footprint is drawn from the same estimated 30-degree down-tilt
-the ghost view assumes, with a dashed outline and an "estimated footprint"
-badge naming what was guessed; a clip can lose gimbal data partway through,
-so a spot's answer says "estimated" when every pass over it was guessed and
-"some passes estimated" when only some were. Footprints also assume flat
-ground at the drone's height reference, the same simplification the
-`--footprint` KML/GeoJSON export makes, so on terrain that rises into the
-frame the drawn patch is an approximation rather than the true footprint.
+Two honesty limits, and a footprint can be an estimate for either of two
+reasons. The gaze is switched off entirely with `--redact fuzz`, because a
+footprint projected from a coordinate that has been moved ~100 m is a
+confident claim about ground the camera never saw; the flights panel says so
+when that happens, and playback still works. And where the telemetry carries
+no gimbal attitude — every Mini-series drone at the time of writing — the
+footprint is drawn from the same estimated 30-degree down-tilt the ghost view
+assumes. A missing focal length has the same effect on the footprint's shape:
+it is drawn from a generic wide lens instead of the camera's true field of
+view, which makes the patch a little larger than the true frame — this is the
+common case for sidecar-less MP4 clips, which log real gimbal attitude but no
+focal length. Either reason (or both) marks the footprint with a dashed
+outline and an "estimated footprint" badge naming what was guessed; a clip
+can lose gimbal data or focal length partway through, so a spot's answer says
+"estimated" when every pass over it was guessed and "some passes estimated"
+when only some were. Footprints also assume flat ground at the drone's height
+reference, the same simplification the `--footprint` KML/GeoJSON export
+makes, so on terrain that rises into the frame the drawn patch is an
+approximation rather than the true footprint.
 
 ## Photo map (`photomap`)
 

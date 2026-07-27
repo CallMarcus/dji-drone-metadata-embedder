@@ -99,6 +99,7 @@ _TEMPLATE = """<!DOCTYPE html>
                border: 1px solid #bbb; border-radius: 3px;
                background: #f6f6f6; padding: 1px 6px; }}
   .gaze-est {{ margin-top: 4px; opacity: .7; font-size: 11px; }}
+  .gaze-skip {{ margin-top: 4px; opacity: .7; font-size: 11px; }}
 </style>
 </head>
 <body>
@@ -286,6 +287,11 @@ function buildPanel() {
                             box.checked ? 'visible' : 'none');
       applySculptVisibility();
       applyGazeVisibility();
+      // A lookup highlight can span several flights, so there is no cheap
+      // way to tell here which of its passes still belong to a shown flight
+      // -- clearing it is the simple, honest choice: it can always be
+      // reopened by clicking the spot again (#378 whole-branch review, M1).
+      gazeHighlight([]);
     });
     label.appendChild(box);
     const swatch = document.createElement('span');
@@ -1007,6 +1013,12 @@ function pbRecolour() {
   if (map.getLayer('beam-ray')) {
     map.setPaintProperty('beam-ray', 'fill-extrusion-color', pb.run.color);
   }
+  // Not a paint concern: this is the run-change hook. pbRecolour() is called
+  // from exactly the two places pb.run is reassigned (the picker and
+  // gazeSeek), so re-deriving gaze visibility from the NEW run here is what
+  // keeps a hidden flight's gaze off, and a shown flight's gaze on, across a
+  // switch (#378 whole-branch review, I2).
+  applyGazeVisibility();
 }
 
 function pbRender(skipGhost) {
@@ -1070,8 +1082,13 @@ function applyGazeVisibility() {
   // The beam originates at the camera, so it hides in the cockpit for the
   // same reason the sculpture does; the patch is what you came to see.
   const beam = (v === 'visible' && !ghost.active) ? 'visible' : 'none';
+  // gaze-hits-line is NOT here: a lookup highlight can span several flights
+  // at once, so it has no single pb.run to follow. It stays laid out
+  // 'visible' always; its own source data (emptied by gazeHighlight([]) on
+  // panel toggle -- see buildPanel -- and on popup close) is what controls
+  // whether anything is actually drawn (#378 whole-branch review, M1).
   [['gaze-fill', v], ['gaze-edge', v], ['gaze-cursor-dot', v],
-   ['gaze-hits-line', v], ['beam-ray', beam]].forEach(pair => {
+   ['beam-ray', beam]].forEach(pair => {
     if (map.getLayer(pair[0])) {
       map.setLayoutProperty(pair[0], 'visibility', pair[1]);
     }
@@ -1182,6 +1199,16 @@ function mountPlayback() {
 
 // --- Click a spot, get the seconds that filmed it (#378) ---
 const GAZE_MAX_PASSES = 12;
+// The popup from the PREVIOUS lookup, if one is still open. MapLibre's own
+// closeOnClick binds a plain (not one-time) 'click' listener when a popup
+// opens, so on a second click that listener is still registered ALONGSIDE
+// gazeLookup's -- and because gazeLookup was registered first (once, at
+// mount), it runs first, then the stale popup's close listener runs after
+// it in the SAME dispatch and unconditionally empties gaze-hits, wiping the
+// highlight this click just set. Closing the previous popup ourselves,
+// synchronously, before computing anything for the new click sidesteps that
+// listener-order dependency entirely instead of relying on it.
+let gazePopup = null;
 
 function pointInRing(ring, lng, lat) {
   // Ray casting over the four edges of a closed ring. Footprints are tens to
@@ -1210,7 +1237,7 @@ function gazeRingsFor(fl) {
   if (!fl.rings) {
     fl.rings = fl.pts.map((p, i) => {
       const g = gazeRing(fl, i);
-      return { ring: g.ring, estimated: g.estimated };
+      return { ring: g.ring, estimated: g.estimated, estNotes: g.estNotes };
     });
   }
   return fl.rings;
@@ -1228,25 +1255,49 @@ function gazePasses(fl, lngLat) {
   const dt = i => (i + 1 < times.length) ? times[i + 1] - times[i]
     : (i > 0 ? times[i] - times[i - 1] : 1);
   const passes = [];
-  let start = hits[0], prev = hits[0], secs = 0, est = false;
-  // A pass counts as estimated if ANY of its matched samples was: the warning
-  // has to cover the weakest frame it is offering, not the first one.
+  let start = hits[0], prev = hits[0], secs = 0, est = false, notes = [];
+  // A pass counts as estimated if ANY of its matched samples was, and its
+  // estNotes is the UNION of every matched sample's reasons: the warning has
+  // to name the weakest frame it is offering, not just the first one (the
+  // same reasoning gazeRingsFor's own comment gives for keeping the flag per
+  // sample -- see #378 whole-branch review, I1).
   const close = () => passes.push({
     i0: start, i1: prev, t0: times[start], t1: times[prev], secs: secs,
-    est: est });
+    est: est, estNotes: notes });
   hits.forEach(i => {
     if (i > prev + 1) {
       close();
       start = i;
       secs = 0;
       est = false;
+      notes = [];
     }
     secs += dt(i);
     est = est || rings[i].estimated;
+    rings[i].estNotes.forEach(n => { if (!notes.includes(n)) notes.push(n); });
     prev = i;
   });
   close();
   return passes;
+}
+
+function gazeSkipCounts() {
+  // Everything gazeLookup's search loop below does NOT look at, bucketed by
+  // why: hidden playable flights, playable flights with no agl_m at all
+  // (spec: "Times but no agl_m -> Playable, no gaze" -- gazeRing can never
+  // produce a ring for one), and flights that never made it into `runs` in
+  // the first place -- a single-fix clip, or a track whose times do not line
+  // up with its points -- which cannot appear in that loop at all. The miss
+  // message below must not claim more than this function actually counts
+  // (#378 whole-branch review, C1).
+  const runSet = new Set(runs);
+  let hidden = 0, noHeight = 0;
+  runs.forEach(fl => {
+    if (!fl.shown) hidden++;
+    else if (!fl.agl) noHeight++;
+  });
+  flights.forEach(fl => { if (!runSet.has(fl)) noHeight++; });
+  return { hidden: hidden, noHeight: noHeight, total: hidden + noHeight };
 }
 
 function gazeSeek(fl, t) {
@@ -1287,6 +1338,7 @@ function gazeLookup(ev) {
       && map.queryRenderedFeatures(ev.point, { layers: lineIds }).length) {
     return;                    // the flight line owns this click
   }
+  if (gazePopup) gazePopup.remove();   // see gazePopup's own comment above
   const el = document.createElement('div');
   el.className = 'flight-popup';
   const entries = [];
@@ -1325,22 +1377,55 @@ function gazeLookup(ev) {
     // extrapolated frames the user is about to go looking for.
     const estCount = passes.filter(p => p.est).length;
     if (estCount) {
+      // The reason is the union of every LISTED pass's notes -- not a
+      // hardcoded "no gimbal data", which is false whenever the estimate
+      // actually came from an assumed lens (mp4_telemetry.py logs real
+      // gimbal attitude but no focal length on every sidecar-less MP4 clip;
+      // #378 whole-branch review, I1). Only the listed passes, because those
+      // are the only ones with a visible button.
+      const notes = [];
+      passes.slice(0, GAZE_MAX_PASSES).forEach(p => {
+        if (!p.est) return;
+        p.estNotes.forEach(n => { if (!notes.includes(n)) notes.push(n); });
+      });
       const est = document.createElement('div');
       est.className = 'gaze-est';
-      est.textContent = (estCount === passes.length ? 'estimated'
-                                                    : 'some passes estimated')
-                      + ' \\u2014 no gimbal data';
+      let text = estCount === passes.length ? 'estimated'
+                                            : 'some passes estimated';
+      if (notes.length) text += ' \\u2014 ' + notes.join(', ');
+      est.textContent = text;
       el.appendChild(est);
     }
   });
   if (!entries.length) {
     el.appendChild(document.createTextNode(
-      'No recorded frame covered this spot.'));
+      'No footprint on this map covers this spot.'));
+    // Say what was actually searched, not just what was not found: a false
+    // "no" is the worst answer this feature can give (#378 whole-branch
+    // review, C1).
+    const skip = gazeSkipCounts();
+    if (skip.total) {
+      const parts = [];
+      if (skip.hidden) {
+        parts.push(skip.hidden
+          + (skip.hidden === 1 ? ' hidden flight' : ' hidden flights'));
+      }
+      if (skip.noHeight) {
+        parts.push(skip.noHeight + (skip.noHeight === 1
+          ? ' flight with no height data' : ' flights with no height data'));
+      }
+      const note = document.createElement('div');
+      note.className = 'gaze-skip';
+      note.textContent = skip.total
+        + (skip.total === 1 ? ' flight was' : ' flights were')
+        + ' not searched \\u2014 ' + parts.join(', ') + '.';
+      el.appendChild(note);
+    }
   }
   gazeHighlight(entries);
-  const popup = new maplibregl.Popup({ maxWidth: '320px' })
+  gazePopup = new maplibregl.Popup({ maxWidth: '320px' })
     .setLngLat(ev.lngLat).setDOMContent(el).addTo(map);
-  popup.on('close', () => gazeHighlight([]));
+  gazePopup.on('close', () => { gazeHighlight([]); gazePopup = null; });
 }
 """
 
