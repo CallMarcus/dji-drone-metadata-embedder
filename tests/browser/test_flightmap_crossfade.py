@@ -110,3 +110,71 @@ def test_video_never_swallows_a_map_click(serve_map, page, recorded_webm):
     assert page.evaluate(
         "() => getComputedStyle(document.getElementById('ghost-video'))"
         ".pointerEvents") == "none"
+
+
+def _wait_video_ready(page):
+    page.wait_for_function(
+        "() => { const v = document.getElementById('ghost-video');"
+        " return v && v.readyState >= 1 && Number.isFinite(v.duration); }",
+        timeout=15000)
+
+
+def test_seeks_to_the_sample_cue_time(serve_map, page, recorded_webm):
+    """currentTime must track the point's own cue, which is what makes the
+    overlay show the second the camera is at."""
+    _serve_with_video(serve_map, recorded_webm,
+                      _flight("DJI_0001", media=[VIDEO_NAME]))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    _wait_video_ready(page)
+    page.evaluate("() => ghostStep(1)")
+    page.wait_for_function(
+        "() => Math.abs(document.getElementById('ghost-video').currentTime"
+        " - 1.0) < 0.2", timeout=10000)
+
+
+def test_crossing_a_segment_boundary_swaps_the_source(serve_map, page,
+                                                      recorded_webm):
+    """A split flight's second half plays from the second file, and the cue
+    restarts near zero rather than continuing the flight clock."""
+    track = _flight("DJI_0001", points=6,
+                    media=["a/" + VIDEO_NAME, "b/" + VIDEO_NAME],
+                    segments=["a/clip", "b/clip"],
+                    seg_of=[0, 0, 0, 1, 1, 1])
+    # The second segment's cues restart: rewrite them as its own file's clock.
+    for i, p in enumerate(track.points):
+        if p.segment == 1:
+            p.timestamp = f"00:00:{i - 3:02d},000"
+    serve_map(flights_to_3d_html([track], "trip"),
+              extra_files={"a/" + VIDEO_NAME: recorded_webm,
+                           "b/" + VIDEO_NAME: recorded_webm})
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    _wait_video_ready(page)
+    assert page.evaluate(
+        "() => document.getElementById('ghost-video').src").endswith(
+            "a/" + VIDEO_NAME)
+    page.evaluate("() => { ghost.idx = 4; renderCrossfade(); }")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-video').src.endsWith('b/"
+        + VIDEO_NAME + "')", timeout=10000)
+    _wait_video_ready(page)
+    page.wait_for_function(
+        "() => document.getElementById('ghost-video').currentTime < 2.0",
+        timeout=10000)
+
+
+def test_a_segment_without_video_disables_the_blend(serve_map, page,
+                                                    recorded_webm):
+    track = _flight("DJI_0001", points=6, media=[VIDEO_NAME, None],
+                    segments=["clip", "missing"], seg_of=[0, 0, 0, 1, 1, 1])
+    _serve_with_video(serve_map, recorded_webm, track)
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    _wait_video_ready(page)
+    page.evaluate("() => { ghost.idx = 4; renderCrossfade(); }")
+    assert page.evaluate(
+        "() => document.getElementById('ghost-blend').disabled") is True
+    assert page.evaluate(
+        "() => getComputedStyle(document.getElementById('ghost-video'))"
+        ".display") == "none"

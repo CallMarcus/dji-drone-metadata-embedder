@@ -88,7 +88,7 @@ _TEMPLATE = """<!DOCTYPE html>
   .ghost-video {{ position: absolute; inset: 0; width: 100%; height: 100%;
                  object-fit: contain; pointer-events: none; z-index: 4;
                  transition: opacity .18s linear; }}
-  .playback #ghost-blend {{ width: 110px; }}
+  #ghost-hud #ghost-blend {{ width: 110px; }}
   .playback {{ position: absolute; bottom: 14px; left: 10px; z-index: 6;
               background: #fff; border-radius: 4px; padding: 6px 10px;
               box-shadow: 0 1px 5px rgba(0,0,0,.4); display: flex;
@@ -510,6 +510,7 @@ function ghostStep(d) {
   }
   applyPose(samplePose(ghost.flight, next), GHOST_STEP_MS);
   updateHud();
+  renderCrossfade();
 }
 
 function ghostExit() {
@@ -1099,6 +1100,7 @@ function pbDriveGhost() {
   if (pb.sample !== ghost.idx) {
     ghost.idx = pb.sample;
     updateHud();
+    renderCrossfade();
   }
 }
 
@@ -1494,6 +1496,13 @@ function mountCrossfade() {
   v.playsInline = true;
   v.preload = 'auto';
   v.style.opacity = '0';
+  v.addEventListener('loadedmetadata', () => {
+    if (cross.pending != null) {
+      const t = cross.pending;
+      cross.pending = null;
+      seekCrossfade(t);
+    }
+  });
   document.getElementById('map').appendChild(v);
   cross.el = v;
   cross.seg = -1;
@@ -1503,22 +1512,46 @@ function mountCrossfade() {
 }
 
 function unmountCrossfade() {
+  cross.blend = 0;
   if (!cross.el) return;
   cross.el.pause();
   cross.el.remove();
   cross.el = null;
   cross.seg = -1;
   cross.pending = null;
-  cross.blend = 0;
+}
+
+function seekCrossfade(t) {
+  const v = cross.el;
+  if (!v || t == null) return;
+  // currentTime does not stick before metadata arrives; hold it and apply
+  // once the browser knows the duration.
+  if (v.readyState < 1) { cross.pending = t; return; }
+  if (Math.abs(v.currentTime - t) > 0.05) v.currentTime = t;
 }
 
 function renderCrossfade() {
   if (!cross.el || !ghost.active) return;
+  const slider = document.getElementById('ghost-blend');
   const m = mediaFor(ghost.flight, ghost.idx);
-  if (!m || !m.href) return;
+  if (!m || !m.href) {
+    // A segment whose file was never resolved: hide rather than leave the
+    // previous file's frame standing over a different part of the flight.
+    cross.el.style.display = 'none';
+    if (slider) slider.disabled = true;
+    return;
+  }
+  cross.el.style.display = '';
+  if (slider) slider.disabled = false;
   if (m.seg !== cross.seg) {
     cross.seg = m.seg;
+    cross.pending = m.t;
+    // A src swap resets playback state, so the seek is re-applied from the
+    // loadedmetadata handler below rather than now.
     cross.el.src = m.href;
+    cross.el.load();
+  } else {
+    seekCrossfade(m.t);
   }
 }
 """
