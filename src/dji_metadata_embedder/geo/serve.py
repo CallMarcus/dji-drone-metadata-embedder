@@ -2,23 +2,152 @@
 
 Browsers refuse WebGL pixel access to images on ``file://`` pages, so the
 photomap 360-degree viewer only works when the map is served over HTTP.
-This module is the loopback-only server behind ``dji-embed photomap --serve``.
+Media seeking needs HTTP Range (``206 Partial Content``), which Python's
+stock handler does not implement, so this module supplies it.
 """
 
 from __future__ import annotations
 
+import os
+import re
 import sys
 import threading
 import webbrowser
 from functools import partial
+from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import BinaryIO
 
 import click
 
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
 
-class _QuietHandler(SimpleHTTPRequestHandler):
-    """SimpleHTTPRequestHandler without per-request stderr logging."""
+
+def _parse_range(header: str, size: int) -> tuple[int, int] | None:
+    """Return an inclusive ``(first, last)`` byte range for *header*.
+
+    ``None`` means "serve the whole file": a unit other than bytes, a
+    multi-range request (which no browser needs for media playback and which
+    would cost a multipart body), or anything unparseable. Raises
+    :class:`ValueError` when the syntax is fine but the range cannot be
+    satisfied, so the caller can answer 416 rather than guessing.
+    """
+    m = _RANGE_RE.match(header.strip())
+    if m is None:
+        return None
+    first_s, last_s = m.group(1), m.group(2)
+    if not first_s and not last_s:
+        return None
+    if not first_s:                       # bytes=-N : the final N bytes
+        n = int(last_s)
+        if n == 0:
+            raise ValueError("zero-length suffix range")
+        if size == 0:
+            # A suffix range has nothing to select from an empty file. This
+            # is unsatisfiable *because of the file's size* -- the same
+            # category as `first >= size` below -- not a malformed header,
+            # so it gets 416 rather than the "ignore" treatment below.
+            # (Left uncaught, max(0, size - n) would compute (0, -1): a
+            # reversed pair, but for a different reason than the
+            # explicit-range case, so it doesn't belong under that guard.)
+            raise ValueError("empty file has no satisfiable range")
+        return (max(0, size - n), size - 1)
+    first = int(first_s)
+    if first >= size:
+        raise ValueError("range starts at or past end of file")
+    last = int(last_s) if last_s else size - 1
+    last = min(last, size - 1)
+    if last < first:
+        # A reversed range ("bytes=100-50") is syntactically valid but
+        # semantically backwards. RFC 9110 has a server ignore a
+        # ranges-specifier it can't use rather than reject it -- 416 means
+        # "outside the file," which a reversed-but-in-bounds range isn't.
+        # Treating it as "not a shape we understand" (-> None, whole file)
+        # matches how a foreign unit or a multi-range request is already
+        # handled above: one rule for "this header is not usable," not two.
+        return None
+    return (first, last)
+
+
+class _RangeHandler(SimpleHTTPRequestHandler):
+    """``SimpleHTTPRequestHandler`` with single-range GET support.
+
+    The stock handler ignores ``Range`` completely. The 3D map's video
+    crossfade is a seek, so without this Chrome re-downloads from byte zero
+    every time the clock moves and Safari refuses to play at all.
+    """
+
+    _range: tuple[int, int] | None = None
+
+    def end_headers(self) -> None:
+        # Advertised on every response: a media element checks for it before
+        # it will attempt a seek at all.
+        self.send_header("Accept-Ranges", "bytes")
+        super().end_headers()
+
+    def send_head(self) -> BinaryIO | None:
+        self._range = None
+        header = self.headers.get("Range")
+        path = self.translate_path(self.path)
+        if not header or os.path.isdir(path):
+            return super().send_head()
+        try:
+            size = os.stat(path).st_size
+        except OSError:
+            self.send_error(HTTPStatus.NOT_FOUND, "File not found")
+            return None
+        try:
+            rng = _parse_range(header, size)
+        except ValueError:
+            self.send_response(HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+            self.send_header("Content-Range", f"bytes */{size}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        if rng is None:
+            # Whole-file response: let the base handler open and serve it.
+            # Opening it ourselves here too would mean two file opens for
+            # one request.
+            return super().send_head()
+        first, last = rng
+        try:
+            f = open(path, "rb")
+        except OSError:
+            self.send_error(HTTPStatus.NOT_FOUND, "File not found")
+            return None
+        try:
+            self._range = rng
+            f.seek(first)
+            self.send_response(HTTPStatus.PARTIAL_CONTENT)
+            self.send_header("Content-Type", self.guess_type(path))
+            self.send_header("Content-Range", f"bytes {first}-{last}/{size}")
+            self.send_header("Content-Length", str(last - first + 1))
+            self.end_headers()
+            return f
+        except Exception:
+            f.close()
+            raise
+
+    # mypy sees the base `copyfile` as generic over AnyStr (str or bytes);
+    # this handler only ever deals in bytes, which mypy's LSP check can't
+    # express as a narrowing override.
+    def copyfile(self, source: BinaryIO, outputfile: BinaryIO) -> None:  # type: ignore[override]
+        if self._range is None:
+            super().copyfile(source, outputfile)
+            return
+        first, last = self._range
+        remaining = last - first + 1
+        while remaining > 0:
+            chunk = source.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            outputfile.write(chunk)
+            remaining -= len(chunk)
+
+
+class _QuietHandler(_RangeHandler):
+    """Range-capable handler without per-request stderr logging."""
 
     def log_message(self, format: str, *args: object) -> None:
         pass
@@ -29,7 +158,7 @@ def _make_server(directory: Path, *, log_requests: bool = False) -> ThreadingHTT
 
     Binds 127.0.0.1 only — the map must never be exposed beyond this machine.
     """
-    handler_cls = SimpleHTTPRequestHandler if log_requests else _QuietHandler
+    handler_cls = _RangeHandler if log_requests else _QuietHandler
     handler = partial(handler_cls, directory=str(directory))
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     # Don't let an in-flight transfer keep the process alive after Ctrl+C.

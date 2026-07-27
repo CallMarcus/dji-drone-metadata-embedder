@@ -515,3 +515,132 @@ def test_write_flights_geojson_threads_redact(tmp_path):
     out = tmp_path / "flights.geojson"
     write_flights_geojson([_ghost_track()], out, redact="fuzz")
     assert json.loads(out.read_text(encoding="utf-8"))["redacted"] == "fuzz"
+
+
+def _joined_pair(tmp_path):
+    """Two real, densely-sampled (30 Hz) SRTs that join into one flight.
+
+    Same fixture shape already proven to join in
+    ``test_decimation_does_not_break_split_joining``, exercised end to end
+    through the real ``scan_flights`` -- no internals duplicated. Dense
+    enough (2 x 60 raw points) that ``scan_flights``' internal decimation
+    genuinely thins the result rather than passing every point through
+    untouched, so the join-stamping test below also proves the stamp
+    survives real thinning, not just a no-op pass.
+    """
+    _write(tmp_path, "DJI_0001.SRT", _hz30_srt(T0, 2.0))
+    _write(
+        tmp_path,
+        "DJI_0002.SRT",
+        _hz30_srt(T0 + timedelta(seconds=2), 2.0, lat0=34.0 + 60 * 1e-6),
+    )
+    tracks, _ = scan_flights(tmp_path)
+    return tracks
+
+
+def test_join_stamps_each_point_with_its_segment(tmp_path):
+    tracks = _joined_pair(tmp_path)
+    assert len(tracks) == 1
+    segs = [p.segment for p in tracks[0].points]
+    # scan_flights has already decimated by this point, so this single
+    # assertion proves both that the join stamps segments and that the
+    # stamp survives thinning through the real pipeline a user hits.
+    assert set(segs) == {0, 1}
+    # Segment 0 must come first and never interleave.
+    assert segs == sorted(segs)
+
+
+def test_decimation_preserves_the_segment_stamp():
+    """Unit test for the property in isolation: _decimate_points must
+    genuinely thin the points (not a no-op) while keeping each surviving
+    point's segment stamp intact. No SRT files or join involved -- a
+    hand-built dense (30 Hz) list is enough to exercise this on its own."""
+    from dji_metadata_embedder.geo.flightmap import _decimate_points
+
+    t0 = datetime(2026, 6, 15, 12, 0, 0)
+    points = [
+        TrackPoint(
+            lat=10.0,
+            lon=20.0 + i * 1e-6,
+            alt=100.0,
+            timestamp=f"00:00:{i // 30:02d},{(i % 30) * 33:03d}",
+            utc=t0 + timedelta(seconds=i / 30),
+            segment=0 if i < 45 else 1,
+        )
+        for i in range(90)
+    ]
+    thinned = _decimate_points(points)
+    assert len(thinned) < len(points)
+    assert {p.segment for p in thinned} == {0, 1}
+
+
+def test_single_file_flight_is_all_segment_zero():
+    track = _ghost_track()
+    assert {p.segment for p in track.points} == {0}
+
+
+def test_geojson_media_props_absent_without_linking():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    props = flights_to_geojson([_ghost_track()])["features"][0]["properties"]
+    for key in ("media", "cue_s", "seg_i"):
+        assert key not in props
+
+
+def test_geojson_cue_s_is_the_in_file_offset():
+    """Not flight-relative time: cue_s is what video.currentTime wants, and
+    for a joined flight the second file's cues restart near zero."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["DJI_0001.MP4"]
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["media"] == ["DJI_0001.MP4"]
+    assert len(props["cue_s"]) == len(track.points)
+    assert props["cue_s"][0] == 0.0
+    assert "seg_i" not in props          # single segment: omitted
+
+
+def test_geojson_seg_i_emitted_only_when_split():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["a.MP4", "b.MP4"]
+    for p in track.points[len(track.points) // 2:]:
+        p.segment = 1
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert set(props["seg_i"]) == {0, 1}
+    assert len(props["seg_i"]) == len(track.points)
+
+
+def test_geojson_media_props_absent_on_single_fix_point():
+    """Mirrors test_geojson_pose_arrays_not_on_single_fix_point: the Point
+    degenerate case skips times_s and the ghost props, and media/cue_s/seg_i
+    must be skipped the same way (#380)."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["DJI_0001.MP4"]
+    track.points = track.points[:1]
+    fc = flights_to_geojson([track])
+    assert fc["features"][0]["geometry"]["type"] == "Point"
+    for key in ("media", "cue_s", "seg_i"):
+        assert key not in fc["features"][0]["properties"]
+
+
+def test_cue_s_restarts_at_a_segment_boundary(tmp_path):
+    """The property task-4-review verified only by reading source: cue_s is
+    each point's offset within its own video file, not a flight-relative
+    clock. If it climbed across a join instead of restarting, a split
+    flight's second video would seek minutes past its own end (#380)."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    tracks = _joined_pair(tmp_path)
+    track = tracks[0]
+    track.media = ["a.MP4", "b.MP4"]
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    seg_i = props["seg_i"]
+    assert 0 in seg_i and 1 in seg_i
+    last_seg0 = max(i for i, s in enumerate(seg_i) if s == 0)
+    first_seg1 = min(i for i, s in enumerate(seg_i) if s == 1)
+    assert props["cue_s"][first_seg1] < props["cue_s"][last_seg0]

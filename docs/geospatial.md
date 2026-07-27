@@ -364,6 +364,65 @@ reference, the same simplification the `--footprint` KML/GeoJSON export
 makes, so on terrain that rises into the frame the drawn patch is an
 approximation rather than the true footprint.
 
+### Crossfade to the footage
+
+Point `flightmap` at a folder with `--link-originals` and the 3D map learns
+where each flight's video sits:
+
+```bash
+dji-embed flightmap ./footage --3d --link-originals
+```
+
+In the ghost view a slider then appears in the HUD. Slide it and the terrain
+reconstruction fades into the real video frame for the second you are looking
+at; **v** swaps straight between the two extremes. Held half-way you see both
+at once, which is the point: a horizon and landmarks that line up are
+consistent with the recorded attitude being right. A mismatch is not proof it
+is wrong — the same picture follows from an estimated or median field of view
+(see below), a terrain model that includes canopy or rooftops, the flat
+ground-plane approximation, or lens distortion the map does not model. Read it
+as the most direct sanity check this tool offers, not a verdict.
+
+The video follows the clock, but only the slowest speed keeps pace with it:
+at 1× it plays alongside the flight, and at 5× and above it steps sample to
+sample instead — roughly a second at a time — because no browser decodes
+reliably that fast. A flight that DJI split across several files at the 4 GB
+container limit switches source automatically as the clock crosses each
+boundary, seeking into the new file at that sample's own offset rather than
+the flight's elapsed time. A file that fails to load disables the slider and
+names the file in a badge, and stays that way — not just for the frame it
+broke on — until the clock moves into a different segment, even one backed
+by the same file.
+
+That badge only knows the browser refused to load the file, not why: a moved
+file, a wrong link base and an undecodable codec all look identical to it.
+DJI's 4K footage is commonly H.265/HEVC, which Firefox does not decode inside
+MP4 at all and Chrome only where a platform decoder is present — an intact,
+correctly-linked clip can still show as failed on those browsers.
+
+Linking is opt-in because the map only works alongside the videos: share the
+HTML on its own and the links have nothing to point at. `--link-base` gives
+the hrefs a different prefix when the footage does not sit beside the map.
+
+Opening the written file straight from disk (`file://`) works out of the box:
+the video seeks natively with no server involved, and that is the common path.
+`flightmap` itself has no `--serve` flag, but the standalone `serve` command
+(below, under `photomap`) is what makes seeking work when the map is served
+over HTTP instead — the path the desktop app and any hosted copy of the map
+take, and the reason `geo/serve.py` answers HTTP Range requests. Either way,
+it is the *playback* slider (or stepping through the flight) that seeks the
+video; the blend slider only fades between the two layers at whatever second
+the clock is already on.
+
+Two limits, not one. `--link-originals` is still permitted with `--redact
+fuzz` — originals still carry exact GPS in their own metadata, so linking
+warns rather than refusing — but the crossfade itself is switched off:
+coarsened positions are deliberately ~100 m out, so overlaying real footage
+would invite a comparison against geometry that is knowingly wrong. And
+where a clip carries no focal length, the map's own field of view is an
+estimate, so the alignment is approximate — the same caveat the gaze badge
+already reports.
+
 ## Photo map (`photomap`)
 
 ```bash
@@ -467,6 +526,13 @@ screen are served automatically, so the 360° viewer just works there.)
 Wrapper flags for that kind of integration: `--no-browser`, `--url-only`
 (print the bare URL as the first line), and `--exit-with-stdin` (stop when
 stdin closes, tying the server to the app that started it).
+
+Both the `--serve` flag and the standalone `serve` command answer HTTP Range
+requests (`206 Partial Content`), not just whole-file downloads — Python's
+stock file server does not, and without it a browser scrubbing a served
+video has to re-fetch from the start instead of jumping straight to the
+requested second. This is what makes seeking smooth in the flightmap
+crossfade above, on video files that can run well past the size of a photo.
 
 Notes:
 

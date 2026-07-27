@@ -85,6 +85,11 @@ _TEMPLATE = """<!DOCTYPE html>
                       padding: 2px 9px; }}
   .ghost-badge {{ background: #b58900; color: #fff; border-radius: 3px;
                  padding: 0 6px; font-size: 11px; }}
+  .ghost-video {{ position: absolute; top: 0; left: 50%; height: 100%;
+                 width: auto; transform: translateX(-50%);
+                 pointer-events: none; z-index: 1;
+                 transition: opacity .18s linear; }}
+  #ghost-hud #ghost-blend {{ width: 110px; }}
   .playback {{ position: absolute; bottom: 14px; left: 10px; z-index: 6;
               background: #fff; border-radius: 4px; padding: 6px 10px;
               box-shadow: 0 1px 5px rgba(0,0,0,.4); display: flex;
@@ -145,6 +150,9 @@ const allCoords = [];
     entry.agl = p.agl_m || null;
     entry.vfov = p.vfov_deg || null;
     entry.hfov = p.hfov_deg || null;
+    entry.media = p.media || null;
+    entry.cue = p.cue_s || null;
+    entry.segi = p.seg_i || null;
   } else {                                             // single-fix clip
     const c = f.geometry.coordinates;
     entry.geometry = { type: 'Point', coordinates: [c[0], c[1]] };
@@ -304,7 +312,13 @@ function buildPanel() {
   if (REDACTED !== 'none' && runs.length) {
     const note = document.createElement('div');
     note.className = 'panel-note';
-    note.textContent = 'Camera gaze off \\u2014 positions fuzzed';
+    // The crossfade gate (mountCrossfade) withholds the same way the gaze
+    // gate does, but has no HUD of its own to say so while the cockpit is
+    // closed -- state it here too, same shape as the gaze note (#380
+    // whole-branch review I1).
+    note.textContent = flights.some(f => f.media)
+      ? 'Camera gaze and video crossfade off \\u2014 positions fuzzed'
+      : 'Camera gaze off \\u2014 positions fuzzed';
     panel.appendChild(note);
   }
   if (flights.some(f => f.sculptSrc)) {
@@ -398,6 +412,10 @@ function ghostKeys(ev) {
   if (ev.key === 'Escape') { ghostExit(); ev.preventDefault(); }
   else if (ev.key === 'ArrowLeft') { ghostStep(-1); ev.preventDefault(); }
   else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
+  else if (ev.key === 'v' || ev.key === 'V') {
+    setBlend(cross.blend > 0.5 ? 0 : 1);
+    ev.preventDefault();
+  }
 }
 
 function terrainElevAt(lngLat) {
@@ -474,6 +492,7 @@ function ghostEnter(flightIdx, sampleIdx) {
   }
   applyPose(samplePose(fl, ghost.idx), riding ? 0 : GHOST_ENTER_MS);
   mountHud();
+  mountCrossfade();
 }
 
 function ghostStep(d) {
@@ -498,6 +517,7 @@ function ghostStep(d) {
   }
   applyPose(samplePose(ghost.flight, next), GHOST_STEP_MS);
   updateHud();
+  renderCrossfade();
 }
 
 function ghostExit() {
@@ -527,6 +547,7 @@ function ghostExit() {
     applyGazeVisibility();
   });
   unmountHud();
+  unmountCrossfade();
   ghost.flight = null;
   ghost.takeoffElev = null;
 }
@@ -549,8 +570,20 @@ function mountHud() {
   exit.setAttribute('aria-label', 'Exit ghost view');
   hud.append(mk('ghost-prev', '\\u2039', () => ghostStep(-1)),
              info, badges,
-             mk('ghost-next', '\\u203a', () => ghostStep(1)),
-             exit);
+             mk('ghost-next', '\\u203a', () => ghostStep(1)));
+  if (hasMedia(ghost.flight)) {
+    const blend = document.createElement('input');
+    blend.type = 'range';
+    blend.id = 'ghost-blend';
+    blend.min = '0';
+    blend.max = '100';
+    blend.value = '0';
+    blend.title = 'Blend the map into the footage';
+    blend.addEventListener('input',
+                           () => setBlend(Number(blend.value) / 100));
+    hud.appendChild(blend);
+  }
+  hud.appendChild(exit);
   document.body.appendChild(hud);
   ghost.hud = hud;
   updateHud();
@@ -1074,6 +1107,7 @@ function pbDriveGhost() {
   if (pb.sample !== ghost.idx) {
     ghost.idx = pb.sample;
     updateHud();
+    renderCrossfade();
   }
 }
 
@@ -1097,6 +1131,7 @@ function applyGazeVisibility() {
 
 function pbPause() {
   pb.playing = false;
+  syncCrossfadePlayback();
   const b = document.getElementById('pb-play');
   if (b) b.textContent = '\\u25b6';
   if (pb.raf) cancelAnimationFrame(pb.raf);
@@ -1116,6 +1151,7 @@ function pbPlay() {
   if (!pb.run) return;
   if (pb.t >= pbMax()) { pb.t = 0; pb.cursor = 0; }
   pb.playing = true;
+  syncCrossfadePlayback();
   const b = document.getElementById('pb-play');
   if (b) b.textContent = '\\u275a\\u275a';
   pb.last = performance.now();
@@ -1178,6 +1214,10 @@ function mountPlayback() {
   speed.addEventListener('click', () => {
     pb.speed = PB_SPEEDS[(PB_SPEEDS.indexOf(pb.speed) + 1) % PB_SPEEDS.length];
     speed.textContent = pb.speed + '\\u00d7';
+    // The riding/stepping boundary is speed-dependent, not just
+    // playing-dependent -- without this a speed change across
+    // CROSSFADE_MAX_RATE would not take effect until the next sample.
+    syncCrossfadePlayback();
   });
   slider.addEventListener('input', () => {
     pb.t = Number(slider.value);
@@ -1426,6 +1466,195 @@ function gazeLookup(ev) {
   gazePopup = new maplibregl.Popup({ maxWidth: '320px' })
     .setLngLat(ev.lngLat).setDOMContent(el).addTo(map);
   gazePopup.on('close', () => { gazeHighlight([]); gazePopup = null; });
+}
+
+// --- Media crossfade (#380): blend the reconstruction into the footage ---
+// The video is composited by CSS opacity only -- never drawn into a canvas,
+// which would taint it and buy nothing.
+const CROSSFADE_MAX_RATE = 4;     // browsers cannot decode reliably above
+                                   // this; PB_SPEEDS has no value in (1, 4],
+                                   // so in the shipped UI this is effectively
+                                   // "riding only at 1x"
+const CROSSFADE_DRIFT_S = 0.25;   // re-seek only when playback slips this far
+const cross = { el: null, blend: 0, seg: -1, pending: null, href: null,
+                 broken: null };
+
+function mediaFor(fl, i) {
+  // Which file, and how far into it. The offset is the point's own SRT cue:
+  // cues are video-relative and the split-join never rewrites them.
+  if (!fl || !fl.media || !fl.cue) return null;
+  const seg = fl.segi ? fl.segi[i] : 0;
+  const href = fl.media[seg];
+  if (!href) return { href: null, seg: seg, t: null };
+  return { href: href, seg: seg, t: fl.cue[i] };
+}
+
+// Answers "may we offer the crossfade?", not "does this flight have
+// footage?" -- both call sites want the redaction answer, not the raw one.
+function hasMedia(fl) {
+  return REDACTED === 'none'
+    && !!(fl && fl.media && fl.cue && fl.media.some(h => h));
+}
+
+function setBlend(x) {
+  cross.blend = Math.max(0, Math.min(1, x));
+  if (cross.el) cross.el.style.opacity = String(cross.blend);
+  const s = document.getElementById('ghost-blend');
+  if (s && Number(s.value) / 100 !== cross.blend) {
+    s.value = String(Math.round(cross.blend * 100));
+  }
+}
+
+function crossBadge(text) {
+  const badges = ghost.hud && ghost.hud.querySelector('#ghost-badges');
+  if (!badges) return;
+  const s = document.createElement('span');
+  s.className = 'ghost-badge';
+  s.textContent = text;
+  badges.appendChild(s);
+}
+
+function mountCrossfade() {
+  // Fuzzed positions are deliberately ~100 m out, so overlaying real footage
+  // would invite a comparison against geometry we know is wrong. Linking is
+  // still permitted (photomap allows the same pair) -- it is the blend that
+  // is withheld.
+  if (REDACTED !== 'none') return;
+  // Cockpit-only: the slider lives in the ghost HUD, and outside the cockpit
+  // there is no pose for the footage to be compared against.
+  if (cross.el || !hasMedia(ghost.flight)) return;
+  const v = document.createElement('video');
+  v.id = 'ghost-video';
+  v.className = 'ghost-video';
+  v.muted = true;
+  v.playsInline = true;
+  v.preload = 'auto';
+  v.style.opacity = '0';
+  v.addEventListener('loadedmetadata', () => {
+    if (cross.pending != null) {
+      const t = cross.pending;
+      cross.pending = null;
+      seekCrossfade(t);
+    }
+  });
+  v.addEventListener('error', () => {
+    // A blank overlay reads as "the camera saw nothing here". Name the file
+    // instead and take the control away -- and record it in cross.broken, so
+    // the next renderCrossfade (one arrow key or one sample tick away) does
+    // not straight-line undo all three the way this used to. Worded as what
+    // the <video> error event actually tells us: it fires the same way for
+    // a moved file, a wrong href base, a transport failure and a codec the
+    // browser cannot decode -- DJI's own 4K default, H.265/HEVC, is exactly
+    // that case in Firefox and on Chrome without a platform decoder -- so
+    // "unavailable" would assert a cause the code cannot know (#380
+    // whole-branch review I3).
+    cross.broken = cross.href;
+    const slider = document.getElementById('ghost-blend');
+    if (slider) slider.disabled = true;
+    v.style.display = 'none';
+    crossBadge('could not load: ' + (cross.broken || ''));
+  });
+  document.getElementById('map').appendChild(v);
+  cross.el = v;
+  cross.seg = -1;
+  cross.pending = null;
+  setBlend(0);
+  renderCrossfade();
+}
+
+function unmountCrossfade() {
+  cross.blend = 0;
+  if (!cross.el) return;
+  cross.el.pause();
+  // Clear the source and let the element re-check itself before removal --
+  // otherwise a multi-GB MP4 the browser was mid-fetch on keeps downloading
+  // after the cockpit closes (#380 whole-branch review M3).
+  cross.el.removeAttribute('src');
+  cross.el.load();
+  cross.el.remove();
+  cross.el = null;
+  cross.seg = -1;
+  cross.pending = null;
+  cross.broken = null;
+  cross.href = null;
+}
+
+function seekCrossfade(t) {
+  const v = cross.el;
+  if (!v || t == null) return;
+  // currentTime does not stick before metadata arrives; hold it and apply
+  // once the browser knows the duration.
+  if (v.readyState < 1) { cross.pending = t; return; }
+  if (Math.abs(v.currentTime - t) > 0.05) v.currentTime = t;
+}
+
+function renderCrossfade() {
+  if (!cross.el || !ghost.active) return;
+  if (!ghost.flight.vfov) {
+    // Without a focal length the map's own field of view is a guess, so a
+    // mismatch is not evidence the telemetry is wrong. updateHud() clears
+    // #ghost-badges on every call, so this is re-added here (rather than
+    // once at mount) to survive every step, not just the first frame.
+    crossBadge('alignment approximate \\u2014 no focal length');
+  }
+  const slider = document.getElementById('ghost-blend');
+  const m = mediaFor(ghost.flight, ghost.idx);
+  if (!m || !m.href) {
+    // A segment whose file was never resolved: hide rather than leave the
+    // previous file's frame standing over a different part of the flight,
+    // and say so. media[seg] is null here, so there is no filename left to
+    // name -- this is the honest version of what spec #380 section 8 asks
+    // for (#380 whole-branch review I2).
+    cross.el.style.display = 'none';
+    if (slider) slider.disabled = true;
+    crossBadge('no video for this part of the flight');
+    syncCrossfadePlayback();
+    return;
+  }
+  if (m.seg !== cross.seg) {
+    cross.seg = m.seg;
+    cross.pending = m.t;
+    cross.broken = null;      // a different file may load fine
+    cross.href = m.href;
+    // A src swap resets playback state, so the seek is re-applied from the
+    // loadedmetadata handler below rather than now.
+    cross.el.src = m.href;
+    cross.el.load();
+  } else {
+    const v = cross.el;
+    const drifted = v.paused
+      || Math.abs(v.currentTime - m.t) > CROSSFADE_DRIFT_S;
+    if (drifted) seekCrossfade(m.t);
+  }
+  if (cross.broken) {
+    // The error handler already hid the element, disabled the slider and
+    // posted the badge once. Without this the next render (one arrow key or
+    // one sample tick away) would straight-line undo all three, leaving a
+    // LIVE blend slider over a video that will never show a frame -- the
+    // "camera saw nothing here" reading this posture exists to prevent.
+    cross.el.style.display = 'none';
+    if (slider) slider.disabled = true;
+    crossBadge('could not load: ' + cross.broken);
+    syncCrossfadePlayback();
+    return;
+  }
+  cross.el.style.display = '';
+  if (slider) slider.disabled = false;
+  syncCrossfadePlayback();
+}
+
+function syncCrossfadePlayback() {
+  const v = cross.el;
+  if (!v || !ghost.active) return;
+  const riding = pb.playing && pb.run === ghost.flight;
+  if (riding && pb.speed <= CROSSFADE_MAX_RATE) {
+    v.playbackRate = pb.speed;
+    if (v.paused) v.play().catch(() => {});    // autoplay policy: muted, so
+    return;                                    // this should not reject
+  }
+  // Paused, scrubbing, or faster than the decoder can follow: step instead.
+  // A slideshow is honest; a decoder falling silently behind is not.
+  if (!v.paused) v.pause();
 }
 """
 

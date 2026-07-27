@@ -27,6 +27,8 @@ import pytest
 
 pytest.importorskip("playwright")
 
+from dji_metadata_embedder.geo.serve import _QuietHandler  # noqa: E402
+
 
 # A valid 1x1 transparent PNG: the stand-in for every tile and sprite
 # request, so the map lays out normally with zero external traffic.
@@ -136,9 +138,53 @@ _STRIP_HILLSHADE_JS = """
 """
 
 
-class _QuietHandler(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, *args):  # noqa: ARG002 - silence per-request stderr
-        pass
+_RECORD_JS = """
+async () => {
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 180;
+  const ctx = c.getContext('2d');
+  const stream = c.captureStream(30);
+  const types = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8',
+                 'video/webm'];
+  const type = types.find(t => MediaRecorder.isTypeSupported(t));
+  if (!type) throw new Error('no recordable mime type');
+  const rec = new MediaRecorder(stream, {mimeType: type});
+  const chunks = [];
+  rec.ondataavailable = e => chunks.push(e.data);
+  rec.start();
+  for (let i = 0; i < 60; i++) {            // ~2 s of visibly changing frames
+    ctx.fillStyle = `rgb(${i * 4}, 0, 0)`;
+    ctx.fillRect(0, 0, 320, 180);
+    await new Promise(r => setTimeout(r, 33));
+  }
+  await new Promise(r => { rec.onstop = r; rec.stop(); });
+  const buf = await new Blob(chunks, {type}).arrayBuffer();
+  let s = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+"""
+
+
+@pytest.fixture(scope="session")
+def recorded_webm(browser) -> bytes:
+    """A small, real, seekable video, recorded by Chromium itself.
+
+    There is no ffmpeg in this environment and hand-built container bytes are
+    a trap, so the browser makes its own: ~38 KB of VP9 WebM with a finite
+    duration that seeks exactly. It is WebM rather than MP4, so these tests
+    prove our seek logic and segment mapping -- MP4 decoding is the browser's
+    job, not ours.
+    """
+    import base64
+
+    page = browser.new_page()
+    try:
+        page.goto("about:blank")
+        return base64.b64decode(page.evaluate(_RECORD_JS))
+    finally:
+        page.close()
 
 
 @pytest.fixture(scope="session")
@@ -174,17 +220,24 @@ def serve_map(map_server, page):
     strip the ``hillshade`` source/layer before the map constructs: headless
     SwiftShader hangs rendering it against real DEM data under pitch, and it
     is presentation-only, so these runs never see it (see
-    ``_STRIP_HILLSHADE_JS``).
+    ``_STRIP_HILLSHADE_JS``). ``extra_files`` writes additional files
+    (e.g. a recorded video clip) beside the served HTML, keyed by the
+    relative href the map references them with.
     """
     root, base_url = map_server
 
     def _serve(html: str, *, on=None, terrain_stub: float | None = None,
-               terrain_steps: tuple[float, float] | None = None) -> str:
+               terrain_steps: tuple[float, float] | None = None,
+               extra_files: dict[str, bytes] | None = None) -> str:
         import uuid
 
         target = on if on is not None else page
         name = f"map-{uuid.uuid4().hex[:12]}.html"
         (root / name).write_text(html, encoding="utf-8")
+        for rel, data in (extra_files or {}).items():
+            target_path = root / rel
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_bytes(data)
         assets = {
             url: _fetch_asset(url, integrity)
             for url, integrity in _ASSET_RE.findall(html)

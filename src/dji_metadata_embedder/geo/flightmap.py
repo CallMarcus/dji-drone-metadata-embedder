@@ -126,6 +126,11 @@ def join_split_flights(
                     for p in entry.track.points:
                         if p.utc is not None:
                             p.utc += shift
+            # Stamp before extending: segments was appended just above, so the
+            # index of the segment being added is len(segments) - 1.
+            seg_index = len(prev.track.segments) - 1
+            for p in entry.track.points:
+                p.segment = seg_index
             prev.track.points.extend(entry.track.points)
             prev.last_dt = entry.last_dt
         else:
@@ -348,6 +353,26 @@ def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
         properties["vfov_deg"] = round(vfov, 1)
 
 
+def _add_media_props(properties: dict, track: Track) -> None:
+    """Per-point video coordinates for the crossfade (#380).
+
+    ``cue_s`` is each point's offset within *its own* video file, straight
+    from the raw SRT cue — cues are video-relative and ``join_split_flights``
+    rebases only ``utc``, never ``timestamp``, so this stays correct across a
+    join. ``seg_i`` is omitted when every point is in segment 0, which is the
+    common single-file case; its absence means "all zero".
+    """
+    if not track.media:
+        return
+    properties["media"] = list(track.media)
+    properties["cue_s"] = [
+        round(_cue_seconds(p.timestamp), 3) for p in track.points
+    ]
+    segs = [p.segment for p in track.points]
+    if any(segs):
+        properties["seg_i"] = segs
+
+
 def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
     """Return a GeoJSON ``FeatureCollection`` with one feature per flight.
 
@@ -355,6 +380,9 @@ def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
     summary properties plus ``times_s`` — per-point seconds relative to the
     flight start — which drives the HTML viewer's playback animation (#267).
     LineStrings also carry per-point ghost-camera pose arrays (``gyaw_deg``/``gpitch_deg``/``agl_m``) and per-flight ``hfov_deg``/``vfov_deg`` when the telemetry has them (#372).
+    They also carry ``media`` (per-segment video hrefs), ``cue_s`` (each
+    point's in-file video offset), and ``seg_i`` (each point's segment
+    index) once :func:`..media.resolve_media` has linked originals (#380).
     A single-fix clip degrades to a ``Point`` (RFC 7946 §3.1.4 requires two
     or more positions in a LineString) and carries no times. Unlike the
     single-track exporter no per-sample Point features are emitted — at
@@ -369,6 +397,7 @@ def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
             geometry: dict = {"type": "LineString", "coordinates": coords}
             properties["times_s"] = _relative_times(track.points)
             _add_ghost_props(properties, track.points)
+            _add_media_props(properties, track)
         else:
             geometry = {"type": "Point", "coordinates": coords[0]}
         features.append(

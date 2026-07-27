@@ -263,3 +263,80 @@ def test_flightmap_3d_jsonl_reports_output(tmp_path):
     events = [json.loads(line) for line in res.output.splitlines() if line]
     result = next(e for e in events if e["event"] == "result")
     assert result["outputs"][0].endswith("flightmap-3d.html")
+
+
+def test_link_base_requires_link_originals(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--link-base", "../footage"]
+    )
+    assert res.exit_code != 0
+    assert "--link-base requires --link-originals" in res.output
+
+
+def test_link_originals_allowed_with_fuzz_but_warns(tmp_path):
+    """photomap permits the same pair and warns; flightmap matches it. The
+    blend is disabled in the viewer instead."""
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "--3d", "--link-originals", "--redact", "fuzz"],
+    )
+    assert res.exit_code == 0
+    assert "still carry exact GPS" in res.output
+
+
+def test_link_originals_reaches_the_geojson_media_property(tmp_path):
+    """Review I5 (#380): the only place --link-originals connects to the
+    written output is `if link_originals: resolve_media(tracks, src,
+    link_base)` in cli.py -- deleting it, or moving it below the write loop,
+    left every other test in the suite green. This is the guard for that
+    seam specifically."""
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"fake video bytes")
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "--format", "geojson", "--link-originals"],
+    )
+    assert res.exit_code == 0, res.output
+    data = json.loads((tmp_path / "flightmap.geojson").read_text(encoding="utf-8"))
+    assert data["features"][0]["properties"]["media"] == ["DJI_0001.MP4"]
+
+
+def test_link_originals_with_flat_html_warns_dead_weight(tmp_path):
+    """Review M2 (#380): the flat 2D map embeds the same media/cue_s/seg_i
+    arrays the 3D crossfade needs, but nothing in the 2D viewer reads them --
+    warn the way photomap does for its analogous case."""
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"fake video bytes")
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--link-originals"]
+    )
+    assert res.exit_code == 0, res.output
+    assert "only benefits the 3D map" in res.output
+
+
+def test_link_originals_3d_does_not_warn_dead_weight(tmp_path):
+    """The 3D map is exactly the case --link-originals exists for -- no
+    'dead weight' note should fire alongside it."""
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"fake video bytes")
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--3d", "--link-originals"]
+    )
+    assert res.exit_code == 0, res.output
+    assert "only benefits the 3D map" not in res.output
+
+
+def test_link_originals_geojson_alone_does_not_warn_dead_weight(tmp_path):
+    """GeoJSON is the intended --link-originals target (the media/cue_s/
+    seg_i arrays are the deliverable there), so it must not be told they are
+    dead weight."""
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"fake video bytes")
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "--format", "geojson", "--link-originals"],
+    )
+    assert res.exit_code == 0, res.output
+    assert "only benefits the 3D map" not in res.output
