@@ -181,3 +181,79 @@ def test_a_segment_without_video_disables_the_blend(serve_map, page,
     assert page.evaluate(
         "() => getComputedStyle(document.getElementById('ghost-video'))"
         ".display") == "none"
+
+
+def test_plays_in_sync_at_normal_speed(serve_map, page, recorded_webm):
+    _serve_with_video(serve_map, recorded_webm,
+                      _flight("DJI_0001", media=[VIDEO_NAME]))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    _wait_video_ready(page)
+    page.evaluate("() => { pb.speed = 1; pbPlay(); }")
+    page.wait_for_function(
+        "() => !document.getElementById('ghost-video').paused", timeout=10000)
+    assert page.evaluate(
+        "() => document.getElementById('ghost-video').playbackRate") == 1
+    page.evaluate("() => pbPause()")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-video').paused", timeout=10000)
+
+
+def test_fast_playback_seeks_instead_of_playing(serve_map, page,
+                                                recorded_webm):
+    """Above CROSSFADE_MAX_RATE a decoder silently falls behind and shows the
+    wrong second, so the video stays paused and steps instead."""
+    _serve_with_video(serve_map, recorded_webm,
+                      _flight("DJI_0001", media=[VIDEO_NAME]))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    _wait_video_ready(page)
+    page.evaluate("() => { pb.speed = 60; pbPlay(); }")
+    page.wait_for_function("() => pb.t > 2", timeout=10000)
+    assert page.evaluate(
+        "() => document.getElementById('ghost-video').paused") is True
+
+
+def test_a_broken_video_disables_the_blend_and_names_the_file(serve_map, page):
+    """Spec section 8: a moved or undecodable file must not leave a blank
+    overlay that reads as 'the camera saw nothing here'."""
+    serve_map(flights_to_3d_html(
+        [_flight("DJI_0001", media=["gone.webm"])], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-blend').disabled === true",
+        timeout=10000)
+    note = page.locator("#ghost-badges").inner_text()
+    assert "gone.webm" in note
+
+
+def test_missing_focal_length_marks_the_alignment_approximate(serve_map, page,
+                                                              recorded_webm):
+    """Spec section 8: without a focal length the map's own field of view is
+    an estimate, so a mismatch is not evidence the telemetry is wrong."""
+    track = _flight("DJI_0001", media=[VIDEO_NAME])
+    for p in track.points:
+        p.focal_len = None
+    _serve_with_video(serve_map, recorded_webm, track)
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    assert page.evaluate("() => flights[0].vfov") is None
+    assert "alignment approximate" in page.locator("#ghost-badges").inner_text()
+
+
+def test_no_crossfade_under_fuzz(serve_map, page, recorded_webm):
+    """Positions are coarsened ~100 m, so an overlay would invite a
+    comparison against geometry we know is wrong. Linking is still allowed --
+    photomap permits the same pair -- so the media property is present and it
+    is the blend that is withheld."""
+    _serve_with_video(serve_map, recorded_webm,
+                      _flight("DJI_0001", media=[VIDEO_NAME]), redact="fuzz")
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    assert page.locator("#ghost-video").count() == 0
+    assert page.locator("#ghost-blend").count() == 0
+    # The data is still there; only the feature is gated.
+    assert page.evaluate("() => flights[0].media")[0] == VIDEO_NAME
+    # And the cockpit itself still works.
+    assert page.evaluate("() => ghost.active") is True

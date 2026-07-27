@@ -1124,6 +1124,7 @@ function applyGazeVisibility() {
 
 function pbPause() {
   pb.playing = false;
+  syncCrossfadePlayback();
   const b = document.getElementById('pb-play');
   if (b) b.textContent = '\\u25b6';
   if (pb.raf) cancelAnimationFrame(pb.raf);
@@ -1143,6 +1144,7 @@ function pbPlay() {
   if (!pb.run) return;
   if (pb.t >= pbMax()) { pb.t = 0; pb.cursor = 0; }
   pb.playing = true;
+  syncCrossfadePlayback();
   const b = document.getElementById('pb-play');
   if (b) b.textContent = '\\u275a\\u275a';
   pb.last = performance.now();
@@ -1473,7 +1475,8 @@ function mediaFor(fl, i) {
 }
 
 function hasMedia(fl) {
-  return !!(fl && fl.media && fl.cue && fl.media.some(h => h));
+  return REDACTED === 'none'
+    && !!(fl && fl.media && fl.cue && fl.media.some(h => h));
 }
 
 function setBlend(x) {
@@ -1485,7 +1488,21 @@ function setBlend(x) {
   }
 }
 
+function crossBadge(text) {
+  const badges = ghost.hud && ghost.hud.querySelector('#ghost-badges');
+  if (!badges) return;
+  const s = document.createElement('span');
+  s.className = 'ghost-badge';
+  s.textContent = text;
+  badges.appendChild(s);
+}
+
 function mountCrossfade() {
+  // Fuzzed positions are deliberately ~100 m out, so overlaying real footage
+  // would invite a comparison against geometry we know is wrong. Linking is
+  // still permitted (photomap allows the same pair) -- it is the blend that
+  // is withheld.
+  if (REDACTED !== 'none') return;
   // Cockpit-only: the slider lives in the ghost HUD, and outside the cockpit
   // there is no pose for the footage to be compared against.
   if (cross.el || !hasMedia(ghost.flight)) return;
@@ -1502,6 +1519,15 @@ function mountCrossfade() {
       cross.pending = null;
       seekCrossfade(t);
     }
+  });
+  v.addEventListener('error', () => {
+    // A blank overlay reads as "the camera saw nothing here". Name the file
+    // instead and take the control away.
+    const slider = document.getElementById('ghost-blend');
+    if (slider) slider.disabled = true;
+    v.style.display = 'none';
+    crossBadge('video unavailable: ' + (cross.el ? cross.el.src.split('/')
+      .pop() : ''));
   });
   document.getElementById('map').appendChild(v);
   cross.el = v;
@@ -1532,6 +1558,13 @@ function seekCrossfade(t) {
 
 function renderCrossfade() {
   if (!cross.el || !ghost.active) return;
+  if (!ghost.flight.vfov) {
+    // Without a focal length the map's own field of view is a guess, so a
+    // mismatch is not evidence the telemetry is wrong. updateHud() clears
+    // #ghost-badges on every call, so this is re-added here (rather than
+    // once at mount) to survive every step, not just the first frame.
+    crossBadge('alignment approximate \\u2014 no focal length');
+  }
   const slider = document.getElementById('ghost-blend');
   const m = mediaFor(ghost.flight, ghost.idx);
   if (!m || !m.href) {
@@ -1551,8 +1584,26 @@ function renderCrossfade() {
     cross.el.src = m.href;
     cross.el.load();
   } else {
-    seekCrossfade(m.t);
+    const v = cross.el;
+    const drifted = v.paused
+      || Math.abs(v.currentTime - m.t) > CROSSFADE_DRIFT_S;
+    if (drifted) seekCrossfade(m.t);
   }
+  syncCrossfadePlayback();
+}
+
+function syncCrossfadePlayback() {
+  const v = cross.el;
+  if (!v || !ghost.active) return;
+  const riding = pb.playing && pb.run === ghost.flight;
+  if (riding && pb.speed <= CROSSFADE_MAX_RATE) {
+    v.playbackRate = pb.speed;
+    if (v.paused) v.play().catch(() => {});    // autoplay policy: muted, so
+    return;                                    // this should not reject
+  }
+  // Paused, scrubbing, or faster than the decoder can follow: step instead.
+  // A slideshow is honest; a decoder falling silently behind is not.
+  if (!v.paused) v.pause();
 }
 """
 
