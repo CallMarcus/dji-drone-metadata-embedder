@@ -265,8 +265,7 @@ popups. Terrain comes from Mapterhorn (Copernicus elevation data), loaded
 keylessly over the network — like the 2D map it needs a connection to
 render, and if the terrain tiles can't load, it falls back to a flat view
 with an on-map notice. Browsers without WebGL get a plain HTML message
-instead. `--tile-style` has no effect in 3D (ignored, with a warning), and
-there's no playback in the 3D view.
+instead. `--tile-style` has no effect in 3D (ignored, with a warning).
 
 ### Ghost camera — see what the drone saw
 
@@ -321,6 +320,49 @@ flights on a map has it, the checkbox does not appear at all.
 
 Terrain hides the sculpture the way it hides anything else: a ridge between
 you and the flight blocks it from view.
+
+### Camera's gaze — what the camera saw, and when
+
+The 3D map has a playback control at the bottom left: play/pause, a speed
+button cycling 1×, 5×, 20×, 60×, a scrubber, a time readout, and — with more
+than one playable flight on the map — a picker for which one is playing. As
+the clock runs, the camera's ground footprint for that second is drawn on the
+terrain, with four rays connecting the camera to its corners.
+
+Press play while you are in the ghost view and the camera rides the recorded
+flight in real time instead of stepping sample by sample. An arrow key still
+pauses playback and hands control back to you, but it also carries the clock
+to the sample you stepped to, so the ground patch stays in agreement with
+where the camera is now looking. Clicking **View from here** on a flight that
+is already playing seeks the clock to the sample you clicked rather than
+leaving the camera to be overridden by wherever the clock currently is.
+Leaving the ghost view keeps the clock running from outside.
+
+**Click any spot on the ground** and the map answers which recording covered
+it: `in frame 14 s over 3 passes`, with each pass a button that jumps the
+clock there (and rides it, if you are in the ghost view). The stretches of
+flight line that filmed the spot light up at the same time. Clicking ground
+that was never in frame says so.
+
+Two honesty limits, and a footprint can be an estimate for either of two
+reasons. The gaze is switched off entirely with `--redact fuzz`, because a
+footprint projected from a coordinate that has been moved ~100 m is a
+confident claim about ground the camera never saw; the flights panel says so
+when that happens, and playback still works. And where the telemetry carries
+no gimbal attitude — every Mini-series drone at the time of writing — the
+footprint is drawn from the same estimated 30-degree down-tilt the ghost view
+assumes. A missing focal length has the same effect on the footprint's shape:
+it is drawn from a generic wide lens instead of the camera's true field of
+view, which makes the patch a little larger than the true frame — this is the
+common case for sidecar-less MP4 clips, which log real gimbal attitude but no
+focal length. Either reason (or both) marks the footprint with a dashed
+outline and an "estimated footprint" badge naming what was guessed; a clip
+can lose gimbal data or focal length partway through, so a spot's answer says
+"estimated" when every pass over it was guessed and "some passes estimated"
+when only some were. Footprints also assume flat ground at the drone's height
+reference, the same simplification the `--footprint` KML/GeoJSON export
+makes, so on terrain that rises into the frame the drawn patch is an
+approximation rather than the true footprint.
 
 ## Photo map (`photomap`)
 

@@ -20,6 +20,9 @@ it's a handful of copy-paste commands. For a guided tour see
 - **See every flight on one map** — point `dji-embed flightmap` at a folder of
   footage and get a single interactive map with each flight as its own
   coloured track *(experimental)*.
+- **Camera's gaze** in the 3D map: play a flight back, watch the camera's
+  ground footprint sweep the terrain, and click any spot to see which seconds
+  of recording covered it.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
