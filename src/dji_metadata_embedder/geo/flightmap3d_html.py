@@ -407,6 +407,7 @@ function ghostEnter(flightIdx, sampleIdx) {
   window.addEventListener('keydown', ghostKeys);
   applySculptVisibility();   // a ribbon at the camera's own altitude would
                             // sit across the cockpit view
+  applyGazeVisibility();
   if (!ghost.saved) {
     // Survives exit -> rapid re-enter while the exit ease still runs, so
     // a re-entry never captures a mid-transition camera as "the view to
@@ -443,12 +444,15 @@ function ghostEnter(flightIdx, sampleIdx) {
     ghost.savedFov = map.getVerticalFieldOfView();
     map.setVerticalFieldOfView(fl.vfov);
   }
-  applyPose(samplePose(fl, ghost.idx), GHOST_ENTER_MS);
+  // Riding: jump in. The cinematic ease would be overridden by the next
+  // playback frame, and eases here are the moveend hazard.
+  applyPose(samplePose(fl, ghost.idx), pb.playing ? 0 : GHOST_ENTER_MS);
   mountHud();
 }
 
 function ghostStep(d) {
   if (!ghost.active) return;
+  if (pb.playing) pbPause();       // manual control wins over the clock
   const n = ghost.flight.pts.length;
   const next = Math.max(0, Math.min(ghost.idx + d, n - 1));
   if (next === ghost.idx) return;
@@ -481,6 +485,7 @@ function ghostExit() {
     GHOST_HANDLERS.forEach(h => map[h] && map[h].enable());
     ghost.saved = null;
     applySculptVisibility();
+    applyGazeVisibility();
   });
   unmountHud();
   ghost.flight = null;
@@ -985,6 +990,51 @@ function pbRender() {
     pb.sample = s;
     renderGaze();
   }
+  pbDriveGhost();
+}
+
+function lerp(a, b, f) { return a + (b - a) * f; }
+
+function posePlayback(fl, t) {
+  // Built from two samplePose() calls so every existing fallback -- takeoff
+  // elevation, the -30 pitch estimate, the pitch clamp -- applies unchanged.
+  const i = sampleIndexAt(fl, t);
+  if (i >= fl.pts.length - 1) return samplePose(fl, fl.pts.length - 1);
+  const t0 = fl.times[i], t1 = fl.times[i + 1];
+  const f = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
+  const p0 = samplePose(fl, i), p1 = samplePose(fl, i + 1);
+  const d = ((p1.bearing - p0.bearing + 540) % 360) - 180;   // shortest arc
+  return Object.assign({}, p0, {
+    lngLat: [lerp(p0.lngLat[0], p1.lngLat[0], f),
+             lerp(p0.lngLat[1], p1.lngLat[1], f)],
+    altitude: lerp(p0.altitude, p1.altitude, f),
+    bearing: p0.bearing + d * f,
+    pitch: lerp(p0.pitch, p1.pitch, f),
+  });
+}
+
+function pbDriveGhost() {
+  if (!ghost.active || ghost.flight !== pb.run) return;
+  // jumpTo, never easeTo: an ease would fight the clock and churn moveend,
+  // which is where this file's ghost-exit guard already earned its scars.
+  applyPose(posePlayback(pb.run, pb.t), 0);
+  if (pb.sample !== ghost.idx) {
+    ghost.idx = pb.sample;
+    updateHud();
+  }
+}
+
+function applyGazeVisibility() {
+  const v = (pb.run && pb.run.shown) ? 'visible' : 'none';
+  // The beam originates at the camera, so it hides in the cockpit for the
+  // same reason the sculpture does; the patch is what you came to see.
+  const beam = (v === 'visible' && !ghost.active) ? 'visible' : 'none';
+  [['gaze-fill', v], ['gaze-edge', v], ['gaze-cursor-dot', v],
+   ['gaze-hits-line', v], ['beam-ray', beam]].forEach(pair => {
+    if (map.getLayer(pair[0])) {
+      map.setLayoutProperty(pair[0], 'visibility', pair[1]);
+    }
+  });
 }
 
 function pbPause() {

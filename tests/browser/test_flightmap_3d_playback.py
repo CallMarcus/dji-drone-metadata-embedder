@@ -118,3 +118,79 @@ def test_picker_switches_flight_and_resets_the_clock(serve_map, page):
     assert page.evaluate("() => pb.run.name") == "DJI_0002"
     assert page.evaluate("() => Number(document.getElementById("
                          "'pb-slider').max)") == 2.0
+
+
+def test_playing_in_the_cockpit_flies_the_recorded_path(serve_map, page):
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    first = page.evaluate("() => ghost.applied.lng")
+    page.evaluate("() => { pb.t = 4; pbRender(); }")
+    later = page.evaluate("() => ghost.applied.lng")
+    assert later > first, "the cockpit did not follow the clock"
+    assert page.evaluate("() => ghost.idx") == 4
+    assert page.evaluate("() => ghost.active") is True
+
+
+def test_a_scrub_between_samples_interpolates(serve_map, page):
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    page.evaluate("() => { pb.t = 2.5; pbRender(); }")
+    got = page.evaluate("() => ghost.applied.lng")
+    lo = page.evaluate("() => flights[0].pts[2][0]")
+    hi = page.evaluate("() => flights[0].pts[3][0]")
+    assert lo < got < hi, "pose was snapped to a sample instead of interpolated"
+
+
+def test_arrow_step_pauses_playback(serve_map, page):
+    """Manual control wins: an arrow key while the clock runs would otherwise
+    be overwritten on the next frame."""
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    page.evaluate("() => { pb.speed = 1; pbPlay(); }")
+    assert page.evaluate("() => pb.playing") is True
+    page.keyboard.press("ArrowRight")
+    assert page.evaluate("() => pb.playing") is False
+
+
+def test_entering_while_playing_jumps_instead_of_easing(serve_map, page):
+    """A 1.2 s cinematic ease would be overridden by the next frame anyway,
+    and eases are where this file's moveend scars are."""
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    page.evaluate("() => { pb.speed = 1; pbPlay(); ghostEnter(0, 0); }")
+    assert page.evaluate("() => map.isMoving()") is False, "ghostEnter eased"
+    assert page.evaluate("() => ghost.active") is True
+
+
+def test_exiting_while_playing_keeps_the_clock(serve_map, page):
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    page.evaluate("() => { pb.speed = 5; pbPlay(); ghostExit(); }")
+    assert page.evaluate("() => pb.playing") is True
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert page.evaluate("() => ghost.active") is False
+    assert page.evaluate("() => ghost.saved") is None
+
+
+def test_beam_hides_in_the_cockpit(serve_map, page):
+    """A beam originating at your own eye would fill the frame -- the same
+    reason the sculpture steps aside. The patch stays: it is the point."""
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    vis = ("(id) => map.getLayoutProperty(id, 'visibility') || 'visible'")
+    assert page.evaluate(vis, "beam-ray") == "visible"
+    page.evaluate("() => ghostEnter(0, 2)")
+    assert page.evaluate(vis, "beam-ray") == "none"
+    assert page.evaluate(vis, "gaze-fill") == "visible"
+    page.evaluate("() => ghostExit()")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert page.evaluate(vis, "beam-ray") == "visible"
