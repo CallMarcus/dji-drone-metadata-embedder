@@ -84,6 +84,16 @@ _TEMPLATE = """<!DOCTYPE html>
                       padding: 2px 9px; }}
   .ghost-badge {{ background: #b58900; color: #fff; border-radius: 3px;
                  padding: 0 6px; font-size: 11px; }}
+  .playback {{ position: absolute; bottom: 14px; left: 10px; z-index: 6;
+              background: #fff; border-radius: 4px; padding: 6px 10px;
+              box-shadow: 0 1px 5px rgba(0,0,0,.4); display: flex;
+              gap: 6px; align-items: center; flex-wrap: wrap;
+              font: 13px/1.4 sans-serif; max-width: 92vw; }}
+  .playback button {{ border: none; background: none; cursor: pointer;
+                     font-size: 15px; padding: 0 4px; }}
+  .playback input[type=range] {{ width: 140px; }}
+  .playback span {{ font-variant-numeric: tabular-nums; }}
+  .playback select {{ font: inherit; max-width: 160px; }}
 </style>
 </head>
 <body>
@@ -251,6 +261,7 @@ if (map) {
     map.on('zoomend', rebuildSculpture);
     sculptSettle();
     buildPanel();
+    mountPlayback();
   });
 }
 
@@ -764,6 +775,162 @@ function gazeRing(fl, i) {
   ring.push(ring[0]);
   return { ring: ring, reason: null, estimated: notes.length > 0,
            estNotes: notes };
+}
+
+// --- Playback (#378): the flat map's animator (#267/#327), MapLibre-side ---
+// Semantics are deliberately identical to geo/flightmap_html.py so a user who
+// learns one map's playback knows the other's: same eligibility rule, same
+// speeds, same rAF clock, same pause-at-end. No "All flights (compare)" mode
+// here -- a gaze patch and beam per flight at once is noise, and the cockpit
+// can only ride one flight.
+const PB_SPEEDS = [1, 5, 20, 60];
+const runs = flights.filter(f => f.pts && Array.isArray(f.times)
+  && f.times.length === f.pts.length
+  && f.times[f.times.length - 1] > 0);
+const pb = { t: 0, playing: false, speed: 1, raf: null, last: 0,
+             run: null, cursor: 0, sample: -1 };
+
+function pbMax() {
+  return pb.run ? pb.run.times[pb.run.times.length - 1] : 0;
+}
+
+function sampleIndexAt(fl, t) {
+  // Index of the sample at or before t, with a monotonic cursor hint so a
+  // playing clock does not rescan the array every frame.
+  const times = fl.times;
+  if (t <= times[0]) { pb.cursor = 0; return 0; }
+  if (t >= times[times.length - 1]) return times.length - 1;
+  let i = pb.cursor;
+  if (times[i] > t) i = 0;                    // seeked backwards
+  while (times[i + 1] <= t) i++;
+  pb.cursor = i;
+  return i;
+}
+
+function positionAt(fl, t) {
+  const i = sampleIndexAt(fl, t), pts = fl.pts;
+  if (i >= pts.length - 1) return [pts[i][0], pts[i][1]];
+  const t0 = fl.times[i], t1 = fl.times[i + 1];
+  const f = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
+  const a = pts[i], b = pts[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+
+function pbRecolour() {
+  if (map.getLayer('gaze-cursor-dot')) {
+    map.setPaintProperty('gaze-cursor-dot', 'circle-color', pb.run.color);
+  }
+}
+
+function pbRender() {
+  if (!pb.run) return;
+  const src = map.getSource('gaze-cursor');
+  if (src) src.setData({ type: 'Feature', properties: {},
+    geometry: { type: 'Point', coordinates: positionAt(pb.run, pb.t) } });
+  const slider = document.getElementById('pb-slider');
+  if (slider) slider.value = String(pb.t);
+  const time = document.getElementById('pb-time');
+  if (time) {
+    time.textContent = fmtDuration(Math.round(pb.t)) + ' / '
+                     + fmtDuration(Math.round(pbMax()));
+  }
+  pb.sample = sampleIndexAt(pb.run, pb.t);
+}
+
+function pbPause() {
+  pb.playing = false;
+  const b = document.getElementById('pb-play');
+  if (b) b.textContent = '\\u25b6';
+  if (pb.raf) cancelAnimationFrame(pb.raf);
+  pb.raf = null;
+}
+
+function pbTick(now) {
+  if (!pb.playing) return;
+  pb.t = Math.min(pbMax(), pb.t + (now - pb.last) / 1000 * pb.speed);
+  pb.last = now;
+  pbRender();
+  if (pb.t >= pbMax()) { pbPause(); return; }
+  pb.raf = requestAnimationFrame(pbTick);
+}
+
+function pbPlay() {
+  if (!pb.run) return;
+  if (pb.t >= pbMax()) { pb.t = 0; pb.cursor = 0; }
+  pb.playing = true;
+  const b = document.getElementById('pb-play');
+  if (b) b.textContent = '\\u275a\\u275a';
+  pb.last = performance.now();
+  pb.raf = requestAnimationFrame(pbTick);
+}
+
+function mountPlayback() {
+  if (!runs.length) return;
+  pb.run = runs[0];
+  const div = document.createElement('div');
+  div.id = 'playback';
+  div.className = 'playback';
+  const mk = (tag, id) => {
+    const e = document.createElement(tag);
+    e.id = id;
+    return e;
+  };
+  const play = mk('button', 'pb-play');
+  play.type = 'button';
+  play.title = 'Play flight';
+  play.textContent = '\\u25b6';
+  const speed = mk('button', 'pb-speed');
+  speed.type = 'button';
+  speed.title = 'Playback speed';
+  speed.textContent = '1\\u00d7';
+  const slider = mk('input', 'pb-slider');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.step = '0.1';
+  slider.value = '0';
+  slider.max = String(pbMax());
+  slider.title = 'Seek';
+  const time = mk('span', 'pb-time');
+  const note = mk('span', 'pb-note');
+  note.className = 'ghost-badge';
+  note.style.display = 'none';
+  div.append(play, speed, slider, time, note);
+  if (runs.length > 1) {
+    const sel = mk('select', 'pb-flight');
+    sel.title = 'Flight to play';
+    runs.forEach((r, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = r.name;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      pbPause();                          // switching resets the clock
+      pb.run = runs[Number(sel.value)];
+      pb.t = 0;
+      pb.cursor = 0;
+      pb.sample = -1;
+      slider.max = String(pbMax());
+      pbRecolour();
+      pbRender();
+    });
+    div.appendChild(sel);
+  }
+  play.addEventListener('click', () => pb.playing ? pbPause() : pbPlay());
+  speed.addEventListener('click', () => {
+    pb.speed = PB_SPEEDS[(PB_SPEEDS.indexOf(pb.speed) + 1) % PB_SPEEDS.length];
+    speed.textContent = pb.speed + '\\u00d7';
+  });
+  slider.addEventListener('input', () => {
+    pb.t = Number(slider.value);
+    pbRender();
+  });
+  document.body.appendChild(div);
+  map.addSource('gaze-cursor', { type: 'geojson', data: emptyFC() });
+  map.addLayer({ id: 'gaze-cursor-dot', type: 'circle', source: 'gaze-cursor',
+    paint: { 'circle-radius': 7, 'circle-color': pb.run.color,
+             'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+  pbRender();
 }
 """
 
