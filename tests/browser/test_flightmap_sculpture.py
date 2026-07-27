@@ -430,6 +430,83 @@ def test_ghost_mode_hides_sculpture_and_exit_restores_it(serve_map, page):
     assert _vis(page) == "visible"
 
 
+def test_sculpt_settle_repopulates_a_wiped_source_within_budget(serve_map, page):
+    """sculptSettle() must rebuild a wiped source with converted heights
+    inside its own 5 s retry budget.
+
+    This drives the loop deterministically rather than reproducing genuinely
+    cold DEM tiles: a real delayed-tile fixture (``time.sleep`` in the
+    Playwright route handler that serves DEM tiles) was tried first and
+    abandoned, because Playwright's sync route handlers share one dispatcher
+    thread, so sleeping in one stalls every other intercepted request on the
+    page -- reproducibly, across three runs, a single 3 s per-tile delay
+    stalled unrelated Playwright calls (e.g. a plain ``queryTerrainElevation``
+    evaluate) for ~40 s and blew past the loop's real 5 s wall-clock budget
+    before the delayed tile ever arrived, so the source stayed permanently
+    in flat mode and the "recovers from cold tiles" behaviour was never
+    actually observed. This test instead proves the loop runs, terminates,
+    and rebuilds once the terrain is already warm -- it does NOT prove it
+    recovers from genuinely cold tiles.
+    """
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    # Same longitudes and 600 m signal as
+    # test_height_converts_to_true_altitude_over_terrain: start_lon sits on
+    # the 600 m plateau, so a warm probe there reads a non-zero elevation --
+    # the same signal sculptSettle() itself uses to know it can stop
+    # retrying (a genuine 0 m reading is treated as still-cold).
+    start_lon = tile_lon + TILE_DEG * 1.75          # high side (plateau)
+    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    page.evaluate("() => setSculptData()")
+    hs_before = page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0')"
+        ".map(f => f.properties.hgt)")
+    assert hs_before and max(hs_before) > 500, (
+        f"fixture was not warm before the wipe: {hs_before}")
+
+    page.evaluate(
+        "() => map.getSource('sculpt-0')"
+        ".setData({type: 'FeatureCollection', features: []})")
+    page.wait_for_function(
+        "() => map.querySourceFeatures('sculpt-0').length === 0",
+        timeout=5000)
+    # Close the residual race: the load-time settle's own terminal
+    # setSculptData() could in principle land in the narrow window between
+    # the wipe being observed as empty and sculptSettle() being called
+    # below, on a machine fast enough to close that gap. Wait a beat and
+    # re-check zero so a stray tick like that fails loudly here instead of
+    # silently repopulating the source for the wrong reason.
+    page.wait_for_timeout(300)
+    assert page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0').length") == 0
+
+    page.evaluate("() => sculptSettle()")
+    # On this warm fixture the real rebuild lands on the settle's first
+    # tick (~250-350 ms observed), so 2500 ms is generous headroom for
+    # that -- but it is well short of the ~5 s the loop would take if it
+    # had to burn all 20 retries. That gap matters: a regression that broke
+    # the `e !== 0` cold-detection branch would still repopulate eventually
+    # via exhaustion, just not inside this bound. So this asserts the
+    # rebuild arrived far too fast for the retry countdown to have been
+    # needed, not merely that it happened within the loop's own ceiling.
+    page.wait_for_function(
+        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=2500)
+    hs_after = page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0')"
+        ".map(f => f.properties.hgt)")
+    assert hs_after, "settle did not repopulate the source"
+    assert max(hs_after) > 500, (
+        f"settle rebuilt without converting to true altitude: {hs_after}")
+
+
 def test_ghost_exit_respects_a_disabled_sculpture(serve_map, page):
     """Leaving ghost mode must not switch a hidden sculpture back on."""
     html = flights_to_3d_html(
@@ -440,3 +517,179 @@ def test_ghost_exit_respects_a_disabled_sculpture(serve_map, page):
     page.evaluate("() => ghostEnter(0, 2)")
     page.evaluate("() => ghostExit()")
     assert _vis(page) == "none"
+
+
+def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
+    """A flight whose build legitimately yields zero planks must not be
+    stranded without a source (the canopy/DSM bug this pins).
+
+    addSculpture() gates on the DATA (does this flight have any AGL at
+    all?), not on the build's OUTPUT, precisely so a later settle can
+    still repopulate an empty source -- and so the panel's global
+    Sculpture checkbox (gated on `flights.some(f => f.sculptSrc)`) does
+    not vanish just because every segment was momentarily unbuildable.
+
+    Takeoff sits on the low (0 m) side of the stepped DEM with a small
+    AGL -- it anchors takeoffElev. The one segment's midpoint sits on the
+    high (600 m) side, so hgt = (0 + agl) - 600 is deeply negative and the
+    segment is dropped: probed empirically (see below) at
+    takeoff offset 2.25 -> takeoffElev == 0, segment-midpoint offset 1.75
+    -> terrainElevAt == 600, planksFor(...).length == 0. The final
+    assertion is what stops this test passing vacuously -- without it, a
+    build that happened to produce planks would still satisfy every other
+    assertion here.
+
+    None of the above actually pins the gate fix, though: addSculpture()
+    runs inside map.on('load'), right after setTerrain, while this
+    fixture's DEM tiles are still cold. Cold queryTerrainElevation answers
+    0 (not null), so tElev == lElev == 0 there and the conversion collapses
+    to hgt = agl -- positive for this fixture's AGL. That load-time build
+    is therefore never actually empty, so the source/layer/toggle
+    assertions above pass identically whether or not the old
+    `if (!feats.length) return;` bail is present. To pin the fix itself,
+    this also calls addSculpture() directly -- once terrain has genuinely
+    warmed -- on a synthetic flight object (reusing flight 0's own
+    geometry, which by then yields zero planks) at an unused index,
+    exercising the gate against a build that is provably empty. This
+    proves addSculpture()'s gate directly rather than through the load
+    path, pinning it on the warm path. See
+    test_empty_load_time_build_still_gets_a_source_and_the_toggle below
+    for the load-time/panel-toggle case, where the build is genuinely
+    empty from the very first tick.
+    """
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    # Offsets probed directly against this stub: [1.0, 2.0) tile-widths
+    # read 600 m, [2.0, 3.0) read 0 m, repeating every two z15 tile-widths
+    # (same stepping test_height_converts_to_true_altitude_over_terrain
+    # relies on). Takeoff at offset 2.25 sits 0.25 inside the low band;
+    # walking to offset 1.25 puts the only segment's midpoint at 1.75,
+    # 0.25 inside the high band -- the same margin already proven robust
+    # by that other test's own start_lon.
+    takeoff_lon = tile_lon + TILE_DEG * 2.25   # low (0 m) side
+    step = TILE_DEG * (1.25 - 2.25)            # negative: walk to the high side
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, takeoff_lon, [5.0, 5.0], step=step)],
+        "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    assert page.evaluate("() => !!map.getSource('sculpt-0')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-ribbon')")
+    assert page.locator("#sculpture-toggle").count() == 1
+    assert page.evaluate("() => planksFor(flights[0], 10).length") == 0
+
+    # Pin the gate itself: the load-time build above was never actually
+    # empty (see docstring), so call addSculpture() again now that terrain
+    # is warm, on a synthetic flight reusing flight 0's own now-empty
+    # geometry at an unused index. This does not touch the global `flights`
+    # array or any DOM/panel state -- addSculpture() is self-contained.
+    page.evaluate(
+        "() => addSculpture("
+        "{pts: flights[0].pts, agl: flights[0].agl, color: '#ff0000'}, 9)")
+    assert page.evaluate("() => !!map.getSource('sculpt-9')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-9-curtain')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-9-ribbon')")
+
+
+def test_empty_load_time_build_still_gets_a_source_and_the_toggle(
+        serve_map, page):
+    """Every segment sits below takeoff, so the LOAD-TIME build is genuinely
+    empty -- the case test_empty_build_still_gets_a_source_and_toggle above
+    cannot reach, because its load-time build only goes empty once a direct
+    addSculpture() call is made after terrain has warmed.
+
+    With no terrain fixture at all, queryTerrainElevation is never even
+    consulted here -- agl alone decides hgt's sign -- so all-negative AGL
+    means every segment's mean AGL is negative from the very first build,
+    inside map.on('load'), before buildPanel() runs. The source, both
+    layers and the panel's Sculpture toggle must all survive that.
+    """
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [-50.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#flights-panel", timeout=15000)
+    assert page.evaluate("() => planksFor(flights[0], 10).length") == 0
+    assert page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0').length") == 0
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-ribbon')")
+    assert page.locator("#sculpture-toggle").count() == 1
+
+
+def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
+    """Re-entering ghost mid-exit-ease must not corrupt the eventual restore.
+
+    #375 fixed a real defect where the sculpture restore ran synchronously
+    at the top of ghostExit(), popping the ribbon back into view while the
+    camera was still up at drone altitude mid-ease. The fix defers the
+    restore into the exit ease's own 'moveend', guarded by
+    `if (ghost.active) return` so the stale moveend from an ease that a
+    rapid re-entry aborts cannot fire the restore early. This drives
+    exactly that interleaving: enter, exit, re-enter while the first 1.2 s
+    exit ease is still running, exit again, then let it genuinely settle.
+
+    The exit, the isMoving()/visibility capture, and the re-entering
+    ghostEnter() are collapsed into a single page.evaluate() rather than
+    three separate Python round-trips. easeTo() starts its ease
+    synchronously, so isMoving() is guaranteed true immediately after
+    ghostExit() returns within the same JS turn -- but a Python round-trip
+    between the calls opens a real timing window (observed to flake under
+    CPU contention -- see task-2-report.md) in which the 1.2 s exit ease
+    can finish before the re-entry lands, so the test would stop exercising
+    the interrupted-moveend path it exists to pin.
+    """
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    assert _vis(page) == "visible"
+
+    page.evaluate("() => ghostEnter(0, 2)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert _vis(page) == "none"
+
+    # Single evaluate: exit, capture visibility + isMoving, then re-enter --
+    # no Python round-trip can open a window between the exit ease starting
+    # and the re-entry landing inside it. The visibility read inlines what
+    # _vis() does, because _vis() cannot be called from inside this JS turn.
+    result = page.evaluate(
+        "() => { ghostExit();"
+        " const visAfterExit = map.getLayoutProperty("
+        "'sculpt-0-curtain', 'visibility') || 'visible';"
+        " const wasMoving = map.isMoving();"
+        " ghostEnter(0, 2);"
+        " return { visAfterExit, wasMoving }; }")
+    # The restore is deferred to moveend, so it must still be hidden here.
+    assert result["visAfterExit"] == "none"
+    # The interleaving needs no timing luck: easeTo() has the ease running
+    # before ghostExit() returns, and nothing else can run before the
+    # re-entry inside one synchronous evaluate. The preceding
+    # wait_for_function above already settled the ENTER ease, so map was
+    # not moving when this evaluate began -- wasMoving can therefore only
+    # be true here because ghostExit() itself started the exit ease. This
+    # guards the narrower case that would make the whole sequence vacuous
+    # -- ghostExit() early-returning on an already-inactive ghost, leaving
+    # no ease for the re-entry to interrupt.
+    assert result["wasMoving"], (
+        "ghostExit() started no ease -- there was nothing for the "
+        "re-entry to interrupt")
+    assert _vis(page) == "none"
+
+    page.evaluate("() => ghostExit()")
+    assert _vis(page) == "none"
+
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert _vis(page) == "visible"
+    # The interrupted first exit's stale moveend must not have re-enabled
+    # the handlers early or left them disabled: confirm the genuine final
+    # restore actually re-enabled camera interaction.
+    assert page.evaluate(
+        "() => ['dragPan', 'dragRotate', 'scrollZoom', 'keyboard',"
+        " 'doubleClickZoom', 'touchZoomRotate']"
+        ".every(h => map[h].isEnabled())"), (
+        "camera interaction handlers were not re-enabled after settling")
