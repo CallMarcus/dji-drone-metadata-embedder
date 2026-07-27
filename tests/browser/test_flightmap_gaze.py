@@ -395,6 +395,10 @@ def test_beam_width_tracks_zoom(serve_map, page):
     # renderGaze() hook in rebuildSculpture and __beamSets stays 0), and what
     # it hands the source must be rebuilt at the new width rather than the one
     # it had on load.
-    assert page.evaluate("() => window.__beamSets") > 0, (
-        "zoomend did not refresh the beam source")
+    # wait_for_function, not a synchronous read: 'zoomend' can be dispatched
+    # a tick after isMoving() itself flips false, and sampling the instant
+    # after a state change is a flake -- the same class _wait_patch guards
+    # against elsewhere in this file. If the hook is truly gone this still
+    # fails, just as a timeout instead of an immediate assertion.
+    page.wait_for_function("() => window.__beamSets > 0", timeout=15000)
     assert _beam_width() > near_beam
