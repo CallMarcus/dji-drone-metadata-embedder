@@ -777,6 +777,53 @@ function gazeRing(fl, i) {
            estNotes: notes };
 }
 
+const GAZE_PATCH_OPACITY = 0.25;
+const gaze = { dashed: false };
+
+function addGazeLayers() {
+  // Below the flight lines: a track must stay readable through its own patch.
+  const before = map.getLayer(flights[0].id) ? flights[0].id : undefined;
+  map.addSource('gaze', { type: 'geojson', data: emptyFC() });
+  map.addLayer({ id: 'gaze-fill', type: 'fill', source: 'gaze',
+    paint: { 'fill-color': pb.run.color,
+             'fill-opacity': GAZE_PATCH_OPACITY } }, before);
+  map.addLayer({ id: 'gaze-edge', type: 'line', source: 'gaze',
+    paint: { 'line-color': pb.run.color, 'line-width': 1.5 } }, before);
+}
+
+function setGazeNote(text) {
+  const note = document.getElementById('pb-note');
+  if (!note) return;
+  note.textContent = text || '';
+  note.style.display = text ? '' : 'none';
+}
+
+function renderGaze() {
+  if (!pb.run || pb.sample < 0 || !map.getLayer('gaze-fill')) return;
+  const g = gazeRing(pb.run, pb.sample);
+  const src = map.getSource('gaze');
+  if (g.ring) {
+    if (src) {
+      src.setData({ type: 'Feature', properties: {},
+        geometry: { type: 'Polygon', coordinates: [g.ring] } });
+    }
+    setGazeNote(g.estimated
+      ? 'estimated footprint \\u2014 ' + g.estNotes.join(', ') : '');
+  } else {
+    // Empty the source rather than leave the last good ring standing: a
+    // frozen patch would claim the camera was still filming that ground.
+    if (src) src.setData(emptyFC());
+    setGazeNote(g.reason);
+  }
+  if (g.estimated !== gaze.dashed) {
+    gaze.dashed = g.estimated;
+    // null restores the style-spec default (solid). The reset direction is
+    // tested: a failure there would mark every later ring estimated.
+    map.setPaintProperty('gaze-edge', 'line-dasharray',
+                         g.estimated ? [2, 2] : null);
+  }
+}
+
 // --- Playback (#378): the flat map's animator (#267/#327), MapLibre-side ---
 // Semantics are deliberately identical to geo/flightmap_html.py so a user who
 // learns one map's playback knows the other's: same eligibility rule, same
@@ -820,6 +867,10 @@ function pbRecolour() {
   if (map.getLayer('gaze-cursor-dot')) {
     map.setPaintProperty('gaze-cursor-dot', 'circle-color', pb.run.color);
   }
+  if (map.getLayer('gaze-fill')) {
+    map.setPaintProperty('gaze-fill', 'fill-color', pb.run.color);
+    map.setPaintProperty('gaze-edge', 'line-color', pb.run.color);
+  }
 }
 
 function pbRender() {
@@ -834,7 +885,13 @@ function pbRender() {
     time.textContent = fmtDuration(Math.round(pb.t)) + ' / '
                      + fmtDuration(Math.round(pbMax()));
   }
-  pb.sample = sampleIndexAt(pb.run, pb.t);
+  const s = sampleIndexAt(pb.run, pb.t);
+  if (s !== pb.sample) {
+    // Each ring IS one second of recording; interpolating between them would
+    // invent geometry, and rebuilding per frame would churn at 60x speed.
+    pb.sample = s;
+    renderGaze();
+  }
 }
 
 function pbPause() {
@@ -930,6 +987,7 @@ function mountPlayback() {
   map.addLayer({ id: 'gaze-cursor-dot', type: 'circle', source: 'gaze-cursor',
     paint: { 'circle-radius': 7, 'circle-color': pb.run.color,
              'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+  addGazeLayers();
   pbRender();
 }
 """
