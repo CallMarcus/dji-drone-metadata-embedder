@@ -502,3 +502,98 @@ def test_ghost_exit_respects_a_disabled_sculpture(serve_map, page):
     page.evaluate("() => ghostEnter(0, 2)")
     page.evaluate("() => ghostExit()")
     assert _vis(page) == "none"
+
+
+def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
+    """A flight whose build legitimately yields zero planks must not be
+    stranded without a source (the canopy/DSM bug this pins).
+
+    addSculpture() gates on the DATA (does this flight have any AGL at
+    all?), not on the build's OUTPUT, precisely so a later settle can
+    still repopulate an empty source -- and so the panel's global
+    Sculpture checkbox (gated on `flights.some(f => f.sculptSrc)`) does
+    not vanish just because every segment was momentarily unbuildable.
+
+    Takeoff sits on the low (0 m) side of the stepped DEM with a small
+    AGL -- it anchors takeoffElev. The one segment's midpoint sits on the
+    high (600 m) side, so hgt = (0 + agl) - 600 is deeply negative and the
+    segment is dropped: probed empirically (see below) at
+    takeoff offset 2.25 -> takeoffElev == 0, segment-midpoint offset 1.75
+    -> terrainElevAt == 600, planksFor(...).length == 0. The final
+    assertion is what stops this test passing vacuously -- without it, a
+    build that happened to produce planks would still satisfy every other
+    assertion here.
+    """
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    # Offsets probed directly against this stub: [1.0, 2.0) tile-widths
+    # read 600 m, [2.0, 3.0) read 0 m, repeating every two z15 tile-widths
+    # (same stepping test_height_converts_to_true_altitude_over_terrain
+    # relies on). Takeoff at offset 2.25 sits 0.25 inside the low band;
+    # walking to offset 1.25 puts the only segment's midpoint at 1.75,
+    # 0.25 inside the high band -- the same margin already proven robust
+    # by that other test's own start_lon.
+    takeoff_lon = tile_lon + TILE_DEG * 2.25   # low (0 m) side
+    step = TILE_DEG * (1.25 - 2.25)            # negative: walk to the high side
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, takeoff_lon, [5.0, 5.0], step=step)],
+        "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    assert page.evaluate("() => !!map.getSource('sculpt-0')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-ribbon')")
+    assert page.locator("#sculpture-toggle").count() == 1
+    assert page.evaluate("() => planksFor(flights[0], 10).length") == 0
+
+
+def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
+    """Re-entering ghost mid-exit-ease must not corrupt the eventual restore.
+
+    #375 fixed a real defect where the sculpture restore ran synchronously
+    at the top of ghostExit(), popping the ribbon back into view while the
+    camera was still up at drone altitude mid-ease. The fix defers the
+    restore into the exit ease's own 'moveend', guarded by
+    `if (ghost.active) return` so the stale moveend from an ease that a
+    rapid re-entry aborts cannot fire the restore early. This drives
+    exactly that interleaving: enter, exit, re-enter while the first 1.2 s
+    exit ease is still running, exit again, then let it genuinely settle.
+    """
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#sculpture-toggle", timeout=15000)
+    assert _vis(page) == "visible"
+
+    page.evaluate("() => ghostEnter(0, 2)")
+    assert _vis(page) == "none"
+    page.evaluate("() => ghostExit()")
+    # The restore is deferred to moveend, so it must still be hidden here.
+    assert _vis(page) == "none"
+
+    # Establish the interleaving actually happened, rather than assuming
+    # it: the first exit's ease must still be running the instant we
+    # re-enter, or this never exercises the interrupted-moveend path.
+    assert page.evaluate("() => map.isMoving()"), (
+        "the first exit ease had already finished before re-entry -- "
+        "this run did not land inside it")
+    page.evaluate("() => ghostEnter(0, 2)")
+    assert _vis(page) == "none"
+
+    page.evaluate("() => ghostExit()")
+    assert _vis(page) == "none"
+
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert _vis(page) == "visible"
+    # The interrupted first exit's stale moveend must not have re-enabled
+    # the handlers early or left them disabled: confirm the genuine final
+    # restore actually re-enabled camera interaction.
+    assert page.evaluate(
+        "() => ['dragPan', 'dragRotate', 'scrollZoom', 'keyboard',"
+        " 'doubleClickZoom', 'touchZoomRotate']"
+        ".every(h => map[h].isEnabled())"), (
+        "camera interaction handlers were not re-enabled after settling")
