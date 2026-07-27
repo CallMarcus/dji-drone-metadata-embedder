@@ -364,6 +364,50 @@ reference, the same simplification the `--footprint` KML/GeoJSON export
 makes, so on terrain that rises into the frame the drawn patch is an
 approximation rather than the true footprint.
 
+### Crossfade to the footage
+
+Point `flightmap` at a folder with `--link-originals` and the 3D map learns
+where each flight's video sits:
+
+```bash
+dji-embed flightmap ./footage --3d --link-originals
+```
+
+In the ghost view a slider then appears in the HUD. Slide it and the terrain
+reconstruction fades into the real video frame for the second you are looking
+at; **v** swaps straight between the two extremes. Held half-way you see both
+at once, which is the point: if the telemetry is right, the horizon and the
+landmarks line up. If they do not, something in the recorded attitude is
+off — which is the most direct check this tool offers.
+
+The video follows the clock, but only the slowest speed keeps pace with it:
+at 1× it plays alongside the flight, and at 5× and above it steps frame to
+frame instead, because no browser decodes reliably that fast. A flight
+that DJI split across several files at the 4 GB container limit switches
+source automatically as the clock crosses each boundary, seeking into the
+new file at that sample's own offset rather than the flight's elapsed time.
+A file that fails to load disables the slider and names the file in a badge,
+and stays that way — not just for the frame it broke on — until the clock
+reaches a segment backed by a different file.
+
+Linking is opt-in because the map only works alongside the videos: share the
+HTML on its own and the links have nothing to point at. `--link-base` gives
+the hrefs a different prefix when the footage does not sit beside the map.
+`flightmap` itself has no `--serve` flag, but the standalone `serve` command
+(below, under `photomap`) serves a flightmap page just as well — do that
+rather than opening the file straight from disk, and scrubbing the slider or
+stepping through the flight seeks the video cleanly instead of restarting
+it, because the server answers HTTP Range requests.
+
+Two limits, not one. `--link-originals` is still permitted with `--redact
+fuzz` — originals still carry exact GPS in their own metadata, so linking
+warns rather than refusing — but the crossfade itself is switched off:
+coarsened positions are deliberately ~100 m out, so overlaying real footage
+would invite a comparison against geometry that is knowingly wrong. And
+where a clip carries no focal length, the map's own field of view is an
+estimate, so the alignment is approximate — the same caveat the gaze badge
+already reports.
+
 ## Photo map (`photomap`)
 
 ```bash
@@ -467,6 +511,13 @@ screen are served automatically, so the 360° viewer just works there.)
 Wrapper flags for that kind of integration: `--no-browser`, `--url-only`
 (print the bare URL as the first line), and `--exit-with-stdin` (stop when
 stdin closes, tying the server to the app that started it).
+
+Both the `--serve` flag and the standalone `serve` command answer HTTP Range
+requests (`206 Partial Content`), not just whole-file downloads — Python's
+stock file server does not, and without it a browser scrubbing a served
+video has to re-fetch from the start instead of jumping straight to the
+requested second. This is what makes seeking smooth in the flightmap
+crossfade above, on video files that can run well past the size of a photo.
 
 Notes:
 

@@ -23,6 +23,9 @@ it's a handful of copy-paste commands. For a guided tour see
 - **Camera's gaze** in the 3D map: play a flight back, watch the camera's
   ground footprint sweep the terrain, and click any spot to see which seconds
   of recording covered it.
+- **Crossfade to the footage** — in the 3D map, blend the terrain
+  reconstruction into the real video frame and see whether the telemetry
+  lines up.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.

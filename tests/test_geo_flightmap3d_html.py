@@ -114,6 +114,14 @@ def test_template_carries_the_gaze_and_playback_app():
         assert needle in html, needle
 
 
+def test_template_carries_the_crossfade_app():
+    html = flights_to_3d_html([_track()], "trip")
+    for needle in ("function mountCrossfade(", "function renderCrossfade(",
+                   "function syncCrossfadePlayback(", "v.id = 'ghost-video'",
+                   "ghost-blend", "CROSSFADE_MAX_RATE"):
+        assert needle in html, needle
+
+
 def test_write_flights_3d_html(tmp_path):
     out = tmp_path / "flightmap-3d.html"
     result = write_flights_3d_html([_track()], out, "trip")
