@@ -51,8 +51,13 @@ segment order, called by the CLI after scanning:
   than guessing a stem: DJI writes `.MP4`, some tools write `.mp4`, and the
   container can be `.MOV`. Only files that exist are linked; a segment with no
   resolvable video contributes `null`.
-- Hrefs are relative to the map's output directory, or prefixed with
-  `--link-base` when given.
+- Hrefs are relative to **the scanned folder**, not to the map's output path —
+  `resolve_media(tracks, src, link_base)` resolves against the directory that
+  was scanned, matching `photomap`. That is the same folder the map is written
+  into by default, so relative hrefs resolve; when `-o` puts the map somewhere
+  else, `--link-base` is the escape. Stated explicitly because getting it
+  backwards makes every href dead while every file is present, and the viewer
+  would then report the user's intact footage as unloadable.
 - **Allowed under `--redact fuzz`**, matching `photomap`, which already permits
   the same combination and warns rather than refusing ("Linked/attached
   original files still carry exact GPS in their EXIF"). Two commands behaving
