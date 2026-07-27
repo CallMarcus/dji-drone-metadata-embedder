@@ -23,6 +23,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.2.0] - 2026-07-27
+
+### Added
+
+- **gui**: 3D terrain toggle in the Flight map panel (#366) (06f40ad)
+- **gui**: ThreeD flight map option with conflict-suppressing argv (#366) (15080df)
+- **gui**: List an existing flightmap-3d.html in the folder panel (#366) (d5ea8d4)
+- --link-originals on flightmap and the media GeoJSON props (#380) (0dcbc99)
+- AGL curtain and true-altitude ribbon in the 3D map (#375) (07bc3d9)
+- Ghost Camera cockpit view in the 3D flightmap (#372) (a515bb1)
+- HTTP Range support in the local map server (#380) (3a4d2f9)
+- Click a spot for every second that filmed it (#378) (9d54957)
+- Crossfade playback sync and redaction gate (#380) (90d2dce)
+- Crossfade seeks per sample and switches source files (#380) (b08a74b)
+- Draped gaze patch riding the playback cursor (#378) (5e2fdfd)
+- Gaze honesty gate and panel wiring (#378) (501e05f)
+- Ghost-view HUD with honesty badges and controls (#372) (4bce2c1)
+- Hfov_deg and the browser-side footprint projection (#378) (cf9fe4f)
+- Hide the sculpture during ghost mode (#375) (df355bd)
+- Per-point pose arrays + vfov_deg in flight GeoJSON (#372) (18ca2e9)
+- Playback clock, control and cursor in the 3D map (#378) (be62c16)
+- Playback rides the ghost camera (#378) (e770e1b)
+- Resolve each flight segment's video file (#380) (19e0395)
+- Sculpture panel toggle with per-flight state (#375) (d140ae2)
+- Staircased corner-ray beam from camera to footprint (#378) (8cbe287)
+- Stamp each track point with its source recording (#380) (0063cf2)
+- Thread redaction mode into flight GeoJSON as 'redacted' (#372) (8a345a1)
+- Video overlay and blend slider in the cockpit (#380) (a64bcef)
+- Zoom-adaptive sculpture plank width (#375) (99192c8)
+
+### Fixed
+
+- Anchor the sculpture to true altitude, not local ground (#375) (30dcb17)
+- Arrow-stepping keeps its ease while syncing the clock (#378) (08dd43e)
+- Beam must not aim above the camera; harden the cliff test (#378) (f01c886)
+- Defer sculpture restore to end of ghost-exit ease, fix keydown-first order (8326a82)
+- Drop negative-AGL sculpture segments, pin paint wiring in tests (#375) (14bf7ed)
+- Exact-hostname match for the terrain-stub route (CodeQL) (#372) (ceed253)
+- Ghost takeoff elevation on cold DEM cache + enter/exit hardening (#372) (694a73c)
+- Guard stale exit restore across rapid ghost re-entry (#372) (fcf756b)
+- Honest miss message, accurate estimate cause, run-change visibility (#378) (3d2a997)
+- Ignore a reversed byte range instead of emitting a negative length (#380) (24bf3f3)
+- Keep the broken-video posture until the file changes (#380) (b8c9da4)
+- Keep the cockpit and the clock in agreement; harden task 5 tests (#378) (83cf4c3)
+- Mode-verify capture must not show host temp path (3006f90)
+- Recoverable sculpture settle, resilient source gate (#375 review) (a50f80d)
+- Say only what the overlay can prove (#380) (effdcc7)
+- The estimated warning must cover every matched sample (#378) (b0ae82a)
+- Timer-based takeoff re-sample — 'idle' parks under eased transitions (#372) (24b3668)
+
+### Documentation
+
+- Camera's Gaze design spec (#378) (4cf67d9)
+- Camera's gaze in the geospatial guide and README (#378) (9e17231)
+- Ghost Camera cockpit-view design spec (#372) (6183e11)
+- Align spec paint table with the hgt rename (#375) (58f13d6)
+- Amend ghost spec — MapLibre camera-placement API, not free camera (#372) (8895160)
+- Beam elevation must be sampled per step, not interpolated (#378) (9a93c6e)
+- Crossfade in the geospatial guide and README (#380) (d49cff0)
+- Flight sculpture design spec (#375) (e42fea9)
+- Flight sculpture section and template guards (#375) (6dea5e3)
+- Ghost camera section in the geospatial guide (#372) (d8e1c13)
+- Media crossfade design spec (#380) (56d2bf2)
+- Mention the Flight map 3D terrain toggle (#366) (4eb7d8b)
+- Spec amendment - sculpture heights convert to true altitude (#375) (0bea387)
+- Spec for GUI flightmap 3D toggle (#366) (504cb8c)
+- Spec layer names and height property match the shipped code (#375) (9fadadc)
+- Spec says where hrefs actually resolve from (#380) (b892d19)
+
+### Testing
+
+- Assert the segment-boundary seek lands on its own file's cue (#380) (bbf0c9d)
+- Cover the sculpture settle retry loop (#375 follow-up) (79b42db)
+- Empty-build resilience and rapid ghost cycle (#375 follow-up) (dc947fd)
+- Headless mode-default captures for the site's mode pages (4c6a99e)
+- Make the cliff test prove the beam stops at the wall (#378) (5eb4dc4)
+- Opt-in terrain stub for the browser harness (#372) (3fb40a0)
+- Pin addSculpture's empty-build gate directly, close ghost-cycle timing window (#375 follow-up) (1d5378a)
+- Pin cue_s restarting at a segment boundary (#380) (5779d80)
+- Pin ghost cold-DEM re-sample branch + enter hardening (#372) (eec774f)
+- Pin the empty load-time build through buildPanel, tighten settle budget (#375 follow-up) (d238ac3)
+- Say what the wasMoving assertion actually guards (#375 follow-up) (343d556)
+- Split segment-stamp coverage per review (#380) (d9b7655)
+- Spy on setData instead of reading MapLibre's private _data (#378) (e891918)
+- Stepped-DEM fixture and terrain-occlusion probe (#375) (441b71b)
+- Wait for the beam rebuild instead of sampling it (#378) (9c58092)
+
+### Other
+
+- ASCII-safe comment in ghost exit guard (#372) (1c11176)
+- Ease ghost-view transitions (#372) (f93e9af)
+- Final-review minors — FOV-order comment, test guard, scrub wording (#372) (9917585)
+- Final-review minors — HELP rewrap, full 3D golden, spec styling fact (#366) (9f5f92b)
+- Prepare version 2.2.0 (5ace64f)
+
+
 ## [2.1.0] - 2026-07-24
 
 ### Added
