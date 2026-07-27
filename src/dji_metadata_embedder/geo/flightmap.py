@@ -326,8 +326,9 @@ def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
 
     Same contract as ``times_s``: parallel to ``coordinates``, null-padded so
     indices stay aligned, emitted only when at least one point has the value.
-    ``vfov_deg`` is per-flight (median focal length) — DJI zooms mid-flight
-    rarely enough that one value per flight is honest.
+    ``hfov_deg``/``vfov_deg`` are per-flight (median focal length) — DJI
+    zooms mid-flight rarely enough that one value per flight is honest. The
+    3D gaze sizes the camera footprint from them (#378).
     """
     for key, attr in (
         ("gyaw_deg", "gimbal_yaw"),
@@ -342,9 +343,9 @@ def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
             properties[key] = vals
     focals = [p.focal_len for p in points if p.focal_len is not None]
     if focals:
-        properties["vfov_deg"] = round(
-            fov_degrees(DEFAULT_LENS, median(focals))[1], 1
-        )
+        hfov, vfov = fov_degrees(DEFAULT_LENS, median(focals))
+        properties["hfov_deg"] = round(hfov, 1)
+        properties["vfov_deg"] = round(vfov, 1)
 
 
 def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
@@ -353,7 +354,7 @@ def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
     Each flight is a ``LineString`` carrying name/start/duration/altitude
     summary properties plus ``times_s`` — per-point seconds relative to the
     flight start — which drives the HTML viewer's playback animation (#267).
-    LineStrings also carry per-point ghost-camera pose arrays (``gyaw_deg``/``gpitch_deg``/``agl_m``) and a per-flight ``vfov_deg`` when the telemetry has them (#372).
+    LineStrings also carry per-point ghost-camera pose arrays (``gyaw_deg``/``gpitch_deg``/``agl_m``) and per-flight ``hfov_deg``/``vfov_deg`` when the telemetry has them (#372).
     A single-fix clip degrades to a ``Point`` (RFC 7946 §3.1.4 requires two
     or more positions in a LineString) and carries no times. Unlike the
     single-track exporter no per-sample Point features are emitted — at

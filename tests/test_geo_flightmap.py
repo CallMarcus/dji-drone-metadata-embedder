@@ -468,7 +468,7 @@ def test_geojson_pose_arrays_absent_without_data():
 
     fc = flights_to_geojson([_ghost_track()])
     props = fc["features"][0]["properties"]
-    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "vfov_deg"):
+    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "hfov_deg", "vfov_deg"):
         assert key not in props
 
 
@@ -479,7 +479,7 @@ def test_geojson_pose_arrays_not_on_single_fix_point():
     track.points = track.points[:1]
     fc = flights_to_geojson([track])
     assert fc["features"][0]["geometry"]["type"] == "Point"
-    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "vfov_deg"):
+    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "hfov_deg", "vfov_deg"):
         assert key not in fc["features"][0]["properties"]
 
 
@@ -489,6 +489,17 @@ def test_geojson_vfov_from_median_focal():
     fc = flights_to_geojson([_ghost_track(focal_len=24.0)])
     # DEFAULT_LENS aspect 4:3 -> full-frame height 27 mm;
     # vfov = 2*atan(27 / (2*24)) = 58.7 deg.
+    assert fc["features"][0]["properties"]["vfov_deg"] == 58.7
+
+
+def test_geojson_hfov_from_median_focal():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    fc = flights_to_geojson([_ghost_track(focal_len=24.0)])
+    # Same median focal, full-frame width 36 mm:
+    # hfov = 2*atan(36 / (2*24)) = 73.7 deg. The 3D gaze sizes the camera
+    # footprint from it (#378).
+    assert fc["features"][0]["properties"]["hfov_deg"] == 73.7
     assert fc["features"][0]["properties"]["vfov_deg"] == 58.7
 
 

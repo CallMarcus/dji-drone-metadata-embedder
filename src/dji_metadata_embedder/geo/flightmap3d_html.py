@@ -128,6 +128,7 @@ const allCoords = [];
     entry.gpitch = p.gpitch_deg || null;
     entry.agl = p.agl_m || null;
     entry.vfov = p.vfov_deg || null;
+    entry.hfov = p.hfov_deg || null;
   } else {                                             // single-fix clip
     const c = f.geometry.coordinates;
     entry.geometry = { type: 'Point', coordinates: [c[0], c[1]] };
@@ -689,6 +690,80 @@ function sculptSettle() {
     setTimeout(retry, 250);
   };
   setTimeout(retry, 250);
+}
+
+// --- Camera's Gaze (#378): the ground the camera actually saw ---
+// gazeRing() is a port of geometry.frustum_ground_ring -- the four frustum
+// corner rays projected onto flat ground at the drone's AGL reference, then
+// draped by the fill layer. A cross-language parity test compares it to the
+// Python corner by corner, because the same projection ships in --footprint
+// exports and the two must not drift. Rings are NOT embedded in the HTML:
+// they are derivable, and at ~115 bytes per second per flight a folder map
+// would grow by hundreds of KB.
+// Missing attitude falls back to GHOST_EST_PITCH, not to footprint.py's nadir
+// assumption: the cockpit already assumes -30, and a patch under the drone
+// while the cockpit looks at the horizon is two claims in one frame.
+const GAZE_FALLBACK_HFOV = 84.0;    // fov_degrees(DEFAULT_LENS, None): the
+const GAZE_FALLBACK_VFOV = 68.0;    // generic 20 mm-equivalent 4:3 lens
+const GAZE_MAX_RANGE_FACTOR = 8.0;  // mirrors MAX_RANGE_AGL_FACTOR
+const GAZE_M_PER_DEG_LAT = 111320;
+
+function emptyFC() { return { type: 'FeatureCollection', features: [] }; }
+
+function gazeRing(fl, i) {
+  const notes = [];
+  const agl = (fl.agl && fl.agl[i] != null) ? fl.agl[i] : null;
+  if (agl == null || agl <= 0) {
+    return { ring: null, reason: 'no altitude', estimated: false,
+             estNotes: notes };
+  }
+  let pitch;
+  if (fl.gpitch && fl.gpitch[i] != null) pitch = fl.gpitch[i];
+  else { pitch = GHOST_EST_PITCH; notes.push('no gimbal pitch'); }
+  if (pitch >= 0) {
+    // At or above the horizon there is no ground intersection to speak of;
+    // build_footprints() skips these frames and so do we.
+    return { ring: null, reason: 'camera above horizon',
+             estimated: notes.length > 0, estNotes: notes };
+  }
+  let bearing;
+  if (fl.gyaw && fl.gyaw[i] != null) bearing = fl.gyaw[i] % 360;
+  else { bearing = courseBearing(fl.pts, i); notes.push('no gimbal yaw'); }
+  let hfov = fl.hfov, vfov = fl.vfov;
+  if (!hfov || !vfov) {
+    hfov = GAZE_FALLBACK_HFOV;
+    vfov = GAZE_FALLBACK_VFOV;
+    notes.push('assumed lens');
+  }
+  const c = fl.pts[i];
+  const maxRange = GAZE_MAX_RANGE_FACTOR * agl;
+  const toRad = Math.PI / 180;
+  const th = pitch * toRad;
+  const tanH = Math.tan(hfov * toRad / 2), tanV = Math.tan(vfov * toRad / 2);
+  const fwdN = Math.cos(th), fwdZ = Math.sin(th);   // optical axis, pre-yaw
+  const upN = -Math.sin(th), upZ = Math.cos(th);    // camera-up, pre-yaw
+  const psi = bearing * toRad;
+  const cosP = Math.cos(psi), sinP = Math.sin(psi);
+  const mLon = GAZE_M_PER_DEG_LAT * Math.max(Math.cos(c[1] * toRad), 1e-6);
+  const ring = [];
+  [[-1, 1], [1, 1], [1, -1], [-1, -1]].forEach(sc => {
+    const de = sc[0] * tanH;
+    const dn = fwdN + sc[1] * tanV * upN;
+    const dz = fwdZ + sc[1] * tanV * upZ;
+    const horiz = Math.hypot(de, dn);
+    // A ray that climbs never meets the ground: clamp it along its azimuth
+    // so a near-horizon frame degrades to a capped trapezoid, not an
+    // unbounded one.
+    const dist = dz < 0 ? Math.min(agl / -dz * horiz, maxRange) : maxRange;
+    const e0 = horiz > 1e-12 ? de / horiz * dist : 0;
+    const n0 = horiz > 1e-12 ? dn / horiz * dist : 0;
+    const east = e0 * cosP + n0 * sinP;
+    const north = -e0 * sinP + n0 * cosP;
+    ring.push([c[0] + east / mLon, c[1] + north / GAZE_M_PER_DEG_LAT]);
+  });
+  ring.push(ring[0]);
+  return { ring: ring, reason: null, estimated: notes.length > 0,
+           estNotes: notes };
 }
 """
 
