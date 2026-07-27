@@ -159,9 +159,12 @@ def test_crossing_a_segment_boundary_swaps_the_source(serve_map, page,
         "() => document.getElementById('ghost-video').src.endsWith('b/"
         + VIDEO_NAME + "')", timeout=10000)
     _wait_video_ready(page)
+    # The restart, not just "small": sample 4's own cue in file b (~1s) --
+    # a flight-relative clock would land minutes past this clip's end.
+    cue = page.evaluate("() => flights[0].cue[4]")
     page.wait_for_function(
-        "() => document.getElementById('ghost-video').currentTime < 2.0",
-        timeout=10000)
+        "() => Math.abs(document.getElementById('ghost-video').currentTime"
+        f" - {cue}) < 0.3", timeout=10000)
 
 
 def test_a_segment_without_video_disables_the_blend(serve_map, page,
