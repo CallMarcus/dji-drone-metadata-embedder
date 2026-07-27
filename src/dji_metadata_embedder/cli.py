@@ -43,6 +43,7 @@ from .geo import (
     write_photos_html,
     write_photos_kml,
 )
+from .geo.media import resolve_media
 from .mp4_telemetry import Mp4TelemetryError
 from .progress import NullProgress, make_progress
 from .utilities import check_dependencies, setup_logging, get_tool_versions
@@ -843,6 +844,17 @@ def photomap(
     "the flat map. HTML only; defaults to flightmap-3d.html so the 2D "
     "map is never overwritten.",
 )
+@click.option(
+    "--link-originals", is_flag=True,
+    help="Embed a link to each flight's source video, enabling the 3D map's "
+         "video crossfade. Originals still carry exact GPS in their own "
+         "metadata even when --redact fuzz coarsens the map.",
+)
+@click.option(
+    "--link-base", default=None,
+    help="Folder or URL prefix for --link-originals hrefs, for when the "
+         "videos do not sit beside the map.",
+)
 @_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -857,6 +869,8 @@ def flightmap(
     join_gap: float,
     tz_offset: str,
     three_d: bool,
+    link_originals: bool,
+    link_base: str | None,
     tile_style: str,
     progress_mode: str | None,
     verbose: bool,
@@ -887,6 +901,16 @@ def flightmap(
         if three_d and tile_style.lower() != DEFAULT_TILE_STYLE:
             progress.warning("--tile-style is ignored with --3d")
             click.echo("Note: --tile-style is ignored with --3d", err=True)
+        if link_base is not None and not link_originals:
+            raise click.UsageError("--link-base requires --link-originals")
+        if link_originals and redact != "none":
+            # photomap permits this pair and warns; flightmap matches it rather
+            # than diverging on the same flag. The viewer disables the blend.
+            click.echo(
+                "Note: linked originals still carry exact GPS in their own "
+                "metadata; the map's crossfade is disabled under --redact.",
+                err=True,
+            )
         src = Path(directory)
         tracks, skipped = scan_flights(
             src,
@@ -938,6 +962,8 @@ def flightmap(
             default_name = "flightmap-3d.html" if three_d else f"flightmap.{f}"
             out = Path(output) if output else src / default_name
             targets = [(f, out)]
+        if link_originals:
+            resolve_media(tracks, src, link_base)
         for f, out in targets:
             try:
                 if f == "html":

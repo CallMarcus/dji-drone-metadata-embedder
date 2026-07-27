@@ -577,3 +577,37 @@ def test_decimation_preserves_the_segment_stamp():
 def test_single_file_flight_is_all_segment_zero():
     track = _ghost_track()
     assert {p.segment for p in track.points} == {0}
+
+
+def test_geojson_media_props_absent_without_linking():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    props = flights_to_geojson([_ghost_track()])["features"][0]["properties"]
+    for key in ("media", "cue_s", "seg_i"):
+        assert key not in props
+
+
+def test_geojson_cue_s_is_the_in_file_offset():
+    """Not flight-relative time: cue_s is what video.currentTime wants, and
+    for a joined flight the second file's cues restart near zero."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["DJI_0001.MP4"]
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["media"] == ["DJI_0001.MP4"]
+    assert len(props["cue_s"]) == len(track.points)
+    assert props["cue_s"][0] == 0.0
+    assert "seg_i" not in props          # single segment: omitted
+
+
+def test_geojson_seg_i_emitted_only_when_split():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["a.MP4", "b.MP4"]
+    for p in track.points[len(track.points) // 2:]:
+        p.segment = 1
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert set(props["seg_i"]) == {0, 1}
+    assert len(props["seg_i"]) == len(track.points)

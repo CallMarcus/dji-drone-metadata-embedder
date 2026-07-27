@@ -263,3 +263,24 @@ def test_flightmap_3d_jsonl_reports_output(tmp_path):
     events = [json.loads(line) for line in res.output.splitlines() if line]
     result = next(e for e in events if e["event"] == "result")
     assert result["outputs"][0].endswith("flightmap-3d.html")
+
+
+def test_link_base_requires_link_originals(tmp_path):
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main, ["flightmap", str(tmp_path), "--link-base", "../footage"]
+    )
+    assert res.exit_code != 0
+    assert "--link-base requires --link-originals" in res.output
+
+
+def test_link_originals_allowed_with_fuzz_but_warns(tmp_path):
+    """photomap permits the same pair and warns; flightmap matches it. The
+    blend is disabled in the viewer instead."""
+    _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    res = CliRunner().invoke(
+        main,
+        ["flightmap", str(tmp_path), "--3d", "--link-originals", "--redact", "fuzz"],
+    )
+    assert res.exit_code == 0
+    assert "still carry exact GPS" in res.output
