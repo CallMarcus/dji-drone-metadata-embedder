@@ -47,11 +47,16 @@ class Track:
     ``segments`` lists the source file names when the track was stitched from
     size-split recordings (see :func:`..flightmap.join_split_flights`); it is
     ``None`` for a track built from a single file.
+
+    ``media`` holds one href per entry of ``segments`` (or a single-element
+    list for an unsplit flight) once :func:`..media.resolve_media` has run;
+    ``None`` means no video was linked or none was found.
     """
 
     name: str
     points: list[TrackPoint]
     segments: list[str] | None = None
+    media: list[str | None] | None = None
 
 
 def _cue_seconds(cue: str) -> float:

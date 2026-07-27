@@ -14,11 +14,11 @@ import re
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
-from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 from ..utilities import is_gps_fix, redact_coords
 from ..utils.exiftool import exiftool_exe
+from .links import link_href
 
 logger = logging.getLogger(__name__)
 
@@ -368,20 +368,6 @@ def redact_photo_points(points: list[PhotoPoint], mode: str) -> list[PhotoPoint]
     return [replace(p, lat=lat, lon=lon) for p, (lat, lon) in zip(points, coords)]
 
 
-def _link_href(name: str, base: str) -> str:
-    """Href to the original photo: percent-encoded *name* under *base*.
-
-    Each ``/``-separated segment of *name* is fully percent-encoded (spaces,
-    ``#``, quotes) while the separators survive, so relative subdirectory
-    links from recursive scans still resolve. *base* is taken as-is apart
-    from separator normalisation — it may be a relative folder or an absolute
-    URL, and encoding it would corrupt ``https://``.
-    """
-    encoded = "/".join(quote(seg, safe="") for seg in name.split("/"))
-    base = base.replace("\\", "/").rstrip("/")
-    return f"{base}/{encoded}" if base else encoded
-
-
 def photos_to_geojson(
     points: list[PhotoPoint],
     *,
@@ -415,7 +401,7 @@ def photos_to_geojson(
             if p.pano_hfov is not None:
                 props["hfov"] = round(p.pano_hfov, 2)
         if link_base is not None:
-            props["link"] = _link_href(p.name, link_base)
+            props["link"] = link_href(p.name, link_base)
         if p.timestamp:
             props["timestamp"] = p.timestamp
         # Missing altitude is omitted entirely (no property, 2D coordinate)
