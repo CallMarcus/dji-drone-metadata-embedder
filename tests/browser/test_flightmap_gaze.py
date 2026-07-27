@@ -344,6 +344,27 @@ def test_beam_stops_at_a_cliff(serve_map, page):
         f"{[round(c, 6) for c in beyond[:5]]}")
 
 
+# Capture what renderGaze() actually hands the beam source. querySourceFeatures
+# cannot be used to measure prism width: a prism is a few metres across, and
+# MapLibre's geojson-vt tessellation simplifies a feature that small to under 4
+# points at low zoom. The source's `_data` holds the same thing, but it is a
+# private field and this project pins MapLibre by version + SRI -- a deliberate
+# bump would then fail here looking like a beam bug. Wrapping the public
+# setData is equivalent, survives version bumps, and additionally records
+# *whether the rebuild fired at all*, which is the behaviour under test.
+# Patching browser internals from a test is the established idiom in this
+# suite; see conftest's hillshade accessor trap and getContext patch.
+_BEAM_SPY_JS = """
+(() => {
+  const src = map.getSource('beam');
+  const orig = src.setData.bind(src);
+  window.__beamSets = 0;
+  window.__lastBeam = null;
+  src.setData = d => { window.__beamSets++; window.__lastBeam = d; return orig(d); };
+})();
+"""
+
+
 def test_beam_width_tracks_zoom(serve_map, page):
     track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
                     yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
@@ -351,33 +372,29 @@ def test_beam_width_tracks_zoom(serve_map, page):
     _ready(page)
 
     def _beam_width():
-        # Cross-ray width of a beam prism: the gap between its two
-        # camera-side corners, r[0] and r[3] (the ring closes back to r[0]).
-        # This has to read the SOURCE's raw data -- ._data.geojson, exactly
-        # what the last setData() call passed in -- rather than
-        # querySourceFeatures(): a beam prism is only a few metres wide, and
-        # MapLibre's internal geojson-vt tessellation simplifies a feature
-        # that small down to under 4 points at low zoom (verified: every
-        # prism at zoom 11 reads back with 0-3 coordinates through
-        # querySourceFeatures, even though setData() was called with a
-        # proper quad). Reading ._data.geojson is a private field, but it
-        # is what makes this assertion possible to write honestly at all.
+        # Cross-ray width of a prism: the gap between its two camera-side
+        # corners, r[0] and r[3] (the ring closes back to r[0]).
         return page.evaluate(
-            "() => { const r = map.getSource('beam')._data.geojson"
+            "() => { const r = window.__lastBeam"
             ".features[0].geometry.coordinates[0];"
             " return Math.hypot(r[0][0] - r[3][0], r[0][1] - r[3][1]); }")
 
     page.evaluate("() => map.jumpTo({zoom: 16})")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    page.evaluate(_BEAM_SPY_JS)
+    page.evaluate("() => renderGaze()")      # seed the spy with a known build
     near = page.evaluate("() => sculptWidthM()")
     near_beam = _beam_width()
-    page.evaluate("() => map.jumpTo({zoom: 11})")
+    page.evaluate("() => { window.__beamSets = 0; map.jumpTo({zoom: 11}); }")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
     far = page.evaluate("() => sculptWidthM()")
-    far_beam = _beam_width()
     assert far > near
-    # The zoomend rebuild must have refreshed the beam, not left it at the
-    # width it had on load: measure an actual prism's cross-ray width rather
-    # than merely checking the source is non-empty, which holds even for the
-    # load-time beam and would pass with the rebuild hook deleted.
-    assert far_beam > near_beam
+
+    # Two claims, and the first is the one the old `length > 0` assertion
+    # missed entirely: the zoomend rebuild must actually FIRE (delete the
+    # renderGaze() hook in rebuildSculpture and __beamSets stays 0), and what
+    # it hands the source must be rebuilt at the new width rather than the one
+    # it had on load.
+    assert page.evaluate("() => window.__beamSets") > 0, (
+        "zoomend did not refresh the beam source")
+    assert _beam_width() > near_beam
