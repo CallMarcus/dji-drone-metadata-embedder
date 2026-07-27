@@ -529,6 +529,54 @@ def test_highlight_clears_when_the_popup_closes(serve_map, page):
         timeout=5000)
 
 
+def test_estimated_badge_covers_every_matched_sample(serve_map, page):
+    """A clip can lose gimbal attitude partway through, so the warning has to
+    reflect the weakest frame on offer -- not whichever sample happens to come
+    first. Reading one sample's flag let the popup answer with extrapolated
+    footprints and no warning at all, which is the one thing this feature must
+    never do.
+
+    Sample 0 keeps its real gimbal; the rest are dropped. The REAL sample
+    must come first: the defect read passes[0].i0, so a fixture whose first
+    matched sample was estimated would have shown the badge anyway and proved
+    nothing. Its pitch is set to
+    GHOST_EST_PITCH's own -30 so the geometry is identical across all four
+    samples -- what varies is only whether the attitude was recorded or
+    assumed. A nadir real sample would sit ~87 m from the estimated ones'
+    footprints and the click would match just one of them, testing nothing.
+    Combined with a hover (step=0), every ring covers the same ground, so one
+    click matches both a real and an estimated sample.
+    """
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
+                    yaws=[90.0, 90.0, 90.0, 90.0],
+                    pitches=[-30.0, None, None, None], focal=24.0,
+                    step=0.0)                       # hover: all rings coincide
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    est = page.evaluate(
+        "() => [0, 1, 2, 3].map(i => gazeRing(flights[0], i).estimated)")
+    assert est == [False, True, True, True], (
+        f"fixture does not mix real and estimated attitude: {est}")
+    _click_inside_ring(page, 0)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    assert page.locator(".gaze-est").count() == 1, (
+        "no estimated warning, though matched samples were extrapolated")
+    assert "no gimbal data" in page.locator(".gaze-est").inner_text()
+
+
+def test_no_estimated_badge_when_every_sample_is_real(serve_map, page):
+    """The mirror: a warning that always fires teaches users to ignore it."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
+                    yaws=[90.0] * 4, pitches=[-90.0] * 4, focal=24.0,
+                    step=0.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_inside_ring(page, 2)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    assert page.locator(".gaze-pass").count() >= 1   # the lookup really ran
+    assert page.locator(".gaze-est").count() == 0
+
+
 def test_clicking_the_track_still_opens_the_flight_popup(serve_map, page):
     """The flight line owns its own popup with View from here; the lookup must
     not fire a second popup on top of it."""

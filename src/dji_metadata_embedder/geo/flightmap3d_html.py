@@ -1189,16 +1189,26 @@ function pointInRing(ring, lng, lat) {
 
 function gazeRingsFor(fl) {
   // Memoised on first lookup: a map nobody clicks pays nothing, and a map
-  // clicked twice pays once.
-  if (!fl.rings) fl.rings = fl.pts.map((p, i) => gazeRing(fl, i).ring);
+  // clicked twice pays once. The estimated flag is kept PER SAMPLE, not
+  // discarded: gimbal yaw and pitch are per-sample optional fields, so a clip
+  // that drops attitude for part of a flight has some rings drawn from real
+  // data and others from the assumed GHOST_EST_PITCH tilt. Reading one
+  // sample's flag would let the popup omit the warning for extrapolated
+  // frames, which is exactly the claim this feature must not make.
+  if (!fl.rings) {
+    fl.rings = fl.pts.map((p, i) => {
+      const g = gazeRing(fl, i);
+      return { ring: g.ring, estimated: g.estimated };
+    });
+  }
   return fl.rings;
 }
 
 function gazePasses(fl, lngLat) {
   const rings = gazeRingsFor(fl), times = fl.times;
   const hits = [];
-  rings.forEach((ring, i) => {
-    if (ring && pointInRing(ring, lngLat.lng, lngLat.lat)) hits.push(i);
+  rings.forEach((r, i) => {
+    if (r.ring && pointInRing(r.ring, lngLat.lng, lngLat.lat)) hits.push(i);
   });
   if (!hits.length) return [];
   // Seconds are counted per sample interval, so a single-sample hit reads as
@@ -1206,19 +1216,24 @@ function gazePasses(fl, lngLat) {
   const dt = i => (i + 1 < times.length) ? times[i + 1] - times[i]
     : (i > 0 ? times[i] - times[i - 1] : 1);
   const passes = [];
-  let start = hits[0], prev = hits[0], secs = 0;
+  let start = hits[0], prev = hits[0], secs = 0, est = false;
+  // A pass counts as estimated if ANY of its matched samples was: the warning
+  // has to cover the weakest frame it is offering, not the first one.
+  const close = () => passes.push({
+    i0: start, i1: prev, t0: times[start], t1: times[prev], secs: secs,
+    est: est });
   hits.forEach(i => {
     if (i > prev + 1) {
-      passes.push({ i0: start, i1: prev, t0: times[start], t1: times[prev],
-                    secs: secs });
+      close();
       start = i;
       secs = 0;
+      est = false;
     }
     secs += dt(i);
+    est = est || rings[i].estimated;
     prev = i;
   });
-  passes.push({ i0: start, i1: prev, t0: times[start], t1: times[prev],
-                secs: secs });
+  close();
   return passes;
 }
 
@@ -1292,10 +1307,17 @@ function gazeLookup(ev) {
         ' +' + (passes.length - GAZE_MAX_PASSES) + ' more'));
     }
     el.appendChild(row);
-    if (gazeRing(fl, passes[0].i0).estimated) {
+    // Warn on ANY estimated pass, and say whether it is all of them: a clip
+    // can lose gimbal attitude partway through, so "some" is often the honest
+    // word. Checking a single sample would silently drop the warning for
+    // extrapolated frames the user is about to go looking for.
+    const estCount = passes.filter(p => p.est).length;
+    if (estCount) {
       const est = document.createElement('div');
       est.className = 'gaze-est';
-      est.textContent = 'estimated \\u2014 no gimbal data';
+      est.textContent = (estCount === passes.length ? 'estimated'
+                                                    : 'some passes estimated')
+                      + ' \\u2014 no gimbal data';
       el.appendChild(est);
     }
   });
