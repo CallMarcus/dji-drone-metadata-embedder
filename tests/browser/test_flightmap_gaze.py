@@ -274,16 +274,29 @@ def test_beam_heights_survive_the_elevation_conversion(serve_map, page):
 
 
 def test_beam_stops_at_a_cliff(serve_map, page):
-    """Where the DEM rises 600 m above the drone, every remaining prism is
-    below the surface: fill-extrusion cannot draw there, so the ray must end
-    rather than tunnel through the wall."""
+    """A ray aimed past a 600 m wall must END at the wall, not tunnel through
+    it: every prism beyond the crossing is below the rendered surface, and
+    fill-extrusion cannot draw below terrain at all.
+
+    The drone sits ~60 m west of the wall rather than a quarter tile, so the
+    crossing falls early in the ray and the drop rule is exercised on roughly
+    half the prisms. At a quarter tile the crossing lands at s~0.9 and only
+    2 of 64 prisms drop -- the assertion passes while proving almost nothing.
+
+    Known limitation this test deliberately does NOT assert away: gazeRing
+    projects onto a FLAT ground plane at the drone's height datum, so where
+    terrain rises into the frustum the far corner lands past the real hit
+    point and the ray climbs toward it. Fixing that needs DEM ray-marching,
+    which would change the patch too and is out of scope here (see the design
+    spec's flat-ground-plane note).
+    """
     # MapLibre resolves DEM tiles one zoom COARSER than the source maxzoom, so
     # the stub's left/right split lands at the z14 tile midpoint -- one full
     # TILE_DEG east of the enclosing z15 tile's west edge, NOT one TILE_DEG
     # east of the flight's nominal longitude. Derive it rather than guessing.
     west = -180 + math.floor((20.0 + 180) / TILE_DEG) * TILE_DEG
     cliff = west + TILE_DEG
-    lon = cliff - TILE_DEG * 0.25      # drone a quarter tile west of the wall
+    lon = cliff - TILE_DEG * 0.05      # ~60 m west of the wall
     track = _flight("DJI_0001", 10.0, lon, [50.0] * 5,
                     yaws=[90.0] * 5, pitches=[-20.0] * 5, focal=24.0,
                     step=0.0)
@@ -298,8 +311,29 @@ def test_beam_stops_at_a_cliff(serve_map, page):
     props = page.evaluate(_BEAM_JS)
     steps = page.evaluate("() => GAZE_BEAM_STEPS")
     assert props, "the beam vanished entirely"
-    assert len(props) < 4 * steps, "no prism was dropped at the wall"
+    dropped = 4 * steps - len(props)
+    assert dropped >= 8, (
+        f"only {dropped} of {4 * steps} prisms dropped at the wall -- the "
+        "geometry is degenerate and this test proves little")
     assert all(p["hgt"] > p["base"] for p in props)
+
+    # The real claim: no surviving prism sits meaningfully past the wall.
+    # One step of overshoot is expected -- the step that straddles the
+    # crossing is kept whenever its western end is still above ground.
+    centroids = page.evaluate(
+        "() => beamFor(flights[0], pb.sample,"
+        " gazeRing(flights[0], pb.sample).ring).map(f => {"
+        "   const r = f.geometry.coordinates[0];"
+        "   return r.slice(0, 4).reduce((a, p) => a + p[0] / 4, 0); })")
+    ray_len_deg = page.evaluate(
+        "() => { const r = gazeRing(flights[0], pb.sample).ring;"
+        " return Math.max(...r.slice(0, 4).map(p => p[0]))"
+        "      - flights[0].pts[pb.sample][0]; }")
+    slack = ray_len_deg / steps * 1.5
+    beyond = [c for c in centroids if c > cliff + slack]
+    assert not beyond, (
+        f"{len(beyond)} prisms sit past the wall at {cliff:.6f}: "
+        f"{[round(c, 6) for c in beyond[:5]]}")
 
 
 def test_beam_width_tracks_zoom(serve_map, page):
