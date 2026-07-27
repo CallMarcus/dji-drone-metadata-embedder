@@ -613,7 +613,8 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
 
     # Single evaluate: exit, capture visibility + isMoving, then re-enter --
     # no Python round-trip can open a window between the exit ease starting
-    # and the re-entry landing inside it.
+    # and the re-entry landing inside it. The visibility read inlines what
+    # _vis() does, because _vis() cannot be called from inside this JS turn.
     result = page.evaluate(
         "() => { ghostExit();"
         " const visAfterExit = map.getLayoutProperty("
@@ -623,12 +624,15 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
         " return { visAfterExit, wasMoving }; }")
     # The restore is deferred to moveend, so it must still be hidden here.
     assert result["visAfterExit"] == "none"
-    # Establish the interleaving actually happened, rather than assuming
-    # it: the first exit's ease must still be running the instant we
-    # re-enter, or this never exercises the interrupted-moveend path.
+    # The interleaving needs no timing luck: easeTo() has the ease running
+    # before ghostExit() returns, and nothing else can run before the
+    # re-entry inside one synchronous evaluate. This guards the narrower
+    # case that would make the whole sequence vacuous -- ghostExit()
+    # early-returning on an already-inactive ghost, leaving no ease for the
+    # re-entry to interrupt.
     assert result["wasMoving"], (
-        "the first exit ease had already finished before re-entry -- "
-        "this run did not land inside it")
+        "ghostExit() started no ease -- there was nothing for the "
+        "re-entry to interrupt")
     assert _vis(page) == "none"
 
     page.evaluate("() => ghostExit()")
