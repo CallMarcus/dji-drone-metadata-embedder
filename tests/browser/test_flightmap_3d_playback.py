@@ -172,6 +172,40 @@ def test_arrow_step_pauses_playback(serve_map, page):
     assert page.evaluate("() => pb.playing") is False
 
 
+def test_arrow_step_still_eases_and_moves_the_clock(serve_map, page):
+    """Stepping must stay a 150 ms glide, not become a hard cut.
+
+    Syncing the clock to the cockpit (so the ground patch matches the second
+    you are looking from) pulls in pbRender, whose per-frame ghost drive
+    jumpTo's to the *same* pose the step is easing toward -- being instant, it
+    would silently win and no other assertion in this suite could tell the
+    difference, since the destination is numerically identical. Hence
+    pbRender(true) at that call site, and hence this test.
+    """
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    # Measure whether the camera has ALREADY ARRIVED when the step returns --
+    # not merely whether something is moving. isMoving() cannot tell the two
+    # apart: with the drive left in, jumpTo lands the camera instantly and the
+    # eased call that follows then glides from the target to the same target,
+    # which reports isMoving() === true while being visually a hard cut.
+    before, after = page.evaluate(
+        "() => { const a = map.getCenter().lng;"
+        " ghostStep(1);"
+        " return [a, map.getCenter().lng]; }")
+    step_deg = 0.0006                      # _flight's per-sample longitude step
+    assert abs(after - before) < step_deg / 10, (
+        f"arrow step teleported the camera ({before} -> {after}); the eased "
+        "move was beaten to its own target by the per-frame ghost drive")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert page.evaluate("() => ghost.idx") == 1
+    # ...and the clock followed, so the patch shows the second now in view.
+    assert abs(page.evaluate("() => pb.t") - 1.0) < 1e-9
+    assert page.evaluate("() => pb.sample") == 1
+
+
 def test_entering_while_playing_jumps_instead_of_easing(serve_map, page):
     """A 1.2 s cinematic ease would be overridden by the next frame anyway,
     and eases are where this file's moveend scars are."""

@@ -468,19 +468,18 @@ function ghostStep(d) {
   const next = Math.max(0, Math.min(ghost.idx + d, n - 1));
   if (next === ghost.idx) return;
   ghost.idx = next;
-  applyPose(samplePose(ghost.flight, next), GHOST_STEP_MS);
-  updateHud();
   if (pb.run === ghost.flight) {
     // Keep the clock in step with the cockpit, so the gaze patch on the
-    // ground matches the second the camera is now looking from. pbRender()
-    // ends in pbDriveGhost(), which re-applies this exact pose via jumpTo
-    // (posePlayback(fl, times[next]) is numerically identical to
-    // samplePose(fl, next) -- see posePlayback) -- that lands on the same
-    // target as the ease just started above, so it finishes the step
-    // rather than fighting it.
+    // ground matches the second the camera is now looking from.
+    // pbRender(true) SKIPS the per-frame ghost drive on purpose: that drive
+    // jumpTo's to this same pose, and being instant it would beat the eased
+    // step below, turning every arrow key into a hard cut. The patch is data
+    // and updates now; the camera is motion and glides.
     pb.t = ghost.flight.times[next];
-    pbRender();
+    pbRender(true);
   }
+  applyPose(samplePose(ghost.flight, next), GHOST_STEP_MS);
+  updateHud();
 }
 
 function ghostExit() {
@@ -993,7 +992,10 @@ function pbRecolour() {
   }
 }
 
-function pbRender() {
+function pbRender(skipGhost) {
+  // skipGhost lets a caller refresh the cursor, patch and readout WITHOUT
+  // driving the cockpit camera -- see ghostStep, whose own eased move would
+  // otherwise be beaten to the same target by the instant drive below.
   if (!pb.run) return;
   const src = map.getSource('gaze-cursor');
   if (src) src.setData({ type: 'Feature', properties: {},
@@ -1012,7 +1014,7 @@ function pbRender() {
     pb.sample = s;
     renderGaze();
   }
-  pbDriveGhost();
+  if (!skipGhost) pbDriveGhost();
 }
 
 function lerp(a, b, f) { return a + (b - a) * f; }
