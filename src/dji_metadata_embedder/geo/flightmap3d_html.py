@@ -85,8 +85,9 @@ _TEMPLATE = """<!DOCTYPE html>
                       padding: 2px 9px; }}
   .ghost-badge {{ background: #b58900; color: #fff; border-radius: 3px;
                  padding: 0 6px; font-size: 11px; }}
-  .ghost-video {{ position: absolute; inset: 0; width: 100%; height: 100%;
-                 object-fit: contain; pointer-events: none; z-index: 4;
+  .ghost-video {{ position: absolute; top: 0; left: 50%; height: 100%;
+                 width: auto; transform: translateX(-50%);
+                 pointer-events: none; z-index: 1;
                  transition: opacity .18s linear; }}
   #ghost-hud #ghost-blend {{ width: 110px; }}
   .playback {{ position: absolute; bottom: 14px; left: 10px; z-index: 6;
@@ -311,7 +312,13 @@ function buildPanel() {
   if (REDACTED !== 'none' && runs.length) {
     const note = document.createElement('div');
     note.className = 'panel-note';
-    note.textContent = 'Camera gaze off \\u2014 positions fuzzed';
+    // The crossfade gate (mountCrossfade) withholds the same way the gaze
+    // gate does, but has no HUD of its own to say so while the cockpit is
+    // closed -- state it here too, same shape as the gaze note (#380
+    // whole-branch review I1).
+    note.textContent = flights.some(f => f.media)
+      ? 'Camera gaze and video crossfade off \\u2014 positions fuzzed'
+      : 'Camera gaze off \\u2014 positions fuzzed';
     panel.appendChild(note);
   }
   if (flights.some(f => f.sculptSrc)) {
@@ -1534,12 +1541,18 @@ function mountCrossfade() {
     // A blank overlay reads as "the camera saw nothing here". Name the file
     // instead and take the control away -- and record it in cross.broken, so
     // the next renderCrossfade (one arrow key or one sample tick away) does
-    // not straight-line undo all three the way this used to.
+    // not straight-line undo all three the way this used to. Worded as what
+    // the <video> error event actually tells us: it fires the same way for
+    // a moved file, a wrong href base, a transport failure and a codec the
+    // browser cannot decode -- DJI's own 4K default, H.265/HEVC, is exactly
+    // that case in Firefox and on Chrome without a platform decoder -- so
+    // "unavailable" would assert a cause the code cannot know (#380
+    // whole-branch review I3).
     cross.broken = cross.href;
     const slider = document.getElementById('ghost-blend');
     if (slider) slider.disabled = true;
     v.style.display = 'none';
-    crossBadge('video unavailable: ' + (cross.broken || ''));
+    crossBadge('could not load: ' + (cross.broken || ''));
   });
   document.getElementById('map').appendChild(v);
   cross.el = v;
@@ -1553,10 +1566,17 @@ function unmountCrossfade() {
   cross.blend = 0;
   if (!cross.el) return;
   cross.el.pause();
+  // Clear the source and let the element re-check itself before removal --
+  // otherwise a multi-GB MP4 the browser was mid-fetch on keeps downloading
+  // after the cockpit closes (#380 whole-branch review M3).
+  cross.el.removeAttribute('src');
+  cross.el.load();
   cross.el.remove();
   cross.el = null;
   cross.seg = -1;
   cross.pending = null;
+  cross.broken = null;
+  cross.href = null;
 }
 
 function seekCrossfade(t) {
@@ -1581,9 +1601,13 @@ function renderCrossfade() {
   const m = mediaFor(ghost.flight, ghost.idx);
   if (!m || !m.href) {
     // A segment whose file was never resolved: hide rather than leave the
-    // previous file's frame standing over a different part of the flight.
+    // previous file's frame standing over a different part of the flight,
+    // and say so. media[seg] is null here, so there is no filename left to
+    // name -- this is the honest version of what spec #380 section 8 asks
+    // for (#380 whole-branch review I2).
     cross.el.style.display = 'none';
     if (slider) slider.disabled = true;
+    crossBadge('no video for this part of the flight');
     syncCrossfadePlayback();
     return;
   }
@@ -1610,7 +1634,7 @@ function renderCrossfade() {
     // "camera saw nothing here" reading this posture exists to prevent.
     cross.el.style.display = 'none';
     if (slider) slider.disabled = true;
-    crossBadge('video unavailable: ' + cross.broken);
+    crossBadge('could not load: ' + cross.broken);
     syncCrossfadePlayback();
     return;
   }

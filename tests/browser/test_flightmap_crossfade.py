@@ -181,6 +181,11 @@ def test_a_segment_without_video_disables_the_blend(serve_map, page,
     assert page.evaluate(
         "() => getComputedStyle(document.getElementById('ghost-video'))"
         ".display") == "none"
+    # Review I2 (#380): a null media[seg] must not grey out the control with
+    # no explanation -- assert the message itself, not just that a badge
+    # element exists.
+    note = page.locator("#ghost-badges").inner_text()
+    assert "no video for this part of the flight" in note
 
 
 def test_plays_in_sync_at_normal_speed(serve_map, page, recorded_webm):
@@ -291,3 +296,7 @@ def test_no_crossfade_under_fuzz(serve_map, page, recorded_webm):
     assert page.evaluate("() => flights[0].media")[0] == VIDEO_NAME
     # And the cockpit itself still works.
     assert page.evaluate("() => ghost.active") is True
+    # Review I1 (#380): a shared HTML must say the crossfade was withheld,
+    # not just omit the slider silently -- same shape as the gaze note.
+    note = page.locator(".panel-note").inner_text()
+    assert "video crossfade off" in note

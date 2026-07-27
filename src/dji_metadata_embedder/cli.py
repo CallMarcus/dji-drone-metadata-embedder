@@ -911,6 +911,23 @@ def flightmap(
                 "metadata; the map's crossfade is disabled under --redact.",
                 err=True,
             )
+        if link_originals and (
+            fmt.lower() == "all" or (fmt.lower() == "html" and not three_d)
+        ):
+            # The crossfade that --link-originals exists for is 3D-only, but
+            # flights_to_geojson (shared with GeoJSON output, where the same
+            # arrays are the intended deliverable) has no way to know which
+            # HTML it is embedding into -- the flat 2D map gets the same
+            # media/cue_s/seg_i arrays with nothing that reads them, dead
+            # weight in a template this codebase otherwise guards the size
+            # of. photomap warns in the analogous case; match it (#380
+            # whole-branch review M2).
+            click.echo(
+                "Note: --link-originals only benefits the 3D map (--3d); "
+                "the flat HTML map embeds the same media data with nothing "
+                "that reads it.",
+                err=True,
+            )
         src = Path(directory)
         tracks, skipped = scan_flights(
             src,

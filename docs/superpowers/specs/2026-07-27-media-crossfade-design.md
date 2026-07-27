@@ -155,15 +155,22 @@ Two regimes, because browsers cannot decode reliably at 20× or 60×:
 ### 7. Framing alignment
 
 Ghost mode already calls `setVerticalFieldOfView(fl.vfov)`, so the map's
-vertical field of view is the camera's. `object-fit: contain` then scales the
-video to fit height, which keeps vertical framing matched and leaves the
-reconstruction visible either side of the frame — a good look at 50% blend, and
-the alignment the demo depends on.
+vertical field of view is the camera's. The video is sized to the container's
+full height directly (`height: 100%; width: auto`, centred with
+`left: 50%; transform: translateX(-50%)`) rather than `object-fit: contain`.
+`contain` only fits by height when the container is *wider* in aspect than the
+video; on a narrower one — a tall window, a tablet, a portrait phone — it fits
+by width instead, and the vertical framing silently shrinks (whole-branch
+review C1: ~16% for 16:9 footage in a 1200×800 window). Sizing to height keeps
+the vertical match true by construction, in every container shape, which is
+what the alignment claim actually rests on.
 
-Horizontal framing matches only when the window's aspect ratio matches the
-video's; otherwise the video is letterboxed within the map. That is the correct
-compromise: distorting either layer to force a match would make the comparison
-meaningless.
+Horizontal framing crops instead, in both directions depending on which is
+wider: the video overflows past the map's sides, or the map shows either side
+of the video, and the map container's own `overflow: hidden` clips whichever
+overflows. That is the correct compromise — distorting either layer to force a
+horizontal match would make the comparison meaningless, and only the vertical
+axis is load-bearing for the alignment check.
 
 ### 8. Failure posture and edge cases
 
@@ -172,9 +179,9 @@ meaningless.
 | `--redact fuzz` | Linking is allowed (see §1), but **the crossfade blend is disabled**, and the HUD says why: positions are deliberately coarsened by ~100 m, so overlaying real footage on that reconstruction would invite a comparison against geometry we know is wrong. The premise of the feature, not just its privacy posture, is what fuzz breaks. Same shape as the gaze gate — feature off, reason stated — without diverging from `photomap` on the CLI. |
 | `--redact drop` | The track is removed upstream, so there is no flight to link media to and nothing to render. |
 | No `--link-originals` | No `media` property, no video element, no slider. The 3D map is exactly what it is today. |
-| Segment with no resolvable file | `media[s]` is `null`; the crossfade is unavailable while the clock is inside that segment, and the HUD says which file is missing. |
+| Segment with no resolvable file | `media[s]` is `null`; the crossfade is unavailable while the clock is inside that segment. `media[s]` being `null` is exactly the fact that there is no filename left to name (whole-branch review I2) — the HUD says "no video for this part of the flight" rather than asserting one it does not have. |
 | Flight has no `vfov_deg` | The map's own FOV is an estimate, so the alignment is approximate. Reuse the existing estimated badge wording rather than inventing a second vocabulary. |
-| Video fails to load (moved, unsupported codec) | The slider disables itself and the HUD names the file. No silent blank overlay. |
+| Video fails to load (moved, unsupported codec) | The slider disables itself and the HUD names the file, worded as what the `<video>` `error` event actually tells us — "could not load: `<file>`" — since the same event fires for a moved file, a wrong href base, a transport failure and an undecodable codec alike (whole-branch review I3). No silent blank overlay. |
 | Not in the cockpit | The slider lives in the ghost HUD, so the crossfade is a cockpit feature. Third-person playback is unchanged. |
 | `file://` | Works with no server: relative `<video src>` seeks natively. This is the common path and needs no Range. |
 

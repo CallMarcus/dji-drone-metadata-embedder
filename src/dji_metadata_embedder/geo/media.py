@@ -21,12 +21,28 @@ _VIDEO_SUFFIXES = (".MP4", ".mp4", ".MOV", ".mov")
 
 
 def _find_video(root: Path, name: str) -> str | None:
-    """Relative POSIX path of the video for segment *name*, or ``None``."""
-    for suffix in _VIDEO_SUFFIXES:
-        candidate = root / f"{name}{suffix}"
-        if candidate.is_file():
-            return candidate.relative_to(root).as_posix()
-    return None
+    """Relative POSIX path of the video for segment *name*, or ``None``.
+
+    Scans the real directory entries rather than probing guessed filenames.
+    Probing (``(root / f"{name}{suffix}").is_file()``) is wrong on a
+    case-insensitive filesystem (Windows, default macOS): a real
+    ``flight.mov`` also answers ``is_file()`` for the guessed ``flight.MOV``,
+    so the href would carry a case the directory entry does not actually
+    have -- working locally, and 404ing the moment the folder is served from
+    a case-sensitive host (#380 whole-branch review M1).
+    """
+    target = root / name
+    parent, stem = target.parent, target.name
+    if not parent.is_dir():
+        return None
+    rank = {suffix.lower(): i for i, suffix in enumerate(_VIDEO_SUFFIXES)}
+    best: tuple[int, Path] | None = None
+    for entry in parent.iterdir():
+        if entry.is_file() and entry.stem == stem:
+            r = rank.get(entry.suffix.lower())
+            if r is not None and (best is None or r < best[0]):
+                best = (r, entry)
+    return best[1].relative_to(root).as_posix() if best else None
 
 
 def resolve_media(

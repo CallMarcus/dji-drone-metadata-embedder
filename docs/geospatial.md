@@ -376,28 +376,43 @@ dji-embed flightmap ./footage --3d --link-originals
 In the ghost view a slider then appears in the HUD. Slide it and the terrain
 reconstruction fades into the real video frame for the second you are looking
 at; **v** swaps straight between the two extremes. Held half-way you see both
-at once, which is the point: if the telemetry is right, the horizon and the
-landmarks line up. If they do not, something in the recorded attitude is
-off — which is the most direct check this tool offers.
+at once, which is the point: a horizon and landmarks that line up are
+consistent with the recorded attitude being right. A mismatch is not proof it
+is wrong — the same picture follows from an estimated or median field of view
+(see below), a terrain model that includes canopy or rooftops, the flat
+ground-plane approximation, or lens distortion the map does not model. Read it
+as the most direct sanity check this tool offers, not a verdict.
 
 The video follows the clock, but only the slowest speed keeps pace with it:
-at 1× it plays alongside the flight, and at 5× and above it steps frame to
-frame instead, because no browser decodes reliably that fast. A flight
-that DJI split across several files at the 4 GB container limit switches
-source automatically as the clock crosses each boundary, seeking into the
-new file at that sample's own offset rather than the flight's elapsed time.
-A file that fails to load disables the slider and names the file in a badge,
-and stays that way — not just for the frame it broke on — until the clock
-reaches a segment backed by a different file.
+at 1× it plays alongside the flight, and at 5× and above it steps sample to
+sample instead — roughly a second at a time — because no browser decodes
+reliably that fast. A flight that DJI split across several files at the 4 GB
+container limit switches source automatically as the clock crosses each
+boundary, seeking into the new file at that sample's own offset rather than
+the flight's elapsed time. A file that fails to load disables the slider and
+names the file in a badge, and stays that way — not just for the frame it
+broke on — until the clock moves into a different segment, even one backed
+by the same file.
+
+That badge only knows the browser refused to load the file, not why: a moved
+file, a wrong link base and an undecodable codec all look identical to it.
+DJI's 4K footage is commonly H.265/HEVC, which Firefox does not decode inside
+MP4 at all and Chrome only where a platform decoder is present — an intact,
+correctly-linked clip can still show as failed on those browsers.
 
 Linking is opt-in because the map only works alongside the videos: share the
 HTML on its own and the links have nothing to point at. `--link-base` gives
 the hrefs a different prefix when the footage does not sit beside the map.
+
+Opening the written file straight from disk (`file://`) works out of the box:
+the video seeks natively with no server involved, and that is the common path.
 `flightmap` itself has no `--serve` flag, but the standalone `serve` command
-(below, under `photomap`) serves a flightmap page just as well — do that
-rather than opening the file straight from disk, and scrubbing the slider or
-stepping through the flight seeks the video cleanly instead of restarting
-it, because the server answers HTTP Range requests.
+(below, under `photomap`) is what makes seeking work when the map is served
+over HTTP instead — the path the desktop app and any hosted copy of the map
+take, and the reason `geo/serve.py` answers HTTP Range requests. Either way,
+it is the *playback* slider (or stepping through the flight) that seeks the
+video; the blend slider only fades between the two layers at whatever second
+the clock is already on.
 
 Two limits, not one. `--link-originals` is still permitted with `--redact
 fuzz` — originals still carry exact GPS in their own metadata, so linking
