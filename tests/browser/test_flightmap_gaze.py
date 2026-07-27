@@ -402,3 +402,142 @@ def test_beam_width_tracks_zoom(serve_map, page):
     # fails, just as a timeout instead of an immediate assertion.
     page.wait_for_function("() => window.__beamSets > 0", timeout=15000)
     assert _beam_width() > near_beam
+
+
+def _click_at(page, lng, lat):
+    """Click the map canvas at a geographic point."""
+    pt = page.evaluate("([lng, lat]) => { const p = map.project([lng, lat]);"
+                       " return [p.x, p.y]; }", [lng, lat])
+    page.mouse.click(pt[0], pt[1])
+
+
+def _click_inside_ring(page, sample: int):
+    """Click inside sample's footprint but clear of the flight line.
+
+    Two traps, both of which made these tests prove nothing:
+
+    A nadir footprint's centroid IS the track vertex. At pitch exactly -90
+    frustum_ground_ring has fwd_n == 0 and up_z == 0, so the four corners sit
+    at (+/-tan_h*agl, +/-tan_v*agl) and average back to the camera position --
+    clicking there hits the flight line, gazeLookup correctly bails, and the
+    flight's own popup answers instead. Blending halfway to a corner moves the
+    click off-axis.
+
+    And these fixtures are tiny on screen: a ~200 m track under the map's
+    fitBounds/maxZoom 15 spans ~40 px, so the whole 75 m footprint is ~16 px
+    wide and every point in it is within a few pixels of the line. Zooming in
+    is what actually buys the clearance; an off-nadir pitch alone would move
+    the axis ~2 px.
+
+    The precondition assertion is the point: it turns a silent bail into a
+    loud failure if this geometry ever drifts again.
+    """
+    pt = page.evaluate(
+        "(s) => { const r = gazeRing(flights[0], s).ring;"
+        " const c = r.slice(0, 4).reduce("
+        "   (a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4], [0, 0]);"
+        " return [c[0] + (r[0][0] - c[0]) * 0.5,"
+        "         c[1] + (r[0][1] - c[1]) * 0.5]; }", sample)
+    page.evaluate("(p) => map.jumpTo({center: p, zoom: 17})", pt)
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    px = page.evaluate(
+        "(p) => { const q = map.project(p); return [q.x, q.y]; }", pt)
+    on_line = page.evaluate(
+        "([x, y]) => map.queryRenderedFeatures([x, y],"
+        " {layers: flights.map(f => f.id).filter(id => map.getLayer(id))})"
+        ".length", px)
+    assert on_line == 0, (
+        "click point sits on the flight line, so gazeLookup would bail and "
+        "this test would prove nothing")
+    page.mouse.click(px[0], px[1])
+    return pt
+
+
+def test_clicking_inside_a_footprint_lists_the_passes(serve_map, page):
+    """The provenance question: which seconds filmed this ground?"""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_inside_ring(page, 2)
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    text = page.locator(".maplibregl-popup").inner_text()
+    assert "DJI_0001" in text
+    assert "in frame" in text
+    assert page.locator(".gaze-pass").count() >= 1
+    page.wait_for_function(
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+
+
+def test_clicking_empty_ground_says_so(serve_map, page):
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    # Centre the map on the empty point rather than guessing an offset that
+    # stays on canvas: at the auto-fit zoom, 0.05 deg away projects to roughly
+    # (1420, -48) in a 1280x720 viewport, so the click never reached the map
+    # and the miss popup never appeared. ~330 m clears a ~75 m footprint.
+    # Offset in LATITUDE: the track runs east-west from lon 20.0000 to 20.0030
+    # in six 0.0006 steps, so a longitude offset of 0.003 lands exactly on the
+    # last sample. 0.003 deg north is ~330 m, well clear of footprints that
+    # reach ~0.00034 deg (37.5 m) across-track.
+    empty = [20.0015, 10.003]
+    page.evaluate("(p) => map.jumpTo({center: p, zoom: 17})", empty)
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    px = page.evaluate(
+        "(p) => { const q = map.project(p); return [q.x, q.y]; }", empty)
+    size = page.evaluate("() => [map.getCanvas().clientWidth,"
+                         " map.getCanvas().clientHeight]")
+    assert 0 <= px[0] <= size[0] and 0 <= px[1] <= size[1], (
+        f"click point {px} is outside the {size} viewport; no click would fire")
+    page.mouse.click(px[0], px[1])
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    assert "No recorded frame covered this spot" in \
+        page.locator(".maplibregl-popup").inner_text()
+    assert page.locator(".gaze-pass").count() == 0
+
+
+def test_a_pass_button_seeks_and_plays(serve_map, page):
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_inside_ring(page, 4)
+    page.wait_for_selector(".gaze-pass", timeout=5000)
+    page.locator(".gaze-pass").first.click()
+    assert page.evaluate("() => pb.t") >= 3.0
+    assert page.evaluate("() => pb.playing") is True
+
+
+def test_highlight_clears_when_the_popup_closes(serve_map, page):
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_inside_ring(page, 2)
+    page.wait_for_selector(".maplibregl-popup-close-button", timeout=5000)
+    # Assert the highlight is THERE before closing. Without this the test
+    # passed while gazeLookup was bailing on the flight-line guard and
+    # gaze-hits had been empty all along -- "empty at the end" proves nothing
+    # if it was never populated.
+    page.wait_for_function(
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+    page.click(".maplibregl-popup-close-button")
+    page.wait_for_function(
+        "() => map.querySourceFeatures('gaze-hits').length === 0",
+        timeout=5000)
+
+
+def test_clicking_the_track_still_opens_the_flight_popup(serve_map, page):
+    """The flight line owns its own popup with View from here; the lookup must
+    not fire a second popup on top of it."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    _click_at(page, *page.evaluate("() => flights[0].pts[3].slice(0, 2)"))
+    page.wait_for_selector(".maplibregl-popup", timeout=5000)
+    assert page.locator(".maplibregl-popup").count() == 1
+    assert page.locator(".ghost-open").count() == 1
+    assert page.locator(".gaze-pass").count() == 0

@@ -94,6 +94,10 @@ _TEMPLATE = """<!DOCTYPE html>
   .playback input[type=range] {{ width: 140px; }}
   .playback span {{ font-variant-numeric: tabular-nums; }}
   .playback select {{ font: inherit; max-width: 160px; }}
+  .gaze-pass {{ font: inherit; margin: 3px 4px 0 0; cursor: pointer;
+               border: 1px solid #bbb; border-radius: 3px;
+               background: #f6f6f6; padding: 1px 6px; }}
+  .gaze-est {{ margin-top: 4px; opacity: .7; font-size: 11px; }}
 </style>
 </head>
 <body>
@@ -821,6 +825,11 @@ const gaze = { dashed: false };
 function addGazeLayers() {
   // Below the flight lines: a track must stay readable through its own patch.
   const before = map.getLayer(flights[0].id) ? flights[0].id : undefined;
+  map.addSource('gaze-hits', { type: 'geojson', data: emptyFC() });
+  map.addLayer({ id: 'gaze-hits-line', type: 'line', source: 'gaze-hits',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'color'], 'line-width': 6,
+             'line-opacity': 0.55 } }, before);
   map.addSource('gaze', { type: 'geojson', data: emptyFC() });
   map.addLayer({ id: 'gaze-fill', type: 'fill', source: 'gaze',
     paint: { 'fill-color': pb.run.color,
@@ -1155,7 +1164,149 @@ function mountPlayback() {
     paint: { 'circle-radius': 7, 'circle-color': pb.run.color,
              'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
   addGazeLayers();
+  map.on('click', gazeLookup);
   pbRender();
+}
+
+// --- Click a spot, get the seconds that filmed it (#378) ---
+const GAZE_MAX_PASSES = 12;
+
+function pointInRing(ring, lng, lat) {
+  // Ray casting over the four edges of a closed ring. Footprints are tens to
+  // hundreds of metres across, so planar lon/lat is exact enough.
+  let inside = false;
+  const n = ring.length - 1;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat))
+        && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function gazeRingsFor(fl) {
+  // Memoised on first lookup: a map nobody clicks pays nothing, and a map
+  // clicked twice pays once.
+  if (!fl.rings) fl.rings = fl.pts.map((p, i) => gazeRing(fl, i).ring);
+  return fl.rings;
+}
+
+function gazePasses(fl, lngLat) {
+  const rings = gazeRingsFor(fl), times = fl.times;
+  const hits = [];
+  rings.forEach((ring, i) => {
+    if (ring && pointInRing(ring, lngLat.lng, lngLat.lat)) hits.push(i);
+  });
+  if (!hits.length) return [];
+  // Seconds are counted per sample interval, so a single-sample hit reads as
+  // about a second rather than zero.
+  const dt = i => (i + 1 < times.length) ? times[i + 1] - times[i]
+    : (i > 0 ? times[i] - times[i - 1] : 1);
+  const passes = [];
+  let start = hits[0], prev = hits[0], secs = 0;
+  hits.forEach(i => {
+    if (i > prev + 1) {
+      passes.push({ i0: start, i1: prev, t0: times[start], t1: times[prev],
+                    secs: secs });
+      start = i;
+      secs = 0;
+    }
+    secs += dt(i);
+    prev = i;
+  });
+  passes.push({ i0: start, i1: prev, t0: times[start], t1: times[prev],
+                secs: secs });
+  return passes;
+}
+
+function gazeSeek(fl, t) {
+  if (pb.run !== fl) {
+    pb.run = fl;
+    const sel = document.getElementById('pb-flight');
+    if (sel) sel.value = String(runs.indexOf(fl));
+    const slider = document.getElementById('pb-slider');
+    if (slider) slider.max = String(pbMax());
+    pbRecolour();
+  }
+  pb.t = t;
+  pb.cursor = 0;
+  pb.sample = -1;
+  pbRender();
+  // In the cockpit on this flight, playing IS riding it -- no second control.
+  if (!pb.playing) pbPlay();
+}
+
+function gazeHighlight(entries) {
+  const src = map.getSource('gaze-hits');
+  if (!src) return;
+  const feats = [];
+  entries.forEach(e => e.passes.forEach(p => {
+    // One sample either side, so a single-sample hit is still a visible line.
+    const a = Math.max(0, p.i0 - 1);
+    const b = Math.min(e.fl.pts.length - 1, p.i1 + 1);
+    feats.push({ type: 'Feature', properties: { color: e.fl.color },
+      geometry: { type: 'LineString',
+        coordinates: e.fl.pts.slice(a, b + 1).map(c => [c[0], c[1]]) } });
+  }));
+  src.setData({ type: 'FeatureCollection', features: feats });
+}
+
+function gazeLookup(ev) {
+  const lineIds = flights.map(f => f.id).filter(id => map.getLayer(id));
+  if (lineIds.length
+      && map.queryRenderedFeatures(ev.point, { layers: lineIds }).length) {
+    return;                    // the flight line owns this click
+  }
+  const el = document.createElement('div');
+  el.className = 'flight-popup';
+  const entries = [];
+  runs.forEach(fl => {
+    if (!fl.shown) return;
+    const passes = gazePasses(fl, ev.lngLat);
+    if (!passes.length) return;
+    entries.push({ fl: fl, passes: passes });
+    const head = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = fl.name;
+    head.appendChild(name);
+    const total = passes.reduce((a, p) => a + p.secs, 0);
+    head.appendChild(document.createTextNode(
+      ' \\u2014 in frame ' + Math.round(total) + ' s over ' + passes.length
+      + (passes.length === 1 ? ' pass' : ' passes')));
+    el.appendChild(head);
+    const row = document.createElement('div');
+    passes.slice(0, GAZE_MAX_PASSES).forEach(p => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gaze-pass';
+      b.textContent = fmtDuration(Math.round(p.t0)) + '\\u2013'
+                    + fmtDuration(Math.round(p.t1));
+      b.addEventListener('click', () => gazeSeek(fl, p.t0));
+      row.appendChild(b);
+    });
+    if (passes.length > GAZE_MAX_PASSES) {
+      row.appendChild(document.createTextNode(
+        ' +' + (passes.length - GAZE_MAX_PASSES) + ' more'));
+    }
+    el.appendChild(row);
+    if (gazeRing(fl, passes[0].i0).estimated) {
+      const est = document.createElement('div');
+      est.className = 'gaze-est';
+      est.textContent = 'estimated \\u2014 no gimbal data';
+      el.appendChild(est);
+    }
+  });
+  if (!entries.length) {
+    el.appendChild(document.createTextNode(
+      'No recorded frame covered this spot.'));
+  }
+  gazeHighlight(entries);
+  const popup = new maplibregl.Popup({ maxWidth: '320px' })
+    .setLngLat(ev.lngLat).setDOMContent(el).addTo(map);
+  popup.on('close', () => gazeHighlight([]));
 }
 """
 
