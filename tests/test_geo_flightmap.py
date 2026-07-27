@@ -611,3 +611,36 @@ def test_geojson_seg_i_emitted_only_when_split():
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert set(props["seg_i"]) == {0, 1}
     assert len(props["seg_i"]) == len(track.points)
+
+
+def test_geojson_media_props_absent_on_single_fix_point():
+    """Mirrors test_geojson_pose_arrays_not_on_single_fix_point: the Point
+    degenerate case skips times_s and the ghost props, and media/cue_s/seg_i
+    must be skipped the same way (#380)."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["DJI_0001.MP4"]
+    track.points = track.points[:1]
+    fc = flights_to_geojson([track])
+    assert fc["features"][0]["geometry"]["type"] == "Point"
+    for key in ("media", "cue_s", "seg_i"):
+        assert key not in fc["features"][0]["properties"]
+
+
+def test_cue_s_restarts_at_a_segment_boundary(tmp_path):
+    """The property task-4-review verified only by reading source: cue_s is
+    each point's offset within its own video file, not a flight-relative
+    clock. If it climbed across a join instead of restarting, a split
+    flight's second video would seek minutes past its own end (#380)."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    tracks = _joined_pair(tmp_path)
+    track = tracks[0]
+    track.media = ["a.MP4", "b.MP4"]
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    seg_i = props["seg_i"]
+    assert 0 in seg_i and 1 in seg_i
+    last_seg0 = max(i for i, s in enumerate(seg_i) if s == 0)
+    first_seg1 = min(i for i, s in enumerate(seg_i) if s == 1)
+    assert props["cue_s"][first_seg1] < props["cue_s"][last_seg0]

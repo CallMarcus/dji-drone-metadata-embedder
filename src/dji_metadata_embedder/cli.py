@@ -851,7 +851,7 @@ def photomap(
          "metadata even when --redact fuzz coarsens the map.",
 )
 @click.option(
-    "--link-base", default=None,
+    "--link-base", default=None, metavar="PREFIX",
     help="Folder or URL prefix for --link-originals hrefs, for when the "
          "videos do not sit beside the map.",
 )
