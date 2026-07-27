@@ -25,6 +25,20 @@ def _flight(name: str, lat: float, lon: float, points: int,
     ])
 
 
+def _flight_yaws(name: str, lat: float, lon: float, yaws: list) -> Track:
+    """Like `_flight`, but with a per-point gimbal yaw instead of a constant
+    one -- `_flight`'s constant 90.0 makes every posePlayback interpolation
+    run with `d == 0`, which never exercises the shortest-arc branch."""
+    t0 = datetime(2026, 6, 15, 12, 0, 0)
+    return Track(name=name, points=[
+        TrackPoint(lat=lat, lon=lon + i * 0.0006, alt=150.0,
+                   timestamp=f"00:00:{i:02d},000",
+                   utc=t0 + timedelta(seconds=i), rel_alt=50.0,
+                   focal_len=24.0, gimbal_yaw=yaw, gimbal_pitch=-45.0)
+        for i, yaw in enumerate(yaws)
+    ])
+
+
 def _ready(page):
     page.wait_for_selector("#flights-panel", timeout=15000)
 
@@ -164,8 +178,14 @@ def test_entering_while_playing_jumps_instead_of_easing(serve_map, page):
     serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
     _ready(page)
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
-    page.evaluate("() => { pb.speed = 1; pbPlay(); ghostEnter(0, 0); }")
-    assert page.evaluate("() => map.isMoving()") is False, "ghostEnter eased"
+    # In one round-trip: easeTo fires movestart synchronously, so isMoving()
+    # is unambiguous inside the same JS turn. Splitting this across two
+    # evaluate() calls would let a restored entry ease get aborted by the
+    # first driven frame (~16 ms) before the assertion ever ran.
+    moving = page.evaluate(
+        "() => { pb.speed = 1; pbPlay(); ghostEnter(0, 0);"
+        " return map.isMoving(); }")
+    assert moving is False, "ghostEnter eased"
     assert page.evaluate("() => ghost.active") is True
 
 
@@ -194,3 +214,58 @@ def test_beam_hides_in_the_cockpit(serve_map, page):
     page.evaluate("() => ghostExit()")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
     assert page.evaluate(vis, "beam-ray") == "visible"
+
+
+def test_bearing_scrub_takes_the_short_way_round(serve_map, page):
+    """posePlayback's wraparound arithmetic is the only non-obvious math in
+    this task, and every other fixture in this file uses a constant yaw
+    (d == 0 throughout), so it has never actually run. 350 -> 10 the short
+    way passes through 360/0; the long way would sweep through 180."""
+    serve_map(flights_to_3d_html(
+        [_flight_yaws("DJI_0001", 10.0, 20.0, [350.0, 10.0])], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    page.evaluate("() => { pb.t = 0.5; pbRender(); }")
+    bearing = page.evaluate("() => ghost.applied.bearing")
+    assert bearing > 355 or bearing < 15, (
+        f"bearing {bearing} swept through 180 instead of taking the short "
+        "way round 0/360")
+
+
+def test_ghost_rapid_reenter_while_playing_keeps_lock(serve_map, page):
+    """The paused rapid-cycle scenario is
+    test_ghost_rapid_reenter_keeps_lock_and_original_view in
+    test_flightmap_ghost.py. This task adds a second way to interrupt the
+    exit ease -- ghostEnter's jumpTo when pb.playing, instead of easeTo --
+    so it needs its own coverage: the camera must stay locked and the saved
+    view must not restore mid-session."""
+    serve_map(flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 6)], "trip"))
+    _ready(page)
+    before = page.evaluate(
+        "() => ({p: map.getPitch(), b: map.getBearing(),"
+        " mp: map.getMaxPitch()})")
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    # pbPlay() and the exit/re-enter cycle all in one round-trip: a Python
+    # round-trip between them could let the first ghostExit's 1.2 s ease
+    # complete for real, which would defeat the scenario.
+    result = page.evaluate("""() => {
+      pb.speed = 1; pbPlay();
+      ghostExit(); ghostEnter(0, 2);
+      return { dragPan: map.dragPan.isEnabled(),
+               maxPitch: map.getMaxPitch() };
+    }""")
+    # The stale moveend (if unguarded) fires synchronously inside the
+    # re-enter's jumpTo, same as the paused variant's easeTo, so these
+    # asserts are deterministic.
+    assert result["dragPan"] is False
+    assert result["maxPitch"] == 100
+    page.evaluate("() => ghostExit()")
+    page.wait_for_function(
+        f"() => map.dragPan.isEnabled()"
+        f" && Math.abs(map.getPitch() - {before['p']}) < 0.5"
+        f" && Math.abs(map.getBearing() - {before['b']}) < 0.5"
+        f" && map.getMaxPitch() === {before['mp']}",
+        timeout=15000,
+    )

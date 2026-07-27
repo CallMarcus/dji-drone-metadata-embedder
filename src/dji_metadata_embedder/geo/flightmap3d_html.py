@@ -445,20 +445,42 @@ function ghostEnter(flightIdx, sampleIdx) {
     map.setVerticalFieldOfView(fl.vfov);
   }
   // Riding: jump in. The cinematic ease would be overridden by the next
-  // playback frame, and eases here are the moveend hazard.
-  applyPose(samplePose(fl, ghost.idx), pb.playing ? 0 : GHOST_ENTER_MS);
+  // playback frame, and eases here are the moveend hazard. Only true when
+  // the clock is actually driving THIS flight -- a different flight's clock
+  // running must not skip the cinematic entry for nothing.
+  const riding = pb.playing && pb.run === fl;
+  if (riding) {
+    // The click wins: seek playback to the clicked sample instead of
+    // snapping the camera back to pb.t on the very next driven frame.
+    pb.t = fl.times[ghost.idx];
+  }
+  applyPose(samplePose(fl, ghost.idx), riding ? 0 : GHOST_ENTER_MS);
   mountHud();
 }
 
 function ghostStep(d) {
   if (!ghost.active) return;
-  if (pb.playing) pbPause();       // manual control wins over the clock
+  // Manual control wins over the clock -- but only the clock driving THIS
+  // flight; stepping in one flight's cockpit must not stop another
+  // flight's playback.
+  if (pb.playing && pb.run === ghost.flight) pbPause();
   const n = ghost.flight.pts.length;
   const next = Math.max(0, Math.min(ghost.idx + d, n - 1));
   if (next === ghost.idx) return;
   ghost.idx = next;
   applyPose(samplePose(ghost.flight, next), GHOST_STEP_MS);
   updateHud();
+  if (pb.run === ghost.flight) {
+    // Keep the clock in step with the cockpit, so the gaze patch on the
+    // ground matches the second the camera is now looking from. pbRender()
+    // ends in pbDriveGhost(), which re-applies this exact pose via jumpTo
+    // (posePlayback(fl, times[next]) is numerically identical to
+    // samplePose(fl, next) -- see posePlayback) -- that lands on the same
+    // target as the ease just started above, so it finishes the step
+    // rather than fighting it.
+    pb.t = ghost.flight.times[next];
+    pbRender();
+  }
 }
 
 function ghostExit() {
