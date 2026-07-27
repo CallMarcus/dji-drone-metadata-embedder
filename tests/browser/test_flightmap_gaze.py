@@ -223,3 +223,98 @@ def test_note_names_the_estimate(serve_map, page):
                          ".textContent")
     assert note.startswith("estimated footprint")
     assert "no gimbal pitch" in note
+
+
+_BEAM_JS = ("() => beamFor(flights[0], pb.sample,"
+            " gazeRing(flights[0], pb.sample).ring).map(f => f.properties)")
+
+
+def test_beam_is_four_continuous_rays(serve_map, page):
+    """Four corner rays of 16 prisms each, and neighbours must share the
+    boundary height -- otherwise the silhouette is a ladder with gaps."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
+                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    steps = page.evaluate("() => GAZE_BEAM_STEPS")
+    props = page.evaluate(_BEAM_JS)
+    assert len(props) == 4 * steps
+    for r in range(4):
+        ray = props[r * steps:(r + 1) * steps]
+        for a, b in zip(ray, ray[1:]):
+            assert abs(a["base"] - b["hgt"]) < 1e-6, f"gap in ray {r}"
+        # Terrain is off in this run, so the extrusion measures from sea level
+        # and the camera end sits at raw AGL.
+        assert abs(ray[0]["hgt"] - 50.0) < 1e-6
+        assert abs(ray[-1]["base"]) < 1e-6
+
+
+def test_beam_heights_survive_the_elevation_conversion(serve_map, page):
+    """A constant-elevation DEM must give the SAME heights as no DEM at all.
+    Skipping the takeoff/local conversion, or interpolating it end to end,
+    breaks this."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
+                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    html = flights_to_3d_html([track], "trip")
+    serve_map(html, terrain_stub=100.0)
+    _ready(page)
+    # queryTerrainElevation decodes through float32, so a constant-100 stub
+    # comes back as 100.00000000000182, never exactly 100 -- compare with a
+    # tolerance rather than equality.
+    page.wait_for_function(
+        "() => Math.abs(terrainElevAt(map.getCenter()) - 100) < 1e-6",
+        timeout=15000)
+    page.evaluate("() => renderGaze()")
+    props = page.evaluate(_BEAM_JS)
+    steps = page.evaluate("() => GAZE_BEAM_STEPS")
+    for r in range(4):
+        ray = props[r * steps:(r + 1) * steps]
+        assert abs(ray[0]["hgt"] - 50.0) < 0.5
+        assert abs(ray[-1]["base"]) < 1e-6
+
+
+def test_beam_stops_at_a_cliff(serve_map, page):
+    """Where the DEM rises 600 m above the drone, every remaining prism is
+    below the surface: fill-extrusion cannot draw there, so the ray must end
+    rather than tunnel through the wall."""
+    # MapLibre resolves DEM tiles one zoom COARSER than the source maxzoom, so
+    # the stub's left/right split lands at the z14 tile midpoint -- one full
+    # TILE_DEG east of the enclosing z15 tile's west edge, NOT one TILE_DEG
+    # east of the flight's nominal longitude. Derive it rather than guessing.
+    west = -180 + math.floor((20.0 + 180) / TILE_DEG) * TILE_DEG
+    cliff = west + TILE_DEG
+    lon = cliff - TILE_DEG * 0.25      # drone a quarter tile west of the wall
+    track = _flight("DJI_0001", 10.0, lon, [50.0] * 5,
+                    yaws=[90.0] * 5, pitches=[-20.0] * 5, focal=24.0,
+                    step=0.0)
+    serve_map(flights_to_3d_html([track], "trip"), terrain_steps=(50.0, 650.0))
+    _ready(page)
+    # 50 (not 0) is the unambiguous "loaded" signal on the low side: 0 is
+    # indistinguishable from a cold tile (terrainElevAt's own contract).
+    page.wait_for_function(
+        "() => Math.abs(terrainElevAt(map.getCenter()) - 50) < 1e-6",
+        timeout=15000)
+    page.evaluate("() => renderGaze()")
+    props = page.evaluate(_BEAM_JS)
+    steps = page.evaluate("() => GAZE_BEAM_STEPS")
+    assert props, "the beam vanished entirely"
+    assert len(props) < 4 * steps, "no prism was dropped at the wall"
+    assert all(p["hgt"] > p["base"] for p in props)
+
+
+def test_beam_width_tracks_zoom(serve_map, page):
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
+                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    page.evaluate("() => map.jumpTo({zoom: 16})")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    near = page.evaluate("() => sculptWidthM()")
+    page.evaluate("() => map.jumpTo({zoom: 11})")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    far = page.evaluate("() => sculptWidthM()")
+    assert far > near
+    # The zoomend rebuild must have refreshed the beam, not left it at the
+    # width it had on load.
+    page.wait_for_function(
+        "() => map.querySourceFeatures('beam').length > 0", timeout=5000)

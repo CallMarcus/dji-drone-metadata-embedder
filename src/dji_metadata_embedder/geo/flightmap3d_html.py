@@ -676,6 +676,7 @@ function rebuildSculpture() {
   if (sculpture.widthM != null && Math.abs(w - sculpture.widthM) < 0.5) return;
   sculpture.widthM = w;
   setSculptData();
+  renderGaze();
 }
 
 function sculptSettle() {
@@ -696,6 +697,10 @@ function sculptSettle() {
     const e = takeoffElev(probe);
     if ((typeof e === 'number' && e !== 0) || --tries <= 0) {
       setSculptData();
+      // The load-time beam was built against cold tiles; it rides this same
+      // bounded retry rather than starting a second timer. During playback
+      // every sample change rebuilds it anyway.
+      renderGaze();
       return;
     }
     setTimeout(retry, 250);
@@ -789,6 +794,15 @@ function addGazeLayers() {
              'fill-opacity': GAZE_PATCH_OPACITY } }, before);
   map.addLayer({ id: 'gaze-edge', type: 'line', source: 'gaze',
     paint: { 'line-color': pb.run.color, 'line-width': 1.5 } }, before);
+  // Beam is fill-extrusion and draws in the main pass, so it needs no
+  // beforeId.
+  map.addSource('beam', { type: 'geojson', data: emptyFC() });
+  map.addLayer({ id: 'beam-ray', type: 'fill-extrusion', source: 'beam',
+    paint: { 'fill-extrusion-color': pb.run.color,
+             'fill-extrusion-base': ['get', 'base'],
+             'fill-extrusion-height': ['get', 'hgt'],
+             'fill-extrusion-opacity': GAZE_BEAM_OPACITY,
+             'fill-extrusion-vertical-gradient': false } });
 }
 
 function setGazeNote(text) {
@@ -815,6 +829,11 @@ function renderGaze() {
     if (src) src.setData(emptyFC());
     setGazeNote(g.reason);
   }
+  const bsrc = map.getSource('beam');
+  if (bsrc) {
+    bsrc.setData({ type: 'FeatureCollection',
+                   features: beamFor(pb.run, pb.sample, g.ring) });
+  }
   if (g.estimated !== gaze.dashed) {
     gaze.dashed = g.estimated;
     // null restores the style-spec default (solid). The reset direction is
@@ -822,6 +841,73 @@ function renderGaze() {
     map.setPaintProperty('gaze-edge', 'line-dasharray',
                          g.estimated ? [2, 2] : null);
   }
+}
+
+// fill-extrusion can only make VERTICAL prisms measured from the terrain
+// surface, so a slanted ray has to be staircased. Each of the four frustum
+// corner rays becomes GAZE_BEAM_STEPS short prisms; neighbours share their
+// boundary height, so the spans touch or overlap and the silhouette is
+// continuous rather than a ladder.
+const GAZE_BEAM_STEPS = 16;
+const GAZE_BEAM_OPACITY = 0.5;
+
+function beamFor(fl, i, ring) {
+  const feats = [];
+  if (!ring) return feats;
+  const agl = fl.agl[i], c = fl.pts[i];
+  const tElev = takeoffElev(fl);
+  const camLocal = tElev == null ? null : terrainElevAt([c[0], c[1]]);
+  const camTrue = (tElev == null || camLocal == null) ? null : tElev + agl;
+  const half = sculptWidthM() / 2;
+  const mLat = GAZE_M_PER_DEG_LAT;
+  for (let r = 0; r < 4; r++) {
+    const corner = ring[r];
+    const at = s => [c[0] + (corner[0] - c[0]) * s,
+                     c[1] + (corner[1] - c[1]) * s];
+    const cornerElev = camTrue == null ? null : terrainElevAt(corner);
+    // Height at each step BOUNDARY, shared by the two prisms that meet there
+    // so joints match by construction. The local surface is sampled per
+    // boundary and never interpolated end to end: interpolating cancels the
+    // corner elevation algebraically -- h(s) collapses to (A - E_cam)(1 - s)
+    // -- and the ray would follow the ground contour instead of flying
+    // straight over the ridges and valleys it crosses.
+    const hs = [];
+    for (let k = 0; k <= GAZE_BEAM_STEPS; k++) {
+      const s = k / GAZE_BEAM_STEPS;
+      if (camTrue == null || cornerElev == null) {
+        // Terrain off: the extrusion measures from sea level, so raw AGL is
+        // already the right clearance.
+        hs.push(agl * (1 - s));
+        continue;
+      }
+      const local = terrainElevAt(at(s));
+      const alt = camTrue + (cornerElev - camTrue) * s;
+      hs.push(local == null ? agl * (1 - s) : alt - local);
+    }
+    for (let k = 0; k < GAZE_BEAM_STEPS; k++) {
+      const hgt = Math.max(hs[k], hs[k + 1]);
+      // At or below the rendered surface: fill-extrusion cannot draw there,
+      // so the ray honestly stops instead of tunnelling through the ground.
+      if (hgt <= 0) continue;
+      const a = at(k / GAZE_BEAM_STEPS), b = at((k + 1) / GAZE_BEAM_STEPS);
+      const mLon = mLat * Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
+      const dx = (b[0] - a[0]) * mLon, dy = (b[1] - a[1]) * mLat;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (!len) continue;
+      const ox = -dy / len * half / mLon, oy = dx / len * half / mLat;
+      feats.push({ type: 'Feature',
+        // base is clamped in JS: the style spec forbids a negative
+        // fill-extrusion-base.
+        properties: { base: Math.max(0, Math.min(hs[k], hs[k + 1])),
+                      hgt: hgt },
+        geometry: { type: 'Polygon', coordinates: [[
+          [a[0] + ox, a[1] + oy], [b[0] + ox, b[1] + oy],
+          [b[0] - ox, b[1] - oy], [a[0] - ox, a[1] - oy],
+          [a[0] + ox, a[1] + oy],
+        ]] } });
+    }
+  }
+  return feats;
 }
 
 // --- Playback (#378): the flat map's animator (#267/#327), MapLibre-side ---
@@ -870,6 +956,9 @@ function pbRecolour() {
   if (map.getLayer('gaze-fill')) {
     map.setPaintProperty('gaze-fill', 'fill-color', pb.run.color);
     map.setPaintProperty('gaze-edge', 'line-color', pb.run.color);
+  }
+  if (map.getLayer('beam-ray')) {
+    map.setPaintProperty('beam-ray', 'fill-extrusion-color', pb.run.color);
   }
 }
 
