@@ -85,6 +85,10 @@ _TEMPLATE = """<!DOCTYPE html>
                       padding: 2px 9px; }}
   .ghost-badge {{ background: #b58900; color: #fff; border-radius: 3px;
                  padding: 0 6px; font-size: 11px; }}
+  .ghost-video {{ position: absolute; inset: 0; width: 100%; height: 100%;
+                 object-fit: contain; pointer-events: none; z-index: 4;
+                 transition: opacity .18s linear; }}
+  .playback #ghost-blend {{ width: 110px; }}
   .playback {{ position: absolute; bottom: 14px; left: 10px; z-index: 6;
               background: #fff; border-radius: 4px; padding: 6px 10px;
               box-shadow: 0 1px 5px rgba(0,0,0,.4); display: flex;
@@ -145,6 +149,9 @@ const allCoords = [];
     entry.agl = p.agl_m || null;
     entry.vfov = p.vfov_deg || null;
     entry.hfov = p.hfov_deg || null;
+    entry.media = p.media || null;
+    entry.cue = p.cue_s || null;
+    entry.segi = p.seg_i || null;
   } else {                                             // single-fix clip
     const c = f.geometry.coordinates;
     entry.geometry = { type: 'Point', coordinates: [c[0], c[1]] };
@@ -398,6 +405,10 @@ function ghostKeys(ev) {
   if (ev.key === 'Escape') { ghostExit(); ev.preventDefault(); }
   else if (ev.key === 'ArrowLeft') { ghostStep(-1); ev.preventDefault(); }
   else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
+  else if (ev.key === 'v' || ev.key === 'V') {
+    setBlend(cross.blend > 0.5 ? 0 : 1);
+    ev.preventDefault();
+  }
 }
 
 function terrainElevAt(lngLat) {
@@ -474,6 +485,7 @@ function ghostEnter(flightIdx, sampleIdx) {
   }
   applyPose(samplePose(fl, ghost.idx), riding ? 0 : GHOST_ENTER_MS);
   mountHud();
+  mountCrossfade();
 }
 
 function ghostStep(d) {
@@ -527,6 +539,7 @@ function ghostExit() {
     applyGazeVisibility();
   });
   unmountHud();
+  unmountCrossfade();
   ghost.flight = null;
   ghost.takeoffElev = null;
 }
@@ -549,8 +562,20 @@ function mountHud() {
   exit.setAttribute('aria-label', 'Exit ghost view');
   hud.append(mk('ghost-prev', '\\u2039', () => ghostStep(-1)),
              info, badges,
-             mk('ghost-next', '\\u203a', () => ghostStep(1)),
-             exit);
+             mk('ghost-next', '\\u203a', () => ghostStep(1)));
+  if (hasMedia(ghost.flight)) {
+    const blend = document.createElement('input');
+    blend.type = 'range';
+    blend.id = 'ghost-blend';
+    blend.min = '0';
+    blend.max = '100';
+    blend.value = '0';
+    blend.title = 'Blend the map into the footage';
+    blend.addEventListener('input',
+                           () => setBlend(Number(blend.value) / 100));
+    hud.appendChild(blend);
+  }
+  hud.appendChild(exit);
   document.body.appendChild(hud);
   ghost.hud = hud;
   updateHud();
@@ -1426,6 +1451,75 @@ function gazeLookup(ev) {
   gazePopup = new maplibregl.Popup({ maxWidth: '320px' })
     .setLngLat(ev.lngLat).setDOMContent(el).addTo(map);
   gazePopup.on('close', () => { gazeHighlight([]); gazePopup = null; });
+}
+
+// --- Media crossfade (#380): blend the reconstruction into the footage ---
+// The video is composited by CSS opacity only -- never drawn into a canvas,
+// which would taint it and buy nothing.
+const CROSSFADE_MAX_RATE = 4;     // browsers cannot decode reliably above this
+const CROSSFADE_DRIFT_S = 0.25;   // re-seek only when playback slips this far
+const cross = { el: null, blend: 0, seg: -1, pending: null };
+
+function mediaFor(fl, i) {
+  // Which file, and how far into it. The offset is the point's own SRT cue:
+  // cues are video-relative and the split-join never rewrites them.
+  if (!fl || !fl.media || !fl.cue) return null;
+  const seg = fl.segi ? fl.segi[i] : 0;
+  const href = fl.media[seg];
+  if (!href) return { href: null, seg: seg, t: null };
+  return { href: href, seg: seg, t: fl.cue[i] };
+}
+
+function hasMedia(fl) {
+  return !!(fl && fl.media && fl.cue && fl.media.some(h => h));
+}
+
+function setBlend(x) {
+  cross.blend = Math.max(0, Math.min(1, x));
+  if (cross.el) cross.el.style.opacity = String(cross.blend);
+  const s = document.getElementById('ghost-blend');
+  if (s && Number(s.value) / 100 !== cross.blend) {
+    s.value = String(Math.round(cross.blend * 100));
+  }
+}
+
+function mountCrossfade() {
+  // Cockpit-only: the slider lives in the ghost HUD, and outside the cockpit
+  // there is no pose for the footage to be compared against.
+  if (cross.el || !hasMedia(ghost.flight)) return;
+  const v = document.createElement('video');
+  v.id = 'ghost-video';
+  v.className = 'ghost-video';
+  v.muted = true;
+  v.playsInline = true;
+  v.preload = 'auto';
+  v.style.opacity = '0';
+  document.getElementById('map').appendChild(v);
+  cross.el = v;
+  cross.seg = -1;
+  cross.pending = null;
+  setBlend(0);
+  renderCrossfade();
+}
+
+function unmountCrossfade() {
+  if (!cross.el) return;
+  cross.el.pause();
+  cross.el.remove();
+  cross.el = null;
+  cross.seg = -1;
+  cross.pending = null;
+  cross.blend = 0;
+}
+
+function renderCrossfade() {
+  if (!cross.el || !ghost.active) return;
+  const m = mediaFor(ghost.flight, ghost.idx);
+  if (!m || !m.href) return;
+  if (m.seg !== cross.seg) {
+    cross.seg = m.seg;
+    cross.el.src = m.href;
+  }
 }
 """
 
