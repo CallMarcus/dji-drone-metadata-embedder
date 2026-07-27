@@ -589,3 +589,41 @@ def test_clicking_the_track_still_opens_the_flight_popup(serve_map, page):
     assert page.locator(".maplibregl-popup").count() == 1
     assert page.locator(".ghost-open").count() == 1
     assert page.locator(".gaze-pass").count() == 0
+
+
+def test_fuzzed_positions_get_no_gaze_but_keep_playback(serve_map, page):
+    """A footprint projected from a coordinate moved ~100 m is a confident
+    claim about ground that was never filmed. --footprint already refuses
+    redacted exports; so does the viewer."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip", redact="fuzz"))
+    _ready(page)
+    for layer in ("gaze-fill", "gaze-edge", "beam-ray", "gaze-hits-line"):
+        assert page.evaluate("(id) => !map.getLayer(id)", layer), layer
+    assert page.locator("#playback").count() == 1
+    assert page.evaluate("() => !!map.getLayer('gaze-cursor-dot')")
+    assert "gaze" in page.locator("#flights-panel").inner_text().lower()
+    # A due-east, constant-latitude fixture line puts (20.001, 10.0) exactly
+    # on the rendered flight line, so a plain _click_at would open the
+    # flight's own (gaze-unrelated) popup and prove nothing about the gate.
+    # _click_inside_ring's off-line point works here too: it is derived from
+    # gazeRing(), which stays defined and callable even when the gate never
+    # wires it into a layer or a click handler.
+    _click_inside_ring(page, 2)
+    assert page.locator(".maplibregl-popup").count() == 0
+
+
+def test_hiding_the_flight_hides_its_gaze(serve_map, page):
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    vis = "(id) => map.getLayoutProperty(id, 'visibility') || 'visible'"
+    assert page.evaluate(vis, "gaze-fill") == "visible"
+    page.locator("#flights-panel input[type=checkbox]").first.uncheck()
+    assert page.evaluate(vis, "gaze-fill") == "none"
+    assert page.evaluate(vis, "beam-ray") == "none"
+    assert page.evaluate(vis, "gaze-cursor-dot") == "none"
+    page.locator("#flights-panel input[type=checkbox]").first.check()
+    assert page.evaluate(vis, "gaze-fill") == "visible"

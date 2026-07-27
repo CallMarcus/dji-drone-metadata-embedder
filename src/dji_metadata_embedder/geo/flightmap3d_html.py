@@ -66,6 +66,7 @@ _TEMPLATE = """<!DOCTYPE html>
   .flights-panel label {{ display: block; cursor: pointer; }}
   .flights-panel hr {{ border: none; border-top: 1px solid #ddd;
                       margin: 6px 0; }}
+  .panel-note {{ opacity: .7; font-size: 11px; }}
   .map-note {{ position: absolute; top: 10px; left: 50%;
               transform: translateX(-50%); z-index: 6; background: #fffbe6;
               border: 1px solid #e0d8a8; border-radius: 4px;
@@ -284,6 +285,7 @@ function buildPanel() {
       map.setLayoutProperty(f.id, 'visibility',
                             box.checked ? 'visible' : 'none');
       applySculptVisibility();
+      applyGazeVisibility();
     });
     label.appendChild(box);
     const swatch = document.createElement('span');
@@ -293,6 +295,12 @@ function buildPanel() {
     label.appendChild(document.createTextNode(f.name));
     panel.appendChild(label);
   });
+  if (REDACTED !== 'none' && runs.length) {
+    const note = document.createElement('div');
+    note.className = 'panel-note';
+    note.textContent = 'Camera gaze off \\u2014 positions fuzzed';
+    panel.appendChild(note);
+  }
   if (flights.some(f => f.sculptSrc)) {
     panel.appendChild(document.createElement('hr'));
     const label = document.createElement('label');
@@ -1163,8 +1171,12 @@ function mountPlayback() {
   map.addLayer({ id: 'gaze-cursor-dot', type: 'circle', source: 'gaze-cursor',
     paint: { 'circle-radius': 7, 'circle-color': pb.run.color,
              'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
-  addGazeLayers();
-  map.on('click', gazeLookup);
+  if (REDACTED === 'none') {
+    // Fuzzed coordinates would make every footprint a confident claim about
+    // ground the camera never saw. The clock still works.
+    addGazeLayers();
+    map.on('click', gazeLookup);
+  }
   pbRender();
 }
 
