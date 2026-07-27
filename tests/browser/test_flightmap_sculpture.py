@@ -478,12 +478,27 @@ def test_sculpt_settle_repopulates_a_wiped_source_within_budget(serve_map, page)
     page.wait_for_function(
         "() => map.querySourceFeatures('sculpt-0').length === 0",
         timeout=5000)
+    # Close the residual race: the load-time settle's own terminal
+    # setSculptData() could in principle land in the narrow window between
+    # the wipe being observed as empty and sculptSettle() being called
+    # below, on a machine fast enough to close that gap. Wait a beat and
+    # re-check zero so a stray tick like that fails loudly here instead of
+    # silently repopulating the source for the wrong reason.
+    page.wait_for_timeout(300)
+    assert page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0').length") == 0
 
     page.evaluate("() => sculptSettle()")
-    # sculptSettle's own budget is 20 tries x 250 ms = 5 s; assert the
-    # rebuild lands inside that budget rather than polling indefinitely.
+    # On this warm fixture the real rebuild lands on the settle's first
+    # tick (~250-350 ms observed), so 2500 ms is generous headroom for
+    # that -- but it is well short of the ~5 s the loop would take if it
+    # had to burn all 20 retries. That gap matters: a regression that broke
+    # the `e !== 0` cold-detection branch would still repopulate eventually
+    # via exhaustion, just not inside this bound. So this asserts the
+    # rebuild arrived far too fast for the retry countdown to have been
+    # needed, not merely that it happened within the loop's own ceiling.
     page.wait_for_function(
-        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=5500)
+        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=2500)
     hs_after = page.evaluate(
         "() => map.querySourceFeatures('sculpt-0')"
         ".map(f => f.properties.hgt)")
@@ -537,9 +552,10 @@ def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
     geometry, which by then yields zero planks) at an unused index,
     exercising the gate against a build that is provably empty. This
     proves addSculpture()'s gate directly rather than through the load
-    path; it does not exercise the panel toggle's survival of an empty
-    build, because the panel is built once at load time, when the build is
-    never empty -- that path remains unproven.
+    path, pinning it on the warm path. See
+    test_empty_load_time_build_still_gets_a_source_and_the_toggle below
+    for the load-time/panel-toggle case, where the build is genuinely
+    empty from the very first tick.
     """
     lat = 10.0
     tile_lon = TILE_DEG * 1660
@@ -580,6 +596,31 @@ def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
     assert page.evaluate("() => !!map.getLayer('sculpt-9-ribbon')")
 
 
+def test_empty_load_time_build_still_gets_a_source_and_the_toggle(
+        serve_map, page):
+    """Every segment sits below takeoff, so the LOAD-TIME build is genuinely
+    empty -- the case test_empty_build_still_gets_a_source_and_toggle above
+    cannot reach, because its load-time build only goes empty once a direct
+    addSculpture() call is made after terrain has warmed.
+
+    With no terrain fixture at all, queryTerrainElevation is never even
+    consulted here -- agl alone decides hgt's sign -- so all-negative AGL
+    means every segment's mean AGL is negative from the very first build,
+    inside map.on('load'), before buildPanel() runs. The source, both
+    layers and the panel's Sculpture toggle must all survive that.
+    """
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, [-50.0] * 5)], "trip")
+    serve_map(html)
+    page.wait_for_selector("#flights-panel", timeout=15000)
+    assert page.evaluate("() => planksFor(flights[0], 10).length") == 0
+    assert page.evaluate(
+        "() => map.querySourceFeatures('sculpt-0').length") == 0
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-0-ribbon')")
+    assert page.locator("#sculpture-toggle").count() == 1
+
+
 def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     """Re-entering ghost mid-exit-ease must not corrupt the eventual restore.
 
@@ -609,6 +650,7 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     assert _vis(page) == "visible"
 
     page.evaluate("() => ghostEnter(0, 2)")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
     assert _vis(page) == "none"
 
     # Single evaluate: exit, capture visibility + isMoving, then re-enter --
@@ -626,10 +668,13 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     assert result["visAfterExit"] == "none"
     # The interleaving needs no timing luck: easeTo() has the ease running
     # before ghostExit() returns, and nothing else can run before the
-    # re-entry inside one synchronous evaluate. This guards the narrower
-    # case that would make the whole sequence vacuous -- ghostExit()
-    # early-returning on an already-inactive ghost, leaving no ease for the
-    # re-entry to interrupt.
+    # re-entry inside one synchronous evaluate. The preceding
+    # wait_for_function above already settled the ENTER ease, so map was
+    # not moving when this evaluate began -- wasMoving can therefore only
+    # be true here because ghostExit() itself started the exit ease. This
+    # guards the narrower case that would make the whole sequence vacuous
+    # -- ghostExit() early-returning on an already-inactive ghost, leaving
+    # no ease for the re-entry to interrupt.
     assert result["wasMoving"], (
         "ghostExit() started no ease -- there was nothing for the "
         "re-entry to interrupt")
