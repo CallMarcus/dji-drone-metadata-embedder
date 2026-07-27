@@ -523,6 +523,23 @@ def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
     assertion is what stops this test passing vacuously -- without it, a
     build that happened to produce planks would still satisfy every other
     assertion here.
+
+    None of the above actually pins the gate fix, though: addSculpture()
+    runs inside map.on('load'), right after setTerrain, while this
+    fixture's DEM tiles are still cold. Cold queryTerrainElevation answers
+    0 (not null), so tElev == lElev == 0 there and the conversion collapses
+    to hgt = agl -- positive for this fixture's AGL. That load-time build
+    is therefore never actually empty, so the source/layer/toggle
+    assertions above pass identically whether or not the old
+    `if (!feats.length) return;` bail is present. To pin the fix itself,
+    this also calls addSculpture() directly -- once terrain has genuinely
+    warmed -- on a synthetic flight object (reusing flight 0's own
+    geometry, which by then yields zero planks) at an unused index,
+    exercising the gate against a build that is provably empty. This
+    proves addSculpture()'s gate directly rather than through the load
+    path; it does not exercise the panel toggle's survival of an empty
+    build, because the panel is built once at load time, when the build is
+    never empty -- that path remains unproven.
     """
     lat = 10.0
     tile_lon = TILE_DEG * 1660
@@ -550,6 +567,18 @@ def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
     assert page.locator("#sculpture-toggle").count() == 1
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 0
 
+    # Pin the gate itself: the load-time build above was never actually
+    # empty (see docstring), so call addSculpture() again now that terrain
+    # is warm, on a synthetic flight reusing flight 0's own now-empty
+    # geometry at an unused index. This does not touch the global `flights`
+    # array or any DOM/panel state -- addSculpture() is self-contained.
+    page.evaluate(
+        "() => addSculpture("
+        "{pts: flights[0].pts, agl: flights[0].agl, color: '#ff0000'}, 9)")
+    assert page.evaluate("() => !!map.getSource('sculpt-9')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-9-curtain')")
+    assert page.evaluate("() => !!map.getLayer('sculpt-9-ribbon')")
+
 
 def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     """Re-entering ghost mid-exit-ease must not corrupt the eventual restore.
@@ -562,6 +591,16 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     rapid re-entry aborts cannot fire the restore early. This drives
     exactly that interleaving: enter, exit, re-enter while the first 1.2 s
     exit ease is still running, exit again, then let it genuinely settle.
+
+    The exit, the isMoving()/visibility capture, and the re-entering
+    ghostEnter() are collapsed into a single page.evaluate() rather than
+    three separate Python round-trips. easeTo() starts its ease
+    synchronously, so isMoving() is guaranteed true immediately after
+    ghostExit() returns within the same JS turn -- but a Python round-trip
+    between the calls opens a real timing window (observed to flake under
+    CPU contention -- see task-2-report.md) in which the 1.2 s exit ease
+    can finish before the re-entry lands, so the test would stop exercising
+    the interrupted-moveend path it exists to pin.
     """
     html = flights_to_3d_html(
         [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
@@ -571,17 +610,25 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
 
     page.evaluate("() => ghostEnter(0, 2)")
     assert _vis(page) == "none"
-    page.evaluate("() => ghostExit()")
-    # The restore is deferred to moveend, so it must still be hidden here.
-    assert _vis(page) == "none"
 
+    # Single evaluate: exit, capture visibility + isMoving, then re-enter --
+    # no Python round-trip can open a window between the exit ease starting
+    # and the re-entry landing inside it.
+    result = page.evaluate(
+        "() => { ghostExit();"
+        " const visAfterExit = map.getLayoutProperty("
+        "'sculpt-0-curtain', 'visibility') || 'visible';"
+        " const wasMoving = map.isMoving();"
+        " ghostEnter(0, 2);"
+        " return { visAfterExit, wasMoving }; }")
+    # The restore is deferred to moveend, so it must still be hidden here.
+    assert result["visAfterExit"] == "none"
     # Establish the interleaving actually happened, rather than assuming
     # it: the first exit's ease must still be running the instant we
     # re-enter, or this never exercises the interrupted-moveend path.
-    assert page.evaluate("() => map.isMoving()"), (
+    assert result["wasMoving"], (
         "the first exit ease had already finished before re-entry -- "
         "this run did not land inside it")
-    page.evaluate("() => ghostEnter(0, 2)")
     assert _vis(page) == "none"
 
     page.evaluate("() => ghostExit()")
