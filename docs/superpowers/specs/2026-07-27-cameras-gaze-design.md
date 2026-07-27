@@ -243,19 +243,29 @@ surface, because the shader re-adds the centroid's elevation:
 - `tElev = takeoffElev(fl)`; camera true altitude `tElev + agl`; camera local
   surface `terrainElevAt(camera)`; corner local surface
   `terrainElevAt(corner)`.
-- Along a ray, altitude interpolates from the camera's true altitude to the
-  corner's ground elevation, and the local surface interpolates between the
-  two sampled elevations, so `h(s) = alt(s) − local(s)` is `agl`-equivalent
-  clearance at the camera and exactly 0 at the corner.
-- Elevation is sampled **twice per ray, not once per step** — 8
-  `queryTerrainElevation` calls per sample instead of 64, which matters at 60×
-  speed.
+- Along a ray, altitude interpolates linearly from the camera's true altitude
+  to the corner's ground elevation, and each prism's height is that altitude
+  minus **the terrain actually under it**:
+  `h(s) = alt(s) − terrainElevAt(pointAt(s))`, evaluated once at each of the
+  `GAZE_BEAM_STEPS + 1` step boundaries and shared between neighbouring
+  prisms, so joints match exactly by construction.
+- **Elevation must be sampled per step, not interpolated between the two ends.**
+  Two-sample interpolation looks like a cheap win (8 lookups per sample
+  instead of 68) but it cancels algebraically —
+  `h(s) = [A + (E_corner − A)s] − [E_cam + (E_corner − E_cam)s] =
+  (A − E_cam)(1 − s)` — dropping the corner elevation entirely, so the ray
+  would ignore every ridge and valley it crosses and hug the ground contour
+  instead of flying straight. That is the same error class the sculpture's
+  `agl_m` conversion fixed: constant clearance drawn where the truth is a
+  closing gap. 68 `queryTerrainElevation` calls per rebuild is ~4k cheap DEM
+  lookups a second at 60× speed, which is affordable.
 - Flat-mode fallback when terrain is off or any elevation is unknown:
   `h(s) = agl · (1 − s)`, which is exactly right when the extrusion measures
   from sea level.
-- Each prism carries `base = max(0, min(h₀, h₁))` and `hgt = max(h₀, h₁)`, so
-  consecutive prisms share altitude at their joint and the silhouette is
-  continuous rather than a ladder with gaps. `fill-extrusion-base` has a
+- Each prism carries `base = max(0, min(h₀, h₁))` and `hgt = max(h₀, h₁)`.
+  Because neighbours share the boundary value, their spans always touch or
+  overlap (`max(base) ≤ min(hgt)`) and the silhouette is continuous rather
+  than a ladder with gaps — including where terrain makes `h` non-monotonic. `fill-extrusion-base` has a
   style-spec minimum of 0, hence the clamp in JS. A step whose `hgt` computes
   ≤ 0 is dropped — the same honesty rule that breaks the curtain when the
   drone is below the rendered (canopy-inclusive) surface.
@@ -368,11 +378,14 @@ above-horizon sample clears the source and sets `#pb-note`; a null-AGL sample
 clears it; the edge's dash state flips with estimated-ness; the patch is
 present at load before play is pressed.
 
-Beam: prisms exist for a known sample; `base`/`hgt` are continuous along a ray
-(each step's base equals the neighbour's height at the joint); the beam is
-hidden while `ghost.active` and visible again after exit; flat mode with
-terrain off puts `hgt` at `agl` at the camera end; a below-surface step is
-dropped over the `terrain_steps` cliff.
+Beam: prisms exist for a known sample; spans touch or overlap at every joint
+along a ray (exact equality on flat ground and on the constant-elevation stub,
+where `h` decays monotonically); the beam is hidden while `ghost.active` and
+visible again after exit; flat mode with terrain off puts `hgt` at `agl` at the
+camera end, and the constant-elevation stub must produce the *same* heights as
+terrain-off — the invariance that would fail if the elevation conversion were
+dropped; a below-surface step is dropped over the `terrain_steps` cliff, so the
+ray stops at the wall instead of tunnelling through it.
 
 Lookup: a click inside a known ring returns the expected pass list; a click
 outside every ring returns the miss message; a pass button seeks the clock and
