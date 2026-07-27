@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from dji_metadata_embedder.geo.flightmap import (
     flights_to_geojson,
@@ -515,3 +515,64 @@ def test_write_flights_geojson_threads_redact(tmp_path):
     out = tmp_path / "flights.geojson"
     write_flights_geojson([_ghost_track()], out, redact="fuzz")
     assert json.loads(out.read_text(encoding="utf-8"))["redacted"] == "fuzz"
+
+
+def _joined_pair(tmp_path):
+    """Two real, densely-sampled SRTs that join into one flight.
+
+    Reuses the exact 30 Hz join-fixture shape already proven to join in
+    ``test_decimation_does_not_break_split_joining``. Built and joined
+    through the same real functions ``scan_flights`` uses internally
+    (``load_samples`` -> ``build_track_from_samples`` -> ``_ScanEntry`` ->
+    ``join_split_flights``), but stops short of ``scan_flights``' own
+    decimate/redact/sort epilogue -- callers need the genuinely undecimated,
+    joined points so ``test_segment_survives_decimation`` can exercise
+    ``_decimate_points`` on real data instead of on an already-thinned (and
+    therefore un-thinnable-further) result.
+    """
+    from dji_metadata_embedder.geo.flightmap import _ScanEntry, join_split_flights
+    from dji_metadata_embedder.geo.track import build_track_from_samples
+    from dji_metadata_embedder.utilities import load_samples
+
+    path_a = _write(tmp_path, "DJI_0001.SRT", _hz30_srt(T0, 2.0))
+    path_b = _write(
+        tmp_path,
+        "DJI_0002.SRT",
+        _hz30_srt(T0 + timedelta(seconds=2), 2.0, lat0=34.0 + 60 * 1e-6),
+    )
+    entries = []
+    for path in (path_a, path_b):
+        samples = load_samples(path)
+        mtime_utc = datetime.fromtimestamp(
+            path.stat().st_mtime, tz=timezone.utc
+        ).replace(tzinfo=None)
+        track = build_track_from_samples(path.stem, samples, mtime_utc=mtime_utc)
+        entries.append(_ScanEntry(track, samples[0].dt, samples[-1].dt))
+    return join_split_flights(entries)
+
+
+def test_join_stamps_each_point_with_its_segment(tmp_path):
+    tracks = _joined_pair(tmp_path)
+    assert len(tracks) == 1
+    segs = {p.segment for p in tracks[0].points}
+    assert segs == {0, 1}
+    # Segment 0 must come first and never interleave.
+    seq = [p.segment for p in tracks[0].points]
+    assert seq == sorted(seq)
+
+
+def test_segment_survives_decimation(tmp_path):
+    """_decimate_points runs AFTER the join and keeps ~1 point/s, so a
+    boundary index captured at join time would be wrong. The stamp rides on
+    the point instead."""
+    from dji_metadata_embedder.geo.flightmap import _decimate_points
+
+    tracks = _joined_pair(tmp_path)
+    thinned = _decimate_points(tracks[0].points)
+    assert len(thinned) < len(tracks[0].points)
+    assert {p.segment for p in thinned} == {0, 1}
+
+
+def test_single_file_flight_is_all_segment_zero():
+    track = _ghost_track()
+    assert {p.segment for p in track.points} == {0}

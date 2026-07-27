@@ -126,6 +126,11 @@ def join_split_flights(
                     for p in entry.track.points:
                         if p.utc is not None:
                             p.utc += shift
+            # Stamp before extending: segments was appended just above, so the
+            # index of the segment being added is len(segments) - 1.
+            seg_index = len(prev.track.segments) - 1
+            for p in entry.track.points:
+                p.segment = seg_index
             prev.track.points.extend(entry.track.points)
             prev.last_dt = entry.last_dt
         else:

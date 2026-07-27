@@ -20,7 +20,13 @@ from ..mp4_telemetry import is_video
 class TrackPoint:
     """One GPS-fixed sample: WGS84 lat/lon, absolute altitude (m), raw cue time,
     best-effort UTC datetime, and optional footprint inputs (AGL via rel_alt,
-    35mm-equivalent focal length, gimbal yaw/pitch) when the format carries them."""
+    35mm-equivalent focal length, gimbal yaw/pitch) when the format carries them.
+
+    ``segment`` is the index of the source recording a point came from: DJI
+    closes the container at 4 GB and keeps recording, so one flight can span
+    several files. It rides on the point because :func:`_decimate_points` thins
+    the track after joining, which would invalidate any boundary index.
+    """
 
     lat: float
     lon: float
@@ -31,6 +37,7 @@ class TrackPoint:
     focal_len: float | None = None
     gimbal_yaw: float | None = None
     gimbal_pitch: float | None = None
+    segment: int = 0
 
 
 @dataclass
