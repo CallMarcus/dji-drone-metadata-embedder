@@ -86,6 +86,14 @@ def test_garbage_range_is_ignored(server):
     assert body == BODY
 
 
+def test_reversed_range_falls_back_to_whole_file(server):
+    """`bytes=100-50` is syntactically valid but backwards. A reversed range
+    is ignored rather than rejected -- see the comment in _parse_range."""
+    status, _, body = _get(server, "bytes=100-50")
+    assert status == 200
+    assert body == BODY
+
+
 @pytest.mark.parametrize("header,size,expected", [
     ("bytes=0-99", 2048, (0, 99)),
     ("bytes=100-", 2048, (100, 2047)),
@@ -95,6 +103,7 @@ def test_garbage_range_is_ignored(server):
     ("bytes=0-99,200-299", 2048, None),      # multi-range -> whole file
     ("furlongs=0-9", 2048, None),
     ("bytes=-", 2048, None),
+    ("bytes=100-50", 2048, None),            # reversed -> ignored, not 416
 ])
 def test_parse_range(header, size, expected):
     assert _parse_range(header, size) == expected

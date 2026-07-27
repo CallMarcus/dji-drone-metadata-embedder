@@ -43,12 +43,31 @@ def _parse_range(header: str, size: int) -> tuple[int, int] | None:
         n = int(last_s)
         if n == 0:
             raise ValueError("zero-length suffix range")
+        if size == 0:
+            # A suffix range has nothing to select from an empty file. This
+            # is unsatisfiable *because of the file's size* -- the same
+            # category as `first >= size` below -- not a malformed header,
+            # so it gets 416 rather than the "ignore" treatment below.
+            # (Left uncaught, max(0, size - n) would compute (0, -1): a
+            # reversed pair, but for a different reason than the
+            # explicit-range case, so it doesn't belong under that guard.)
+            raise ValueError("empty file has no satisfiable range")
         return (max(0, size - n), size - 1)
     first = int(first_s)
     if first >= size:
         raise ValueError("range starts at or past end of file")
     last = int(last_s) if last_s else size - 1
-    return (first, min(last, size - 1))
+    last = min(last, size - 1)
+    if last < first:
+        # A reversed range ("bytes=100-50") is syntactically valid but
+        # semantically backwards. RFC 9110 has a server ignore a
+        # ranges-specifier it can't use rather than reject it -- 416 means
+        # "outside the file," which a reversed-but-in-bounds range isn't.
+        # Treating it as "not a shape we understand" (-> None, whole file)
+        # matches how a foreign unit or a multi-range request is already
+        # handled above: one rule for "this header is not usable," not two.
+        return None
+    return (first, last)
 
 
 class _RangeHandler(SimpleHTTPRequestHandler):
@@ -74,25 +93,30 @@ class _RangeHandler(SimpleHTTPRequestHandler):
         if not header or os.path.isdir(path):
             return super().send_head()
         try:
+            size = os.stat(path).st_size
+        except OSError:
+            self.send_error(HTTPStatus.NOT_FOUND, "File not found")
+            return None
+        try:
+            rng = _parse_range(header, size)
+        except ValueError:
+            self.send_response(HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+            self.send_header("Content-Range", f"bytes */{size}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        if rng is None:
+            # Whole-file response: let the base handler open and serve it.
+            # Opening it ourselves here too would mean two file opens for
+            # one request.
+            return super().send_head()
+        first, last = rng
+        try:
             f = open(path, "rb")
         except OSError:
             self.send_error(HTTPStatus.NOT_FOUND, "File not found")
             return None
         try:
-            size = os.fstat(f.fileno()).st_size
-            try:
-                rng = _parse_range(header, size)
-            except ValueError:
-                f.close()
-                self.send_response(HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
-                self.send_header("Content-Range", f"bytes */{size}")
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-                return None
-            if rng is None:
-                f.close()
-                return super().send_head()
-            first, last = rng
             self._range = rng
             f.seek(first)
             self.send_response(HTTPStatus.PARTIAL_CONTENT)
