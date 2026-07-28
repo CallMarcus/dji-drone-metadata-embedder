@@ -56,6 +56,7 @@ def _fetch_asset(url: str, integrity: str) -> Path:
     cache.mkdir(parents=True, exist_ok=True)
     dest = cache / hashlib.sha256(f"{url}#{integrity}".encode()).hexdigest()
     if not dest.exists():
+        import os
         import urllib.request
 
         with urllib.request.urlopen(url, timeout=30) as resp:
@@ -64,7 +65,11 @@ def _fetch_asset(url: str, integrity: str) -> Path:
         got = base64.b64encode(hashlib.new(algo, data).digest()).decode()
         if got != want:
             raise RuntimeError(f"SRI mismatch for {url}: {got} != {want}")
-        dest.write_bytes(data)
+        # Write-then-rename so a parallel xdist worker that sees the file
+        # exists can never read a half-written copy on a cold cache.
+        tmp = dest.with_suffix(f".tmp-{os.getpid()}")
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
     return dest
 
 
