@@ -20,12 +20,18 @@ it's a handful of copy-paste commands. For a guided tour see
 - **See every flight on one map** — point `dji-embed flightmap` at a folder of
   footage and get a single interactive map with each flight as its own
   coloured track *(experimental)*.
-- **Camera's gaze** in the 3D map: play a flight back, watch the camera's
-  ground footprint sweep the terrain, and click any spot to see which seconds
-  of recording covered it.
-- **Crossfade to the footage** — in the 3D map, blend the terrain
-  reconstruction into the real video frame and see whether the telemetry
-  lines up.
+- **Fly it back in 3D** — add `--3d` and the flights are drawn over real
+  terrain instead of a flat map. Each one rises as a translucent curtain from
+  the ground to the drone, so a 30 m hover and a 300 m transit stop looking
+  alike from above, and **View from here** moves the camera to the drone's
+  recorded position and gimbal direction. Press play and it rides the whole
+  flight.
+- **Camera's gaze** — watch the camera's ground footprint sweep the terrain
+  as the flight plays, then click any spot to see which seconds of recording
+  covered it.
+- **Crossfade to the footage** — blend the terrain reconstruction into your
+  real video frame for the second you're looking at, and see whether the
+  telemetry lines up.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
@@ -483,7 +489,12 @@ Notes:
   deliberately, or use `--redact fuzz`.
 - `--3d` renders the flights over real 3D terrain (MapLibre + Mapterhorn/
   Copernicus, keyless) as a separate `flightmap-3d.html`, instead of the
-  flat basemap.
+  flat basemap. The 3D map adds altitude curtains, a cockpit view, playback,
+  the camera's ground footprint, and — with `--link-originals` — a crossfade
+  between the terrain and your footage. Each is documented in
+  [docs/geospatial.md](docs/geospatial.md#3d-terrain-view); note that
+  `--redact fuzz` withholds the footprint and the crossfade, because
+  coarsened coordinates cannot honestly say which ground was filmed.
 
 ### `dji-embed photomap` - Map Still Photos
 
