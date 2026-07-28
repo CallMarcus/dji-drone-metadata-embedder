@@ -122,6 +122,32 @@ def test_template_carries_the_crossfade_app():
         assert needle in html, needle
 
 
+def test_gaze_js_lives_in_its_own_module_and_is_spliced():
+    """#383: the gaze/playback block moved to flightmap3d_gaze_js.GAZE_JS,
+    spliced over a __GAZE_JS__ placeholder the same way __SHARED_JS__ is.
+    app_js reaches the template as a .format() VALUE, so no brace doubling."""
+    from dji_metadata_embedder.geo.flightmap3d_gaze_js import GAZE_JS
+    from dji_metadata_embedder.geo.flightmap3d_html import _APP_JS
+
+    assert "__GAZE_JS__" in _APP_JS
+    assert "function gazePasses" in GAZE_JS
+    assert "function gazePasses" not in _APP_JS
+    html = flights_to_3d_html([_track()], "trip")
+    assert "function gazePasses" in html
+    assert "__GAZE_JS__" not in html
+
+
+def test_emitted_js_is_ascii_only():
+    """The emitted JS's own convention is \\uXXXX escapes; a literal multiply
+    sign and em dash predating the arc relied on <meta charset> surviving
+    every copy and serve path instead (#383)."""
+    from dji_metadata_embedder.geo.flightmap3d_gaze_js import GAZE_JS
+    from dji_metadata_embedder.geo.flightmap3d_html import _APP_JS
+
+    bad = sorted({c for c in _APP_JS + GAZE_JS if not c.isascii()})
+    assert bad == [], f"non-ASCII in emitted JS: {bad!r}"
+
+
 def test_write_flights_3d_html(tmp_path):
     out = tmp_path / "flightmap-3d.html"
     result = write_flights_3d_html([_track()], out, "trip")
