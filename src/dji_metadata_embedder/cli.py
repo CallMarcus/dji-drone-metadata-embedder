@@ -196,7 +196,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4/MOV pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
-      flightmap Map every flight in a folder of SRT logs on one combined map (experimental)
+      flightmap Map every flight in a folder of SRT logs on one combined map
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
@@ -876,7 +876,7 @@ def flightmap(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Map every flight in a folder of DJI .SRT logs on one combined map (experimental).
+    """Map every flight in a folder of DJI .SRT logs on one combined map.
 
     Reads only the .SRT telemetry sidecars (fast — the videos are never
     opened) and draws each flight as its own coloured track with a summary

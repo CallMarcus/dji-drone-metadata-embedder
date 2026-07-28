@@ -19,7 +19,7 @@ it's a handful of copy-paste commands. For a guided tour see
 
 - **See every flight on one map** — point `dji-embed flightmap` at a folder of
   footage and get a single interactive map with each flight as its own
-  coloured track *(experimental)*.
+  coloured track.
 - **Fly it back in 3D** — add `--3d` and the flights are drawn over real
   terrain instead of a flat map. Each one rises as a translucent curtain from
   the ground to the drone, so a 30 m hover and a 300 m transit stop looking
@@ -402,7 +402,7 @@ dji-embed convert geojson DJI_0001.SRT --footprint --model air3
 dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 ```
 
-### `dji-embed flightmap` - Combined Flight Map (experimental)
+### `dji-embed flightmap` - Combined Flight Map
 
 Map every flight in a folder of DJI `.SRT` logs on one combined map. Reads
 only the `.SRT` telemetry sidecars — the videos are never opened and no
