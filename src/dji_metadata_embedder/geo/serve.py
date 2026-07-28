@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+import socket
 import sys
 import threading
 import webbrowser
@@ -93,10 +94,20 @@ class _RangeHandler(SimpleHTTPRequestHandler):
         if not header or os.path.isdir(path):
             return super().send_head()
         try:
-            size = os.stat(path).st_size
+            fs = os.stat(path)
         except OSError:
             self.send_error(HTTPStatus.NOT_FOUND, "File not found")
             return None
+        size = fs.st_size
+        last_modified = self.date_time_string(int(fs.st_mtime))
+        # If-Range: serve the range only when the validator still matches the
+        # file, else fall back to the whole body -- a stale range spliced into
+        # a changed file is silent corruption. The only validator this server
+        # ever issues is Last-Modified (below), so an entity-tag can never
+        # match and the comparison is string equality with what we would send.
+        if_range = self.headers.get("If-Range")
+        if if_range is not None and if_range.strip() != last_modified:
+            return super().send_head()
         try:
             rng = _parse_range(header, size)
         except ValueError:
@@ -123,6 +134,9 @@ class _RangeHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", self.guess_type(path))
             self.send_header("Content-Range", f"bytes {first}-{last}/{size}")
             self.send_header("Content-Length", str(last - first + 1))
+            # The base handler sends this on every 200; a 206 needs it just as
+            # much or the client has no validator for its next If-Range.
+            self.send_header("Last-Modified", last_modified)
             self.end_headers()
             return f
         except Exception:
@@ -153,6 +167,25 @@ class _QuietHandler(_RangeHandler):
         pass
 
 
+class _MapServer(ThreadingHTTPServer):
+    """``ThreadingHTTPServer`` that treats a vanished client as normal.
+
+    Seeking media aborts in-flight range transfers as a matter of course, and
+    the stock ``handle_error`` prints a full traceback for each one — a
+    working server looks broken precisely when it is being used as intended.
+    Anything outside the connection-reset family keeps the stock report.
+    """
+
+    def handle_error(
+        self,
+        request: socket.socket | tuple[bytes, socket.socket],
+        client_address: object,
+    ) -> None:
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)
+
+
 def _make_server(directory: Path, *, log_requests: bool = False) -> ThreadingHTTPServer:
     """Build a threading HTTP server for *directory* on a free loopback port.
 
@@ -160,7 +193,7 @@ def _make_server(directory: Path, *, log_requests: bool = False) -> ThreadingHTT
     """
     handler_cls = _RangeHandler if log_requests else _QuietHandler
     handler = partial(handler_cls, directory=str(directory))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server = _MapServer(("127.0.0.1", 0), handler)
     # Don't let an in-flight transfer keep the process alive after Ctrl+C.
     server.daemon_threads = True
     return server
