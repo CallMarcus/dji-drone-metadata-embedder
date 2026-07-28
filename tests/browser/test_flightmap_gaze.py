@@ -1,6 +1,7 @@
 """Camera's Gaze (#378): footprint projection, patch, beam and lookup."""
 
 import math
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -519,6 +520,68 @@ def test_a_pass_button_seeks_and_plays(serve_map, page):
     page.locator(".gaze-pass").first.click()
     assert page.evaluate("() => pb.t") >= 3.0
     assert page.evaluate("() => pb.playing") is True
+
+
+def _pass_label_reconciles(page):
+    """Parse the popup: assert the one pass's label spans the counted seconds.
+
+    The header sums each matched sample's forward interval (deliberate: a
+    single-sample hit must read ~1 s, not zero), so the label has to end where
+    coverage ends -- one interval after the last sample's timestamp -- or the
+    two figures in the same popup disagree on screen (#389).
+    """
+    text = page.locator(".maplibregl-popup").inner_text()
+    m = re.search(r"in frame (\d+) s over 1 pass\b", text)
+    assert m, f"expected exactly one pass in: {text!r}"
+    header_secs = int(m.group(1))
+    label = page.locator(".gaze-pass").first.inner_text()
+    lm = re.fullmatch(r"(\d+):(\d{2})–(\d+):(\d{2})", label)
+    assert lm, f"unexpected pass label format: {label!r}"
+    start = int(lm.group(1)) * 60 + int(lm.group(2))
+    end = int(lm.group(3)) * 60 + int(lm.group(4))
+    assert end - start == header_secs, (
+        f"label {label!r} spans {end - start} s but the header counts "
+        f"{header_secs} s -- the label ends at the last sample instead of "
+        f"the end of its interval")
+
+
+def test_pass_label_spans_the_counted_seconds(serve_map, page):
+    """#389: a multi-sample pass read '6 s' beside a five-second range."""
+    # Samples ~22 m apart so neighbouring footprints overlap the click point
+    # and the pass genuinely covers several samples.
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0,
+                    step=0.0002)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    pt = _click_inside_ring(page, 2)
+    page.wait_for_selector(".gaze-pass", timeout=5000)
+    # Loud precondition: prove this is the multi-sample case, or the test
+    # silently degrades into the single-sample one.
+    span = page.evaluate(
+        "(p) => { const ps = gazePasses(flights[0], {lng: p[0], lat: p[1]});"
+        " return ps.length === 1 ? ps[0].i1 - ps[0].i0 : -1; }", pt)
+    assert span >= 1, f"expected one multi-sample pass, got span {span}"
+    _pass_label_reconciles(page)
+
+
+def test_single_sample_pass_label_has_duration(serve_map, page):
+    """#389's most visible shape: '1 s' beside '2:35–2:35', which reads
+    as no duration at all."""
+    # A None gap isolates sample 0: its neighbour has no ring, and the later
+    # samples are too far east for their footprints to reach the click point.
+    track = _flight("DJI_0001", 10.0, 20.0,
+                    [50.0, None, 50.0, 50.0, 50.0, 50.0],
+                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    pt = _click_inside_ring(page, 0)
+    page.wait_for_selector(".gaze-pass", timeout=5000)
+    span = page.evaluate(
+        "(p) => { const ps = gazePasses(flights[0], {lng: p[0], lat: p[1]});"
+        " return ps.length === 1 ? ps[0].i1 - ps[0].i0 : -1; }", pt)
+    assert span == 0, f"expected one single-sample pass, got span {span}"
+    _pass_label_reconciles(page)
 
 
 def test_pass_list_caps_at_gaze_max_passes(serve_map, page):
