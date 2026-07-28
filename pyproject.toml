@@ -48,6 +48,9 @@ dev = [
 browser = [
     "pytest-playwright==0.8.0",
     "playwright==1.61.0",
+    # 2-way sharding of the CI browser leg; the suite is parallel-safe
+    # (ephemeral server ports, atomic asset-cache writes).
+    "pytest-xdist==3.8.0",
 ]
 build = [
     "build==1.5.0",
