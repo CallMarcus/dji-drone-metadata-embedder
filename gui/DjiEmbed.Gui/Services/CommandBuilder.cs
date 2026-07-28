@@ -53,6 +53,13 @@ public static class CommandBuilder
         {
             args.Add("--3d");
         }
+        if (opts.ThreeD && opts.LinkOriginals)
+        {
+            // 3D-only by construction: the crossfade the flag exists for
+            // lives in the 3D cockpit, and on the flat map the CLI warns
+            // the same media data is embedded with nothing that reads it.
+            args.Add("--link-originals");
+        }
         if (!opts.ThreeD && opts.TileStyle != FlightMapOptions.Defaults.TileStyle)
         {
             args.Add("--tile-style");

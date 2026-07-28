@@ -187,6 +187,45 @@ public class CommandBuilderTests
             CommandBuilder.FlightMap("/x", opts));
     }
 
+    // #392: --link-originals unlocks the 3D cockpit's video crossfade. On
+    // the flat map the CLI accepts it but warns it embeds dead weight, so
+    // the builder keeps every argv useful by construction: the flag rides
+    // only with --3d, directly after it (fixed position for these goldens).
+    [Fact]
+    public void Link_originals_with_three_d_follows_the_3d_flag()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            ThreeD = true,
+            LinkOriginals = true,
+        };
+        Assert.Equal(["flightmap", "/x", "-r", "--3d", "--link-originals"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Link_originals_without_three_d_is_suppressed()
+    {
+        var opts = FlightMapOptions.Defaults with { LinkOriginals = true };
+        Assert.Equal(["flightmap", "/x", "-r"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Link_originals_rides_along_with_fuzz_like_the_cli_permits()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            ThreeD = true,
+            LinkOriginals = true,
+            Privacy = MapPrivacy.Fuzz,
+        };
+        Assert.Equal(
+            ["flightmap", "/x", "-r", "--3d", "--link-originals",
+             "--redact", "fuzz"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
     [Fact]
     public void Three_d_passes_the_compatible_flags_through()
     {
@@ -234,7 +273,8 @@ public class CommandBuilderTests
     {
         var opts = new FlightMapOptions(
             Recursive: false, ThreeD: false, TileStyle: "cyclosm", Privacy: MapPrivacy.Fuzz,
-            JoinGap: 0, ExportAll: true, TzOffset: "-8", Title: "T", Output: "/o.html");
+            JoinGap: 0, LinkOriginals: false, ExportAll: true, TzOffset: "-8",
+            Title: "T", Output: "/o.html");
         Assert.Equal(
             ["flightmap", "/x", "--tile-style", "cyclosm", "--redact", "fuzz",
              "--join-gap", "0", "--format", "all", "--tz-offset", "-8",
