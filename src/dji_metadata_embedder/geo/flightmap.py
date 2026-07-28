@@ -317,13 +317,42 @@ def _relative_times(points: list[TrackPoint]) -> list[float]:
         assert base is not None
         raw = [(p.utc - base).total_seconds() for p in points if p.utc is not None]
     else:
-        base_cue = _cue_seconds(points[0].timestamp) or 0.0
-        raw = [(_cue_seconds(p.timestamp) or 0.0) - base_cue for p in points]
+        raw = _cue_clock(points)
     times: list[float] = []
     for t in raw:
         t = round(t, 1)
         times.append(max(t, times[-1]) if times else t)
     return times
+
+
+def _cue_clock(points: list[TrackPoint]) -> list[float]:
+    """A flight-global clock rebuilt from video-relative cues (#386).
+
+    Cues restart near zero with every source file, so on a joined flight a
+    single ``cue - first_cue`` sequence runs backwards at each boundary and
+    the monotonic clamp would flatten everything after it into a plateau.
+    Instead each segment's own cue span is accumulated: a new segment
+    resumes one sample interval after the previous one ended, the interval
+    being the last spacing observed (the real gap is unknowable without
+    UTC, and size-split recordings resume near-instantly). Single-segment
+    tracks reproduce the old ``cue - first_cue`` behaviour exactly.
+    """
+    clock: list[float] = []
+    offset = 0.0  # flight-global seconds at the current segment's base cue
+    step = 1.0  # last observed sample spacing, the boundary filler
+    base = _cue_seconds(points[0].timestamp) or 0.0
+    seg = points[0].segment
+    for p in points:
+        if p.segment != seg:
+            seg = p.segment
+            base = _cue_seconds(p.timestamp) or 0.0
+            offset = (clock[-1] if clock else 0.0) + step
+        cue = _cue_seconds(p.timestamp)
+        t = offset + ((cue if cue is not None else base) - base)
+        if clock and t > clock[-1]:
+            step = t - clock[-1]
+        clock.append(t)
+    return clock
 
 
 def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:

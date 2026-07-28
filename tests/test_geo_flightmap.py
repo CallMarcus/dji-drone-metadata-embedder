@@ -128,6 +128,43 @@ def test_times_use_cues_when_any_utc_missing():
     assert props["times_s"] == [0.0, 2.0]
 
 
+def test_times_survive_a_segment_boundary_without_utc():
+    # #386: cues are video-relative — each source file restarts near zero.
+    # The cue fallback must rebuild a flight-global clock from the per-point
+    # segment stamps instead of clamping the whole second file into a
+    # plateau that stalls playback at the boundary. (scan_flights cannot
+    # currently produce this track — SRT points always get a synthesized
+    # UTC — but flights_to_geojson is public API and video-built points
+    # carry utc=None, so the contract must hold here.)
+    def pt(cue: str, seg: int) -> TrackPoint:
+        return TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp=cue,
+                          segment=seg)
+
+    track = Track(name="f", segments=["DJI_0001", "DJI_0002"], points=[
+        pt("00:00:00,000", 0), pt("00:00:01,000", 0),
+        pt("00:00:02,000", 0), pt("00:00:03,000", 0),
+        pt("00:00:00,000", 1), pt("00:00:01,000", 1),
+        pt("00:00:02,000", 1),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["times_s"] == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+
+def test_segment_boundary_advances_by_the_observed_cadence():
+    # The gap between the files is unknowable without UTC; the honest filler
+    # is the flight's own sample spacing, not a hardcoded second.
+    def pt(cue: str, seg: int) -> TrackPoint:
+        return TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp=cue,
+                          segment=seg)
+
+    track = Track(name="f", segments=["DJI_0001", "DJI_0002"], points=[
+        pt("00:00:00,000", 0), pt("00:00:00,500", 0), pt("00:00:01,000", 0),
+        pt("00:00:00,000", 1), pt("00:00:00,500", 1),
+    ])
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["times_s"] == [0.0, 0.5, 1.0, 1.5, 2.0]
+
+
 def test_times_clamped_monotonic():
     # A cue that jumps backwards (corrupt SRT) must not run the animation
     # backwards; the offending sample pins to the previous time.
