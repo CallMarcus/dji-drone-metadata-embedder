@@ -194,6 +194,13 @@ reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
 telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
 those per clip with `dji-embed convert html VIDEO.MP4`.
 
+Drones whose SRT carries no gimbal attitude (the Mini series) can borrow it
+from a decoded flight log: `--flight-log my-flight.csv` merges per-sample
+gimbal pitch/yaw into the matching flight by timestamp, upgrading the 3D
+map's estimated camera footprints to measurements. See
+[Gimbal from a flight log](how-to/flight-log-gimbal.md) for the export
+settings that make the join exact.
+
 Popup start times are converted to UTC by auto-detecting the recording
 timezone from each file's mtime. On archives whose mtimes were rewritten by
 zip/cloud transfers the auto-detection fails; `flightmap` then warns once

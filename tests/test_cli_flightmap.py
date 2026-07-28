@@ -1,4 +1,6 @@
 import json
+import os
+from datetime import datetime, timedelta, timezone
 
 from click.testing import CliRunner
 
@@ -340,3 +342,88 @@ def test_link_originals_geojson_alone_does_not_warn_dead_weight(tmp_path):
     )
     assert res.exit_code == 0, res.output
     assert "only benefits the 3D map" not in res.output
+
+
+# --- #374: --flight-log merges gimbal attitude from a decoder CSV export ---
+
+
+def _dt_srt(start, coords):
+    """Datetime-carrying bracket SRT, one block per second."""
+    blocks = []
+    for i, (lat, lon, alt) in enumerate(coords):
+        stamp = (start + timedelta(seconds=i)).strftime("%Y-%m-%d %H:%M:%S.000")
+        blocks.append(
+            f"{i + 1}\n00:00:{i:02d},000 --> 00:00:{i + 1:02d},000\n"
+            f'<font size="28">FrameCnt: {i + 1}, DiffTime: 1000ms\n'
+            f"{stamp}\n"
+            f"[iso: 100] [shutter: 1/500.0] [fnum: 1.8] [ev: 0] "
+            f"[focal_len: 24.00] [latitude: {lat}] [longitude: {lon}] "
+            f"[rel_alt: 10.000 abs_alt: {alt}] [ct: 5000] </font>\n"
+        )
+    return "\n".join(blocks)
+
+
+T0 = datetime(2026, 7, 27, 12, 0, 0)
+GIMBAL_LOG = """\
+time(millisecond),datetime(utc),latitude,longitude,gimbal_heading(degrees),gimbal_pitch(degrees)
+0,2026-07-27 12:00:00.0,59.33459,18.06324,350.0,-60.0
+1000,2026-07-27 12:00:01.0,59.33460,18.06325,351.0,-61.0
+2000,2026-07-27 12:00:02.0,59.33461,18.06326,352.0,-62.0
+"""
+
+
+def _gimbal_folder(tmp_path):
+    srt = _dt_srt(T0, [(59.33459, 18.06324, 100.0),
+                       (59.33460, 18.06325, 101.0),
+                       (59.33461, 18.06326, 102.0)])
+    folder = _folder(tmp_path, {"DJI_0001.SRT": srt})
+    # mtime at the recording end so tz auto-detection resolves offset 0
+    # (SRT wall-clock == UTC), matching the log's UTC column exactly.
+    end = (T0 + timedelta(seconds=3)).replace(tzinfo=timezone.utc).timestamp()
+    os.utime(folder / "DJI_0001.SRT", (end, end))
+    log = folder / "log.csv"
+    log.write_text(GIMBAL_LOG, encoding="utf-8")
+    return folder, log
+
+
+def test_flightmap_flight_log_merges_gimbal_into_the_geojson(tmp_path):
+    folder, log = _gimbal_folder(tmp_path)
+    out = folder / "out.geojson"
+    res = CliRunner().invoke(main, [
+        "flightmap", str(folder), "-f", "geojson", "-o", str(out),
+        "--flight-log", str(log),
+    ])
+    assert res.exit_code == 0, res.output
+    assert "DJI_0001" in res.output and "gimbal" in res.output.lower()
+    assert "exact UTC join" in res.output
+    props = json.loads(out.read_text(encoding="utf-8"))[
+        "features"][0]["properties"]
+    assert props["gyaw_deg"] == [-10.0, -9.0, -8.0]
+    assert props["gpitch_deg"] == [-60.0, -61.0, -62.0]
+
+
+def test_flightmap_flight_log_unmatched_notes_and_still_maps(tmp_path):
+    folder, log = _gimbal_folder(tmp_path)
+    log.write_text(GIMBAL_LOG.replace("2026-07-27", "2026-01-01"),
+                   encoding="utf-8")
+    out = folder / "out.geojson"
+    res = CliRunner().invoke(main, [
+        "flightmap", str(folder), "-f", "geojson", "-o", str(out),
+        "--flight-log", str(log),
+    ])
+    assert res.exit_code == 0, res.output
+    assert "did not match any flight" in res.output
+    props = json.loads(out.read_text(encoding="utf-8"))[
+        "features"][0]["properties"]
+    assert "gyaw_deg" not in props
+
+
+def test_flightmap_flight_log_bad_export_fails_loudly(tmp_path):
+    folder, log = _gimbal_folder(tmp_path)
+    log.write_text("datetime(utc),latitude\n2026-07-27 12:00:00.0,59.0\n",
+                   encoding="utf-8")
+    res = CliRunner().invoke(main, [
+        "flightmap", str(folder), "--flight-log", str(log),
+    ])
+    assert res.exit_code != 0
+    assert "gimbal" in res.output.lower()
