@@ -413,7 +413,20 @@ function ghostKeys(ev) {
   else if (ev.key === 'ArrowLeft') { ghostStep(-1); ev.preventDefault(); }
   else if (ev.key === 'ArrowRight') { ghostStep(1); ev.preventDefault(); }
   else if (ev.key === 'v' || ev.key === 'V') {
-    setBlend(cross.blend > 0.5 ? 0 : 1);
+    const slider = document.getElementById('ghost-blend');
+    if (cross.el && slider && !slider.disabled) {
+      setBlend(cross.blend > 0.5 ? 0 : 1);
+    } else if (!slider) {
+      // No crossfade mounted at all (redacted positions, or no linked
+      // video): say why the key does nothing instead of mutating a blend
+      // nothing displays (#384).
+      crossBadgeOnce(REDACTED !== 'none'
+        ? 'blend unavailable \\u2014 positions are redacted'
+        : 'blend unavailable \\u2014 no video linked for this flight');
+    }
+    // A DISABLED slider needs no badge from here: whatever disabled it
+    // (broken file, no frame for this second) already posted the reason,
+    // and the key must not mutate state underneath it.
     ev.preventDefault();
   }
 }
@@ -932,6 +945,31 @@ function renderGaze() {
   }
 }
 
+function beamFillLocals(locals, tElev, farElev) {
+  // Estimate cold DEM boundaries from their known neighbours (linear
+  // between the nearest known samples; constant extension at the ends).
+  // With NOTHING known, assume the flat plane gazeRing itself projects
+  // onto -- which reproduces the pre-#384 clearance exactly, so a wholly
+  // cold ray degrades no further than it always did.
+  const n = locals.length;
+  if (!locals.some(v => v != null)) {
+    for (let k = 0; k < n; k++) {
+      locals[k] = tElev + (farElev - tElev) * (k / (n - 1));
+    }
+    return;
+  }
+  for (let k = 0; k < n; k++) {
+    if (locals[k] != null) continue;
+    let p = k - 1;                        // already filled, so never null
+    let q = k + 1;
+    while (q < n && locals[q] == null) q++;
+    const a = p >= 0 ? locals[p] : null;
+    const b = q < n ? locals[q] : null;
+    locals[k] = a == null ? b
+      : (b == null ? a : a + (b - a) * ((k - p) / (q - p)));
+  }
+}
+
 function beamFor(fl, i, ring) {
   const feats = [];
   if (!ring) return feats;
@@ -958,17 +996,26 @@ function beamFor(fl, i, ring) {
     // -- and the ray would follow the ground contour instead of flying
     // straight over the ridges and valleys it crosses.
     const hs = [];
-    for (let k = 0; k <= GAZE_BEAM_STEPS; k++) {
-      const s = k / GAZE_BEAM_STEPS;
-      if (camTrue == null || cornerElev == null) {
+    if (camTrue == null || cornerElev == null) {
+      for (let k = 0; k <= GAZE_BEAM_STEPS; k++) {
         // Terrain off: the extrusion measures from sea level, so raw AGL is
         // already the right clearance.
-        hs.push(agl * (1 - s));
-        continue;
+        hs.push(agl * (1 - k / GAZE_BEAM_STEPS));
       }
-      const local = terrainElevAt(at(s));
-      const alt = camTrue + (farElev - camTrue) * s;
-      hs.push(local == null ? agl * (1 - s) : alt - local);
+    } else {
+      // Sample the surface first, then fill cold boundaries from their known
+      // neighbours: a null mid-ray sample must not switch height datums --
+      // the old agl*(1-s) fallback among terrain-relative neighbours kinked
+      // the ray upward at exactly that boundary (#384).
+      const locals = [];
+      for (let k = 0; k <= GAZE_BEAM_STEPS; k++) {
+        locals.push(terrainElevAt(at(k / GAZE_BEAM_STEPS)));
+      }
+      beamFillLocals(locals, tElev, farElev);
+      for (let k = 0; k <= GAZE_BEAM_STEPS; k++) {
+        const s = k / GAZE_BEAM_STEPS;
+        hs.push(camTrue + (farElev - camTrue) * s - locals[k]);
+      }
     }
     for (let k = 0; k < GAZE_BEAM_STEPS; k++) {
       const hgt = Math.max(hs[k], hs[k + 1]);
@@ -1114,8 +1161,11 @@ function pbDriveGhost() {
 function applyGazeVisibility() {
   const v = (pb.run && pb.run.shown) ? 'visible' : 'none';
   // The beam originates at the camera, so it hides in the cockpit for the
-  // same reason the sculpture does; the patch is what you came to see.
-  const beam = (v === 'visible' && !ghost.active) ? 'visible' : 'none';
+  // same reason the sculpture does; the patch is what you came to see. But
+  // only when the cockpit rides the SAME flight the clock is playing --
+  // another flight's beam is nowhere near your eye (#384).
+  const beam = (v === 'visible' && !(ghost.active && ghost.flight === pb.run))
+    ? 'visible' : 'none';
   // gaze-hits-line is NOT here: a lookup highlight can span several flights
   // at once, so it has no single pb.run to follow. It stays laid out
   // 'visible' always; its own source data (emptied by gazeHighlight([]) on
@@ -1514,6 +1564,18 @@ function crossBadge(text) {
   badges.appendChild(s);
 }
 
+function crossBadgeOnce(text) {
+  // For badges posted outside the updateHud -> render cycle (the 'v' key):
+  // nothing clears #ghost-badges between two presses, so an unconditional
+  // append would stack duplicates.
+  const badges = ghost.hud && ghost.hud.querySelector('#ghost-badges');
+  if (!badges) return;
+  for (const el of badges.children) {
+    if (el.textContent === text) return;
+  }
+  crossBadge(text);
+}
+
 function mountCrossfade() {
   // Fuzzed positions are deliberately ~100 m out, so overlaying real footage
   // would invite a comparison against geometry we know is wrong. Linking is
@@ -1536,6 +1598,11 @@ function mountCrossfade() {
       cross.pending = null;
       seekCrossfade(t);
     }
+    // The duration is only known from here on: re-render so a timecode past
+    // the video's end posts its badge even while the user sits still, not
+    // one step later (#384). updateHud first -- it clears #ghost-badges, so
+    // rendering without it would stack a duplicate of every badge.
+    if (ghost.active) { updateHud(); renderCrossfade(); }
   });
   v.addEventListener('error', () => {
     // A blank overlay reads as "the camera saw nothing here". Name the file
@@ -1611,6 +1678,16 @@ function renderCrossfade() {
     syncCrossfadePlayback();
     return;
   }
+  if (m.t == null) {
+    // A corrupt SRT cue reaches the viewer as a null timecode: refusing to
+    // guess beats silently seeking the overlay to frame zero under a HUD
+    // that reports a later second (#384).
+    cross.el.style.display = 'none';
+    if (slider) slider.disabled = true;
+    crossBadge('no video timecode for this second');
+    syncCrossfadePlayback();
+    return;
+  }
   if (m.seg !== cross.seg) {
     cross.seg = m.seg;
     cross.pending = m.t;
@@ -1635,6 +1712,19 @@ function renderCrossfade() {
     cross.el.style.display = 'none';
     if (slider) slider.disabled = true;
     crossBadge('could not load: ' + cross.broken);
+    syncCrossfadePlayback();
+    return;
+  }
+  if (cross.el.readyState >= 1 && Number.isFinite(cross.el.duration)
+      && m.t > cross.el.duration + 0.05) {
+    // Telemetry can outlast its own recording. The browser clamps the seek
+    // to the last frame, which would freeze the overlay under an advancing
+    // clock -- say what happened instead of standing on a stale frame (#384).
+    cross.el.style.display = 'none';
+    if (slider) slider.disabled = true;
+    crossBadge('video ends at '
+               + fmtDuration(Math.round(cross.el.duration))
+               + ' \\u2014 no frame for this second');
     syncCrossfadePlayback();
     return;
   }

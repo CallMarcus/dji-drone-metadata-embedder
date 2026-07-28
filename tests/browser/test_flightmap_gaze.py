@@ -372,6 +372,43 @@ _BEAM_SPY_JS = """
 """
 
 
+def test_beam_survives_a_cold_mid_ray_dem_sample(serve_map, page):
+    """#384: when the camera and corner elevations are known but one mid-ray
+    terrainElevAt returns null on a partially warm DEM, that boundary used to
+    fall back to takeoff-relative agl*(1-s) among terrain-relative
+    neighbours -- kinking the ray upward at exactly that boundary. The
+    missing surface sample must be estimated from its known neighbours."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
+                    yaws=[90.0] * 3, pitches=[-45.0] * 3, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    steps = page.evaluate("() => GAZE_BEAM_STEPS")
+    assert steps % 2 == 0, "test geometry needs a boundary at s=0.5"
+    hgts = page.evaluate(
+        """(steps) => {
+          const fl = flights[0];
+          const c = fl.pts[0];
+          const corner = [c[0] + 0.001, c[1]];
+          // Camera and corner warm (100 m), a 115 m ridge under the middle
+          // of the ray, and exactly one cold sample at the s=0.5 boundary.
+          terrainElevAt = (ll) => {
+            const s = (ll[0] - c[0]) / 0.001;
+            if (Math.abs(s - 0.5) < 1 / (4 * steps)) return null;
+            if (s > 0.34 && s < 0.66) return 115.0;
+            return 100.0;
+          };
+          const ring = [corner, corner, corner, corner, corner];
+          return beamFor(fl, 0, ring).map(f => f.properties.hgt);
+        }""", steps)
+    assert len(hgts) == steps * 4          # no prism skipped, four rays
+    # The two prisms sharing the cold boundary. With agl=50 the ray runs
+    # 150 m down to 100 m; over the ridge its true clearance is ~13.1 m and
+    # ~10 m here. The old fallback put the shared boundary at agl*(1-s)=25 m.
+    a, b = steps // 2 - 1, steps // 2
+    assert hgts[a] < 15, f"prism {a} spiked to {hgts[a]}"
+    assert hgts[b] < 15, f"prism {b} spiked to {hgts[b]}"
+
+
 def test_beam_width_tracks_zoom(serve_map, page):
     track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
                     yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)

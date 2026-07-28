@@ -188,6 +188,46 @@ def test_a_segment_without_video_disables_the_blend(serve_map, page,
     assert "no video for this part of the flight" in note
 
 
+def test_a_sample_without_a_timecode_hides_the_video_and_says_why(
+        serve_map, page, recorded_webm):
+    """#384: a corrupt SRT cue used to seek the overlay to frame zero with no
+    indication -- the HUD reported a later second over the wrong frame."""
+    track = _flight("DJI_0001", media=[VIDEO_NAME])
+    track.points[1].timestamp = "garbled"
+    _serve_with_video(serve_map, recorded_webm, track)
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 1)")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-badges')"
+        ".textContent.includes('timecode')", timeout=5000)
+    assert page.evaluate(
+        "() => document.getElementById('ghost-video').style.display"
+    ) == "none"
+    assert page.evaluate(
+        "() => document.getElementById('ghost-blend').disabled") is True
+
+
+def test_a_timecode_past_the_video_end_says_so(serve_map, page,
+                                               recorded_webm):
+    """#384: telemetry can outlast its own recording. The browser clamps the
+    seek to the last frame, which used to freeze the overlay under an
+    advancing clock with no explanation."""
+    track = _flight("DJI_0001", media=[VIDEO_NAME])
+    for p in track.points:
+        p.timestamp = "01:00:00,000"      # an hour into a seconds-long clip
+    _serve_with_video(serve_map, recorded_webm, track)
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-badges')"
+        ".textContent.includes('video ends')", timeout=10000)
+    assert page.evaluate(
+        "() => document.getElementById('ghost-video').style.display"
+    ) == "none"
+    assert page.evaluate(
+        "() => document.getElementById('ghost-blend').disabled") is True
+
+
 def test_plays_in_sync_at_normal_speed(serve_map, page, recorded_webm):
     _serve_with_video(serve_map, recorded_webm,
                       _flight("DJI_0001", media=[VIDEO_NAME]))
@@ -232,6 +272,43 @@ def test_5x_playback_seeks_instead_of_playing(serve_map, page, recorded_webm):
     page.wait_for_function("() => pb.t > 2", timeout=10000)
     assert page.evaluate(
         "() => document.getElementById('ghost-video').paused") is True
+
+
+def test_v_key_under_fuzz_says_why_instead_of_mutating(serve_map, page,
+                                                       recorded_webm):
+    """#384: 'v' used to flip cross.blend invisibly when no crossfade was
+    mounted -- the key appeared to do nothing rather than saying why."""
+    _serve_with_video(serve_map, recorded_webm,
+                      _flight("DJI_0001", media=[VIDEO_NAME]), redact="fuzz")
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.keyboard.press("v")
+    assert page.evaluate("() => cross.blend") == 0
+    assert "redacted" in page.locator("#ghost-badges").inner_text()
+
+
+def test_v_key_without_media_says_why(serve_map, page):
+    serve_map(flights_to_3d_html([_flight("DJI_0001")], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.keyboard.press("v")
+    assert page.evaluate("() => cross.blend") == 0
+    assert "no video" in page.locator("#ghost-badges").inner_text()
+
+
+def test_v_key_on_a_disabled_blend_leaves_state_alone(serve_map, page):
+    """The disabled slider's badge already names the reason; 'v' must not
+    mutate the blend underneath it or wipe that badge (#384)."""
+    serve_map(flights_to_3d_html(
+        [_flight("DJI_0001", media=["gone.webm"])], "trip"))
+    _ready(page)
+    page.evaluate("() => ghostEnter(0, 0)")
+    page.wait_for_function(
+        "() => document.getElementById('ghost-blend').disabled === true",
+        timeout=10000)
+    page.keyboard.press("v")
+    assert page.evaluate("() => cross.blend") == 0
+    assert "gone.webm" in page.locator("#ghost-badges").inner_text()
 
 
 def test_a_broken_video_disables_the_blend_and_names_the_file(serve_map, page):

@@ -59,11 +59,18 @@ class Track:
     media: list[str | None] | None = None
 
 
-def _cue_seconds(cue: str) -> float:
-    """Convert an SRT cue ``HH:MM:SS,mmm`` into total seconds (0.0 if unparseable)."""
+def _cue_seconds(cue: str) -> float | None:
+    """Convert an SRT cue ``HH:MM:SS,mmm`` into total seconds.
+
+    ``None`` for an unparseable cue: 0.0 would masquerade as the video's
+    first frame, and the 3D map's crossfade would silently show frame zero
+    while its HUD reports a later second (#384). Callers that only need a
+    clock offset fall back to 0.0 themselves — a degraded clock is clamped
+    downstream, but a fabricated media timecode is not recoverable.
+    """
     m = re.match(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})", cue)
     if not m:
-        return 0.0
+        return None
     h, mnt, s, ms = (int(g) for g in m.groups())
     return h * 3600 + mnt * 60 + s + ms / 1000.0
 
@@ -114,7 +121,7 @@ def build_track_from_samples(
         abs_times = [s.dt for s in samples if s.dt is not None]
         assert mtime_utc is not None, "mtime_utc is required when assume_utc is False"
         offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
-    base_cue = _cue_seconds(samples[0].cue) if samples else 0.0
+    base_cue = (_cue_seconds(samples[0].cue) or 0.0) if samples else 0.0
 
     coords = redact_coords([(s.lat, s.lon) for s in samples], redact)
     if redact == "drop":
@@ -129,7 +136,8 @@ def build_track_from_samples(
         if s.dt is not None and offset is not None:
             utc = s.dt - offset
         elif mtime_utc is not None:
-            utc = mtime_utc + timedelta(seconds=_cue_seconds(s.cue) - base_cue)
+            utc = mtime_utc + timedelta(
+                seconds=(_cue_seconds(s.cue) or 0.0) - base_cue)
         else:
             utc = None
         points.append(

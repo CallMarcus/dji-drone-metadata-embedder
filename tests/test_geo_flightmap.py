@@ -601,6 +601,29 @@ def test_geojson_cue_s_is_the_in_file_offset():
     assert "seg_i" not in props          # single segment: omitted
 
 
+def test_cue_seconds_refuses_an_unparseable_cue():
+    """0.0 would masquerade as the video's first frame; None says plainly
+    that there is no timecode (#384)."""
+    from dji_metadata_embedder.geo.track import _cue_seconds
+
+    assert _cue_seconds("00:01:02,500") == 62.5
+    assert _cue_seconds("garbled") is None
+
+
+def test_geojson_cue_s_is_null_for_an_unparseable_cue():
+    """A corrupt cue must not claim second zero: the crossfade would silently
+    show the first frame while the HUD reports a later second (#384)."""
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    track = _ghost_track()
+    track.media = ["DJI_0001.MP4"]
+    track.points[1].timestamp = "garbled"
+    props = flights_to_geojson([track])["features"][0]["properties"]
+    assert props["cue_s"][1] is None
+    assert props["cue_s"][0] == 0.0
+    assert len(props["cue_s"]) == len(track.points)
+
+
 def test_geojson_seg_i_emitted_only_when_split():
     from dji_metadata_embedder.geo.flightmap import flights_to_geojson
 

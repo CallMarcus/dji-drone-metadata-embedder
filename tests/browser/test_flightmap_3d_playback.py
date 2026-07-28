@@ -250,6 +250,23 @@ def test_beam_hides_in_the_cockpit(serve_map, page):
     assert page.evaluate(vis, "beam-ray") == "visible"
 
 
+def test_beam_stays_up_when_riding_a_different_flight(serve_map, page):
+    """#384: the beam used to hide during ANY ghost session. Riding flight B
+    while the clock plays flight A hid A's beam, which is nowhere near your
+    eye -- only the ridden flight's own beam can fill the frame."""
+    serve_map(flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, 6),
+         _flight("DJI_0002", 10.05, 20.05, 6)], "trip"))
+    _ready(page)
+    vis = "(id) => map.getLayoutProperty(id, 'visibility') || 'visible'"
+    assert page.evaluate("() => pb.run === flights[0]") is True
+    page.evaluate("() => ghostEnter(1, 0)")      # ride the OTHER flight
+    assert page.evaluate(vis, "beam-ray") == "visible"
+    page.evaluate("() => ghostExit()")
+    page.wait_for_function("() => !map.isMoving()", timeout=15000)
+    assert page.evaluate(vis, "beam-ray") == "visible"
+
+
 def test_bearing_scrub_takes_the_short_way_round(serve_map, page):
     """posePlayback's wraparound arithmetic is the only non-obvious math in
     this task, and every other fixture in this file uses a constant yaw
