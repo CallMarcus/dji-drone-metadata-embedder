@@ -373,6 +373,31 @@ _BEAM_SPY_JS = """
 """
 
 
+def test_render_reuses_the_ring_cache(serve_map, page):
+    """#383 fold-in: renderGaze called gazeRing directly while gazeRingsFor
+    memoised the identical values -- two sources for the same rings. One
+    computation, shared: re-rendering a sample must cost zero new projections,
+    and playback pre-warms the cache the click lookup later scans."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
+                    yaws=[90.0] * 3, pitches=[-45.0] * 3, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    counts = page.evaluate(
+        """() => {
+          const orig = gazeRing;
+          let n = 0;
+          gazeRing = (fl, i) => { n += 1; return orig(fl, i); };
+          flights[0].rings = null;         // cold cache
+          renderGaze();
+          const first = n;
+          renderGaze();
+          gazeRing = orig;
+          return { first: first, second: n - first };
+        }""")
+    assert counts["first"] >= 1
+    assert counts["second"] == 0, "renderGaze recomputed a memoised ring"
+
+
 def test_beam_survives_a_cold_mid_ray_dem_sample(serve_map, page):
     """#384: when the camera and corner elevations are known but one mid-ray
     terrainElevAt returns null on a partially warm DEM, that boundary used to
@@ -556,7 +581,11 @@ def test_a_pass_button_seeks_and_plays(serve_map, page):
     page.wait_for_selector(".gaze-pass", timeout=5000)
     page.locator(".gaze-pass").first.click()
     assert page.evaluate("() => pb.t") >= 3.0
-    assert page.evaluate("() => pb.playing") is True
+    # The pass starts a second or two before this short flight's end, so on a
+    # slow runner the clock legitimately reaches the end and pause-at-end
+    # flips pb.playing back off before this line looks. Playing to the end IS
+    # the requested behaviour; only never-started is a failure.
+    assert page.evaluate("() => pb.playing || pb.t >= pbMax()") is True
 
 
 def _pass_label_reconciles(page):
