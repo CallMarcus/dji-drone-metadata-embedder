@@ -581,7 +581,11 @@ def test_a_pass_button_seeks_and_plays(serve_map, page):
     page.wait_for_selector(".gaze-pass", timeout=5000)
     page.locator(".gaze-pass").first.click()
     assert page.evaluate("() => pb.t") >= 3.0
-    assert page.evaluate("() => pb.playing") is True
+    # The pass starts a second or two before this short flight's end, so on a
+    # slow runner the clock legitimately reaches the end and pause-at-end
+    # flips pb.playing back off before this line looks. Playing to the end IS
+    # the requested behaviour; only never-started is a failure.
+    assert page.evaluate("() => pb.playing || pb.t >= pbMax()") is True
 
 
 def _pass_label_reconciles(page):
