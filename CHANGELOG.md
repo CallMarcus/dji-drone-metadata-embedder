@@ -23,6 +23,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.2.1] - 2026-07-28
+
+### Changed
+
+- **3d**: Split the gaze/playback JS out of flightmap3d_html.py (#383) (ba81310)
+
+### Fixed
+
+- **3d**: End the gaze pass label at the end of coverage (#389) (bfb56f3)
+- **3d**: Five silent-degradation and rendering follow-ups (#384) (7568adc)
+- **serve**: Quiet aborted transfers, add Last-Modified/If-Range to 206 (#385) (bec5202)
+
+### Performance
+
+- **3d**: Wall-clock throttle on beam rebuilds while playing (#382) (d484e67)
+
+### Documentation
+
+- Auto-generate changelog for v2.2.0 (fc26764)
+- Give the 3D features their due in the README (545305a)
+- Retire the "experimental" label on flightmap (107c30d)
+
+### Testing
+
+- **3d**: Accept pause-at-end in the pass-button seek test (061805d)
+
+### Maintenance
+
+- Bump pymdown-extensions to 11.0.1 (Dependabot alert 3) (78e0741)
+
+### Other
+
+- Prepare version 2.2.1 (17f62ce)
+
+
 ## [2.2.0] - 2026-07-27
 
 ### Added
