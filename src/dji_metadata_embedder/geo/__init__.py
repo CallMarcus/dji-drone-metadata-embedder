@@ -1,6 +1,14 @@
 """Geospatial track/photo models and exporters (GeoJSON, KML, HTML, CoT)."""
 
 from .cot import convert_to_cot, track_to_cot
+from .flightlog import (
+    FlightLog,
+    FlightLogError,
+    MergeReport,
+    merge_gimbal,
+    merge_into_flights,
+    parse_flight_log,
+)
 from .flightmap import (
     flights_to_geojson,
     flights_to_kml,
@@ -63,6 +71,12 @@ __all__ = [
     "DEFAULT_TILE_STYLE",
     "TILE_STYLES",
     "TileStyle",
+    "FlightLog",
+    "FlightLogError",
+    "MergeReport",
+    "parse_flight_log",
+    "merge_gimbal",
+    "merge_into_flights",
     "scan_flights",
     "flights_to_geojson",
     "write_flights_geojson",

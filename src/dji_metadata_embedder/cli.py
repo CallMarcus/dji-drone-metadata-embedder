@@ -43,6 +43,7 @@ from .geo import (
     write_photos_html,
     write_photos_kml,
 )
+from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.media import resolve_media
 from .mp4_telemetry import Mp4TelemetryError
 from .progress import NullProgress, make_progress
@@ -855,6 +856,16 @@ def photomap(
     help="Folder or URL prefix for --link-originals hrefs, for when the "
          "videos do not sit beside the map.",
 )
+@click.option(
+    "--flight-log", "flight_logs", multiple=True,
+    type=click.Path(exists=True, dir_okay=False), metavar="CSV",
+    help="Flight-log CSV export (Airdata, Flight Reader, ...) whose gimbal "
+         "pitch/yaw is merged into the matching flight by timestamp — for "
+         "drones whose SRT carries no gimbal data, this upgrades the 3D "
+         "map's estimated camera footprints to measurements. Repeat for "
+         "several flights. Enable the UTC timestamp and the gimbal "
+         "pitch/yaw fields in the decoder's export settings.",
+)
 @_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -871,6 +882,7 @@ def flightmap(
     three_d: bool,
     link_originals: bool,
     link_base: str | None,
+    flight_logs: tuple[str, ...],
     tile_style: str,
     progress_mode: str | None,
     verbose: bool,
@@ -951,6 +963,40 @@ def flightmap(
             progress.warning("No GPS telemetry", item=name)
             if verbose:
                 click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
+        for log_path in flight_logs:
+            try:
+                log = parse_flight_log(log_path)
+            except FlightLogError as e:
+                raise click.ClickException(str(e))
+            report, matched = merge_into_flights(tracks, log)
+            if report.merged and matched is not None:
+                if report.mode == "utc":
+                    join = "exact UTC join"
+                else:
+                    assert report.offset is not None
+                    total_min = int(report.offset.total_seconds() // 60)
+                    join = (
+                        f"derived UTC offset {total_min // 60:+03d}:"
+                        f"{abs(total_min) % 60:02d} — enable the UTC "
+                        "timestamp in the export for an exact join"
+                    )
+                if not quiet:
+                    click.echo(
+                        f"Flight log {log.name}: gimbal attitude for "
+                        f"{report.matched} of {len(matched.points)} points "
+                        f"on {matched.name} ({join})"
+                    )
+            else:
+                reason = report.reason or "no alignment found"
+                progress.warning(
+                    f"Flight log {log.name} did not match any flight: "
+                    f"{reason}"
+                )
+                click.echo(
+                    f"Note: flight log {log.name} did not match any "
+                    f"flight: {reason}",
+                    err=True,
+                )
         joined = [t for t in tracks if t.segments]
         files_joined = sum(len(t.segments or []) for t in joined)
         if not quiet:
