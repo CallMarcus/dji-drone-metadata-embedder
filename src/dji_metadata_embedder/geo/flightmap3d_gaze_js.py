@@ -94,7 +94,9 @@ const GAZE_PATCH_OPACITY = 0.25;
 // continuous rather than a ladder.
 const GAZE_BEAM_STEPS = 16;
 const GAZE_BEAM_OPACITY = 0.5;
-const gaze = { dashed: false };
+const gaze = { dashed: false, beamAt: 0 };
+const BEAM_MIN_MS = 85;   // ~12 beam rebuilds/s while the clock free-runs
+                          // (#382: measured, not guessed -- see the issue)
 
 function addGazeLayers() {
   // Below the flight lines: a track must stay readable through its own patch.
@@ -147,8 +149,20 @@ function renderGaze() {
   }
   const bsrc = map.getSource('beam');
   if (bsrc) {
-    bsrc.setData({ type: 'FeatureCollection',
-                   features: beamFor(pb.run, pb.sample, g.ring) });
+    // Wall-clock throttle while the clock free-runs (#382): each staircase
+    // rebuild costs ~(GAZE_BEAM_STEPS + 1) * 4 terrain queries, measured at
+    // roughly a third of the frame budget at 60x on real hardware -- and
+    // nobody can track individual rays at that speed. Presentation only:
+    // the patch above stays per-sample (it costs no terrain queries), the
+    // click lookup is untouched, and every PAUSED render -- step, scrub,
+    // pbPause itself -- rebuilds exactly, so any resting state shows the
+    // true beam for the current sample.
+    const now = performance.now();
+    if (!pb.playing || now - gaze.beamAt >= BEAM_MIN_MS) {
+      gaze.beamAt = now;
+      bsrc.setData({ type: 'FeatureCollection',
+                     features: beamFor(pb.run, pb.sample, g.ring) });
+    }
   }
   if (g.estimated !== gaze.dashed) {
     gaze.dashed = g.estimated;
@@ -400,6 +414,9 @@ function pbPause() {
   if (b) b.textContent = '\\u25b6';
   if (pb.raf) cancelAnimationFrame(pb.raf);
   pb.raf = null;
+  // The free-running throttle above may have skipped the last rebuild;
+  // a resting map must show the true beam for the current sample (#382).
+  renderGaze();
 }
 
 function pbTick(now) {

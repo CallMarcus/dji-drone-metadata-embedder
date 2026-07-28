@@ -398,6 +398,47 @@ def test_render_reuses_the_ring_cache(serve_map, page):
     assert counts["second"] == 0, "renderGaze recomputed a memoised ring"
 
 
+def test_beam_rebuilds_are_throttled_while_playing(serve_map, page):
+    """#382, measured 2026-07-28: at 60x the beam's staircase costs ~3.1k
+    terrain queries/s on real hardware -- a third of the frame budget spent
+    on lookups alone. While the clock free-runs, beam rebuilds are
+    wall-clock throttled; every paused render (step, scrub, and pbPause
+    itself) rebuilds exactly, so any resting state shows the true beam."""
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
+                    yaws=[90.0] * 6, pitches=[-45.0] * 6, focal=24.0)
+    serve_map(flights_to_3d_html([track], "trip"))
+    _ready(page)
+    counts = page.evaluate(
+        """() => {
+          const orig = beamFor;
+          let n = 0;
+          beamFor = (fl, i, ring) => { n += 1; return orig(fl, i, ring); };
+          pb.playing = true;
+          gaze.beamAt = 0;                  // stale stamp: first build runs
+          pb.sample = 0; renderGaze();
+          const first = n;
+          pb.sample = 1; renderGaze();      // microseconds later: throttled
+          const second = n - first;
+          pb.playing = false;
+          pb.sample = 2; renderGaze();      // paused: always exact
+          const third = n - first - second;
+          pb.playing = true;
+          gaze.beamAt = performance.now();  // fresh stamp: throttled
+          pb.sample = 3; renderGaze();
+          const fourth = n - first - second - third;
+          pbPause();                        // pausing rebuilds exactly
+          const fifth = n - first - second - third - fourth;
+          beamFor = orig;
+          return { first: first, second: second, third: third,
+                   fourth: fourth, fifth: fifth };
+        }""")
+    assert counts["first"] == 1
+    assert counts["second"] == 0, "a free-running rebuild dodged the throttle"
+    assert counts["third"] == 1, "a paused render must rebuild exactly"
+    assert counts["fourth"] == 0
+    assert counts["fifth"] == 1, "pausing must leave the true beam standing"
+
+
 def test_beam_survives_a_cold_mid_ray_dem_sample(serve_map, page):
     """#384: when the camera and corner elevations are known but one mid-ray
     terrainElevAt returns null on a partially warm DEM, that boundary used to
