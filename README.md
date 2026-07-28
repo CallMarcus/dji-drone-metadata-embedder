@@ -412,12 +412,6 @@ range, GPS points) and a layer toggle; the KML imports into Google Earth and
 Google My Maps as one line per flight. SRT files without GPS telemetry
 (e.g. ordinary subtitles) are skipped and counted in a summary; `-v` lists them.
 
-> **Experimental:** `flightmap` is new and its size-split joining heuristics
-> may still be tuned based on real-world feedback. If it joins flights it
-> shouldn't (or misses ones it should), please
-> [open an issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues)
-> with the SRT file names and timestamps.
-
 ```bash
 dji-embed flightmap /path/to/footage                        # -> footage/flightmap.html
 dji-embed flightmap /path/to/footage -f all                 # -> footage/flightmap.{html,kml,geojson}

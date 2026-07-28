@@ -157,11 +157,6 @@ dji-embed convert html DJI_0001.SRT --redact fuzz   # ~100 m coarsened coords
 
 ## Combined flight map (`flightmap`)
 
-> **Experimental:** `flightmap` is new and its size-split joining heuristics
-> may still be tuned based on real-world feedback. If it joins flights it
-> shouldn't (or misses ones it should), please open an issue with the SRT
-> file names and timestamps.
-
 ```bash
 dji-embed flightmap ./footage                    # -> footage/flightmap.html
 dji-embed flightmap ./footage -r                 # scan subdirectories too
