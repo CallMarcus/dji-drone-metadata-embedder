@@ -269,6 +269,16 @@
                                                    IsVisible="{Binding FlightOptions.ThreeD}"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.5" FontSize="11" />
+                                        <CheckBox Name="FlightLinkOriginalsCheck"
+                                                  IsVisible="{Binding FlightOptions.ThreeD}"
+                                                  IsChecked="{Binding FlightOptions.LinkOriginals}"
+                                                  Content="Link the original videos"
+                                                  ToolTip.Tip="Lets the cockpit view blend into the real footage. Needs the videos next to the map, in a format the browser can play (DJI 4K H.265 needs Edge or Chrome)." />
+                                        <TextBlock Name="FlightFuzzCaveatNote"
+                                                   Text="With fuzzed locations the video blend stays off — coarsened coordinates can't honestly be compared against real footage. The links still open the originals, which keep exact GPS in their own metadata."
+                                                   IsVisible="{Binding FlightOptions.ShowsFuzzCaveat}"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="4">

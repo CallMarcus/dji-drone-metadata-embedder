@@ -22,6 +22,11 @@ public enum MapPrivacy
 /// <c>osm-hot</c>, <c>opentopomap</c>, or <c>cyclosm</c>.</param>
 /// <param name="JoinGap">Seconds to chain size-split recordings; 15 = the CLI
 /// default, 0 = don't join.</param>
+/// <param name="LinkOriginals">Embed links to each flight's source videos
+/// (<c>--link-originals</c>), which the 3D cockpit's video crossfade needs.
+/// Only useful with <paramref name="ThreeD"/> — on the flat map the CLI
+/// warns it embeds dead weight — so the builder emits it only alongside
+/// <c>--3d</c> (#392).</param>
 /// <param name="ExportAll">Also write KML + GeoJSON (<c>--format all</c>); the
 /// CLI format is single-valued, so this is one honest toggle, not per-format.</param>
 /// <param name="TzOffset"><c>auto</c> (default) or an explicit UTC offset.</param>
@@ -31,6 +36,7 @@ public sealed record FlightMapOptions(
     string TileStyle,
     MapPrivacy Privacy,
     int JoinGap,
+    bool LinkOriginals,
     bool ExportAll,
     string TzOffset,
     string Title,
@@ -42,6 +48,7 @@ public sealed record FlightMapOptions(
         TileStyle: "osm",
         Privacy: MapPrivacy.Keep,
         JoinGap: 15,
+        LinkOriginals: false,
         ExportAll: false,
         TzOffset: "auto",
         Title: "",

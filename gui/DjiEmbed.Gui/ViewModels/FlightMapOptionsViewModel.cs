@@ -39,6 +39,9 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     public partial int JoinGap { get; set; } = 15;
 
     [ObservableProperty]
+    public partial bool LinkOriginals { get; set; }
+
+    [ObservableProperty]
     public partial bool ExportAll { get; set; }
 
     [ObservableProperty]
@@ -56,12 +59,35 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
         SelectedPrivacy = PrivacyOptions[0];
     }
 
+    /// <summary>
+    /// True when the emitted argv will pair <c>--link-originals</c> with
+    /// <c>--redact fuzz</c> — the 3D map keeps the links but withholds the
+    /// video blend, because coarsened coordinates cannot honestly be
+    /// compared against real footage. Mirrors the photo map's caveat
+    /// (which the CLI prints only to stderr, where the GUI discards it on
+    /// success); gated on ThreeD because without it the builder suppresses
+    /// the flag entirely (#392). A real property so it is assertable
+    /// headless.
+    /// </summary>
+    public bool ShowsFuzzCaveat =>
+        ThreeD && LinkOriginals && SelectedPrivacy.Value == MapPrivacy.Fuzz;
+
+    partial void OnThreeDChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowsFuzzCaveat));
+
+    partial void OnLinkOriginalsChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowsFuzzCaveat));
+
+    partial void OnSelectedPrivacyChanged(PrivacyChoice value) =>
+        OnPropertyChanged(nameof(ShowsFuzzCaveat));
+
     public FlightMapOptions ToOptions() => new(
         Recursive: Recursive,
         ThreeD: ThreeD,
         TileStyle: SelectedTileStyle.Key,
         Privacy: SelectedPrivacy.Value,
         JoinGap: JoinGap,
+        LinkOriginals: LinkOriginals,
         ExportAll: ExportAll,
         TzOffset: TzOffset,
         Title: Title,

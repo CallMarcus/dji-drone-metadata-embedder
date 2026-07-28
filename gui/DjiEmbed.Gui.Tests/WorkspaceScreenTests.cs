@@ -667,6 +667,50 @@ public class WorkspaceScreenTests
         Assert.False(note.IsVisible);
     }
 
+    // #392: the crossfade checkbox appears only while the 3D toggle is on —
+    // the flag does nothing on the flat map, and a control that silently
+    // does nothing is worse than no control. Its fuzz caveat surfaces only
+    // when the emitted argv will actually pair linking with fuzz.
+    [AvaloniaFact]
+    public void Flight_map_link_originals_appears_only_in_three_d()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+        var link = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightLinkOriginalsCheck");
+        Assert.False(link.IsEffectivelyVisible);
+
+        var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>()
+            .Single(t => t.Name == "FlightThreeDToggle");
+        toggle.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(link.IsEffectivelyVisible);
+        Assert.False(link.IsChecked);
+
+        link.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.FlightOptions.LinkOriginals);
+        Assert.Contains("--link-originals", vm.CommandPreview);
+
+        var caveat = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FlightFuzzCaveatNote");
+        Assert.False(caveat.IsVisible);
+        vm.FlightOptions.SelectedPrivacy = vm.FlightOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Fuzz);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(caveat.IsEffectivelyVisible);
+
+        toggle.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(link.IsEffectivelyVisible);
+        Assert.False(caveat.IsEffectivelyVisible);
+        Assert.DoesNotContain("--link-originals", vm.CommandPreview);
+    }
+
     [AvaloniaFact]
     public void Flight_map_clear_output_button_is_bound_to_its_command()
     {
