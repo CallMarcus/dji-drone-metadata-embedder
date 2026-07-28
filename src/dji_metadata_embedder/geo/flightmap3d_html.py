@@ -1301,9 +1301,12 @@ function gazePasses(fl, lngLat) {
   // to name the weakest frame it is offering, not just the first one (the
   // same reasoning gazeRingsFor's own comment gives for keeping the flag per
   // sample -- see #378 whole-branch review, I1).
+  // t1e is where COVERAGE ends -- one interval past the last sample's
+  // timestamp -- so a label built from it reconciles with secs on screen: a
+  // single-sample pass reads t0-(t0+1s) next to "1 s", not t0-t0 (#389).
   const close = () => passes.push({
-    i0: start, i1: prev, t0: times[start], t1: times[prev], secs: secs,
-    est: est, estNotes: notes });
+    i0: start, i1: prev, t0: times[start], t1e: times[prev] + dt(prev),
+    secs: secs, est: est, estNotes: notes });
   hits.forEach(i => {
     if (i > prev + 1) {
       close();
@@ -1402,7 +1405,7 @@ function gazeLookup(ev) {
       b.type = 'button';
       b.className = 'gaze-pass';
       b.textContent = fmtDuration(Math.round(p.t0)) + '\\u2013'
-                    + fmtDuration(Math.round(p.t1));
+                    + fmtDuration(Math.round(p.t1e));
       b.addEventListener('click', () => gazeSeek(fl, p.t0));
       row.appendChild(b);
     });
