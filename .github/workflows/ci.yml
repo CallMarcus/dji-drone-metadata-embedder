@@ -148,12 +148,14 @@ jobs:
       - name: Install Chromium
         if: github.event_name != 'pull_request' || steps.gate.outputs.run == 'true'
         run: uv run playwright install chromium --with-deps
-      # -n 2: rendering is CPU-bound in SwiftShader and the suite is
-      # parallel-safe (ephemeral server ports, atomic asset-cache writes);
-      # verified locally flake-free before enabling.
+      # Deliberately serial: a single Chromium+SwiftShader instance already
+      # saturates this runner's 4 vCPUs, and an xdist -n 2 attempt made the
+      # terrain tests time each other out (7 failures, all DEM waits). The
+      # suite IS parallel-safe (ephemeral ports, atomic asset-cache writes)
+      # — use `-n 2` locally on bigger machines.
       - name: Browser tests
         if: github.event_name != 'pull_request' || steps.gate.outputs.run == 'true'
-        run: uv run pytest tests/browser -n 2 -v
+        run: uv run pytest tests/browser -v
 
   # Desktop GUI (issue #264 stage 3): Avalonia app in gui/. Kept as its own
   # job so the Python matrix is untouched; ubuntu is enough for compile +
