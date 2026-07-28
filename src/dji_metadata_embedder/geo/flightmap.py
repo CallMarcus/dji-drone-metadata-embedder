@@ -317,8 +317,8 @@ def _relative_times(points: list[TrackPoint]) -> list[float]:
         assert base is not None
         raw = [(p.utc - base).total_seconds() for p in points if p.utc is not None]
     else:
-        base_cue = _cue_seconds(points[0].timestamp)
-        raw = [_cue_seconds(p.timestamp) - base_cue for p in points]
+        base_cue = _cue_seconds(points[0].timestamp) or 0.0
+        raw = [(_cue_seconds(p.timestamp) or 0.0) - base_cue for p in points]
     times: list[float] = []
     for t in raw:
         t = round(t, 1)
@@ -365,9 +365,10 @@ def _add_media_props(properties: dict, track: Track) -> None:
     if not track.media:
         return
     properties["media"] = list(track.media)
-    properties["cue_s"] = [
-        round(_cue_seconds(p.timestamp), 3) for p in track.points
-    ]
+    # null, not 0.0, for a corrupt cue: the viewer states "no timecode"
+    # instead of silently seeking the overlay to frame zero (#384).
+    cues = [_cue_seconds(p.timestamp) for p in track.points]
+    properties["cue_s"] = [None if c is None else round(c, 3) for c in cues]
     segs = [p.segment for p in track.points]
     if any(segs):
         properties["seg_i"] = segs
