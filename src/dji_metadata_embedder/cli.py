@@ -1104,15 +1104,26 @@ def fetch_log_cmd(
     with _jsonl_terminal(progress, "fetch-log"):
         paths = [Path(r) for r in records]
         pending: list[Path] = []
+        outputs: list[Path] = []
+        cached = 0
         for p in paths:
-            if cache_path(p).exists():
-                click.echo(
-                    f"{cache_path(p).name} already exists — nothing "
-                    "uploaded (delete it to refetch)."
-                )
+            cached_csv = cache_path(p)
+            if cached_csv.exists():
+                outputs.append(cached_csv)
+                cached += 1
+                if not progress.active:
+                    click.echo(
+                        f"{cached_csv.name} already exists — nothing "
+                        "uploaded (delete it to refetch)."
+                    )
             else:
                 pending.append(p)
         if not pending:
+            progress.result(
+                ok=True,
+                outputs=[str(o.resolve()) for o in outputs],
+                summary={"fetched": 0, "cached": cached, "failed": 0},
+            )
             return
         if progress.active and not yes:
             raise click.UsageError(
@@ -1138,14 +1149,26 @@ def fetch_log_cmd(
                 out = fetch_log(p, key)
             except LogFetchError as e:
                 failures += 1
-                progress.warning(str(e))
-                click.echo(f"Error: {e}", err=True)
+                progress.warning(str(e), item=p.name)
+                if not progress.active:
+                    click.echo(f"Error: {e}", err=True)
             else:
-                click.echo(f"Wrote {out.name}")
+                outputs.append(out)
+                if not progress.active:
+                    click.echo(f"Wrote {out.name}")
         if failures:
             raise click.ClickException(
                 f"{failures} of {len(pending)} records failed"
             )
+        progress.result(
+            ok=True,
+            outputs=[str(o.resolve()) for o in outputs],
+            summary={
+                "fetched": len(pending),
+                "cached": cached,
+                "failed": failures,
+            },
+        )
 
 
 @main.command()

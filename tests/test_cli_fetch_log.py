@@ -1,4 +1,5 @@
 """CLI tests for fetch-log — fetch_log itself is always monkeypatched."""
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -130,3 +131,33 @@ def test_one_failure_continues_and_exits_nonzero(tmp_path, monkeypatch):
     assert "Wrote DJIFlightRecord_A.flightreader.csv" in res.output
     assert "HTTP 402" in res.output
     assert "1 of 2 records failed" in res.output
+
+
+def test_jsonl_stdout_is_pure_json_and_ends_in_result(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(cli_mod, "fetch_log", _fake_ok(calls))
+    fresh = _record(tmp_path, "DJIFlightRecord_A.txt")
+    cached = _record(tmp_path, "DJIFlightRecord_B.txt")
+    cache_path(cached).write_bytes(b"already here")
+    res = CliRunner().invoke(
+        main,
+        ["fetch-log", "--progress", "jsonl", "--yes", str(fresh), str(cached)],
+        env=KEY_ENV,
+    )
+    assert res.exit_code == 0, res.output
+    lines = [ln for ln in res.output.splitlines() if ln.strip()]
+    events = [json.loads(ln) for ln in lines]  # every line must parse
+    assert events[-1]["event"] == "result"
+
+
+def test_jsonl_cache_hit_only_run_still_ends_in_result(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli_mod, "fetch_log", _fake_ok([]))
+    txt = _record(tmp_path)
+    cache_path(txt).write_bytes(b"already here")
+    res = CliRunner().invoke(
+        main, ["fetch-log", "--progress", "jsonl", "--yes", str(txt)],
+        env=KEY_ENV,
+    )
+    assert res.exit_code == 0, res.output
+    events = [json.loads(ln) for ln in res.output.splitlines() if ln.strip()]
+    assert events[-1]["event"] == "result"
