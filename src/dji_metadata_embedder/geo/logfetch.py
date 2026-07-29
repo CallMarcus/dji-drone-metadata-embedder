@@ -15,31 +15,12 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .flightlog import _NOT_AIRCRAFT, _find, FlightLogError, parse_flight_log
+from .flightlog import _COLUMN_SPEC, _find, FlightLogError, parse_flight_log
 
 logger = logging.getLogger(__name__)
 
 _BASE = "https://api.flightreader.com/v1"
 _TIMEOUT_S = 120
-
-# Each wanted column: (slot, needles, excludes) — mirroring the _find
-# calls in flightlog.parse_flight_log. Keep the two in sync, or the API
-# gets asked for a column the merge itself would reject (HOME.latitude,
-# OSD.flyTime as the clock). "time" appears twice: preferred form first,
-# parse_flight_log's fallback second.
-_WANTED: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
-    ("pitch", ("gimbal", "pitch"), ()),
-    ("yaw", ("gimbal", "yaw"), ("360",)),
-    ("yaw", ("gimbal", "heading"), ()),
-    ("yaw", ("gimbal", "yaw"), ()),  # the [360] fallback variant
-    ("utc", ("utc",), ()),
-    ("datetime", ("datetime",), ("utc",)),
-    ("date", ("date",), ("datetime",)),
-    ("time", ("time", "local"), ("date",)),
-    ("time", ("time",), ("date", "datetime", "fly")),
-    ("latitude", ("latitude",), _NOT_AIRCRAFT),
-    ("longitude", ("longitude",), _NOT_AIRCRAFT),
-)
 
 
 class LogFetchError(ValueError):
@@ -86,14 +67,18 @@ def select_fields(available: list[str]) -> list[str] | None:
     identified — the full CSV plus :func:`parse_flight_log`'s own
     detection then judges the result.
     """
+    # Unlike parse_flight_log's first-hit-per-slot, every alternative's
+    # hit is requested — the CSV then carries each candidate column and
+    # the parser applies its own preference order to the result.
     picked: list[str] = []
     hits: set[str] = set()
-    for slot, needles, excludes in _WANTED:
-        hit = _find(available, *needles, exclude=excludes)
-        if hit:
-            hits.add(slot)
-            if hit not in picked:
-                picked.append(hit)
+    for slot, alternatives in _COLUMN_SPEC.items():
+        for needles, exclude in alternatives:
+            hit = _find(available, *needles, exclude=exclude)
+            if hit:
+                hits.add(slot)
+                if hit not in picked:
+                    picked.append(hit)
     has_time = "utc" in hits or "datetime" in hits or (
         "date" in hits and "time" in hits
     )

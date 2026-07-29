@@ -84,6 +84,31 @@ class MergeReport:
 # Columns that look like coordinates but are not the aircraft's position.
 _NOT_AIRCRAFT = ("home", "rc", "remote", "tablet")
 
+# Which export column fills each slot the merge consumes: per slot, the
+# (needles, exclude) alternatives tried in order, first hit winning.
+# Shared with logfetch.select_fields, so the API is asked for exactly the
+# columns parse_flight_log would choose from a hand-made export.
+_COLUMN_SPEC: dict[str, tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]] = {
+    "pitch": ((("gimbal", "pitch"), ()),),
+    # Signed yaw first, then heading, then the [0, 360) variant —
+    # _normalize_yaw folds any of them into signed true-north degrees.
+    "yaw": (
+        (("gimbal", "yaw"), ("360",)),
+        (("gimbal", "heading"), ()),
+        (("gimbal", "yaw"), ()),
+    ),
+    "utc": ((("utc",), ()),),
+    "datetime": ((("datetime",), ("utc",)),),
+    "date": ((("date",), ("datetime",)),),
+    # OSD.flyTime is a stopwatch, not a clock — hence the "fly" exclusion.
+    "time": (
+        (("time", "local"), ("date",)),
+        (("time",), ("date", "datetime", "fly")),
+    ),
+    "latitude": ((("latitude",), _NOT_AIRCRAFT),),
+    "longitude": ((("longitude",), _NOT_AIRCRAFT),),
+}
+
 _ADVICE = (
     "enable the UTC timestamp and the gimbal pitch/yaw fields in the "
     "decoder's export settings (in Flight Reader: GIMBAL.pitch and "
@@ -115,6 +140,14 @@ def _find(
             continue
         if all(n in toks for n in needles):
             return h
+    return None
+
+
+def _find_column(headers: Sequence[str], slot: str) -> str | None:
+    """The header filling *slot*, per _COLUMN_SPEC's preference order."""
+    for needles, exclude in _COLUMN_SPEC[slot]:
+        if hit := _find(headers, *needles, exclude=exclude):
+            return hit
     return None
 
 
@@ -220,25 +253,18 @@ def parse_flight_log(path: Path | str) -> FlightLog:
     reader = csv.DictReader(text.splitlines(), delimiter=delimiter)
     headers = reader.fieldnames or []
 
-    pitch_col = _find(headers, "gimbal", "pitch")
-    yaw_col = _find(headers, "gimbal", "yaw", exclude=("360",)) or _find(
-        headers, "gimbal", "heading"
-    )
-    yaw_360_col = None if yaw_col else _find(headers, "gimbal", "yaw")
-    if pitch_col is None or (yaw_col is None and yaw_360_col is None):
+    pitch_col = _find_column(headers, "pitch")
+    yaw_col = _find_column(headers, "yaw")
+    if pitch_col is None or yaw_col is None:
         raise FlightLogError(
             f"{src.name}: no gimbal pitch/yaw columns found — {_ADVICE}. "
             f"Columns present: {', '.join(headers) or '(none)'}"
         )
-    yaw_col = yaw_col or yaw_360_col
-    assert yaw_col is not None
 
-    utc_col = _find(headers, "utc")
-    datetime_col = _find(headers, "datetime", exclude=("utc",))
-    date_col = _find(headers, "date", exclude=("datetime",))
-    time_col = _find(headers, "time", "local", exclude=("date",)) or _find(
-        headers, "time", exclude=("date", "datetime", "fly")
-    )
+    utc_col = _find_column(headers, "utc")
+    datetime_col = _find_column(headers, "datetime")
+    date_col = _find_column(headers, "date")
+    time_col = _find_column(headers, "time")
     if utc_col is None and datetime_col is None and (
         date_col is None or time_col is None
     ):
@@ -247,8 +273,8 @@ def parse_flight_log(path: Path | str) -> FlightLog:
             f"by time, so {_ADVICE}. A UTC timestamp gives an exact join."
         )
 
-    lat_col = _find(headers, "latitude", exclude=_NOT_AIRCRAFT)
-    lon_col = _find(headers, "longitude", exclude=_NOT_AIRCRAFT)
+    lat_col = _find_column(headers, "latitude")
+    lon_col = _find_column(headers, "longitude")
 
     columns = {
         "pitch": pitch_col,
