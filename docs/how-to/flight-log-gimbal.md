@@ -52,8 +52,8 @@ a flight log requires an internet connection whichever tool you use** —
 the key comes from DJI. There is no offline decoder; that is a property of
 DJI's design, not of any particular product.
 
-1. Get the record onto your computer (see "Getting the TXT off your
-   controller" above).
+1. Get the record onto your computer (see [Getting the TXT off your
+   controller](#getting-the-txt-off-your-controller) above).
 2. Feed it to any decoder that exports CSV — Airdata, Flight Reader,
    PhantomHelp Log Viewer, and others all work. This tool is deliberately
    vendor-neutral: it recognises the *content* of the export, not one
@@ -71,7 +71,7 @@ DJI's design, not of any particular product.
 If you have a [Flight Reader API](https://www.flightreader.com/api/) key,
 `fetch-log` does the decode step for you:
 
-    set FLIGHTREADER_API_KEY=sk_...        # or export, on macOS/Linux
+    $env:FLIGHTREADER_API_KEY = "sk_..."   # PowerShell; use  export FLIGHTREADER_API_KEY=sk_...  on macOS/Linux
     dji-embed fetch-log DJIFlightRecord_2026-07-27_[17-28-49].txt
     dji-embed flightmap D:\Flights --3d --flight-log DJIFlightRecord_2026-07-27_[17-28-49].flightreader.csv
 
