@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `dji-embed fetch-log` — opt-in decode of TXT flight records through the
+  Flight Reader API with your own key (`FLIGHTREADER_API_KEY`); writes
+  `NAME.flightreader.csv` beside each record for `flightmap --flight-log`,
+  never uploads the same record twice, and states plainly that the whole
+  log is transmitted (#390).
+- `tools/mtp-copy.ps1` — bulk-copy flight records off a DJI RC over
+  USB/MTP, plus a how-to walkthrough for finding them by hand (#390).
+
 ### Changed
 
 - Photo map hover previews are now opt-in ([#345]): pins go straight to the
