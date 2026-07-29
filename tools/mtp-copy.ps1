@@ -31,9 +31,21 @@ $records = @()
 $deviceName = $null
 foreach ($dev in $pc.Items()) {
   if (-not $dev.IsFolder) { continue }
-  foreach ($storage in $dev.GetFolder.Items()) {
+  # Fixed drives, empty card readers, and dropped network shares all live
+  # under "This PC" too, and their COM folder calls can throw or return
+  # null - skip anything that will not enumerate cleanly.
+  try {
+    $devFolder = $dev.GetFolder
+    if ($null -eq $devFolder) { continue }
+    $storages = @($devFolder.Items())
+  } catch { continue }
+  foreach ($storage in $storages) {
     if (-not $storage.IsFolder) { continue }
-    $found = @($storage.GetFolder.Items() | Where-Object { $_.Name -like $Filter })
+    try {
+      $storageFolder = $storage.GetFolder
+      if ($null -eq $storageFolder) { continue }
+      $found = @($storageFolder.Items() | Where-Object { $_.Name -like $Filter })
+    } catch { continue }
     if ($found.Count -gt 0) {
       $records = $found
       $deviceName = $dev.Name
@@ -57,7 +69,7 @@ if (-not (Test-Path $Destination)) {
 }
 $destFolder = $shell.NameSpace((Resolve-Path $Destination).Path)
 
-$existing = @(Get-ChildItem -Path $Destination -Filter '*.txt' -ErrorAction SilentlyContinue |
+$existing = @(Get-ChildItem -Path $Destination -Filter $Filter -ErrorAction SilentlyContinue |
               ForEach-Object { $_.Name })
 $want = @($records | Where-Object { $existing -notcontains $_.Name })
 Write-Output ("Copying {0} new record(s) to {1} ({2} already there)." -f
@@ -70,13 +82,19 @@ foreach ($r in $want) {
 
 # CopyHere is asynchronous over MTP; wait for the files to land.
 $target = $existing.Count + $want.Count
-for ($t = 0; $t -lt $TimeoutSeconds; $t++) {
-  Start-Sleep -Seconds 1
-  $have = @(Get-ChildItem -Path $Destination -Filter '*.txt' -ErrorAction SilentlyContinue)
-  if ($have.Count -ge $target) { break }
+if ($want.Count -gt 0) {
+  for ($t = 0; $t -lt $TimeoutSeconds; $t++) {
+    Start-Sleep -Seconds 1
+    $have = @(Get-ChildItem -Path $Destination -Filter $Filter -ErrorAction SilentlyContinue)
+    if ($have.Count -ge $target) { break }
+  }
+  $have = @(Get-ChildItem -Path $Destination -Filter $Filter -ErrorAction SilentlyContinue)
+  if ($have.Count -lt $target) {
+    Write-Output ("WARNING: timed out after {0}s with {1} of {2} files landed - MTP copies may still be in flight." -f $TimeoutSeconds, $have.Count, $target)
+  }
 }
 
-$landed = @(Get-ChildItem -Path $Destination -Filter '*.txt')
+$landed = @(Get-ChildItem -Path $Destination -Filter $Filter)
 Write-Output ''
 Write-Output ("{0} record(s) now in {1}:" -f $landed.Count, $Destination)
 $landed | Sort-Object Name | ForEach-Object {
