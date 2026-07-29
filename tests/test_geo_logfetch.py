@@ -1,4 +1,5 @@
 """Unit tests for geo/logfetch.py — no network, ever."""
+import csv
 import io
 import json
 from pathlib import Path
@@ -6,6 +7,7 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
+from dji_metadata_embedder.geo.flightlog import parse_flight_log
 from dji_metadata_embedder.geo.logfetch import (
     LogFetchError,
     _field_names,
@@ -90,6 +92,59 @@ def test_select_fields_does_not_mistake_flytime_for_the_clock():
     assert picked is not None
     assert "CUSTOM.updateTime [local]" in picked
     assert "OSD.flyTime [s]" not in picked
+
+
+# One plausible value per known header, for building throwaway exports.
+_ROW_VALUES = {
+    "CUSTOM.date [local]": "2026-07-27",
+    "CUSTOM.updateTime [local]": "17:28:49.5",
+    "CUSTOM.updateTime [utc]": "2026-07-27 15:28:49.0",
+    "OSD.flyTime [s]": "12.3",
+    "OSD.latitude": "59.3",
+    "OSD.longitude": "18.1",
+    "HOME.latitude": "59.0",
+    "HOME.longitude": "18.0",
+    "GIMBAL.pitch": "-45.0",
+    "GIMBAL.yaw": "123.4",
+    "GIMBAL.yaw [360]": "303.4",
+    "GIMBAL.heading": "123.4",
+    "GIMBAL.roll": "0.0",
+}
+
+
+def _one_row_csv(headers: list[str]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(headers)
+    writer.writerow([_ROW_VALUES[h] for h in headers])
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        FR_FIELDS,
+        FR_FIELDS + ["CUSTOM.updateTime [utc]"],
+        ["GIMBAL.pitch", "GIMBAL.heading",
+         "CUSTOM.date [local]", "CUSTOM.updateTime [local]"],
+        ["GIMBAL.pitch", "GIMBAL.yaw [360]",
+         "CUSTOM.date [local]", "CUSTOM.updateTime [local]"],
+    ],
+)
+def test_select_fields_stays_in_sync_with_the_parser(tmp_path, headers):
+    """The contract with parse_flight_log: a CSV limited to the picked
+    fields must parse to exactly the rows the full export would give —
+    otherwise the API was asked for less than the merge consumes."""
+    picked = select_fields(headers)
+    assert picked is not None
+    full = tmp_path / "full.csv"
+    full.write_text(_one_row_csv(headers), encoding="utf-8")
+    sub = tmp_path / "picked.csv"
+    sub.write_text(
+        _one_row_csv([h for h in headers if h in picked]), encoding="utf-8"
+    )
+    assert parse_flight_log(sub).rows == parse_flight_log(full).rows
+    assert parse_flight_log(sub).time_base == parse_flight_log(full).time_base
 
 
 def test_field_names_accepts_a_list_of_strings():

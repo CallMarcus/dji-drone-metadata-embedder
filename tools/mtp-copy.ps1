@@ -31,9 +31,14 @@ $records = @()
 $deviceName = $null
 foreach ($dev in $pc.Items()) {
   if (-not $dev.IsFolder) { continue }
-  # Fixed drives, empty card readers, and dropped network shares all live
-  # under "This PC" too, and their COM folder calls can throw or return
-  # null - skip anything that will not enumerate cleanly.
+  # Only portable (WPD) devices carry a shell-namespace path ("::{...");
+  # fixed drives (C:\) and network locations (\\server\share) have real
+  # paths. Skipping them keeps a local folder that happens to hold
+  # matching files - like a previous run's destination - from being
+  # mistaken for the RC and silently re-copied from.
+  if ($dev.Path -notlike '::{*') { continue }
+  # A locked or half-attached device can still throw or return null from
+  # its COM folder calls - skip anything that will not enumerate cleanly.
   try {
     $devFolder = $dev.GetFolder
     if ($null -eq $devFolder) { continue }
