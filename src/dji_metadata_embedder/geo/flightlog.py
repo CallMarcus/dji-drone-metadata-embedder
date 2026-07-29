@@ -84,11 +84,14 @@ class MergeReport:
 # Columns that look like coordinates but are not the aircraft's position.
 _NOT_AIRCRAFT = ("home", "rc", "remote", "tablet")
 
+# One way of spelling a slot's column: (needles, exclude) for _find.
+_Alternative = tuple[tuple[str, ...], tuple[str, ...]]
+
 # Which export column fills each slot the merge consumes: per slot, the
 # (needles, exclude) alternatives tried in order, first hit winning.
 # Shared with logfetch.select_fields, so the API is asked for exactly the
 # columns parse_flight_log would choose from a hand-made export.
-_COLUMN_SPEC: dict[str, tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]] = {
+_COLUMN_SPEC: dict[str, tuple[_Alternative, ...]] = {
     "pitch": ((("gimbal", "pitch"), ()),),
     # Signed yaw first, then heading, then the [0, 360) variant —
     # _normalize_yaw folds any of them into signed true-north degrees.
