@@ -1,10 +1,12 @@
 """Unit tests for geo/logfetch.py — no network, ever."""
+import io
 import json
 from pathlib import Path
 
 from dji_metadata_embedder.geo.logfetch import (
     _field_names,
     cache_path,
+    fetch_log,
     select_fields,
 )
 
@@ -98,3 +100,71 @@ def test_field_names_accepts_objects_with_a_name_key():
 def test_field_names_returns_empty_on_surprises():
     assert _field_names(b"not json at all") == []
     assert _field_names(json.dumps({"unexpected": 1}).encode()) == []
+
+
+# Flight Reader-shaped CSV (same shape test_geo_flightlog.py validates):
+# quoted decimal-comma values, 12-hour local clock.
+CSV_BODY = (
+    '"CUSTOM.date [local]","CUSTOM.updateTime [local]","OSD.latitude",'
+    '"OSD.longitude","GIMBAL.pitch","GIMBAL.yaw"\n'
+    '"2026-07-27","2:00:00,0 pm","59,33459","18,06324","-60,0","-10,0"\n'
+    '"2026-07-27","2:00:01,0 pm","59,33460","18,06325","-61,0","-9,0"\n'
+).encode()
+
+FIELDS_BODY = json.dumps([
+    "CUSTOM.date [local]", "CUSTOM.updateTime [local]",
+    "OSD.latitude", "OSD.longitude", "GIMBAL.pitch", "GIMBAL.yaw",
+]).encode()
+
+
+class FakeTransport:
+    """urlopen-shaped: records every Request, replays queued responses."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.requests = []
+
+    def __call__(self, req, *, timeout=None):
+        self.requests.append(req)
+        result = self.responses.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return io.BytesIO(result)
+
+
+def _txt(tmp_path):
+    txt = tmp_path / "DJIFlightRecord_2026-07-27_[17-28-49].txt"
+    txt.write_bytes(b"\x0a encrypted-record-bytes")
+    return txt
+
+
+def test_fetch_log_happy_path_writes_the_cache(tmp_path):
+    transport = FakeTransport([FIELDS_BODY, CSV_BODY])
+    out = fetch_log(_txt(tmp_path), "sk_test", transport=transport)
+    assert out.read_bytes() == CSV_BODY
+    assert out.name == "DJIFlightRecord_2026-07-27_[17-28-49].flightreader.csv"
+    fields_req, post_req = transport.requests
+    assert fields_req.full_url == "https://api.flightreader.com/v1/fields"
+    assert fields_req.get_header("Authorization") == "Bearer sk_test"
+    assert post_req.full_url == "https://api.flightreader.com/v1/logs"
+    assert post_req.get_method() == "POST"
+    assert b"GIMBAL.pitch" in post_req.data          # fields preselection
+    assert b"encrypted-record-bytes" in post_req.data  # the file itself
+    assert "sk_test" not in repr(post_req.data)
+
+
+def test_fetch_log_cache_hit_makes_no_network_calls(tmp_path):
+    txt = _txt(tmp_path)
+    cache = txt.with_name(txt.stem + ".flightreader.csv")
+    cache.write_bytes(CSV_BODY)
+    transport = FakeTransport([])
+    out = fetch_log(txt, "sk_test", transport=transport)
+    assert out == cache
+    assert transport.requests == []
+
+
+def test_fetch_log_falls_back_to_full_csv_when_fields_are_odd(tmp_path):
+    transport = FakeTransport([b"weird payload", CSV_BODY])
+    fetch_log(_txt(tmp_path), "sk_test", transport=transport)
+    post_req = transport.requests[1]
+    assert b'name="fields"' not in post_req.data  # no preselection sent
