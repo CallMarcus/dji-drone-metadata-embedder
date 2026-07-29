@@ -29,17 +29,21 @@ $pc = $shell.NameSpace(17)  # "This PC", where portable devices appear
 # reliable across RC models, so probe contents instead.
 $records = @()
 $deviceName = $null
+$skipped = @()
 foreach ($dev in $pc.Items()) {
   if (-not $dev.IsFolder) { continue }
-  # Only portable (WPD) devices carry a shell-namespace path ("::{...");
-  # fixed drives (C:\) and network locations (\\server\share) have real
-  # paths. Skipping them keeps a local folder that happens to hold
-  # matching files - like a previous run's destination - from being
-  # mistaken for the RC and silently re-copied from.
-  if ($dev.Path -notlike '::{*') { continue }
   # A locked or half-attached device can still throw or return null from
-  # its COM folder calls - skip anything that will not enumerate cleanly.
+  # its COM calls - skip anything that will not enumerate cleanly.
   try {
+    # Only portable (WPD) devices carry a shell-namespace path ("::{...");
+    # fixed drives (C:\) and network locations (\\server\share) have real
+    # paths. Skipping them keeps a local folder that happens to hold
+    # matching files - like a previous run's destination - from being
+    # mistaken for the RC and silently re-copied from.
+    if ($dev.Path -notlike '::{*') {
+      $skipped += ('{0} ({1})' -f $dev.Name, $dev.Path)
+      continue
+    }
     $devFolder = $dev.GetFolder
     if ($null -eq $devFolder) { continue }
     $storages = @($devFolder.Items())
@@ -64,6 +68,11 @@ if (-not $deviceName) {
   Write-Output "No flight records matching '$Filter' found on any portable device."
   Write-Output 'Is the RC plugged in over USB, powered on, and unlocked?'
   Write-Output '(Records sit at the root of "Internal shared storage".)'
+  # Say what was ruled out, so "the filter skipped the RC" and "the RC
+  # was never there" do not produce the same silence.
+  if ($skipped.Count -gt 0) {
+    Write-Output ("Ignored {0} non-portable item(s): {1}" -f $skipped.Count, ($skipped -join ', '))
+  }
   exit 1
 }
 

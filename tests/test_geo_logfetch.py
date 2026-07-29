@@ -73,6 +73,21 @@ def test_select_fields_skips_home_and_rc_coordinates():
     assert "RC.latitude" not in picked
 
 
+def test_select_fields_requests_every_alternative_not_just_the_first():
+    """The over-request hedge: when several columns could fill a slot,
+    all of them are asked for — the parser applies its own preference to
+    the fetched CSV, so a first-hit shortcut here would silently narrow
+    what the paid response can carry."""
+    fields = [
+        "GIMBAL.pitch", "GIMBAL.yaw", "GIMBAL.heading",
+        "CUSTOM.date [local]", "CUSTOM.updateTime [local]",
+    ]
+    picked = select_fields(fields)
+    assert picked is not None
+    assert "GIMBAL.yaw" in picked
+    assert "GIMBAL.heading" in picked
+
+
 def test_select_fields_finds_signed_yaw_behind_the_360_variant():
     fields = [
         "GIMBAL.yaw [360]", "GIMBAL.yaw", "GIMBAL.pitch",
@@ -145,6 +160,15 @@ def test_select_fields_stays_in_sync_with_the_parser(tmp_path, headers):
     )
     assert parse_flight_log(sub).rows == parse_flight_log(full).rows
     assert parse_flight_log(sub).time_base == parse_flight_log(full).time_base
+    # The API may return the picked columns in any order; the parse must
+    # not depend on the export's native ordering.
+    rev = tmp_path / "picked_reversed.csv"
+    rev.write_text(
+        _one_row_csv([h for h in reversed(headers) if h in picked]),
+        encoding="utf-8",
+    )
+    assert parse_flight_log(rev).rows == parse_flight_log(full).rows
+    assert parse_flight_log(rev).time_base == parse_flight_log(full).time_base
 
 
 def test_field_names_accepts_a_list_of_strings():
