@@ -733,6 +733,72 @@ def test_verify_sun_jsonl_rejects_format_json(tmp_path):
     assert "--format" in res.output and "--progress" in res.output
 
 
+def test_fetch_log_jsonl_happy_path(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+    from dji_metadata_embedder.geo.logfetch import cache_path
+
+    calls = []
+
+    def fake(txt, key):
+        calls.append((Path(txt), key))
+        out = cache_path(Path(txt))
+        out.write_bytes(b"csv")
+        return out
+
+    monkeypatch.setattr(cli_mod, "fetch_log", fake)
+    a = tmp_path / "DJIFlightRecord_A.txt"
+    b = tmp_path / "DJIFlightRecord_B.txt"
+    a.write_bytes(b"\x0a record")
+    b.write_bytes(b"\x0a record")
+    res = CliRunner().invoke(
+        main,
+        ["fetch-log", "--progress", "jsonl", "--yes", str(a), str(b)],
+        env={"FLIGHTREADER_API_KEY": "sk_test"},
+    )
+    assert res.exit_code == 0, res.output
+    events = _events(res.stdout)
+    assert events[0]["command"] == "fetch-log"
+    last = events[-1]
+    assert last["event"] == "result" and last["ok"] is True
+    assert sorted(last["outputs"]) == sorted(
+        str(p.resolve()) for p in (cache_path(a), cache_path(b))
+    )
+    assert last["summary"] == {"fetched": 2, "cached": 0, "failed": 0}
+    assert len(calls) == 2
+
+
+def test_fetch_log_jsonl_one_failure_ends_in_error(monkeypatch, tmp_path):
+    from dji_metadata_embedder import cli as cli_mod
+    from dji_metadata_embedder.geo.logfetch import LogFetchError, cache_path
+
+    good = tmp_path / "DJIFlightRecord_A.txt"
+    bad = tmp_path / "DJIFlightRecord_B.txt"
+    good.write_bytes(b"\x0a record")
+    bad.write_bytes(b"\x0a record")
+
+    def fake(txt, key):
+        if Path(txt) == bad:
+            raise LogFetchError(
+                "DJIFlightRecord_B.txt: the API answered HTTP 402: "
+                "insufficient balance"
+            )
+        out = cache_path(Path(txt))
+        out.write_bytes(b"csv")
+        return out
+
+    monkeypatch.setattr(cli_mod, "fetch_log", fake)
+    res = CliRunner().invoke(
+        main,
+        ["fetch-log", "--progress", "jsonl", "--yes", str(good), str(bad)],
+        env={"FLIGHTREADER_API_KEY": "sk_test"},
+    )
+    assert res.exit_code != 0
+    events = _events(res.stdout)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1 and warnings[0]["item"] == "DJIFlightRecord_B.txt"
+    assert events[-1]["event"] == "error"
+
+
 def test_doctor_jsonl_never_runs_the_online_update_check(monkeypatch):
     # Consent for going online is interactive-only; a machine consumer of
     # the event stream must never trigger the network path.

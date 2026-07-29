@@ -231,7 +231,7 @@ def _jsonl_terminal(
 
 
 # Shared by every progress-wired command (photomap/flightmap/embed/check/
-# doctor/convert/validate/verify-sun). Contract: docs/PROGRESS_JSONL.md.
+# doctor/convert/validate/verify-sun/fetch-log). Contract: docs/PROGRESS_JSONL.md.
 _progress_option = click.option(
     "--progress",
     "progress_mode",

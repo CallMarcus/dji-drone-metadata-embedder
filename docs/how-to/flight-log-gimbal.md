@@ -32,8 +32,10 @@ the extension they are encrypted binary, not text.
    at the **root** of that storage, not in a folder.
 3. Copy the `DJIFlightRecord_*.txt` files anywhere on your computer.
 
-Or let the bundled helper do it (Windows; copies only records you do not
-already have):
+Or let the [helper script from the
+repository](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/master/tools/mtp-copy.ps1)
+do it (Windows; copies only records you do not already have) — it is not
+shipped in the installed package, so grab it from the repo first:
 
     powershell -ExecutionPolicy Bypass -File tools\mtp-copy.ps1
 
