@@ -1,7 +1,7 @@
 # `--progress jsonl` — machine-readable progress events
 
 `photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`, `validate`,
-and `verify-sun` accept `--progress jsonl`. In
+`verify-sun`, and `fetch-log` accept `--progress jsonl`. In
 this mode a command writes **one JSON object per line to stdout** and nothing
 else — human/informational output is suppressed, and warnings and log
 messages go to stderr. A non-zero exit code always means the run failed;
@@ -143,6 +143,27 @@ field, never by arrival order.
 - `outputs` is empty; `summary` is the sun summary dict (`file`, `points`,
   `sun_computed`, `utc_start`/`utc_end`, elevation/azimuth stats, `flags`).
 - `--format json` cannot be combined with `--progress jsonl`.
+
+### `fetch-log`
+- `--progress jsonl` requires `--yes`: the consent prompt cannot be answered
+  under jsonl (there is no stdin round-trip in the contract), so consent
+  must be obtained by the frontend before invoking the command; omitting
+  `--yes` is a usage error. It also requires `FLIGHTREADER_API_KEY` to
+  already be set in the environment — there is no key prompt under jsonl
+  either.
+- One `progress` event is not emitted per record; records that already have
+  a cached CSV are skipped silently and counted in `summary.cached`.
+- A successful run — including a run where every record was a cache hit and
+  nothing was uploaded — ends in `result` with `outputs` = absolute paths of
+  every available CSV (both previously cached and newly fetched) and
+  `summary`: `{"fetched": N, "cached": N, "failed": 0}`. `failed` is always
+  `0` in a `result` event: any per-record failure instead ends the run in
+  `error` (see next point), so a non-zero `failed` never reaches `result`.
+- A record that fails to fetch (e.g. the API rejects it) is reported as a
+  `warning` event (`item` = the record's file name) and the run continues
+  to the remaining records; if any record failed, the stream still
+  terminates with a single `error` event (not `result`) and a non-zero
+  exit code, per the terminal rule.
 
 ## Relation to `--log-json`
 

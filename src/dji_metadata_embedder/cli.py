@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import webbrowser
 import click
@@ -44,6 +45,7 @@ from .geo import (
     write_photos_kml,
 )
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
+from .geo.logfetch import LogFetchError, cache_path, fetch_log
 from .geo.media import resolve_media
 from .mp4_telemetry import Mp4TelemetryError
 from .progress import NullProgress, make_progress
@@ -229,7 +231,7 @@ def _jsonl_terminal(
 
 
 # Shared by every progress-wired command (photomap/flightmap/embed/check/
-# doctor/convert/validate/verify-sun). Contract: docs/PROGRESS_JSONL.md.
+# doctor/convert/validate/verify-sun/fetch-log). Contract: docs/PROGRESS_JSONL.md.
 _progress_option = click.option(
     "--progress",
     "progress_mode",
@@ -1053,6 +1055,118 @@ def flightmap(
                 "flights": len(tracks),
                 "skipped": len(skipped),
                 "joined_files": files_joined,
+            },
+        )
+
+
+# Verbatim from the #390 spec — the fact, with the deletion claim
+# attributed. Do not reword without amending the spec.
+_FETCH_CONSENT = (
+    "This uploads your entire flight log to Flight Reader to decrypt it.\n"
+    "Your exact coordinates — and everything else the log records — leave\n"
+    "your computer (they state uploads are deleted immediately after\n"
+    "processing)."
+)
+
+
+@main.command(name="fetch-log")
+@click.argument(
+    "records", nargs=-1, required=True,
+    type=click.Path(exists=True, dir_okay=False),
+)
+@click.option(
+    "--yes", is_flag=True,
+    help="Skip the upload consent prompt (required with --progress jsonl; "
+         "the desktop app asks for consent in its own UI).",
+)
+@_progress_option
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+def fetch_log_cmd(
+    records: tuple[str, ...],
+    yes: bool,
+    progress_mode: str | None,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Decrypt TXT flight records via the Flight Reader API (opt-in).
+
+    Uploads each record to flightreader.com with YOUR OWN API key
+    (FLIGHTREADER_API_KEY) and writes the decoded CSV beside it as
+    NAME.flightreader.csv, ready for 'flightmap --flight-log'. A record
+    whose CSV already exists is never uploaded again — delete the CSV to
+    refetch. See the flight-log how-to for what is transmitted.
+    """
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True
+    setup_logging(verbose, quiet)
+    with _jsonl_terminal(progress, "fetch-log"):
+        paths = [Path(r) for r in records]
+        pending: list[Path] = []
+        outputs: list[Path] = []
+        cached = 0
+        for p in paths:
+            cached_csv = cache_path(p)
+            if cached_csv.exists():
+                outputs.append(cached_csv)
+                cached += 1
+                if not progress.active:
+                    click.echo(
+                        f"{cached_csv.name} already exists — nothing "
+                        "uploaded (delete it to refetch)."
+                    )
+            else:
+                pending.append(p)
+        if not pending:
+            progress.result(
+                ok=True,
+                outputs=[str(o.resolve()) for o in outputs],
+                summary={"fetched": 0, "cached": cached, "failed": 0},
+            )
+            return
+        if progress.active and not yes:
+            raise click.UsageError(
+                "--progress jsonl cannot answer the consent prompt; "
+                "pass --yes after obtaining consent in your own UI"
+            )
+        if not yes:
+            click.echo(_FETCH_CONSENT)
+            if not click.confirm("Proceed?", default=False):
+                click.echo("Nothing sent.")
+                return
+        key = os.environ.get("FLIGHTREADER_API_KEY")
+        if not key:
+            if progress.active:
+                raise click.ClickException(
+                    "FLIGHTREADER_API_KEY is not set — the jsonl contract "
+                    "has no key prompt; export the variable"
+                )
+            key = click.prompt("Flight Reader API key", hide_input=True)
+        failures = 0
+        for p in pending:
+            try:
+                out = fetch_log(p, key)
+            except LogFetchError as e:
+                failures += 1
+                progress.warning(str(e), item=p.name)
+                if not progress.active:
+                    click.echo(f"Error: {e}", err=True)
+            else:
+                outputs.append(out)
+                if not progress.active:
+                    click.echo(f"Wrote {out.name}")
+        if failures:
+            raise click.ClickException(
+                f"{failures} of {len(pending)} records failed"
+            )
+        progress.result(
+            ok=True,
+            outputs=[str(o.resolve()) for o in outputs],
+            summary={
+                "fetched": len(pending),
+                "cached": cached,
+                "failed": failures,
             },
         )
 
