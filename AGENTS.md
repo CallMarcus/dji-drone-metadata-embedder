@@ -114,8 +114,10 @@ test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
 
 ## GUI design constraints (binding)
 
-The binding spec is now `docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md`
-("GUI 2.0") — read it before extending the desktop app. It amends the
+The binding spec is the "GUI 2.0" design of 2026-07-18 — read it before
+extending the desktop app. Design specs are local-only working notes since
+2026-07-29; this one remains in git history at
+[`docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md` (permalink)](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/e51ab2a/docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md). It amends the
 original 2026-07-14 design: a single window, split into a source/mode/action
 column on the left and a preview pane on the right, replaces the three
 task-flow pages. The mode strip tops out at six modes (Embed, Flight map,
