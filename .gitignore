@@ -105,9 +105,11 @@ test/
 # MkDocs build output
 site/
 
-# Local-only working notes: implementation plans stay on the maintainer's
-# machine; design specs under docs/superpowers/specs/ remain committed.
+# Local-only working notes: implementation plans and design specs stay on
+# the maintainer's machine (specs committed before 2026-07-29 remain in
+# git history).
 docs/superpowers/plans/
+docs/superpowers/specs/
 
 # Windows shortcuts (e.g. "samples - Shortcut.lnk")
 *.lnk

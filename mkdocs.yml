@@ -6,6 +6,7 @@ exclude_docs: |
   research/
   outreach/
   superpowers/plans/
+  superpowers/specs/
 nav:
   - Home: index.md
   - Installation: installation.md

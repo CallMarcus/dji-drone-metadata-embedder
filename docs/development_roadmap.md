@@ -46,7 +46,7 @@ from pre-existing environmental gaps.
   with a CLI-transparency strip, an inline map preview pane, and persisted
   recents/window state. It is a thin frontend that shells out to the
   bundled CLI over the `--progress jsonl` contract (see
-  `desktop-app.md` and the GUI 2.0 spec under `superpowers/specs/`).
+  `desktop-app.md` and the [GUI 2.0 spec (git history)](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/e51ab2a/docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md)).
 - The Flask-based `dji-embed ui` local web UI was removed in v2.0.0 after
   a deprecation cycle; a legacy Tk skeleton was removed earlier, in the
   2026-06 cleanup pass.
@@ -91,7 +91,7 @@ from pre-existing environmental gaps.
   availability, then spin off per-model parser issues following the "Adding
   Support for New DJI Models" checklist in `AGENTS.md`.
 - **Geospatial / mapping — SHIPPED.** The three-phase plan in
-  [`docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md`](superpowers/specs/2026-06-04-flight-path-mapping-design.md)
+  [the 2026-06-04 flight-path-mapping design (git history)](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/e51ab2a/docs/superpowers/specs/2026-06-04-flight-path-mapping-design.md)
   is complete: GeoJSON/KML **track export** (#215/#223, `dji-embed convert
   geojson|kml`), the **standalone HTML viewer** (#221, `convert html`,
   Leaflet/OSM, no API key, v1.7.0), the **interactive map panel in the web UI**
