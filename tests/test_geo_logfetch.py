@@ -2,8 +2,12 @@
 import io
 import json
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+
+import pytest
 
 from dji_metadata_embedder.geo.logfetch import (
+    LogFetchError,
     _field_names,
     cache_path,
     fetch_log,
@@ -168,3 +172,55 @@ def test_fetch_log_falls_back_to_full_csv_when_fields_are_odd(tmp_path):
     fetch_log(_txt(tmp_path), "sk_test", transport=transport)
     post_req = transport.requests[1]
     assert b'name="fields"' not in post_req.data  # no preselection sent
+
+
+def _http_error(code, reason, body=b""):
+    return HTTPError("https://api.flightreader.com/v1/x", code, reason,
+                     None, io.BytesIO(body))
+
+
+def test_401_on_fields_aborts_before_the_billable_call(tmp_path):
+    transport = FakeTransport([_http_error(401, "Unauthorized")])
+    with pytest.raises(LogFetchError, match="FLIGHTREADER_API_KEY"):
+        fetch_log(_txt(tmp_path), "sk_bad", transport=transport)
+    assert len(transport.requests) == 1  # POST /v1/logs never happened
+
+
+def test_post_http_error_carries_status_and_provider_message(tmp_path):
+    transport = FakeTransport(
+        [FIELDS_BODY, _http_error(402, "Payment Required",
+                                  b"insufficient balance")]
+    )
+    with pytest.raises(LogFetchError, match="HTTP 402.*insufficient balance"):
+        fetch_log(_txt(tmp_path), "sk_test", transport=transport)
+
+
+def test_network_error_says_rerunning_is_safe(tmp_path):
+    transport = FakeTransport([FIELDS_BODY, URLError("timed out")])
+    with pytest.raises(LogFetchError, match="re-running is safe"):
+        fetch_log(_txt(tmp_path), "sk_test", transport=transport)
+
+
+def test_non_csv_response_writes_nothing(tmp_path):
+    txt = _txt(tmp_path)
+    transport = FakeTransport([FIELDS_BODY, b'{"error": "oops"}'])
+    with pytest.raises(LogFetchError, match="other than CSV"):
+        fetch_log(txt, "sk_test", transport=transport)
+    assert not (txt.with_name(txt.stem + ".flightreader.csv")).exists()
+
+
+def test_verification_failure_keeps_the_paid_file(tmp_path):
+    txt = _txt(tmp_path)
+    no_gimbal = b'"OSD.latitude","OSD.longitude"\n"59,3","18,0"\n'
+    transport = FakeTransport([FIELDS_BODY, no_gimbal])
+    with pytest.raises(LogFetchError, match="fetched and kept"):
+        fetch_log(txt, "sk_test", transport=transport)
+    cache = txt.with_name(txt.stem + ".flightreader.csv")
+    assert cache.read_bytes() == no_gimbal  # kept — it cost money
+
+
+def test_requests_carry_the_dji_embed_user_agent(tmp_path):
+    transport = FakeTransport([FIELDS_BODY, CSV_BODY])
+    fetch_log(_txt(tmp_path), "sk_test", transport=transport)
+    for req in transport.requests:
+        assert req.get_header("User-agent") == "dji-embed"
