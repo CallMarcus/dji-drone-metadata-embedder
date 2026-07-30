@@ -33,6 +33,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.3.0] - 2026-07-30
+
+### Added
+
+- **cli**: Fetch-log — opt-in Flight Reader API decode (#390) (63e3794)
+- **geo**: --flight-log CSV ingestion — true gimbal attitude for SRT-only drones (#374) (ccc3281)
+- **geo**: Fetch_log with cache-as-politeness and field preselection (#390) (dfdfa8b)
+- **geo**: Logfetch field selection and cache naming (#390) (d47c7d4)
+- **gui**: Flight map Link original videos option, 3D-only (#392) (3abcc1a)
+- **tools**: Mtp-copy.ps1 — bulk-copy flight records off an RC (#390) (5dbc304)
+
+### Changed
+
+- **geo**: Single _COLUMN_SPEC feeds flightlog and logfetch (#410) (63f08b1)
+
+### Fixed
+
+- **cli**: Keep fetch-log's jsonl stream pure and terminal (#390) (9c13add)
+- **cli,docs**: Teach the jsonl contract about fetch-log (#390) (231366b)
+- **geo**: Live Flight Reader API E2E findings — real envelope, per-field parts, UTC pair, epoch (#390) (#417) (fd6b50c)
+- **geo**: Mirror parse_flight_log's exclude sets in select_fields (#390) (a105019)
+- **geo**: Rebuild a flight-global clock from per-segment cues (#386) (26231d3)
+- **tools**: Mtp-copy.ps1 probes only WPD portable devices (#411) (2e79203)
+- **tools**: Mtp-copy.ps1 survives non-portable This PC entries, honors -Filter (#390) (f2c72c2)
+
+### Documentation
+
+- RC retrieval walkthrough + fetch-log how-to (#390) (c3dff58)
+- Auto-generate changelog for v2.2.1 (9a2b8ac)
+- Correct env-var syntax per shell in the fetch-log example (#390) (bf9006e)
+- Retire the two Experimental banners #393 missed (24f5256)
+- Stage the #390 decoder-API fetcher as a five-stage roadmap (41df614)
+
+### Testing
+
+- **geo**: Lock fetch_log's error contract (#390) (e5ddb90)
+
+### CI/CD
+
+- Early-exit + 2-way shard for the required browser leg (86ff754)
+- Keep the browser leg serial — sharding starves SwiftShader on 4 vCPUs (1b5d532)
+
+### Maintenance
+
+- Design specs go local-only, matching plans/ (23d2c30)
+
+### Other
+
+- **geo,tools**: Pin the over-request hedge, surface skipped probe items (#410, #411) (473d6bd)
+- Prepare version 2.3.0 (#418) (1633072)
+
+
 ## [2.2.1] - 2026-07-28
 
 ### Changed
