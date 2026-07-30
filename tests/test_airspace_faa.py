@@ -57,14 +57,28 @@ def test_fetch_sends_the_snapped_bbox_and_geojson_params():
 
 
 def test_fetch_pages_until_the_transfer_limit_clears():
+    fixture_doc = json.loads(FIXTURE.read_text())
     page1 = json.dumps(
-        {"type": "FeatureCollection", "features": [], "exceededTransferLimit": True}
+        {
+            "type": "FeatureCollection",
+            "features": [fixture_doc["features"][0]],
+            "exceededTransferLimit": True,
+        }
     ).encode()
     fake = FakeTransport([page1, FIXTURE.read_bytes()])
     pages = fetch_faa_pages((-73.9, 40.7, -73.8, 40.8), fake)
     assert len(pages) == 2
     q2 = parse_qs(urlparse(fake.requests[1].full_url).query)
-    assert "resultOffset" in q2
+    assert q2["resultOffset"] == ["1"]
+
+
+def test_fetch_raises_when_transfer_limit_is_flagged_on_an_empty_page():
+    page1 = json.dumps(
+        {"type": "FeatureCollection", "features": [], "exceededTransferLimit": True}
+    ).encode()
+    fake = FakeTransport([page1])
+    with pytest.raises(AirspaceError, match="completeness"):
+        fetch_faa_pages((-73.9, 40.7, -73.8, 40.8), fake)
 
 
 def test_parse_normalizes_cells_with_agl_foot_ceilings():

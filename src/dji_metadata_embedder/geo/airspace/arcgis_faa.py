@@ -92,8 +92,16 @@ def fetch_faa_pages(
         )
         if not exceeded:
             return pages
-        # Increment offset by features returned, or by 1000 if empty (ArcGIS default page size)
-        offset += max(len(doc.get("features") or []), 1000)
+        features = doc.get("features") or []
+        if not features:
+            raise AirspaceError(
+                "FAA facility-map paging cannot establish completeness "
+                "(transfer limit flagged on an empty page)"
+            )
+        # Advance by the real feature count returned by this page — the
+        # server's page size may be under the ArcGIS default of 1000, and
+        # guessing a fixed stride would silently skip records.
+        offset += len(features)
 
 
 def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
