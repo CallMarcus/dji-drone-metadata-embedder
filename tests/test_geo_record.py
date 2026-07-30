@@ -89,6 +89,38 @@ def test_a_gap_jurisdiction_still_yields_the_logbook_half(tmp_path, monkeypatch)
     assert rec.max_rel_alt_m == 20
 
 
+def test_a_zero_point_track_yields_no_record_and_an_announce(tmp_path):
+    announced = []
+    empty = Track(name="EMPTY0001", points=[])
+    recs = build_records(
+        [empty, _lux_track()],
+        cache_dir=tmp_path,
+        transport=FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()]),
+        announce=announced.append,
+    )
+    assert [r.name for r in recs] == ["LUX0001"]
+    assert any(
+        "EMPTY0001" in msg and "no GPS points" in msg for msg in announced
+    )
+
+
+def test_partial_utc_leaves_time_fields_unstated(tmp_path):
+    pts = [
+        TrackPoint(lat=49.615 + i * 0.001, lon=6.19, alt=300 + i, timestamp="c",
+                   utc=None if i == 1 else datetime(2026, 7, 30, 12, i),
+                   rel_alt=10.0 * i)
+        for i in range(3)
+    ]
+    fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    rec = build_records(
+        [Track(name="PARTIAL", points=pts)], cache_dir=tmp_path, transport=fake
+    )[0]
+    assert rec.start_utc is None
+    assert rec.end_utc is None
+    assert rec.duration_s == 0.0
+    assert rec.time_note is not None and "not stated" in rec.time_note
+
+
 def test_mtime_synthesized_utc_is_labelled():
     samples = [TelemetrySample(cue="00:00:01,000 --> 00:00:02,000", dt=None,
                                lat=49.6, lon=6.2, alt=100, rel_alt=10)]

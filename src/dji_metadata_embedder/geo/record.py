@@ -25,6 +25,10 @@ _MTIME_NOTE = (
     "datetimes — verify them before relying on this record."
 )
 
+_PARTIAL_TIME_NOTE = (
+    "Point timestamps are incomplete; start, end and duration are not stated."
+)
+
 
 @dataclass
 class FlightRecordData:
@@ -82,10 +86,18 @@ def build_records(
     records: list[FlightRecordData] = []
     for track in tracks:
         pts = track.points
+        if not pts:
+            announce(f"{track.name}: no GPS points — no record entry")
+            continue
         times = [p.utc for p in pts if p.utc is not None]
-        start = min(times) if times else None
-        end = max(times) if times else None
-        duration = (end - start).total_seconds() if start and end else 0.0
+        partial_times = len(times) != len(pts) or not times
+        if partial_times:
+            start = end = None
+            duration = 0.0
+        else:
+            start = min(times)
+            end = max(times)
+            duration = (end - start).total_seconds()
         home = (pts[0].lat, pts[0].lon)
         distance = sum(
             haversine_m(a.lat, a.lon, b.lat, b.lon)
@@ -115,6 +127,11 @@ def build_records(
             report.source = data.source
         alts = [p.alt for p in pts]
         max_amsl = max(alts) if alts else None
+        time_note = (
+            _PARTIAL_TIME_NOTE
+            if partial_times
+            else (_MTIME_NOTE if track.utc_source == "mtime" else None)
+        )
         records.append(
             FlightRecordData(
                 name=track.name,
@@ -128,7 +145,7 @@ def build_records(
                 max_surface_m=max(heights) if heights else None,
                 surface_note=surface_note,
                 max_amsl_m=max_amsl,
-                time_note=_MTIME_NOTE if track.utc_source == "mtime" else None,
+                time_note=time_note,
                 measure_note=(
                     resolution.jurisdiction.measure_note
                     if resolution.jurisdiction
