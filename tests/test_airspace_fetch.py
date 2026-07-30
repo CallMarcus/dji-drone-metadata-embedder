@@ -94,3 +94,48 @@ def test_a_malformed_feed_is_all_or_nothing(tmp_path):
     fake = FakeTransport([b'{"features": [{"identifier": "X"}]}'])
     data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
     assert data.gap_reason is not None and "restriction" in data.gap_reason
+
+
+def test_a_corrupted_meta_json_triggers_a_refetch_not_a_crash(tmp_path):
+    fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
+    (tmp_path / "ed269-LU.json.meta.json").write_bytes(b"not json{{{")
+
+    fake2 = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake2)
+    assert data.gap_reason is None and len(data.zones) == 2
+    assert not data.from_cache
+    assert fake2.urls
+
+
+def test_a_corrupted_cached_faa_body_becomes_a_gap_not_a_crash(tmp_path):
+    fake = FakeTransport([(FIXTURES / "faa-uasfm.json").read_bytes()])
+    fetch_zones(_track(40.77, -73.89), tmp_path, transport=fake)
+    body_path = next(
+        p for p in tmp_path.glob("faa-*.json") if not p.name.endswith(".meta.json")
+    )
+    body_path.write_bytes(b"not json{{{")
+
+    def no_network(req, timeout=None):
+        raise AssertionError("a corrupted cache hit must not force a live fetch")
+
+    data = fetch_zones(_track(40.77, -73.89), tmp_path, transport=no_network)
+    assert data.gap_reason is not None and "JSON" in data.gap_reason
+    assert not data.zones
+
+
+def test_refresh_failure_with_corrupted_stale_cache_is_a_gap_not_a_false_announce(
+    tmp_path,
+):
+    fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
+    (tmp_path / "ed269-LU.json").write_bytes(b"not xml or json at all")
+
+    def dead(req, timeout=None):
+        raise OSError("connection refused")
+
+    lines = []
+    data = fetch_zones(_track(49.62, 6.2), tmp_path, refresh=True,
+                       transport=dead, announce=lines.append)
+    assert data.gap_reason is not None and not data.zones
+    assert not any("using cached" in ln.lower() for ln in lines)

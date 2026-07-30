@@ -47,8 +47,13 @@ def _read_cache(body_path: Path) -> tuple[bytes, str] | None:
     meta_path = body_path.with_name(body_path.name + ".meta.json")
     if not (body_path.exists() and meta_path.exists()):
         return None
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    return body_path.read_bytes(), str(meta.get("fetched", "unknown time"))
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        return body_path.read_bytes(), str(meta.get("fetched", "unknown time"))
+    except (OSError, ValueError):
+        # A corrupt cache (bad JSON, bad encoding, unreadable file) is a
+        # cache miss, not a crash — the caller will refetch.
+        return None
 
 
 def _write_cache(body_path: Path, body: bytes, url: str) -> str:
@@ -59,6 +64,13 @@ def _write_cache(body_path: Path, body: bytes, url: str) -> str:
         json.dumps({"url": url, "fetched": fetched}), encoding="utf-8"
     )
     return fetched
+
+
+def _load_faa_doc(body: bytes) -> dict:
+    try:
+        return json.loads(body)
+    except ValueError as exc:
+        raise AirspaceError(f"FAA cache/response is not JSON ({exc})") from exc
 
 
 def _fetch_ed269(url: str, transport) -> bytes:
@@ -127,7 +139,7 @@ def fetch_zones(
             license=license_line, caveat=caveat, note=note,
         )
         if code == "US":
-            doc = json.loads(body)
+            doc = _load_faa_doc(body)
             pages_raw = [
                 json.dumps(p).encode("utf-8") for p in doc.get("pages", [])
             ]
@@ -138,30 +150,30 @@ def fetch_zones(
         stale = _read_cache(body_path) if refresh else None
         if stale is not None:
             body, fetched = stale
-            announce(
-                f"Fetch failed ({exc}); using cached {feed_name} "
-                f"from {fetched}"
-            )
             source = SourceInfo(
                 feed=feed_name, url=url, fetched=fetched,
                 license=license_line, caveat=caveat, note=note,
             )
             try:
-                zones = (
-                    parse_faa(
-                        [
-                            json.dumps(p).encode("utf-8")
-                            for p in json.loads(body).get("pages", [])
-                        ],
-                        source,
-                    )
-                    if code == "US"
-                    else parse_ed269(body, source)
-                )
-                return AirspaceData(zones=zones, source=source, from_cache=True)
+                if code == "US":
+                    doc = _load_faa_doc(body)
+                    pages_raw = [
+                        json.dumps(p).encode("utf-8")
+                        for p in doc.get("pages", [])
+                    ]
+                    zones = parse_faa(pages_raw, source)
+                else:
+                    zones = parse_ed269(body, source)
             except AirspaceError as exc2:
                 return AirspaceData(
                     gap_reason=f"airspace data unavailable: {exc2}"
                 )
+            # Only claim the cache was usable once it has actually parsed —
+            # an announce made before this point could be a lie.
+            announce(
+                f"Fetch failed ({exc}); using cached {feed_name} "
+                f"from {fetched}"
+            )
+            return AirspaceData(zones=zones, source=source, from_cache=True)
         return AirspaceData(gap_reason=f"airspace data unavailable: {exc}")
     return AirspaceData(zones=zones, source=source, from_cache=from_cache)
