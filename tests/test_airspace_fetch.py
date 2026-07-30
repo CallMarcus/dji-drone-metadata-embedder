@@ -139,3 +139,18 @@ def test_refresh_failure_with_corrupted_stale_cache_is_a_gap_not_a_false_announc
                        transport=dead, announce=lines.append)
     assert data.gap_reason is not None and not data.zones
     assert not any("using cached" in ln.lower() for ln in lines)
+
+
+def test_corrupted_primary_cache_hit_is_a_gap_not_a_false_announce(tmp_path):
+    fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
+    (tmp_path / "ed269-LU.json").write_bytes(b"not xml or json at all")
+
+    def no_network(req, timeout=None):
+        raise AssertionError("a genuine cache hit must not touch the network")
+
+    lines = []
+    data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=no_network,
+                       announce=lines.append)
+    assert data.gap_reason is not None and not data.zones
+    assert not any("using cached" in ln.lower() for ln in lines)

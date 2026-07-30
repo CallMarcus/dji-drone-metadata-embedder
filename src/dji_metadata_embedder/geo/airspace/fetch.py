@@ -114,9 +114,6 @@ def fetch_zones(
     try:
         if cached is not None:
             body, fetched = cached
-            announce(
-                f"Using cached {feed_name} from {fetched} ({body_path})"
-            )
             from_cache = True
         else:
             host = url.split("/")[2]
@@ -146,6 +143,12 @@ def fetch_zones(
             zones = parse_faa(pages_raw, source)
         else:
             zones = parse_ed269(body, source)
+        if from_cache:
+            # Only claim the cache was usable once it has actually
+            # parsed — an announce made before this point could be a lie.
+            announce(
+                f"Using cached {feed_name} from {fetched} ({body_path})"
+            )
     except AirspaceError as exc:
         stale = _read_cache(body_path) if refresh else None
         if stale is not None:
