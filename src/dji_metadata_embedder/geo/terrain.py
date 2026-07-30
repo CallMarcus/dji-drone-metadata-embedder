@@ -52,7 +52,11 @@ def _pixel_of(lat: float, lon: float, x: int, y: int) -> tuple[int, int]:
 
 
 def surface_elevations(
-    coords: list[tuple[float, float]], cache_dir: Path, *, transport=urlopen
+    coords: list[tuple[float, float]],
+    cache_dir: Path,
+    *,
+    transport=urlopen,
+    announce=None,
 ) -> list[float]:
     """Surface elevation (m) under each (lat, lon), via cached z12 tiles."""
     try:
@@ -67,11 +71,18 @@ def surface_elevations(
     template: str | None = None
     tiles: dict[tuple[int, int], object] = {}
     elevations: list[float] = []
+    announced = False
     for lat, lon in coords:
         x, y = _tile_of(lat, lon)
         if (x, y) not in tiles:
             tile_path = cache_dir / f"terrain-{ZOOM}-{x}-{y}.png"
             if not tile_path.exists():
+                if not announced and announce is not None:
+                    announce(
+                        "Fetching terrain tiles from tiles.mapterhorn.com "
+                        "for the surface-height estimate..."
+                    )
+                    announced = True
                 if template is None:
                     doc = json.loads(_fetch(TILEJSON_URL, transport))
                     urls = doc.get("tiles") or []

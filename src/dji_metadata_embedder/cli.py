@@ -815,9 +815,9 @@ def photomap(
     ),
     default="html", show_default=True,
     help="Map output format. 'record' writes a printable flight record and "
-         "fetches airspace data from official feeds (FAA / ED-269) — the "
-         "only network access in this command; data is cached beside the "
-         "output.",
+         "fetches airspace data from official feeds (FAA / ED-269) and "
+         "terrain tiles from Mapterhorn — the only network access in this "
+         "command; data is cached beside the output.",
 )
 @click.option(
     "--airspace-refresh", is_flag=True,
@@ -962,7 +962,7 @@ def flightmap(
                 "coordinates; drop --redact or choose another format"
             )
         skip_record_for_redact = fmt.lower() == "all" and redact.lower() != "none"
-        if airspace_refresh and not wants_record:
+        if airspace_refresh and (not wants_record or skip_record_for_redact):
             click.echo(
                 "Note: --airspace-refresh does nothing without -f record",
                 err=True,

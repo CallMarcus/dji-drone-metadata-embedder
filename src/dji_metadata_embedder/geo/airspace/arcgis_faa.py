@@ -86,6 +86,16 @@ def fetch_faa_pages(
             raise AirspaceError(
                 "FAA facility-map response is not JSON"
             ) from exc
+        if isinstance(doc, dict) and "error" in doc:
+            err = doc["error"]
+            message = err.get("message") if isinstance(err, dict) else err
+            raise AirspaceError(
+                f"FAA facility-map query returned an error: {message}"
+            )
+        if not isinstance(doc, dict) or "features" not in doc:
+            raise AirspaceError(
+                "FAA facility-map response has no 'features' list"
+            )
         exceeded = doc.get("exceededTransferLimit") or (
             isinstance(doc.get("properties"), dict)
             and doc["properties"].get("exceededTransferLimit")

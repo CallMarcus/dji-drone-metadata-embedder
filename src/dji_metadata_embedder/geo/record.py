@@ -29,6 +29,11 @@ _PARTIAL_TIME_NOTE = (
     "Point timestamps are incomplete; start, end and duration are not stated."
 )
 
+TERRAIN_SOURCE = (
+    "Mapterhorn terrain tiles (tiles.mapterhorn.com) — Copernicus GLO-30-"
+    "based surface model, includes vegetation and buildings"
+)
+
 
 @dataclass
 class FlightRecordData:
@@ -47,10 +52,11 @@ class FlightRecordData:
     measure_note: str | None
     airspace: AirspaceReport
     points: list[tuple[float, float]] = field(default_factory=list)
+    terrain_source: str | None = None
 
 
 def _heights_above_surface(
-    track: Track, cache_dir: Path, transport
+    track: Track, cache_dir: Path, transport, announce
 ) -> tuple[list[float] | None, str | None]:
     """Per-point est. height above surface, or (None, why-not)."""
     if any(p.rel_alt is None for p in track.points):
@@ -60,7 +66,9 @@ def _heights_above_surface(
         )
     try:
         coords = [(p.lat, p.lon) for p in track.points]
-        surface = surface_elevations(coords, cache_dir, transport=transport)
+        surface = surface_elevations(
+            coords, cache_dir, transport=transport, announce=announce
+        )
     except TerrainUnavailable as exc:
         return None, str(exc)
     takeoff_elev = surface[0]
@@ -118,7 +126,7 @@ def build_records(
             transport=transport, announce=announce,
         )
         heights, surface_note = _heights_above_surface(
-            track, cache_dir, transport
+            track, cache_dir, transport, announce
         )
         if data.gap_reason is not None:
             report = AirspaceReport(gap_reason=data.gap_reason)
@@ -153,6 +161,7 @@ def build_records(
                 ),
                 airspace=report,
                 points=[(p.lat, p.lon) for p in pts],
+                terrain_source=TERRAIN_SOURCE if heights is not None else None,
             )
         )
     return records

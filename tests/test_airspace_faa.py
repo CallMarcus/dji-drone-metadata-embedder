@@ -81,6 +81,22 @@ def test_fetch_raises_when_transfer_limit_is_flagged_on_an_empty_page():
         fetch_faa_pages((-73.9, 40.7, -73.8, 40.8), fake)
 
 
+def test_fetch_raises_loudly_on_an_arcgis_error_document():
+    page = json.dumps(
+        {"error": {"code": 400, "message": "Invalid parameters"}}
+    ).encode()
+    fake = FakeTransport([page])
+    with pytest.raises(AirspaceError, match="Invalid parameters"):
+        fetch_faa_pages((-73.9, 40.7, -73.8, 40.8), fake)
+
+
+def test_fetch_raises_when_the_response_has_no_features_key():
+    page = json.dumps({"type": "FeatureCollection"}).encode()
+    fake = FakeTransport([page])
+    with pytest.raises(AirspaceError, match="features"):
+        fetch_faa_pages((-73.9, 40.7, -73.8, 40.8), fake)
+
+
 def test_parse_normalizes_cells_with_agl_foot_ceilings():
     zones = parse_faa([FIXTURE.read_bytes()], SRC)
     assert len(zones) == 2

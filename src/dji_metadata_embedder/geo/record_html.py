@@ -182,7 +182,9 @@ def _cover_row(rec: FlightRecordData) -> str:
     if rec.airspace.gap_reason:
         airspace_summary = rec.airspace.gap_reason
     elif n_entered:
-        airspace_summary = f"entered {n_entered} zones"
+        airspace_summary = (
+            f"entered {n_entered} zone{'s' if n_entered != 1 else ''}"
+        )
     else:
         airspace_summary = "no zones intersected"
     return (
@@ -223,16 +225,20 @@ def _not_applicable_table(rec: FlightRecordData) -> str:
     )
 
 
-def _source_dl(source, version: str) -> str:
-    items = [
-        ("Feed", source.feed),
-        ("URL", source.url),
-        ("Fetched", source.fetched),
-        ("License", source.license),
-        ("Caveat", source.caveat),
-    ]
-    if source.note:
-        items.append(("Note", source.note))
+def _source_dl(source, terrain_source: str | None, version: str) -> str:
+    items = []
+    if source is not None:
+        items += [
+            ("Feed", source.feed),
+            ("URL", source.url),
+            ("Fetched", source.fetched),
+            ("License", source.license),
+            ("Caveat", source.caveat),
+        ]
+        if source.note:
+            items.append(("Note", source.note))
+    if terrain_source is not None:
+        items.append(("Terrain source", terrain_source))
     items.append((
         "Terrain data",
         "Surface-referenced heights are estimated from a digital surface "
@@ -277,22 +283,33 @@ def _flight_section(rec: FlightRecordData, version: str) -> str:
 
     airspace_html = ""
     if rec.airspace.findings:
-        rows = "".join(_zone_row(f) for f in rec.airspace.findings)
+        entered = [f for f in rec.airspace.findings if f.entered]
+        not_entered = len(rec.airspace.findings) - len(entered)
+        rows = "".join(_zone_row(f) for f in entered)
+        summary_html = ""
+        if not_entered:
+            plural = "s" if not_entered != 1 else ""
+            summary_html = (
+                f"<p>{not_entered} further zone{plural} in the evaluated "
+                "area were not entered.</p>"
+            )
         airspace_html = (
             "<h3>Airspace zones</h3>"
             "<table class='airspace'>"
             "<tr><th>Zone</th><th>Restriction</th><th>Limit</th>"
             "<th>Status</th><th>Comparison</th></tr>"
             + rows + "</table>"
+            + summary_html
             + _not_applicable_table(rec)
         )
     elif not rec.airspace.gap_reason:
         airspace_html = _not_applicable_table(rec)
 
     source_html = ""
-    if rec.airspace.source is not None:
+    if rec.airspace.source is not None or rec.terrain_source is not None:
         source_html = (
-            "<h3>Data &amp; caveats</h3>" + _source_dl(rec.airspace.source, version)
+            "<h3>Data &amp; caveats</h3>"
+            + _source_dl(rec.airspace.source, rec.terrain_source, version)
         )
 
     return (

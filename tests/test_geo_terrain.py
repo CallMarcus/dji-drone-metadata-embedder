@@ -80,3 +80,27 @@ def test_an_absurd_elevation_is_a_decode_bug_not_a_mountain(tmp_path):
     fake = FakeTransport([TILEJSON, weird])
     with pytest.raises(TerrainUnavailable, match="implausible"):
         surface_elevations([(49.61, 6.13)], tmp_path, transport=fake)
+
+
+def test_announce_fires_once_before_the_first_network_fetch(tmp_path):
+    fake = FakeTransport([TILEJSON, HUNDRED_M])
+    lines = []
+    surface_elevations(
+        [(49.61, 6.13)], tmp_path, transport=fake, announce=lines.append
+    )
+    assert len(lines) == 1
+    assert "tiles.mapterhorn.com" in lines[0]
+
+
+def test_announce_stays_silent_on_a_fully_cached_run(tmp_path):
+    fake = FakeTransport([TILEJSON, HUNDRED_M])
+    surface_elevations([(49.61, 6.13)], tmp_path, transport=fake)  # warms cache
+
+    def no_network(req, timeout=None):
+        raise AssertionError("a fully-cached run must not touch the network")
+
+    lines = []
+    surface_elevations(
+        [(49.61, 6.13)], tmp_path, transport=no_network, announce=lines.append
+    )
+    assert lines == []

@@ -43,3 +43,61 @@ def test_a_border_band_flight_gaps_instead_of_guessing():
 def test_an_empty_track_gaps():
     r = resolve_jurisdiction(Track(name="t", points=[]))
     assert r.jurisdiction is None and r.gap_reason is not None
+
+
+# Regression: the original US/LU core boxes wrongly resolved foreign
+# territory (northern Mexico, western Bahamas, a German corner near
+# 50.0N 6.3E). Each of these must gap instead of guessing a jurisdiction.
+def test_hermosillo_mexico_gaps_instead_of_resolving_us():
+    r = resolve_jurisdiction(_track((29.07, -110.95)))
+    assert r.jurisdiction is None
+
+
+def test_ciudad_juarez_mexico_gaps_instead_of_resolving_us():
+    r = resolve_jurisdiction(_track((31.74, -106.49)))
+    assert r.jurisdiction is None
+
+
+def test_nassau_bahamas_gaps_instead_of_resolving_us():
+    r = resolve_jurisdiction(_track((25.08, -77.35)))
+    assert r.jurisdiction is None
+
+
+def test_freeport_bahamas_gaps_instead_of_resolving_us():
+    r = resolve_jurisdiction(_track((26.53, -78.70)))
+    assert r.jurisdiction is None
+
+
+def test_the_german_corner_near_50n_6point3e_gaps_instead_of_resolving_lu():
+    r = resolve_jurisdiction(_track((50.00, 6.30)))
+    assert r.jurisdiction is None
+
+
+def test_phoenix_resolves_to_us():
+    r = resolve_jurisdiction(_track((33.45, -112.07)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "US"
+
+
+def test_tucson_resolves_to_us():
+    r = resolve_jurisdiction(_track((32.22, -110.97)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "US"
+
+
+def test_san_antonio_resolves_to_us():
+    r = resolve_jurisdiction(_track((29.42, -98.49)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "US"
+
+
+def test_houston_resolves_to_us():
+    r = resolve_jurisdiction(_track((29.76, -95.37)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "US"
+
+
+def test_miami_resolves_to_us():
+    r = resolve_jurisdiction(_track((25.76, -80.19)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "US"
+
+
+def test_luxembourg_city_still_resolves_to_lu():
+    r = resolve_jurisdiction(_track((49.61, 6.13)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LU"

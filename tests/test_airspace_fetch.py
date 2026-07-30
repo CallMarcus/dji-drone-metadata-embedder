@@ -141,6 +141,22 @@ def test_refresh_failure_with_corrupted_stale_cache_is_a_gap_not_a_false_announc
     assert not any("using cached" in ln.lower() for ln in lines)
 
 
+def test_a_cached_faa_body_with_no_pages_list_is_a_gap_not_zero_zones(tmp_path):
+    fake = FakeTransport([(FIXTURES / "faa-uasfm.json").read_bytes()])
+    fetch_zones(_track(40.77, -73.89), tmp_path, transport=fake)
+    body_path = next(
+        p for p in tmp_path.glob("faa-*.json") if not p.name.endswith(".meta.json")
+    )
+    body_path.write_bytes(b"{}")  # valid JSON, but no 'pages' list
+
+    def no_network(req, timeout=None):
+        raise AssertionError("a genuine cache hit must not touch the network")
+
+    data = fetch_zones(_track(40.77, -73.89), tmp_path, transport=no_network)
+    assert data.gap_reason is not None and "pages" in data.gap_reason
+    assert not data.zones
+
+
 def test_corrupted_primary_cache_hit_is_a_gap_not_a_false_announce(tmp_path):
     fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
     fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)

@@ -105,9 +105,15 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
         if not isinstance(restriction, str) or not restriction:
             raise AirspaceError(f"{where} ({ident}): missing restriction")
         applicability: list[Applicability] = []
+        always_applicable = False
         for win in feat.get("applicability") or []:
             if str(win.get("permanent", "")).upper() == "YES":
-                continue  # always applicable -> no window entry
+                # A permanent entry makes the whole zone always applicable,
+                # even alongside timed windows — collecting only the timed
+                # windows here would let the evaluator bucket an
+                # always-applicable zone as "not applicable".
+                always_applicable = True
+                break
             start = win.get("startDateTime")
             end = win.get("endDateTime")
             applicability.append(
@@ -117,6 +123,8 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
                     permanent=False,
                 )
             )
+        if always_applicable:
+            applicability = []
         lower: VerticalLimit | None = None
         upper: VerticalLimit | None = None
         polygons: list[list[tuple[float, float]]] = []

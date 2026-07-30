@@ -33,14 +33,24 @@ MEASURE_EU = (
 
 _CORE: dict[str, list[Box]] = {
     "US": [
-        (-124.6, 25.8, -95.0, 48.7),
-        (-95.0, 25.8, -84.5, 46.5),
-        (-84.5, 24.4, -74.0, 40.9),
-        (-75.5, 40.0, -69.8, 43.5),
-        (-165.0, 55.5, -141.5, 70.5),   # Alaska interior
-        (-160.5, 18.5, -154.5, 22.5),   # Hawaii
+        (-124.6, 33.1, -95.0, 48.7),   # West + Plains, above the border's northernmost reach (Tijuana 32.7)
+        (-111.2, 31.9, -108.3, 33.1),  # southern Arizona (Tucson); border is the 31.33N line here
+        (-106.4, 31.9, -103.0, 33.1),  # southern New Mexico; border ~31.78N, El Paso itself gaps honestly
+        (-103.0, 30.0, -100.0, 33.1),  # west Texas, north of the Big Bend river bend (~29.2N)
+        (-100.0, 28.8, -97.4, 33.1),   # south-central Texas (San Antonio); Rio Grande well south
+        (-97.4, 26.1, -95.0, 33.1),    # Texas Gulf coast (Houston, Corpus Christi); Matamoros is west of -97.4
+        (-95.0, 25.8, -84.5, 46.5),    # central-east (unchanged; only Gulf water below Florida latitudes)
+        (-84.5, 24.4, -79.8, 31.0),    # Florida; east bound keeps Bimini (-79.3) and Grand Bahama out
+        (-84.5, 31.0, -74.0, 40.9),    # Southeast + mid-Atlantic
+        (-75.5, 40.0, -69.8, 43.5),    # Northeast (unchanged)
+        (-165.0, 55.5, -141.5, 70.5),  # Alaska interior (unchanged)
+        (-160.5, 18.5, -154.5, 22.5),  # Hawaii (unchanged)
     ],
-    "LU": [(5.85, 49.55, 6.35, 50.05)],
+    "LU": [
+        (5.9, 49.55, 6.3, 49.8),       # south (Luxembourg City, Findel); Moselle border ~6.36E
+        (5.95, 49.8, 6.25, 49.9),      # centre; Echternach border bulge stays east of 6.25 at these latitudes
+        (5.95, 49.9, 6.1, 50.0),       # north; Our-river border ~6.13E (Vianden excluded), tip above 50.0 gaps
+    ],
     "FI": [
         (22.8, 59.8, 26.5, 64.5),
         (24.5, 64.5, 29.0, 66.8),

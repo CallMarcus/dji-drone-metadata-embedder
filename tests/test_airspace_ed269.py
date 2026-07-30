@@ -113,6 +113,16 @@ def test_malformed_start_date_time_names_the_field():
         parse_ed269(json.dumps(data).encode(), SRC)
 
 
+def test_a_permanent_entry_alongside_timed_windows_wins_always_applicable():
+    data = _lu_data()
+    zone = next(f for f in data["features"] if f["identifier"] == "LU-T-002")
+    assert zone["applicability"]  # already has a timed window in the fixture
+    zone["applicability"].append({"permanent": "YES"})
+    zones = parse_ed269(json.dumps(data).encode(), SRC)
+    parsed = next(z for z in zones if z.identifier == "LU-T-002")
+    assert parsed.applicability == []
+
+
 def test_offset_applicability_start_is_normalized_to_naive_utc():
     data = _lu_data()
     zone = next(f for f in data["features"] if f["identifier"] == "LU-T-002")

@@ -73,6 +73,19 @@ def _load_faa_doc(body: bytes) -> dict:
         raise AirspaceError(f"FAA cache/response is not JSON ({exc})") from exc
 
 
+def _faa_pages_from_doc(doc: dict) -> list[bytes]:
+    """Re-split the cached FAA wrapper's ``pages`` list into page bodies.
+
+    A missing ``pages`` list (e.g. a cached body of ``{}``) must not
+    silently resolve to zero zones — that reads as "no restrictions here"
+    when it actually means the cache never held a real document.
+    """
+    pages = doc.get("pages") if isinstance(doc, dict) else None
+    if not isinstance(pages, list):
+        raise AirspaceError("FAA cache/response has no 'pages' list")
+    return [json.dumps(p).encode("utf-8") for p in pages]
+
+
 def _fetch_ed269(url: str, transport) -> bytes:
     req = Request(url, headers={"User-Agent": "dji-embed"})
     try:
@@ -117,10 +130,7 @@ def fetch_zones(
             from_cache = True
         else:
             host = url.split("/")[2]
-            announce(
-                f"Fetching {feed_name} from {host} — the only network "
-                "access in this command..."
-            )
+            announce(f"Fetching {feed_name} from {host}...")
             if code == "US":
                 pages = fetch_faa_pages(_bbox(track), transport)
                 body = json.dumps(
@@ -137,9 +147,7 @@ def fetch_zones(
         )
         if code == "US":
             doc = _load_faa_doc(body)
-            pages_raw = [
-                json.dumps(p).encode("utf-8") for p in doc.get("pages", [])
-            ]
+            pages_raw = _faa_pages_from_doc(doc)
             zones = parse_faa(pages_raw, source)
         else:
             zones = parse_ed269(body, source)
@@ -160,10 +168,7 @@ def fetch_zones(
             try:
                 if code == "US":
                     doc = _load_faa_doc(body)
-                    pages_raw = [
-                        json.dumps(p).encode("utf-8")
-                        for p in doc.get("pages", [])
-                    ]
+                    pages_raw = _faa_pages_from_doc(doc)
                     zones = parse_faa(pages_raw, source)
                 else:
                     zones = parse_ed269(body, source)

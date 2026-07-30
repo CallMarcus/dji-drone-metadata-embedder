@@ -58,7 +58,7 @@ def test_terrain_absence_is_a_stated_note_never_a_zero(tmp_path, monkeypatch):
     from dji_metadata_embedder.geo import record as record_mod
     from dji_metadata_embedder.geo.terrain import TerrainUnavailable
 
-    def unavailable(coords, cache_dir, *, transport=None):
+    def unavailable(coords, cache_dir, *, transport=None, announce=None):
         raise TerrainUnavailable("the [terrain] extra is not installed")
 
     monkeypatch.setattr(record_mod, "surface_elevations", unavailable)
@@ -72,7 +72,7 @@ def test_a_gap_jurisdiction_still_yields_the_logbook_half(tmp_path, monkeypatch)
     from dji_metadata_embedder.geo import record as record_mod
     from dji_metadata_embedder.geo.terrain import TerrainUnavailable
 
-    def unavailable(coords, cache_dir, *, transport=None):
+    def unavailable(coords, cache_dir, *, transport=None, announce=None):
         raise TerrainUnavailable("stubbed out")
 
     monkeypatch.setattr(record_mod, "surface_elevations", unavailable)

@@ -19,11 +19,14 @@ zones honestly, so `-f record` refuses to run with `--redact fuzz` — drop
 
 ## What gets fetched, and what it reveals
 
-Building the record's airspace section is **the only network access in this
-command**. Everything else — the logbook, the heights, the track — comes
-from the SRT telemetry already on disk.
+Building the record's airspace section, and the surface-referenced height
+estimate, are **the only network access in this command**. The logbook and
+the track come from the SRT telemetry already on disk; so does the
+takeoff-referenced height, which is aircraft-reported. The
+surface-referenced height is the exception — it needs a fetch from
+Mapterhorn's terrain tiles (see "The `[terrain]` extra" below).
 
-Two feeds are used, one per flight, chosen from its coordinates:
+Three feeds are used:
 
 - **US flights** query the FAA's UAS Facility Map (keyless ArcGIS). The
   bounding box sent to the endpoint is padded and snapped outward to a
@@ -33,11 +36,15 @@ Two feeds are used, one per flight, chosen from its coordinates:
   geographical-zone document — the feed has no query parameter for a
   location at all, so nothing about the flight is sent; the entire country's
   zones come back regardless of where the flight was.
+- **Every flight**, regardless of jurisdiction, fetches surface-height
+  tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
+  height estimate, when the `[terrain]` extra is installed.
 
-Either way, the fetch is announced before it happens, and the response is
-cached beside the output at `airspace-cache/`, so a re-run reuses it and
-stays offline. Pass `--airspace-refresh` to bypass the cache and fetch again
-(does nothing without `-f record`).
+Every fetch is announced before it happens, and the response is cached
+beside the output — airspace data at `airspace-cache/`, terrain tiles
+alongside it — so a re-run reuses both and stays offline. Pass
+`--airspace-refresh` to bypass the airspace cache and fetch again (does
+nothing without `-f record`; terrain tiles are unaffected by this flag).
 
 ```bash
 dji-embed flightmap ./flights -f record --airspace-refresh

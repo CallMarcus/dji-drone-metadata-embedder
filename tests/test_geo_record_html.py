@@ -98,6 +98,59 @@ def test_svg_outline_and_print_css_are_embedded():
     assert "@media print" in html
 
 
+def test_terrain_source_renders_even_with_no_airspace_source():
+    rec = _record(
+        measure_note=None,
+        airspace=AirspaceReport(gap_reason="no supported airspace data source"),
+        terrain_source=(
+            "Mapterhorn terrain tiles (tiles.mapterhorn.com) — Copernicus "
+            "GLO-30-based surface model, includes vegetation and buildings"
+        ),
+    )
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "Data &amp; caveats" in html
+    assert "tiles.mapterhorn.com" in html
+    assert "Mapterhorn terrain tiles" in html
+
+
+def test_only_entered_zones_get_a_table_row_with_a_not_entered_summary():
+    other = Zone(
+        identifier="LU-P-999", name="Not entered zone", restriction="PROHIBITED",
+        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(50, "m", "AGL"),
+        applicability=[], polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1),
+                                     (9.0, 49.1), (9.0, 49.0)]],
+        source=SRC, native={},
+    )
+    other2 = Zone(
+        identifier="LU-P-998", name="Also not entered", restriction="PROHIBITED",
+        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(50, "m", "AGL"),
+        applicability=[], polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1),
+                                     (9.0, 49.1), (9.0, 49.0)]],
+        source=SRC, native={},
+    )
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=ZONE, entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_rel_alt_m=30.0, max_surface_m=33.5, max_amsl_m=303.0,
+                ),
+                ZoneFinding(zone=other, entered=False),
+                ZoneFinding(zone=other2, entered=False),
+            ],
+            source=SRC,
+        ),
+    )
+    html = record_to_html([rec], "t", "2.4.0")
+    assert html.count("LU-P-001") == 1  # exactly one data row for the entered zone
+    assert "Findel &lt;CTR&gt;" in html
+    assert "Not entered zone" not in html
+    assert "Also not entered" not in html
+    assert "2 further zones in the evaluated area were not entered." in html
+
+
 def test_write_flight_record_writes_utf8(tmp_path):
     out = write_flight_record([_record()], tmp_path / "flight-record.html", "t")
     assert out.exists()

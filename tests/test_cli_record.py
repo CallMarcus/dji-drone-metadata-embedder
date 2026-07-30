@@ -109,6 +109,22 @@ def test_airspace_refresh_without_record_warns(tmp_path):
     assert "airspace-refresh" in result.output
 
 
+def test_airspace_refresh_with_all_and_redact_warns(tmp_path):
+    """--format all under --redact skips the record entirely (fix #4): the
+    --airspace-refresh note must fire here too, not just for non-record
+    formats — the flag genuinely does nothing in this combination."""
+    d = _srt_dir(tmp_path)
+    result = CliRunner().invoke(
+        main,
+        [
+            "flightmap", str(d), "-f", "all", "--redact", "fuzz",
+            "--airspace-refresh",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "airspace-refresh" in result.output
+
+
 def test_record_cache_dir_is_beside_the_output(tmp_path, monkeypatch):
     from dji_metadata_embedder.geo import record as record_mod
 
