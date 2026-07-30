@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .flightlog import _COLUMN_SPEC, _find, FlightLogError, parse_flight_log
+from .flightlog import _COLUMN_SPEC, _tokens, FlightLogError, parse_flight_log
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,8 @@ def cache_path(txt: Path) -> Path:
 def _field_names(payload: bytes) -> list[str]:
     """Field names from a ``/v1/fields`` response body.
 
-    Lenient by design: the exact schema is unverified until E2E, and a
+    The live API wraps the list in ``{"statusCode", "message", "result"}``
+    (E2E-verified 2026-07-30); the other keys stay as leniency, and a
     wrong guess must degrade to the full-CSV fallback, never to a crash.
     """
     try:
@@ -43,7 +44,7 @@ def _field_names(payload: bytes) -> list[str]:
     except ValueError:
         return []
     if isinstance(data, dict):
-        for key in ("fields", "data", "items"):
+        for key in ("result", "fields", "data", "items"):
             if isinstance(data.get(key), list):
                 data = data[key]
                 break
@@ -60,6 +61,31 @@ def _field_names(payload: bytes) -> list[str]:
     return names
 
 
+def _closest(
+    available: list[str], needles: tuple[str, ...], exclude: tuple[str, ...]
+) -> str | None:
+    """The matching name carrying the fewest tokens beyond *needles*.
+
+    The ``/v1/fields`` catalog lists every field the API can produce, in
+    an order that carries no preference (alphabetical in practice) — so
+    first-hit, which is right for a real export's column order, picks
+    ``GIMBAL.isPitchAtLimit`` over ``GIMBAL.pitch`` and
+    ``ADSB.currentLatitude`` over ``OSD.latitude`` here (E2E-verified
+    2026-07-30). The closest name wins instead; ties keep catalog order.
+    """
+    best: str | None = None
+    best_extra = 0
+    for h in available:
+        toks = _tokens(h)
+        if any(x in toks for x in exclude):
+            continue
+        if all(n in toks for n in needles):
+            extra = len(toks - set(needles))
+            if best is None or extra < best_extra:
+                best, best_extra = h, extra
+    return best
+
+
 def select_fields(available: list[str]) -> list[str] | None:
     """The subset of *available* the merge needs, or ``None`` for "all".
 
@@ -74,26 +100,32 @@ def select_fields(available: list[str]) -> list[str] | None:
     hits: set[str] = set()
     for slot, alternatives in _COLUMN_SPEC.items():
         for needles, exclude in alternatives:
-            hit = _find(available, *needles, exclude=exclude)
+            hit = _closest(available, needles, exclude)
             if hit:
                 hits.add(slot)
                 if hit not in picked:
                     picked.append(hit)
-    has_time = "utc" in hits or "datetime" in hits or (
-        "date" in hits and "time" in hits
-    )
+    has_time = "epoch" in hits or "utc" in hits or "datetime" in hits or (
+        "utc_date" in hits and "utc_time" in hits
+    ) or ("date" in hits and "time" in hits)
     if "pitch" not in hits or "yaw" not in hits or not has_time:
         return None
     return picked
 
 
 def _multipart(
-    filename: str, data: bytes, form: dict[str, str]
+    filename: str, data: bytes, form: list[tuple[str, str]]
 ) -> tuple[bytes, str]:
-    """A multipart/form-data body: *form* fields plus one file part."""
+    """A multipart/form-data body: *form* parts plus one file part.
+
+    *form* is a list, not a dict: the API's field preselection expects one
+    ``fields`` part PER field name (the docs' ``formData.append`` loop) —
+    a single comma-joined value is silently ignored and the full CSV comes
+    back (E2E-verified 2026-07-30).
+    """
     boundary = "----dji-embed-" + secrets.token_hex(12)
     parts: list[bytes] = []
-    for name, value in form.items():
+    for name, value in form:
         parts.append(
             (
                 f"--{boundary}\r\n"
@@ -145,7 +177,7 @@ def _post_log(
     txt: Path, key: str, fields: list[str] | None, transport
 ) -> bytes:
     """``POST /v1/logs`` (billable): upload *txt*, return the CSV bytes."""
-    form = {"fields": ",".join(fields)} if fields else {}
+    form = [("fields", f) for f in fields] if fields else []
     body, content_type = _multipart(txt.name, txt.read_bytes(), form)
     req = Request(
         f"{_BASE}/logs",

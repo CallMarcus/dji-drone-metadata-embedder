@@ -88,6 +88,39 @@ def test_select_fields_requests_every_alternative_not_just_the_first():
     assert "GIMBAL.heading" in picked
 
 
+def test_select_fields_survives_the_full_catalog_traps():
+    """/v1/fields lists every producible field alphabetically, so a
+    first-hit match picks near-miss names (all live-observed 2026-07-30):
+    the closest name must win, and non-aircraft GPS must be excluded."""
+    catalog = [
+        "ADSB.currentLatitude", "ADSB.currentLongitude",
+        "APPGPS.latitude", "APPGPS.longitude",
+        "BATTERY.goHomeTime [s]", "BATTERY.usefulTime [s]",
+        "CUSTOM.date", "CUSTOM.date [UTC]", "CUSTOM.date [local]",
+        "CUSTOM.updateTime", "CUSTOM.updateTime [UTC]",
+        "CUSTOM.updateTime [epoch]", "CUSTOM.updateTime [local]",
+        "CUSTOM.updateTime24 [UTC]", "CUSTOM.updateTime24 [local]",
+        "GIMBAL.isPitchAtLimit", "GIMBAL.isYawAtLimit",
+        "GIMBAL.pitch", "GIMBAL.yaw",
+        "HOME.latitude", "HOME.longitude",
+        "OSD.latitude", "OSD.longitude",
+        "RTK.aircraftLatitude", "RTK.baseStationLatitude",
+    ]
+    picked = select_fields(catalog)
+    assert picked is not None
+    assert "GIMBAL.pitch" in picked and "GIMBAL.yaw" in picked
+    assert "GIMBAL.isPitchAtLimit" not in picked
+    assert "GIMBAL.isYawAtLimit" not in picked
+    # The epoch timestamp and the UTC pair ride along for an exact join.
+    assert "CUSTOM.updateTime [epoch]" in picked
+    assert "CUSTOM.date [UTC]" in picked
+    assert "CUSTOM.updateTime [UTC]" in picked
+    assert "OSD.latitude" in picked and "OSD.longitude" in picked
+    assert "ADSB.currentLatitude" not in picked  # a manned aircraft
+    assert "APPGPS.latitude" not in picked  # the pilot's phone/tablet
+    assert "RTK.baseStationLatitude" not in picked
+
+
 def test_select_fields_finds_signed_yaw_behind_the_360_variant():
     fields = [
         "GIMBAL.yaw [360]", "GIMBAL.yaw", "GIMBAL.pitch",
@@ -180,6 +213,21 @@ def test_field_names_accepts_objects_with_a_name_key():
     assert _field_names(payload.encode()) == ["GIMBAL.pitch", "GIMBAL.yaw"]
 
 
+def test_field_names_accepts_the_live_api_envelope():
+    # The real /v1/fields response shape, E2E-verified 2026-07-30.
+    payload = json.dumps(
+        {
+            "statusCode": 200,
+            "message": "GET Request successful.",
+            "result": [
+                {"name": "GIMBAL.pitch", "description": "..."},
+                {"name": "GIMBAL.yaw", "description": "..."},
+            ],
+        }
+    )
+    assert _field_names(payload.encode()) == ["GIMBAL.pitch", "GIMBAL.yaw"]
+
+
 def test_field_names_returns_empty_on_surprises():
     assert _field_names(b"not json at all") == []
     assert _field_names(json.dumps({"unexpected": 1}).encode()) == []
@@ -232,6 +280,12 @@ def test_fetch_log_happy_path_writes_the_cache(tmp_path):
     assert post_req.full_url == "https://api.flightreader.com/v1/logs"
     assert post_req.get_method() == "POST"
     assert b"GIMBAL.pitch" in post_req.data          # fields preselection
+    # One "fields" part PER name — the API silently ignores a single
+    # comma-joined value and returns the full CSV (live E2E 2026-07-30).
+    assert b'name="fields"\r\n\r\nGIMBAL.pitch\r\n' in post_req.data
+    assert b'name="fields"\r\n\r\nGIMBAL.yaw\r\n' in post_req.data
+    for part in post_req.data.split(b'name="fields"\r\n\r\n')[1:]:
+        assert b"," not in part.split(b"\r\n", 1)[0]  # one name per part
     assert b"encrypted-record-bytes" in post_req.data  # the file itself
     assert "sk_test" not in repr(post_req.data)
 
