@@ -33,6 +33,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.4.0] - 2026-07-30
+
+### Added
+
+- **geo**: Flight-record export + airspace core (#413, PR 1 of 2) (#421) (887e41b)
+- **geo**: Flightmap --airspace zone overlay (#413, PR 2 of 2) (#423) (7250c44)
+
+### Documentation
+
+- Auto-generate changelog for v2.3.0 (#420) (3185e53)
+
+### Other
+
+- Prepare version 2.4.0 (#425) (49885b3)
+
+
 ## [2.3.0] - 2026-07-30
 
 ### Added
