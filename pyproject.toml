@@ -42,6 +42,7 @@ dev = [
     "mypy==2.1.0",
     "types-click==7.1.8",
     "jsonschema==4.26.0",
+    "pillow==12.3.0",
 ]
 # Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
 # (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
@@ -64,6 +65,9 @@ build = [
 docs = [
     "mkdocs>=1.5",
     "mkdocstrings[python]>=0.24",
+]
+terrain = [
+    "pillow>=10.0",
 ]
 [project.urls]
 Homepage = "https://github.com/CallMarcus/dji-drone-metadata-embedder"

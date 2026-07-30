@@ -32,6 +32,8 @@ it's a handful of copy-paste commands. For a guided tour see
 - **Crossfade to the footage** — blend the terrain reconstruction into your
   real video frame for the second you're looking at, and see whether the
   telemetry lines up.
+- **Flight records** — `dji-embed flightmap -f record` writes a printable
+  logbook with airspace facts (FAA / ED-269) and honestly-labelled heights.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.

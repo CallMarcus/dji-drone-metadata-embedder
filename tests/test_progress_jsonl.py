@@ -487,7 +487,10 @@ def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     outputs = events[-1]["outputs"]
-    assert [Path(o).suffix for o in outputs] == [".html", ".kml", ".geojson"]
+    assert [Path(o).name for o in outputs] == [
+        "flightmap.html", "flightmap.kml", "flightmap.geojson",
+        "flight-record.html",
+    ]
 
 
 # --- doctor (issue #264 stage 3d: the GUI's "Check my setup" screen) ------
