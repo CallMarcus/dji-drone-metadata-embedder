@@ -288,10 +288,11 @@ def _flight_section(rec: FlightRecordData, version: str) -> str:
         rows = "".join(_zone_row(f) for f in entered)
         summary_html = ""
         if not_entered:
-            plural = "s" if not_entered != 1 else ""
+            is_plural = not_entered != 1
             summary_html = (
-                f"<p>{not_entered} further zone{plural} in the evaluated "
-                "area were not entered.</p>"
+                f"<p>{not_entered} further zone{'s' if is_plural else ''} "
+                f"in the evaluated area {'were' if is_plural else 'was'} "
+                "not entered.</p>"
             )
         airspace_html = (
             "<h3>Airspace zones</h3>"

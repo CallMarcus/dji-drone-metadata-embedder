@@ -814,10 +814,11 @@ def photomap(
         ["html", "kml", "geojson", "record", "all"], case_sensitive=False
     ),
     default="html", show_default=True,
-    help="Map output format. 'record' writes a printable flight record and "
-         "fetches airspace data from official feeds (FAA / ED-269) and "
-         "terrain tiles from Mapterhorn — the only network access in this "
-         "command; data is cached beside the output.",
+    help="Map output format. 'record' (also written by 'all') writes a "
+         "printable flight record and fetches airspace data from official "
+         "feeds (FAA / ED-269) and terrain tiles from Mapterhorn — the "
+         "only network access in this command; data is cached beside the "
+         "output.",
 )
 @click.option(
     "--airspace-refresh", is_flag=True,

@@ -151,6 +151,33 @@ def test_only_entered_zones_get_a_table_row_with_a_not_entered_summary():
     assert "2 further zones in the evaluated area were not entered." in html
 
 
+def test_a_single_not_entered_zone_uses_singular_agreement():
+    other = Zone(
+        identifier="LU-P-997", name="Not entered zone", restriction="PROHIBITED",
+        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(50, "m", "AGL"),
+        applicability=[], polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1),
+                                     (9.0, 49.1), (9.0, 49.0)]],
+        source=SRC, native={},
+    )
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=ZONE, entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_rel_alt_m=30.0, max_surface_m=33.5, max_amsl_m=303.0,
+                ),
+                ZoneFinding(zone=other, entered=False),
+            ],
+            source=SRC,
+        ),
+    )
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "1 further zone in the evaluated area was not entered." in html
+    assert "1 further zones" not in html and "was were" not in html
+
+
 def test_write_flight_record_writes_utf8(tmp_path):
     out = write_flight_record([_record()], tmp_path / "flight-record.html", "t")
     assert out.exists()

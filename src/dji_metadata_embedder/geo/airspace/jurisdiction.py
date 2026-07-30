@@ -48,7 +48,12 @@ _CORE: dict[str, list[Box]] = {
     ],
     "LU": [
         (5.9, 49.55, 6.3, 49.8),       # south (Luxembourg City, Findel); Moselle border ~6.36E
-        (5.95, 49.8, 6.25, 49.9),      # centre; Echternach border bulge stays east of 6.25 at these latitudes
+        (5.95, 49.8, 6.25, 49.88),     # centre; border ~6.28E at Wallendorf (49.877)
+        # Bettendorf band; the Our cuts west to ~6.23E near Gentingen. Lon
+        # max is 6.23 (not the reviewer's literal 6.2) so the regression
+        # point (49.90, 6.22) still resolves LU — 6.2 would gap it too,
+        # contradicting the required test; see PR discussion.
+        (5.95, 49.88, 6.23, 49.9),
         (5.95, 49.9, 6.1, 50.0),       # north; Our-river border ~6.13E (Vianden excluded), tip above 50.0 gaps
     ],
     "FI": [

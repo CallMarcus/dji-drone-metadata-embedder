@@ -101,3 +101,16 @@ def test_miami_resolves_to_us():
 def test_luxembourg_city_still_resolves_to_lu():
     r = resolve_jurisdiction(_track((49.61, 6.13)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "LU"
+
+
+# Regression: the LU centre box's original single span (49.8-49.9N) was
+# split into a centre box and a Bettendorf-band box because the Our river
+# cuts the actual border west near Gentingen, Germany.
+def test_gentingen_germany_gaps_instead_of_resolving_lu():
+    r = resolve_jurisdiction(_track((49.90, 6.245)))
+    assert r.jurisdiction is None
+
+
+def test_a_point_just_west_of_gentingen_still_resolves_to_lu():
+    r = resolve_jurisdiction(_track((49.90, 6.22)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LU"
