@@ -160,7 +160,7 @@ dji-embed convert html DJI_0001.SRT --redact fuzz   # ~100 m coarsened coords
 ```bash
 dji-embed flightmap ./footage                    # -> footage/flightmap.html
 dji-embed flightmap ./footage -r                 # scan subdirectories too
-dji-embed flightmap ./footage -f all             # html + kml + geojson
+dji-embed flightmap ./footage -f all             # html + kml + geojson + flight record
 dji-embed flightmap ./footage --redact fuzz      # ~100 m coarsened tracks
 ```
 

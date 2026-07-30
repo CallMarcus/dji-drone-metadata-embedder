@@ -74,7 +74,7 @@ jobs:
           uv run python tools/sync_version.py ${{ steps.meta.outputs.version }} --check
       - name: Install dependencies
         shell: pwsh
-        run: uv sync --extra build
+        run: uv sync --extra build --extra terrain
       - name: Build EXE
         shell: pwsh
         run: uv run python tools/build_exe.py
