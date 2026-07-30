@@ -112,8 +112,8 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
             end = win.get("endDateTime")
             applicability.append(
                 Applicability(
-                    start=_utc(start, where) if start else None,
-                    end=_utc(end, where) if end else None,
+                    start=_utc(start, f"{where}: startDateTime") if start else None,
+                    end=_utc(end, f"{where}: endDateTime") if end else None,
                     permanent=False,
                 )
             )
@@ -122,8 +122,22 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
         polygons: list[list[tuple[float, float]]] = []
         for geom in feat.get("geometry") or []:
             unit = "ft" if str(geom.get("uomDimensions", "M")).upper() == "FT" else "m"
-            lower = lower or _limit(geom, "lower", unit, where)
-            upper = upper or _limit(geom, "upper", unit, where)
+            geom_lower = _limit(geom, "lower", unit, where)
+            geom_upper = _limit(geom, "upper", unit, where)
+            if geom_lower is not None:
+                if lower is not None and lower != geom_lower:
+                    raise AirspaceError(
+                        f"{where} ({ident}): differing lowerLimit across "
+                        "geometry entries — stratified zones are not supported"
+                    )
+                lower = geom_lower
+            if geom_upper is not None:
+                if upper is not None and upper != geom_upper:
+                    raise AirspaceError(
+                        f"{where} ({ident}): differing upperLimit across "
+                        "geometry entries — stratified zones are not supported"
+                    )
+                upper = geom_upper
             proj = geom.get("horizontalProjection") or {}
             if proj.get("type") != "Polygon":
                 raise AirspaceError(

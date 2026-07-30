@@ -1,4 +1,5 @@
 """ED-269 parser tests (#413) against the real-shape fixtures."""
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +17,10 @@ SRC = SourceInfo(
 
 def _lu() -> bytes:
     return (FIXTURES / "ed269-lu.json").read_bytes()
+
+
+def _lu_data() -> dict:
+    return json.loads((FIXTURES / "ed269-lu.json").read_text(encoding="utf-8-sig"))
 
 
 def test_parses_the_luxembourg_fixture_through_the_bom():
@@ -63,3 +68,55 @@ def test_feed_registry_pins_luxembourg_and_finland():
     assert "traficom.fi" in ED269_FEEDS["FI"].url
     assert ED269_FEEDS["FI"].note is not None  # established-zones-only
     assert ED269_FEEDS["LU"].note is None
+
+
+def test_a_second_geometry_entrys_malformed_vertical_reference_is_caught():
+    data = _lu_data()
+    zone = data["features"][0]
+    second = json.loads(json.dumps(zone["geometry"][0]))
+    second["lowerVerticalReference"] = "XXX"
+    zone["geometry"].append(second)
+    with pytest.raises(AirspaceError, match="lowerVerticalReference"):
+        parse_ed269(json.dumps(data).encode(), SRC)
+
+
+def test_differing_upper_limits_across_geometry_entries_are_rejected():
+    data = _lu_data()
+    zone = data["features"][0]
+    second = json.loads(json.dumps(zone["geometry"][0]))
+    second["upperLimit"] = 999
+    zone["geometry"].append(second)
+    with pytest.raises(AirspaceError, match="differing"):
+        parse_ed269(json.dumps(data).encode(), SRC)
+
+
+def test_matching_restated_limits_merge_both_geometry_entries_polygons():
+    data = _lu_data()
+    zone = data["features"][0]
+    second = json.loads(json.dumps(zone["geometry"][0]))
+    second["horizontalProjection"]["coordinates"] = [[
+        [7.0, 50.0], [7.1, 50.0], [7.1, 50.1], [7.0, 50.1], [7.0, 50.0],
+    ]]
+    zone["geometry"].append(second)
+    zones = parse_ed269(json.dumps(data).encode(), SRC)
+    parsed = next(z for z in zones if z.identifier == "LU-P-001")
+    assert len(parsed.polygons) == 2
+    assert parsed.polygons[0][0] == (6.18, 49.61)
+    assert parsed.polygons[1][0] == (7.0, 50.0)
+
+
+def test_malformed_start_date_time_names_the_field():
+    data = _lu_data()
+    zone = next(f for f in data["features"] if f["identifier"] == "LU-T-002")
+    zone["applicability"][0]["startDateTime"] = "not-a-date"
+    with pytest.raises(AirspaceError, match="startDateTime"):
+        parse_ed269(json.dumps(data).encode(), SRC)
+
+
+def test_offset_applicability_start_is_normalized_to_naive_utc():
+    data = _lu_data()
+    zone = next(f for f in data["features"] if f["identifier"] == "LU-T-002")
+    zone["applicability"][0]["startDateTime"] = "2026-08-01T08:00:00+02:00"
+    zones = parse_ed269(json.dumps(data).encode(), SRC)
+    parsed = next(z for z in zones if z.identifier == "LU-T-002")
+    assert parsed.applicability[0].start == datetime(2026, 8, 1, 6, 0)
