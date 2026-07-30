@@ -1,0 +1,51 @@
+﻿{
+  "title": "Finnish UASZoneVersion 2026-7-29",
+  "features": [
+    {
+      "identifier": "FI-R-EFHK",
+      "country": "FIN",
+      "name": "Helsinki-Vantaa lentoasema",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["AIR_TRAFFIC"],
+      "applicability": [{"permanent": "YES"}],
+      "geometry": [
+        {
+          "uomDimensions": "M",
+          "lowerLimit": 0,
+          "lowerVerticalReference": "AGL",
+          "upperLimit": 50,
+          "upperVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [24.90, 60.30], [25.00, 60.30], [25.00, 60.34],
+              [24.90, 60.34], [24.90, 60.30]
+            ]]
+          }
+        }
+      ]
+    },
+    {
+      "identifier": "FI-N-KESKUSPUISTO",
+      "country": "FIN",
+      "name": "Keskuspuisto",
+      "type": "COMMON",
+      "restriction": "NO_RESTRICTION",
+      "reason": ["NATURE"],
+      "applicability": [{"permanent": "YES"}],
+      "geometry": [
+        {
+          "uomDimensions": "M",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [24.90, 60.20], [24.94, 60.20], [24.94, 60.24],
+              [24.90, 60.24], [24.90, 60.20]
+            ]]
+          }
+        }
+      ]
+    }
+  ]
+}

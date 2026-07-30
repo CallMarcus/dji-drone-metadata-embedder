@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 1, "CEILING": 0, "UNIT": "LGA ATCT",
+        "APT1_ICAO": "KLGA", "APT1_NAME": "LaGuardia Airport",
+        "APT1_LAANC": 1, "MAP_EFF": "2026-06-12"
+      },
+      "geometry": {"type": "Polygon", "coordinates": [[
+        [-73.90, 40.76], [-73.88, 40.76], [-73.88, 40.78],
+        [-73.90, 40.78], [-73.90, 40.76]
+      ]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 2, "CEILING": 200, "UNIT": "LGA ATCT",
+        "APT1_ICAO": "KLGA", "APT1_NAME": "LaGuardia Airport",
+        "APT1_LAANC": 1, "MAP_EFF": "2026-06-12"
+      },
+      "geometry": {"type": "Polygon", "coordinates": [[
+        [-73.92, 40.76], [-73.90, 40.76], [-73.90, 40.78],
+        [-73.92, 40.78], [-73.92, 40.76]
+      ]]}
+    }
+  ]
+}
