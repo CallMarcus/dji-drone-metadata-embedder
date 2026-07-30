@@ -115,3 +115,7 @@ flight complied with any regulation. Both the FAA's Part 107 rules and the
 EU's Open Category rules carry exceptions — structures, obstacles, and
 others — that telemetry alone cannot evaluate. Read every airspace
 zone and height figure as a measurement, not a verdict.
+
+The same zones can be drawn on the interactive map: `dji-embed flightmap
+FLIGHTS --airspace` overlays them on the 2D HTML map, sharing this
+command's cache and consent model.
