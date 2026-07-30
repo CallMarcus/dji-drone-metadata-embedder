@@ -47,6 +47,8 @@ from .geo import (
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
 from .geo.media import resolve_media
+from .geo.record import build_records
+from .geo.record_html import write_flight_record
 from .mp4_telemetry import Mp4TelemetryError
 from .progress import NullProgress, make_progress
 from .utilities import check_dependencies, setup_logging, get_tool_versions
@@ -808,8 +810,18 @@ def photomap(
 )
 @click.option(
     "-f", "--format", "fmt",
-    type=click.Choice(["html", "kml", "geojson", "all"], case_sensitive=False),
-    default="html", show_default=True, help="Map output format",
+    type=click.Choice(
+        ["html", "kml", "geojson", "record", "all"], case_sensitive=False
+    ),
+    default="html", show_default=True,
+    help="Map output format. 'record' writes a printable flight record and "
+         "fetches airspace data from official feeds (FAA / ED-269) — the "
+         "only network access in this command; data is cached beside the "
+         "output.",
+)
+@click.option(
+    "--airspace-refresh", is_flag=True,
+    help="Refetch airspace data past the cache (record output only).",
 )
 @click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
 @click.option("--title", default=None, help="Map title (default: directory name)")
@@ -876,6 +888,7 @@ def flightmap(
     directory: str,
     output: str | None,
     fmt: str,
+    airspace_refresh: bool,
     recursive: bool,
     title: str | None,
     redact: str,
@@ -940,6 +953,18 @@ def flightmap(
                 "Note: --link-originals only benefits the 3D map (--3d); "
                 "the flat HTML map embeds the same media data with nothing "
                 "that reads it.",
+                err=True,
+            )
+        wants_record = fmt.lower() in ("record", "all")
+        if fmt.lower() == "record" and redact.lower() != "none":
+            raise click.UsageError(
+                "a flight record must not be built from redacted "
+                "coordinates; drop --redact or choose another format"
+            )
+        skip_record_for_redact = fmt.lower() == "all" and redact.lower() != "none"
+        if airspace_refresh and not wants_record:
+            click.echo(
+                "Note: --airspace-refresh does nothing without -f record",
                 err=True,
             )
         src = Path(directory)
@@ -1022,9 +1047,21 @@ def flightmap(
             targets = [
                 (f, base.with_suffix(f".{f}")) for f in ("html", "kml", "geojson")
             ]
+            if skip_record_for_redact:
+                click.echo(
+                    "Note: the flight record is skipped under --redact — "
+                    "records must carry exact coordinates",
+                    err=True,
+                )
+            else:
+                targets.append(("record", base.parent / "flight-record.html"))
         else:
             f = fmt.lower()
-            default_name = "flightmap-3d.html" if three_d else f"flightmap.{f}"
+            default_name = (
+                "flightmap-3d.html" if three_d
+                else "flight-record.html" if f == "record"
+                else f"flightmap.{f}"
+            )
             out = Path(output) if output else src / default_name
             targets = [(f, out)]
         if link_originals:
@@ -1044,6 +1081,20 @@ def flightmap(
                         )
                 elif f == "kml":
                     write_flights_kml(tracks, out, map_title)
+                elif f == "record":
+                    records = build_records(
+                        tracks,
+                        cache_dir=out.parent / "airspace-cache",
+                        refresh=airspace_refresh,
+                        announce=lambda m: click.echo(m, err=True),
+                    )
+                    write_flight_record(records, out, map_title)
+                    for rec in records:
+                        if rec.airspace.gap_reason:
+                            click.echo(
+                                f"Note: {rec.name}: {rec.airspace.gap_reason}",
+                                err=True,
+                            )
                 else:
                     write_flights_geojson(tracks, out, redact=redact.lower())
             except OSError as e:
