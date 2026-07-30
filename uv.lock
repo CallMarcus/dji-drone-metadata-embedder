@@ -483,6 +483,7 @@ dev = [
     { name = "coverage" },
     { name = "jsonschema" },
     { name = "mypy" },
+    { name = "pillow" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -493,11 +494,6 @@ docs = [
     { name = "mkdocstrings", extra = ["python"] },
 ]
 terrain = [
-    { name = "pillow" },
-]
-
-[package.dev-dependencies]
-dev = [
     { name = "pillow" },
 ]
 
@@ -512,6 +508,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.1.0" },
+    { name = "pillow", marker = "extra == 'dev'", specifier = "==12.3.0" },
     { name = "pillow", marker = "extra == 'terrain'", specifier = ">=10.0" },
     { name = "playwright", marker = "extra == 'browser'", specifier = "==1.61.0" },
     { name = "pyinstaller", marker = "extra == 'build'", specifier = ">=6.0.0" },
@@ -527,9 +524,6 @@ requires-dist = [
     { name = "wheel", marker = "extra == 'build'", specifier = ">=0.38.0" },
 ]
 provides-extras = ["browser", "build", "dev", "docs", "terrain"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pillow", specifier = "==12.3.0" }]
 
 [[package]]
 name = "docutils"

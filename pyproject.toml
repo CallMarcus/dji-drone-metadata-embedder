@@ -42,6 +42,7 @@ dev = [
     "mypy==2.1.0",
     "types-click==7.1.8",
     "jsonschema==4.26.0",
+    "pillow==12.3.0",
 ]
 # Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
 # (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
@@ -93,8 +94,3 @@ include = [
 python_version = "3.10"
 files = ["src"]
 ignore_missing_imports = true
-
-[dependency-groups]
-dev = [
-    "pillow==12.3.0",
-]
