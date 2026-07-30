@@ -51,12 +51,17 @@ class Track:
     ``media`` holds one href per entry of ``segments`` (or a single-element
     list for an unsplit flight) once :func:`..media.resolve_media` has run;
     ``None`` means no video was linked or none was found.
+
+    ``utc_source`` records whether point UTCs came from telemetry datetimes
+    or were synthesized from the file mtime — the flight record labels the
+    latter.
     """
 
     name: str
     points: list[TrackPoint]
     segments: list[str] | None = None
     media: list[str | None] | None = None
+    utc_source: str = "telemetry"
 
 
 def _cue_seconds(cue: str) -> float | None:
@@ -117,10 +122,14 @@ def build_track_from_samples(
     """
     if assume_utc:
         offset: timedelta | None = timedelta(0)
+        abs_times: list[datetime] = []
     else:
         abs_times = [s.dt for s in samples if s.dt is not None]
         assert mtime_utc is not None, "mtime_utc is required when assume_utc is False"
         offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
+    utc_source = "telemetry"
+    if not assume_utc and not abs_times:
+        utc_source = "mtime"
     base_cue = (_cue_seconds(samples[0].cue) or 0.0) if samples else 0.0
 
     coords = redact_coords([(s.lat, s.lon) for s in samples], redact)
@@ -153,4 +162,4 @@ def build_track_from_samples(
                 gimbal_pitch=s.gimbal_pitch,
             )
         )
-    return Track(name=name, points=points)
+    return Track(name=name, points=points, utc_source=utc_source)
