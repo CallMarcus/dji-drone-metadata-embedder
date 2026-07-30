@@ -86,6 +86,10 @@ and each record's CSV is written beside it and reused on every later run
 — the same record is never uploaded twice. Delete the `.flightreader.csv`
 to refetch. You supply your own key; this tool never embeds or brokers one.
 
+The fetcher asks the API for exactly the columns the merge needs,
+including an epoch timestamp — so API-fetched CSVs always get the exact
+join. The UTC export advice above is for hand-made exports.
+
 ## How the merge behaves
 
 - **With a UTC column** the join is exact: each track point takes the

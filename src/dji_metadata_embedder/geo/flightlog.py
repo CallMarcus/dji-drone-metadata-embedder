@@ -82,7 +82,11 @@ class MergeReport:
 
 
 # Columns that look like coordinates but are not the aircraft's position.
-_NOT_AIRCRAFT = ("home", "rc", "remote", "tablet")
+# "appgps" = the pilot's phone/tablet, "adsb" = a nearby MANNED aircraft,
+# "base"/"station" = the RTK ground station (all in the /v1/fields catalog).
+_NOT_AIRCRAFT = (
+    "home", "rc", "remote", "tablet", "appgps", "adsb", "base", "station"
+)
 
 # One way of spelling a slot's column: (needles, exclude) for _find.
 _Alternative = tuple[tuple[str, ...], tuple[str, ...]]
@@ -100,13 +104,21 @@ _COLUMN_SPEC: dict[str, tuple[_Alternative, ...]] = {
         (("gimbal", "heading"), ()),
         (("gimbal", "yaw"), ()),
     ),
-    "utc": ((("utc",), ()),),
+    # CUSTOM.updateTime [epoch] (API catalog): a Unix timestamp beats
+    # every rendered form — no date-order ambiguity, no locale, no tz.
+    "epoch": ((("epoch",), ()),),
+    # Flight Reader exports UTC as a date + clock PAIR (CUSTOM.date [UTC]
+    # + CUSTOM.updateTime [UTC], E2E-verified 2026-07-30); the combined
+    # "utc" slot stays for Airdata-style datetime(utc) columns.
+    "utc": ((("utc",), ("date", "time")),),
+    "utc_date": ((("date", "utc"), ("datetime",)),),
+    "utc_time": ((("time", "utc"), ("date",)),),
     "datetime": ((("datetime",), ("utc",)),),
-    "date": ((("date",), ("datetime",)),),
+    "date": ((("date",), ("datetime", "utc")),),
     # OSD.flyTime is a stopwatch, not a clock — hence the "fly" exclusion.
     "time": (
         (("time", "local"), ("date",)),
-        (("time",), ("date", "datetime", "fly")),
+        (("time",), ("date", "datetime", "fly", "utc", "epoch")),
     ),
     "latitude": ((("latitude",), _NOT_AIRCRAFT),),
     "longitude": ((("longitude",), _NOT_AIRCRAFT),),
@@ -123,11 +135,14 @@ def _tokens(header: str) -> set[str]:
     """A header's semantic word set: ``CUSTOM.updateTime [local]`` ->
     ``{custom, update, time, local}``.
 
-    Tokenised (camelCase and punctuation split) rather than substring-
-    matched, because substrings lie: ``updateTime`` *contains* both
-    ``date`` and ``datetime`` yet is neither.
+    Tokenised (camelCase, digit and punctuation split) rather than
+    substring-matched, because substrings lie: ``updateTime`` *contains*
+    both ``date`` and ``datetime`` yet is neither. Digits split too:
+    ``updateTime24`` is a time column (live API, 2026-07-30), and a
+    ``time24`` token would dodge every "time" needle and exclusion.
     """
     spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", header)
+    spaced = re.sub(r"([A-Za-z])([0-9])", r"\1 \2", spaced)
     return {t.lower() for t in re.split(r"[^A-Za-z0-9]+", spaced) if t}
 
 
@@ -237,6 +252,20 @@ def _parse_datetime(raw: str, column: str, line: int) -> datetime:
     return datetime(year, month, day, hour, minute, sec, micro)
 
 
+def _parse_epoch(raw: str, column: str, line: int) -> datetime:
+    """A Unix timestamp, seconds or milliseconds (magnitude tells)."""
+    val = _number(raw, column, line)
+    if val is None:
+        raise FlightLogError(
+            f"column {column!r}, line {line}: empty epoch timestamp. "
+            "Values are never skipped silently — fix the export or remove "
+            "the broken row."
+        )
+    if val > 1e11:  # milliseconds: 1e11 seconds would be the year 5138
+        val /= 1000.0
+    return datetime(1970, 1, 1) + timedelta(seconds=val)
+
+
 def _normalize_yaw(deg: float) -> float:
     """Fold any yaw/heading into signed [-180, 180] true-north degrees."""
     return (deg + 180.0) % 360.0 - 180.0
@@ -264,13 +293,20 @@ def parse_flight_log(path: Path | str) -> FlightLog:
             f"Columns present: {', '.join(headers) or '(none)'}"
         )
 
+    epoch_col = _find_column(headers, "epoch")
     utc_col = _find_column(headers, "utc")
+    utc_date_col = _find_column(headers, "utc_date")
+    utc_time_col = _find_column(headers, "utc_time")
+    has_utc_pair = utc_date_col is not None and utc_time_col is not None
     datetime_col = _find_column(headers, "datetime")
     date_col = _find_column(headers, "date")
     time_col = _find_column(headers, "time")
-    if utc_col is None and datetime_col is None and (
-        date_col is None or time_col is None
-    ):
+    has_time_col = (
+        epoch_col is not None or utc_col is not None or has_utc_pair
+        or datetime_col is not None
+        or (date_col is not None and time_col is not None)
+    )
+    if not has_time_col:
         raise FlightLogError(
             f"{src.name}: no timestamp columns found — the merge is aligned "
             f"by time, so {_ADVICE}. A UTC timestamp gives an exact join."
@@ -279,10 +315,18 @@ def parse_flight_log(path: Path | str) -> FlightLog:
     lat_col = _find_column(headers, "latitude")
     lon_col = _find_column(headers, "longitude")
 
+    if epoch_col:
+        utc_source: str | None = epoch_col
+    elif utc_col:
+        utc_source = utc_col
+    elif has_utc_pair:
+        utc_source = f"{utc_date_col} + {utc_time_col}"
+    else:
+        utc_source = None
     columns = {
         "pitch": pitch_col,
         "yaw": yaw_col,
-        **({"utc": utc_col} if utc_col else {}),
+        **({"utc": utc_source} if utc_source else {}),
         **({"latitude": lat_col} if lat_col else {}),
     }
 
@@ -291,8 +335,19 @@ def parse_flight_log(path: Path | str) -> FlightLog:
         if all(not (v or "").strip() for v in rec.values()):
             continue  # a structurally blank line, not data
         utc = local = None
-        if utc_col:
+        if epoch_col:
+            utc = _parse_epoch(rec[epoch_col], epoch_col, line_no)
+        elif utc_col:
             utc = _parse_datetime(rec[utc_col], utc_col, line_no)
+        elif has_utc_pair:
+            assert utc_date_col is not None and utc_time_col is not None
+            year, month, day = _parse_date(
+                rec[utc_date_col], utc_date_col, line_no
+            )
+            hour, minute, sec, micro = _parse_clock(
+                rec[utc_time_col], utc_time_col, line_no
+            )
+            utc = datetime(year, month, day, hour, minute, sec, micro)
         elif datetime_col:
             local = _parse_datetime(rec[datetime_col], datetime_col, line_no)
         else:
@@ -315,7 +370,7 @@ def parse_flight_log(path: Path | str) -> FlightLog:
         )
     if not rows:
         raise FlightLogError(f"{src.name}: the export contains no data rows")
-    time_base = "utc" if utc_col else "local"
+    time_base = "utc" if utc_source else "local"
     rows.sort(key=lambda r: (r.utc or r.local or datetime.min))
     return FlightLog(name=src.name, time_base=time_base, rows=rows,
                      columns=columns)

@@ -60,6 +60,49 @@ def test_parses_an_airdata_shaped_export_with_utc(tmp_path):
     assert first.lon == 18.06324
 
 
+# Flight Reader with the UTC option on: UTC arrives as a date + clock
+# PAIR, never one combined column (live API E2E, 2026-07-30; the clock
+# is 12-hour with a dot fraction, e.g. "3:28:49.49 pm" for 15:28:49Z).
+FLIGHT_READER_UTC = """\
+"CUSTOM.date [UTC]","CUSTOM.updateTime [UTC]","CUSTOM.date [local]","CUSTOM.updateTime [local]","OSD.latitude","OSD.longitude","GIMBAL.pitch","GIMBAL.yaw"
+"2026-07-27","3:28:49.49 pm","2026-07-27","5:28:49,49 pm","59,33459","18,06324","-60,0","-10,0"
+"2026-07-27","3:28:50.49 pm","2026-07-27","5:28:50,49 pm","59,33460","18,06325","-61,0","-9,0"
+"""
+
+
+def test_parses_an_epoch_timestamp_column(tmp_path):
+    # CUSTOM.updateTime [epoch] from the API: immune to date-order
+    # ambiguity and locale; magnitude tells seconds from milliseconds.
+    csv = (
+        "CUSTOM.updateTime [epoch],GIMBAL.pitch,GIMBAL.yaw\n"
+        "1785510529.49,-60.0,-10.0\n"
+        "1785510530490,-61.0,-9.0\n"
+    )
+    log = parse_flight_log(_write(tmp_path, "log.csv", csv))
+    assert log.time_base == "utc"
+    assert log.rows[0].utc == datetime(2026, 7, 31, 15, 8, 49, 490000)
+    assert log.rows[1].utc == datetime(2026, 7, 31, 15, 8, 50, 490000)
+    assert log.columns["utc"] == "CUSTOM.updateTime [epoch]"
+
+
+def test_epoch_column_refuses_an_empty_value(tmp_path):
+    csv = (
+        "CUSTOM.updateTime [epoch],GIMBAL.pitch,GIMBAL.yaw\n"
+        ",-60.0,-10.0\n"
+    )
+    with pytest.raises(FlightLogError, match="empty epoch"):
+        parse_flight_log(_write(tmp_path, "log.csv", csv))
+
+
+def test_parses_flight_reader_utc_as_a_date_and_clock_pair(tmp_path):
+    log = parse_flight_log(_write(tmp_path, "log.csv", FLIGHT_READER_UTC))
+    assert log.time_base == "utc"
+    first = log.rows[0]
+    assert first.utc == datetime(2026, 7, 27, 15, 28, 49, 490000)
+    assert first.pitch == -60.0
+    assert log.columns["utc"] == "CUSTOM.date [UTC] + CUSTOM.updateTime [UTC]"
+
+
 def test_parses_a_flight_reader_shaped_export_with_comma_decimals(tmp_path):
     log = parse_flight_log(_write(tmp_path, "log.csv", FLIGHT_READER))
     assert log.time_base == "local"
