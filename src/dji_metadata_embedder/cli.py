@@ -44,6 +44,8 @@ from .geo import (
     write_photos_html,
     write_photos_kml,
 )
+from .geo.airspace import fetch as airspace_fetch
+from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
 from .geo.media import resolve_media
@@ -814,15 +816,21 @@ def photomap(
         ["html", "kml", "geojson", "record", "all"], case_sensitive=False
     ),
     default="html", show_default=True,
-    help="Map output format. 'record' (also written by 'all') writes a "
-         "printable flight record and fetches airspace data from official "
-         "feeds (FAA / ED-269) and terrain tiles from Mapterhorn — the "
-         "only network access in this command; data is cached beside the "
-         "output.",
+    help="Map output format. 'record' (also written by 'all') writes a printable "
+         "flight record and fetches airspace data from official feeds (FAA / "
+         "ED-269) and terrain tiles from Mapterhorn — with --airspace, the only "
+         "network access in this command; data is cached beside the output.",
 )
 @click.option(
     "--airspace-refresh", is_flag=True,
-    help="Refetch airspace data past the cache (record output only).",
+    help="Refetch airspace data past the cache (-f record or --airspace).",
+)
+@click.option(
+    "--airspace", is_flag=True,
+    help="Overlay official airspace zones (FAA UAS Facility Maps / ED-269) "
+         "on the 2D HTML map — announced, cached network fetches, exactly "
+         "like -f record. Zones draw in one neutral style; the map states "
+         "facts and makes no determination.",
 )
 @click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
 @click.option("--title", default=None, help="Map title (default: directory name)")
@@ -890,6 +898,7 @@ def flightmap(
     output: str | None,
     fmt: str,
     airspace_refresh: bool,
+    airspace: bool,
     recursive: bool,
     title: str | None,
     redact: str,
@@ -963,9 +972,28 @@ def flightmap(
                 "coordinates; drop --redact or choose another format"
             )
         skip_record_for_redact = fmt.lower() == "all" and redact.lower() != "none"
-        if airspace_refresh and (not wants_record or skip_record_for_redact):
+        if airspace:
+            if redact.lower() != "none":
+                raise click.UsageError(
+                    "airspace features need exact coordinates; drop --redact "
+                    "or --airspace"
+                )
+            if three_d:
+                raise click.UsageError(
+                    "--airspace draws on the flat 2D map; a 3D zone overlay is "
+                    "a planned follow-up — drop --3d"
+                )
+            if fmt.lower() not in ("html", "all"):
+                raise click.UsageError(
+                    "--airspace overlays the 2D HTML map (use -f html or all); "
+                    "the flight record already includes airspace"
+                )
+        if airspace_refresh and not (
+            airspace or (wants_record and not skip_record_for_redact)
+        ):
             click.echo(
-                "Note: --airspace-refresh does nothing without -f record",
+                "Note: --airspace-refresh does nothing without -f record "
+                "or --airspace",
                 err=True,
             )
         src = Path(directory)
@@ -1067,6 +1095,26 @@ def flightmap(
             targets = [(f, out)]
         if link_originals:
             resolve_media(tracks, src, link_base)
+        overlay_json = None
+        if airspace:
+            html_out = next(o for f2, o in targets if f2 == "html")
+            # transport is read off the module at call time (fetch_zones's own
+            # default binds urlopen at def time, which would dodge monkeypatching
+            # — same trap record.build_records documents).
+            per_track = [
+                airspace_fetch.fetch_zones(
+                    t,
+                    html_out.parent / "airspace-cache",
+                    refresh=airspace_refresh,
+                    transport=airspace_fetch.urlopen,
+                    announce=lambda m: click.echo(m, err=True),
+                )
+                for t in tracks
+            ]
+            overlay_json = zones_to_overlay_json(tracks, per_track)
+            for t, d in zip(tracks, per_track):
+                if d.gap_reason:
+                    click.echo(f"Note: {t.name}: {d.gap_reason}", err=True)
         for f, out in targets:
             try:
                 if f == "html":
@@ -1079,6 +1127,7 @@ def flightmap(
                             tracks, out, map_title,
                             tile_style=tile_style.lower(),
                             redact=redact.lower(),
+                            airspace_json=overlay_json,
                         )
                 elif f == "kml":
                     write_flights_kml(tracks, out, map_title)

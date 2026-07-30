@@ -16,6 +16,7 @@ from html import escape
 from pathlib import Path
 
 from .flightmap import flights_to_geojson
+from .flightmap_airspace_js import AIRSPACE_OVERLAY_JS
 from .flightmap_js import FLIGHT_POPUP_JS
 from .tiles import DEFAULT_TILE_STYLE, tile_layer_js
 from .track import Track
@@ -54,13 +55,13 @@ _TEMPLATE = """<!DOCTYPE html>
   .playback span {{ font-variant-numeric: tabular-nums; }}
   .playback label {{ opacity: .7; }}
   .playback select {{ font: inherit; max-width: 160px; }}
-</style>
+{airspace_css}</style>
 </head>
 <body>
 <div id="map"></div>
 <script type="application/json" id="flight-data">
 {data}
-</script>
+</script>{airspace_block}
 <script src="https://unpkg.com/leaflet@{leaflet}/dist/leaflet.js"
         integrity="{js_sri}" crossorigin=""></script>
 <script>
@@ -108,7 +109,7 @@ const runs = [];   // playback (#267): flights with usable per-point times
   overlays[label] = group;
   allLatLngs.push(...latlngs);
 });
-
+__AIRSPACE_JS__
 if (allLatLngs.length > 1) {
   map.fitBounds(L.latLngBounds(allLatLngs).pad(0.1), { maxZoom: 17 });
 } else if (allLatLngs.length === 1) {
@@ -236,27 +237,49 @@ if (runs.length && maxT > 0) {
 """
 
 
+_AIRSPACE_CSS = """  .airspace-note { background: rgba(255,255,255,.85);
+                   border-radius: 4px; padding: 4px 8px;
+                   font: 12px/1.5 sans-serif; max-width: 320px; }
+"""
+
+
 def flights_to_html(
     tracks: list[Track], title: str, *, tile_style: str = DEFAULT_TILE_STYLE,
-    redact: str = "none"
+    redact: str = "none", airspace_json: dict | None = None
 ) -> str:
     """Return a complete self-contained HTML flight map.
 
     ``tile_style`` (issue #311): a :data:`~.tiles.TILE_STYLES` key selecting
     the basemap drawn under the tracks.
+
+    ``airspace_json`` (#413): the overlay dict from
+    :func:`~.airspace.overlay.zones_to_overlay_json`; None renders the map
+    exactly as before.
     """
     geojson = flights_to_geojson(tracks, redact=redact)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
+    airspace_block = airspace_css = airspace_js = ""
+    if airspace_json is not None:
+        adata = json.dumps(airspace_json).replace("<", "\\u003c")
+        airspace_block = (
+            '\n<script type="application/json" id="airspace-data">\n'
+            f"{adata}\n</script>"
+        )
+        airspace_css = _AIRSPACE_CSS
+        airspace_js = AIRSPACE_OVERLAY_JS
     return _TEMPLATE.format(
         title=escape(title),
         leaflet=_LEAFLET_VERSION,
         css_sri=_LEAFLET_CSS_SRI,
         js_sri=_LEAFLET_JS_SRI,
         data=data,
+        airspace_block=airspace_block,
+        airspace_css=airspace_css,
         app_js=_APP_JS.replace("__TILE_LAYER__", tile_layer_js(tile_style))
-        .replace("__SHARED_JS__", FLIGHT_POPUP_JS),
+        .replace("__SHARED_JS__", FLIGHT_POPUP_JS)
+        .replace("__AIRSPACE_JS__", airspace_js),
     )
 
 
@@ -266,11 +289,15 @@ def write_flights_html(
     title: str,
     *,
     tile_style: str = DEFAULT_TILE_STYLE,
-    redact: str = "none"
+    redact: str = "none",
+    airspace_json: dict | None = None,
 ) -> Path:
     """Write *tracks* as an HTML map to *output_path* and return it."""
     output_path.write_text(
-        flights_to_html(tracks, title, tile_style=tile_style, redact=redact), encoding="utf-8"
+        flights_to_html(
+            tracks, title, tile_style=tile_style, redact=redact, airspace_json=airspace_json
+        ),
+        encoding="utf-8",
     )
     logger.info("HTML flight map created: %s", output_path)
     return output_path

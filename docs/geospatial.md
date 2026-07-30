@@ -425,6 +425,25 @@ where a clip carries no focal length, the map's own field of view is an
 estimate, so the alignment is approximate — the same caveat the gaze badge
 already reports.
 
+### Airspace overlay (`--airspace`)
+
+`dji-embed flightmap FLIGHTS --airspace` overlays the official airspace zones
+for the flight area on the 2D HTML map — FAA UAS Facility Maps in the US,
+ED-269 UAS geographical zones where a national feed is available (currently
+Luxembourg and Finland). Zones draw in one neutral style; clicking one shows
+the published facts: restriction class, vertical limits (or "not stated"),
+applicability windows, and the feed, license and fetch time. Zones the
+flight entered get a slightly stronger outline plus the entry/exit times and
+maximum heights in the popup. The map states facts and makes no
+determination.
+
+Like `-f record`, the flag is the opt-in for network access: every fetch is
+announced before it happens, responses are cached in `airspace-cache/`
+beside the output (`--airspace-refresh` refetches), and areas without a
+supported feed get an honest "no data available" note on the map itself.
+`--airspace` needs exact coordinates, so it refuses `--redact`; the 3D map
+does not support the overlay yet.
+
 ## Photo map (`photomap`)
 
 ```bash
