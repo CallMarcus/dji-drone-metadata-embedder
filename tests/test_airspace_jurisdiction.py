@@ -111,6 +111,13 @@ def test_gentingen_germany_gaps_instead_of_resolving_lu():
     assert r.jurisdiction is None
 
 
-def test_a_point_just_west_of_gentingen_still_resolves_to_lu():
+def test_a_point_near_the_gentingen_border_band_gaps_by_design():
+    # ~900 m from Germany here — inside the hull but outside the core, so
+    # this gaps as a border-band flight, deliberately, not a resolution.
     r = resolve_jurisdiction(_track((49.90, 6.22)))
+    assert r.jurisdiction is None
+
+
+def test_a_point_inside_the_bettendorf_band_resolves_to_lu():
+    r = resolve_jurisdiction(_track((49.89, 6.15)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "LU"
