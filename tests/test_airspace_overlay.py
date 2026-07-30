@@ -142,5 +142,5 @@ def test_no_verdict_vocabulary_in_output():
         [_track_inside(zones[0])], [AirspaceData(zones=zones, source=source)]
     )
     blob = _json.dumps(out).lower()
-    for banned in ("illegal", "compliant", "violation"):
+    for banned in ("legal", "compliant", "violation"):  # "legal" subsumes "illegal"
         assert banned not in blob
