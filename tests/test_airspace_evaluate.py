@@ -87,3 +87,41 @@ def test_missing_point_utc_keeps_timed_zones_visible():
     p = TrackPoint(lat=49.1, lon=6.1, alt=300, timestamp="c", utc=None)
     report = evaluate(Track(name="t", points=[p]), [timed], surface_heights_m=None)
     assert report.findings  # shown, never hidden, when time is uncertain
+
+
+def test_a_zero_dwell_maximum_is_not_overwritten_by_a_lower_negative_value():
+    # regression: `max(x or float("-inf"), ...)` treats a true 0.0 max as
+    # falsy and lets a later, lower value overwrite it.
+    track = Track(name="t", points=[
+        _pt(49.1, 6.1, 0, rel=0.0, alt=0.0),
+        _pt(49.1, 6.1, 1, rel=-5.0, alt=-5.0),
+    ])
+    report = evaluate(track, [_zone()], surface_heights_m=[0.0, -5.0])
+    f = report.findings[0]
+    assert f.max_rel_alt_m == 0.0
+    assert f.max_surface_m == 0.0
+    assert f.max_amsl_m == 0.0
+
+
+def test_reentering_a_zone_reports_one_spanning_entry_exit_window():
+    track = Track(name="t", points=[
+        _pt(49.1, 6.1, 0, rel=10, alt=300),   # enters
+        _pt(49.1, 6.1, 1, rel=20, alt=310),   # still inside
+        _pt(48.5, 5.0, 2, rel=999, alt=999),  # outside (higher, excluded)
+        _pt(49.1, 6.1, 4, rel=30, alt=320),   # re-enters
+    ])
+    report = evaluate(track, [_zone()], surface_heights_m=None)
+    f = report.findings[0]
+    assert f.entry_utc == datetime(2026, 7, 30, 12, 0)
+    assert f.exit_utc == datetime(2026, 7, 30, 12, 4)
+    assert f.max_rel_alt_m == 30
+    assert f.max_amsl_m == 320
+
+
+def test_mismatched_surface_heights_length_raises():
+    track = Track(name="t", points=[_pt(49.1, 6.1, 0), _pt(49.1, 6.1, 1)])
+    try:
+        evaluate(track, [_zone()], surface_heights_m=[1.0])
+        assert False, "expected ValueError"
+    except ValueError as e:
+        assert "1" in str(e) and "2" in str(e)

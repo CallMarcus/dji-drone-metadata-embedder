@@ -33,6 +33,12 @@ def point_in_ring(
 
 @dataclass
 class ZoneFinding:
+    """One zone's result against the track.
+
+    ``entry_utc``/``exit_utc`` span first entry to last exit across the
+    *whole* track; a zone left and re-entered reports one spanning window,
+    not per-visit windows."""
+
     zone: Zone
     entered: bool
     entry_utc: datetime | None = None
@@ -76,6 +82,11 @@ def evaluate(
     surface_heights_m: list[float] | None = None,
 ) -> AirspaceReport:
     """Evaluate *track* against *zones*; heights are reported per datum."""
+    if surface_heights_m is not None and len(surface_heights_m) != len(track.points):
+        raise ValueError(
+            f"surface_heights_m has {len(surface_heights_m)} entries but "
+            f"track has {len(track.points)} points"
+        )
     window = _window(track)
     report = AirspaceReport()
     for zone in zones:
@@ -92,13 +103,19 @@ def evaluate(
                     finding.entry_utc = p.utc
                 finding.exit_utc = p.utc
             if p.rel_alt is not None:
-                finding.max_rel_alt_m = max(
-                    finding.max_rel_alt_m or float("-inf"), p.rel_alt
+                finding.max_rel_alt_m = (
+                    p.rel_alt
+                    if finding.max_rel_alt_m is None
+                    else max(finding.max_rel_alt_m, p.rel_alt)
                 )
             if surface_heights_m is not None:
-                finding.max_surface_m = max(
-                    finding.max_surface_m or float("-inf"), surface_heights_m[i]
+                finding.max_surface_m = (
+                    surface_heights_m[i]
+                    if finding.max_surface_m is None
+                    else max(finding.max_surface_m, surface_heights_m[i])
                 )
-            finding.max_amsl_m = max(finding.max_amsl_m or float("-inf"), p.alt)
+            finding.max_amsl_m = (
+                p.alt if finding.max_amsl_m is None else max(finding.max_amsl_m, p.alt)
+            )
         report.findings.append(finding)
     return report

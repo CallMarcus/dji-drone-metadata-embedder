@@ -36,7 +36,12 @@ class VerticalLimit:
 
 @dataclass(frozen=True)
 class Applicability:
-    """One time window a zone applies in; ``None`` bounds are open-ended."""
+    """One time window a zone applies in; ``None`` bounds are open-ended.
+
+    Permanent windows never materialize as an ``Applicability`` entry (the
+    ED-269 parser skips ``permanent=YES``), so an entry's mere presence
+    means "time-bounded" — the evaluator's intersection test relies on
+    that."""
 
     start: datetime | None
     end: datetime | None
