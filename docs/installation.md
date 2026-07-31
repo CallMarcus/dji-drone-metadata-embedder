@@ -72,6 +72,16 @@ error — `pipx` installs the tool into its own isolated environment and puts
 `dji-embed` on your PATH (run `pipx ensurepath` once if the command isn't
 found in a new terminal).
 
+Prefer no Python at all? On Apple Silicon, grab the standalone
+`dji-embed-macos-arm64.zip` from the
+[GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases),
+unzip it, and run `./dji-embed`. The binary is Developer ID-signed and
+notarized, but a bare binary can't carry a stapled notarization ticket, so
+the **first run needs a network connection** for Gatekeeper's online ticket
+check. Verify the download against `SHA256SUMS-macos.txt` from the same
+release. FFmpeg and ExifTool still come from Homebrew
+(`brew install ffmpeg exiftool`).
+
 ### Linux
 
 ```bash

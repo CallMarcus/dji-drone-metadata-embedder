@@ -1,0 +1,287 @@
+---
+name: Build macOS CLI
+
+# build + sign + notarize (macos, arm64) -> publish. (#414 Stage C)
+#
+# The PyInstaller onefile binary is a single Mach-O with the payload archive
+# appended, so notarization only ever inspects the outer binary — hardened
+# runtime + secure timestamp on it is what "Accepted" checks. The embedded
+# dylibs matter at *runtime* instead: hardened-runtime library validation
+# requires them to carry the same team ID, which PyInstaller's
+# --codesign-identity provides (MACOS_CODESIGN_IDENTITY in the build step).
+# The --version smoke test below runs the signed binary on the runner, so a
+# library-validation failure fails the workflow, not the first user.
+#
+# A bare binary has nowhere to staple the notarization ticket, so the first
+# run on a user's Mac needs network for the Gatekeeper check — documented in
+# the install docs.
+#
+# Signing/notary steps are copied from mac-sign-test.yml (the Stage A
+# credential proof); keep the two in sync when rotating credentials.
+# Same-repo pull requests touching this leg run the full chain end-to-end
+# (secrets are available there) but skip the publish job.
+
+on:
+  workflow_run:
+    workflows: ["Release to PyPI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.2.0)'
+        required: true
+        type: string
+  pull_request:
+    # Deliberately narrow: pyproject.toml/uv.lock bumps could in principle
+    # break this build too, but a 40-minute macOS job plus a real Apple
+    # notary submission on every dependency PR is the wrong trade.
+    paths:
+      - '.github/workflows/release-macos.yml'
+      - 'tools/build_exe.py'
+
+permissions:
+  contents: read
+
+# A PR push mid-notarization should cancel the obsolete run (each one costs
+# a macos-14 slot and a real notary submission); release runs never cancel.
+concurrency:
+  group: release-macos-${{ github.event.pull_request.number || github.event.workflow_run.head_branch || inputs.version }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    # Fork PRs get no secrets, so the signing steps can only fail there —
+    # run the PR proof for same-repo branches only.
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch')
+          || (github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name == github.repository)
+          || (github.event_name == 'workflow_run'
+              && github.event.workflow_run.conclusion == 'success'
+              && startsWith(github.event.workflow_run.head_branch, 'v')) }}
+    runs-on: macos-14
+    # Notarization budget: a routine submission takes single-digit minutes,
+    # but this young account gets extended vetting — 2026-07-31 observed
+    # 30m, ~40m, 2h20m, then >3h on successive submissions, with the Apple
+    # status page green throughout. The poll deadline sits at the ceiling
+    # GitHub's 360-minute job cap allows; it costs nothing on a healthy day
+    # (the poll exits on Accepted) and shrinks to minutes once Apple trusts
+    # the account.
+    timeout-minutes: 360
+    env:
+      KEYCHAIN: release-macos.keychain-db
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Determine release version
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          case "$EVENT_NAME" in
+            workflow_dispatch) ver="$INPUT_VERSION" ;;
+            workflow_run) ver="${HEAD_BRANCH#v}" ;;
+            # PR proof run: build whatever version the branch is at.
+            pull_request) ver="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' \
+              src/dji_metadata_embedder/__init__.py)" ;;
+          esac
+          # The version feeds later step interpolations: accept strict X.Y.Z only.
+          if ! printf '%s' "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::unexpected version: $ver"
+            exit 1
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Sync and verify project version
+        run: |
+          uv run python tools/sync_version.py ${{ steps.meta.outputs.version }}
+          uv run python tools/sync_version.py ${{ steps.meta.outputs.version }} --check
+      - name: Install dependencies
+        run: uv sync --extra build --extra terrain
+
+      - name: Import certificate into a throwaway keychain
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KC_PASSWORD="$(openssl rand -base64 24)"
+          printf '%s' "$APPLE_CERT_P12" | base64 -d > cert.p12
+          security create-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" -f pkcs12 \
+            -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f cert.p12
+          # Let codesign use the key non-interactively.
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KC_PASSWORD" "$KEYCHAIN" > /dev/null
+          # Search list, so PyInstaller's un-keychained codesign calls
+          # resolve the identity too.
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+
+      - name: Verify identity and pin the fingerprint
+        env:
+          APPLE_CERT_FINGERPRINT: ${{ secrets.APPLE_CERT_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN" \
+            | grep -q "Developer ID Application"
+          actual="$(security find-certificate -c 'Developer ID Application' \
+            -Z "$KEYCHAIN" | awk '/SHA-256 hash/ {print $3}')"
+          if [ "$actual" != "$APPLE_CERT_FINGERPRINT" ]; then
+            echo "::error::certificate fingerprint does not match the pin"
+            exit 1
+          fi
+          echo "Fingerprint pin: MATCH"
+
+      - name: Build arm64 binary (PyInstaller, embedded dylibs signed)
+        env:
+          MACOS_CODESIGN_IDENTITY: Developer ID Application
+        run: uv run python tools/build_exe.py
+
+      - name: Sign the binary (hardened runtime + timestamp)
+        run: |
+          set -euo pipefail
+          codesign --force --sign "Developer ID Application" \
+            --options runtime --timestamp \
+            --keychain "$KEYCHAIN" dist/dji-embed
+          codesign --verify --strict --verbose=2 dist/dji-embed
+          codesign --display --verbose=2 dist/dji-embed 2>&1 \
+            | grep -E "Authority|TeamIdentifier"
+
+      - name: Smoke test the signed binary
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          # The asset name hard-codes arm64 — make sure that stays true.
+          file dist/dji-embed | grep arm64
+          ./dist/dji-embed --version | grep -F "$VERSION"
+          ./dist/dji-embed --help > /dev/null
+          echo "Smoke test: OK ($(./dist/dji-embed --version))"
+
+      - name: Notarize
+        env:
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$APPLE_NOTARY_KEY_P8" > notary-key.p8
+          # The submitted zip is the shipped release asset. Info-ZIP `zip`,
+          # not `ditto --keepParent`: for a plain file ditto embeds the
+          # parent directory name (the entry came out as dist/dji-embed),
+          # while zip puts the named entry at the archive root and records
+          # the exec bit. The round-trip below proves the asset in the
+          # exact form users download it — before burning a notary
+          # submission.
+          (cd dist && zip -X dji-embed-macos-arm64.zip dji-embed)
+          rm -rf ziptest && mkdir ziptest
+          ditto -x -k dist/dji-embed-macos-arm64.zip ziptest
+          test -x ziptest/dji-embed
+          ziptest/dji-embed --version
+          rm -rf ziptest
+          # Submit without --wait and poll ourselves: notarytool's built-in
+          # wait aborts on the first transient network error (a runner blip
+          # 53 minutes in cost a whole run), while each poll below is an
+          # independent request.
+          sub_id="$(xcrun notarytool submit dist/dji-embed-macos-arm64.zip \
+            --key notary-key.p8 \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --output-format json \
+            | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+          echo "Submission id: $sub_id"
+          deadline=$((SECONDS + 330 * 60))
+          status="In Progress"
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            sleep 60
+            if ! out="$(xcrun notarytool info "$sub_id" \
+                --key notary-key.p8 \
+                --key-id "$APPLE_NOTARY_KEY_ID" \
+                --issuer "$APPLE_NOTARY_ISSUER_ID" 2>&1)"; then
+              echo "poll failed (transient), retrying: $(printf '%s' "$out" | head -1)"
+              continue
+            fi
+            status="$(printf '%s\n' "$out" | sed -n 's/^ *status: //p' | head -1)"
+            echo "[$((SECONDS / 60))m] status: $status"
+            case "$status" in
+              "In Progress"|"") ;;
+              *) break ;;
+            esac
+          done
+          rm -f notary-key.p8
+          if [ "$status" != "Accepted" ]; then
+            echo "::error::notarization did not accept (status: $status)"
+            exit 1
+          fi
+          echo "Notarization: Accepted"
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-dist
+          path: dist/dji-embed-macos-arm64.zip
+          if-no-files-found: error
+
+      - name: Delete the throwaway keychain
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+          rm -f cert.p12 notary-key.p8
+
+  publish:
+    # PR runs prove the chain but ship nothing.
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # Sigstore build provenance (verify with `gh attestation verify`).
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-dist
+          path: dist
+      - name: Generate SHA256SUMS-macos.txt
+        # Separate file from the Windows leg's SHA256SUMS.txt — both legs
+        # race on the same release, and same-named assets clobber.
+        run: |
+          cd dist
+          sha256sum -- * > SHA256SUMS-macos.txt
+          cat SHA256SUMS-macos.txt
+      - name: Attest build provenance
+        # Sigstore-signed proof the zip came from this workflow:
+        #   gh attestation verify dji-embed-macos-arm64.zip -R CallMarcus/dji-drone-metadata-embedder
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/dji-embed-macos-arm64.zip
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+      - name: Summary
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          echo "Notarized macOS arm64 CLI attached to [release $TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
