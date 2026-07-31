@@ -169,5 +169,7 @@ def test_refresh_with_airspace_does_not_refetch_for_the_record(
     )
     assert result.exit_code == 0, result.output
     assert fake.calls == 1                       # one refreshed fetch, overlay-side
-    zone_urls = [u for u in rec_transport.urls if "geoportail" in u]
-    assert zone_urls == []                       # the record reused the fresh cache
+    # Positive form (#433 review F4): the record touched the network for
+    # terrain tiles only — any zone-feed host would fail this, not just
+    # the fixture's spelling.
+    assert all("mapterhorn" in u for u in rec_transport.urls), rec_transport.urls

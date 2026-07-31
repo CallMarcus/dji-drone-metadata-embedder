@@ -8,6 +8,7 @@ complete — a truncated grid must never present itself as full coverage.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from urllib.error import HTTPError, URLError
@@ -117,10 +118,9 @@ def fetch_faa_pages(
 def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
     """Normalize UASFM grid cells: CEILING feet AGL -> Zone. All-or-nothing."""
     zones: list[Zone] = []
-    # One running index across pages: the cell-{n} identifier fallback must
-    # not restart per page, or OBJECTID-less features at the same index of
-    # two pages collide on the overlay's (feed, identifier) dedupe key and
-    # a zone silently vanishes from the map (#424).
+    # One running index across pages so error messages carry the true
+    # position ("cell 1043", not a second "cell 0") — the identifier
+    # fallback below is content-derived, not index-based (#424).
     index = 0
     for page in pages:
         doc = json.loads(page)
@@ -146,7 +146,21 @@ def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
             polygons = rings[:1]
             holes = rings[1:]
             apt = props.get("APT1_NAME") or props.get("APT1_ICAO") or "UASFM"
-            ident = str(props.get("OBJECTID", f"cell-{index}"))
+            oid = props.get("OBJECTID")
+            if oid is None:
+                # Content-derived fallback, stable across pages, fetches
+                # and reruns: any counter restarts somewhere (per page, or
+                # per parse_faa call when each track fetches its own bbox)
+                # and collides on the overlay's (feed, identifier) dedupe
+                # key, silently dropping a zone. Identical geometry+ceiling
+                # hashing identically is correct — that IS the same cell,
+                # and collapsing it is deduplication, not loss (#424).
+                digest = hashlib.sha1(
+                    f"{ceiling}:{rings!r}".encode()
+                ).hexdigest()[:10]
+                ident = f"cell-{digest}"
+            else:
+                ident = str(oid)
             index += 1
             zones.append(
                 Zone(
