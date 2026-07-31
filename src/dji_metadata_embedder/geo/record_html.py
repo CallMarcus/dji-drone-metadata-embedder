@@ -96,15 +96,26 @@ def _height_block(rec: FlightRecordData) -> str:
 
 def _zone_row(f: ZoneFinding) -> str:
     z = f.zone
-    # ED-269 permits a stated lowerLimit with no upper (a zone that begins
-    # above a floor) — state the floor, never "not stated" (#422).
-    if z.upper is not None:
+    # ED-269 publishes floors: 27 live FI zones state a lowerLimit with no
+    # upper, and 28 live FI/LU zones are banded (e.g. 50–120 m AGL). The
+    # ceiling alone would read as "0 up to X" — the opposite of the
+    # published shape — so bands show both ends and a bare floor shows
+    # "from X"; the FAA's universal 0-ft floor stays out of the way (#422).
+    if z.upper is not None and z.lower is not None and z.lower.value > 0:
+        if (z.lower.unit, z.lower.reference) == (z.upper.unit, z.upper.reference):
+            limit = (
+                f"{z.lower.value:g}–{z.upper.value:g} "
+                f"{z.upper.unit} {z.upper.reference}"
+            )
+        else:
+            limit = f"{z.lower.label()} – {z.upper.label()}"
+    elif z.upper is not None:
         limit = z.upper.label()
     elif z.lower is not None:
         limit = f"from {z.lower.label()}"
     else:
         limit = "not stated"
-    stated = z.upper or z.lower
+    stated = z.upper if z.upper is not None else z.lower
     if not f.entered:
         status, compare = "outside", "—"
     else:
@@ -148,7 +159,7 @@ def _svg(rec: FlightRecordData) -> str:
         ring
         for f in rec.airspace.findings
         if f.entered
-        for ring in f.zone.polygons
+        for ring in f.zone.polygons + f.zone.holes
     ]
     all_lon = [p[1] for p in pts] + [c[0] for r in rings for c in r]
     all_lat = [p[0] for p in pts] + [c[1] for r in rings for c in r]
@@ -188,33 +199,46 @@ def _offset_label(offset: timedelta) -> str:
 
 
 def _cover_time(dt: datetime | None, offset: timedelta | None) -> str:
-    """Local + UTC when the track resolved an offset, UTC alone otherwise.
+    """Local + UTC when the track resolved an offset, UTC alone otherwise
+    (a zero offset falls through — the same clock twice is noise). The UTC
+    line self-dates so a midnight crossing stays visible in the cover.
     Generated digits only — safe to embed unescaped."""
     if dt is None:
         return "unknown"
-    if offset is None:
+    if offset is None or not offset:
         return dt.strftime("%H:%M:%S UTC")
     local = dt + offset
     return (
         f"{local:%H:%M:%S} {_offset_label(offset)}"
-        f"<br><small>{dt:%H:%M:%S} UTC</small>"
+        f"<br><small>{dt:%Y-%m-%d %H:%M:%S} UTC</small>"
     )
 
 
 def _cover_row(rec: FlightRecordData) -> str:
     # The logbook date is the pilot's local date when the offset is known
-    # (a 23:30 UTC flight at +02:00 happened on the next local day).
-    date_dt = rec.start_utc
-    if date_dt is not None and rec.local_offset is not None:
-        date_dt = date_dt + rec.local_offset
-    date = date_dt.strftime("%Y-%m-%d") if date_dt else "unknown"
-    # The spec's logbook column is the est. max height above surface — the
-    # measure the regulations approximate; a missing estimate is stated,
-    # never substituted with the takeoff-referenced height (#422).
-    if rec.max_surface_m is not None:
-        height = f"{rec.max_surface_m:.0f} m"
+    # (a 23:30 UTC flight at +02:00 happened on the next local day). The
+    # cell labels its datum: auto-detection can fail per file, so rows of
+    # one table can mix local and UTC dates. When the offset was
+    # auto-detected the local clock is exact regardless — it is the
+    # telemetry's own wall clock; only the offset label and the UTC line
+    # inherit the guess.
+    if rec.start_utc is None:
+        date = "unknown"
+    elif rec.local_offset:
+        local_date = (rec.start_utc + rec.local_offset).strftime("%Y-%m-%d")
+        date = f"{local_date} <small>local</small>"
     else:
-        height = "unavailable"
+        date = f"{rec.start_utc:%Y-%m-%d} <small>UTC</small>"
+    # Both spec'd height columns, each labelled with its datum in the
+    # header; a missing estimate is stated, never substituted (#422).
+    if rec.max_rel_alt_m is not None:
+        takeoff_height = f"{rec.max_rel_alt_m:.0f} m"
+    else:
+        takeoff_height = "unavailable"
+    if rec.max_surface_m is not None:
+        surface_height = f"{rec.max_surface_m:.0f} m"
+    else:
+        surface_height = "unavailable"
     n_entered = sum(1 for f in rec.airspace.findings if f.entered)
     if rec.airspace.gap_reason:
         airspace_summary = rec.airspace.gap_reason
@@ -227,12 +251,13 @@ def _cover_row(rec: FlightRecordData) -> str:
     return (
         "<tr>"
         f"<td>{_esc(rec.name)}</td>"
-        f"<td>{_esc(date)}</td>"
+        f"<td>{date}</td>"
         f"<td>{_cover_time(rec.start_utc, rec.local_offset)}</td>"
         f"<td>{_cover_time(rec.end_utc, rec.local_offset)}</td>"
         f"<td>{_esc(_duration(rec.duration_s))}</td>"
         f"<td>{rec.takeoff[0]:.5f}, {rec.takeoff[1]:.5f}</td>"
-        f"<td>{_esc(height)}</td>"
+        f"<td>{_esc(takeoff_height)}</td>"
+        f"<td>{_esc(surface_height)}</td>"
         f"<td>{_esc(airspace_summary)}</td>"
         "</tr>"
     )
@@ -331,12 +356,23 @@ def _flight_section(rec: FlightRecordData, version: str) -> str:
                 f"in the evaluated area {'were' if is_plural else 'was'} "
                 "not entered.</p>"
             )
+        # "Entered" is a horizontal fact; with floor zones now surfaced, a
+        # reader could take it vertically — say what it means (#422 review).
+        entry_note = ""
+        if entered:
+            entry_note = (
+                "<p><small>Entry is horizontal: the track's ground "
+                "position was inside the zone's published outline. The "
+                "vertical facts are stated separately; this record makes "
+                "no determination about either.</small></p>"
+            )
         airspace_html = (
             "<h3>Airspace zones</h3>"
             "<table class='airspace'>"
             "<tr><th>Zone</th><th>Restriction</th><th>Limit</th>"
             "<th>Status</th><th>Comparison</th></tr>"
             + rows + "</table>"
+            + entry_note
             + summary_html
             + _not_applicable_table(rec)
         )
@@ -372,6 +408,7 @@ def record_to_html(
     cover = (
         "<table class='cover'><tr><th>Flight</th><th>Date</th>"
         "<th>Start</th><th>End</th><th>Duration</th><th>Takeoff</th>"
+        "<th>Max height<br><small>above takeoff</small></th>"
         "<th>Max height<br><small>est. above surface</small></th>"
         "<th>Airspace</th></tr>"
         + cover_rows + "</table>"

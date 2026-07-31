@@ -103,7 +103,9 @@ def build_track(
     path = Path(srt_file)
     samples = load_samples(path)
     if is_video(path):
-        return build_track_from_samples(path.stem, samples, redact, assume_utc=True)
+        return build_track_from_samples(
+            path.stem, samples, redact, assume_utc=True, tz_offset=tz_offset
+        )
     mtime_utc = datetime.fromtimestamp(
         path.stat().st_mtime, tz=timezone.utc
     ).replace(tzinfo=None)

@@ -66,7 +66,13 @@ class Zone:
 
     ``restriction``: "CEILING" (FAA grid cells, value in ``upper``) or the
     ED-269 class ("PROHIBITED"/"REQ_AUTHORISATION"/"NO_RESTRICTION"/other
-    passthrough). ``polygons`` are closed rings of (lon, lat)."""
+    passthrough). ``polygons`` are closed exterior rings of (lon, lat);
+    ``holes`` are interior rings (GeoJSON ``coordinates[1:]``), kept apart
+    so the evaluator subtracts them instead of counting them as zone
+    (#422). Grouping is zone-level, not per-polygon — sufficient for every
+    shape the live feeds publish (none has holes or multi-volume zones
+    today); a grouped model is the #424-era upgrade if a feed ever needs
+    it."""
 
     identifier: str
     name: str
@@ -76,4 +82,5 @@ class Zone:
     applicability: list[Applicability]
     polygons: list[list[tuple[float, float]]]
     source: SourceInfo
+    holes: list[list[tuple[float, float]]] = field(default_factory=list)
     native: dict = field(default_factory=dict)

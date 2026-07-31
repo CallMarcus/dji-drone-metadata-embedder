@@ -81,7 +81,7 @@ def test_zone_dict_shape_and_source_footer():
     z = out["zones"][0]
     assert set(z) == {
         "id", "name", "restriction", "lower", "upper", "applicability",
-        "polygons", "source", "entered",
+        "polygons", "holes", "source", "entered",
     }
     assert z["source"] == {
         "feed": source.feed, "license": source.license, "fetched": source.fetched,

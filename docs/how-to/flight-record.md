@@ -13,6 +13,14 @@ This writes `flight-record.html` next to your footage. Every figure on it
 carries its source and what it approximates — a missing datum is stated as
 a note, never filled in with a guessed number.
 
+The logbook table shows each flight's local time over its UTC time, using
+`--tz-offset` when you state one and the auto-detected recording offset
+otherwise; when neither resolves, the row stays honestly UTC-only and its
+date cell says so. The two height columns are labelled with their datums —
+max above takeoff (aircraft-reported) and est. max above surface — and
+"entered" in the airspace section is a horizontal fact, defined right under
+the table.
+
 A flight record needs exact coordinates to place a track against airspace
 zones honestly, so `-f record` refuses to run with `--redact fuzz` — drop
 `--redact` for a record, or use `--redact fuzz` for the map formats instead.

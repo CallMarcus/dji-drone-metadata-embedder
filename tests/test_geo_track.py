@@ -123,3 +123,18 @@ def test_synthesized_utc_leaves_local_offset_unknown(tmp_path):
     srt = tmp_path / "nodt.SRT"
     srt.write_text(NODT_SRT, encoding="utf-8")
     assert build_track(srt).local_offset is None
+
+
+def test_video_local_offset_is_the_explicit_one_or_unknown(monkeypatch, tmp_path):
+    # Video telemetry is already UTC; the local offset is only known when
+    # the user stated one, and build_track must forward it (#432 review).
+    f = tmp_path / "clip.mp4"
+    f.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    assert build_track(f).local_offset is None
+    assert build_track(f, tz_offset=timedelta(hours=3)).local_offset \
+        == timedelta(hours=3)
+
+
+def test_drop_redaction_leaves_local_offset_unknown():
+    assert build_track(CLIP, redact="drop").local_offset is None
