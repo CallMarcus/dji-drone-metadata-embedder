@@ -61,9 +61,11 @@ jobs:
               && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: macos-14
     # Notarization budget: a routine submission takes single-digit minutes,
-    # but extended vetting (seen on this account's maiden submission) can
-    # push past 30 — same allowance as mac-sign-test.yml.
-    timeout-minutes: 60
+    # but this account still gets extended vetting — the first PyInstaller
+    # submission sat In Progress ~40 minutes before Accepted (2026-07-31),
+    # blowing a 35m budget. Hence the generous allowance; runs just finish
+    # sooner once Apple trusts the account.
+    timeout-minutes: 80
     env:
       KEYCHAIN: release-macos.keychain-db
     outputs:
@@ -195,7 +197,7 @@ jobs:
             --key notary-key.p8 \
             --key-id "$APPLE_NOTARY_KEY_ID" \
             --issuer "$APPLE_NOTARY_ISSUER_ID" \
-            --wait --timeout 35m | tee notary.log
+            --wait --timeout 60m | tee notary.log
           rm -f notary-key.p8
           grep -q "status: Accepted" notary.log
           echo "Notarization: Accepted"
