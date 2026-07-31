@@ -134,3 +134,57 @@ def test_interior_rings_parse_into_holes():
                               (0.0, 0.0)]]
     assert zone.holes == [[(0.2, 0.2), (0.4, 0.2), (0.4, 0.4), (0.2, 0.4),
                            (0.2, 0.2)]]
+
+
+def _objectid_less_page(x, ceiling=400, objectid_null=False):
+    outer = [[x, 0.0], [x + 1.0, 0.0], [x + 1.0, 1.0], [x, 1.0], [x, 0.0]]
+    props = {"CEILING": ceiling}
+    if objectid_null:
+        props["OBJECTID"] = None
+    return json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "properties": props,
+            "geometry": {"type": "Polygon", "coordinates": [outer]},
+        }],
+    }).encode()
+
+
+def test_objectid_less_cells_get_distinct_identifiers_across_pages():
+    # #424: an index fallback restarting per page collided on the
+    # overlay's (feed, identifier) dedupe key — silently dropping a zone.
+    zones = parse_faa([_objectid_less_page(0.0), _objectid_less_page(5.0)], SRC)
+    assert len({z.identifier for z in zones}) == 2
+
+
+def test_objectid_less_cells_from_different_fetches_stay_distinct():
+    # #433 review F1: two tracks mean two fetches mean two parse_faa
+    # calls; any per-call counter restarts and collides across them. The
+    # identifier is content-derived, so it is stable across pages,
+    # fetches and reruns.
+    (a,) = parse_faa([_objectid_less_page(0.0)], SRC)
+    (b,) = parse_faa([_objectid_less_page(5.0)], SRC)
+    assert a.identifier != b.identifier
+
+
+def test_identical_objectid_less_cells_share_an_identifier():
+    # Two features with the same geometry and ceiling ARE one cell; the
+    # overlay dedupe collapsing them is correct, not a drop.
+    (a,) = parse_faa([_objectid_less_page(0.0)], SRC)
+    (b,) = parse_faa([_objectid_less_page(0.0)], SRC)
+    assert a.identifier == b.identifier
+
+
+def test_a_null_objectid_falls_back_like_a_missing_one():
+    # #433 review F2: an explicit "OBJECTID": null must not become the
+    # shared identifier "UASFM-None" for every such cell.
+    (a,) = parse_faa([_objectid_less_page(0.0, objectid_null=True)], SRC)
+    (b,) = parse_faa([_objectid_less_page(5.0, objectid_null=True)], SRC)
+    assert "None" not in a.identifier
+    assert a.identifier != b.identifier
+
+
+def test_different_ceilings_on_the_same_footprint_stay_distinct():
+    (a,) = parse_faa([_objectid_less_page(0.0, ceiling=400)], SRC)
+    (b,) = parse_faa([_objectid_less_page(0.0, ceiling=100)], SRC)
+    assert a.identifier != b.identifier

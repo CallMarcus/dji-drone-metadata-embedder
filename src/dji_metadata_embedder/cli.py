@@ -817,9 +817,10 @@ def photomap(
     ),
     default="html", show_default=True,
     help="Map output format. 'record' (also written by 'all') writes a printable "
-         "flight record and fetches airspace data from official feeds (FAA / "
-         "ED-269) and terrain tiles from Mapterhorn — with --airspace, the only "
-         "network access in this command; data is cached beside the output.",
+         "flight record, fetching airspace data from official feeds (FAA / "
+         "ED-269) and terrain tiles from Mapterhorn. Along with --airspace, "
+         "these are the command's only network access; responses are cached "
+         "beside the output.",
 )
 @click.option(
     "--airspace-refresh", is_flag=True,
@@ -1135,7 +1136,12 @@ def flightmap(
                     records = build_records(
                         tracks,
                         cache_dir=out.parent / "airspace-cache",
-                        refresh=airspace_refresh,
+                        # The overlay loop above already refreshed this
+                        # same cache in this run — a second refresh pass
+                        # would refetch the feed it just wrote (#424).
+                        # Terrain tiles have no refresh notion, so nothing
+                        # else is suppressed.
+                        refresh=airspace_refresh and not airspace,
                         announce=lambda m: click.echo(m, err=True),
                     )
                     write_flight_record(records, out, map_title)

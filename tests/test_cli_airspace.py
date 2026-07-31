@@ -136,3 +136,40 @@ def test_gap_track_still_renders_map_with_note(tmp_path, monkeypatch):
     html = (d / "flightmap.html").read_text(encoding="utf-8")
     assert 'id="airspace-data"' in html      # gap note embedded in the map
     assert "airspace-note" in html
+
+
+class _UrlRecorder:
+    """Records every requested URL and stays offline — lets a test tell a
+    zone-feed request apart from a terrain-tile request."""
+
+    def __init__(self):
+        self.urls = []
+
+    def __call__(self, req, timeout=None):
+        self.urls.append(req.full_url if hasattr(req, "full_url") else str(req))
+        raise URLError("offline")
+
+
+def test_refresh_with_airspace_does_not_refetch_for_the_record(
+    tmp_path, monkeypatch
+):
+    # #424: -f all --airspace --airspace-refresh used to refetch the feed
+    # twice — once for the overlay, then again for the record, past the
+    # cache the overlay had just written.
+    from dji_metadata_embedder.geo import record as record_mod
+
+    fake = FakeTransport([_lux_body()])          # the overlay's refreshed fetch
+    monkeypatch.setattr(airspace_fetch, "urlopen", fake)
+    rec_transport = _UrlRecorder()               # terrain may knock; zones must not
+    monkeypatch.setattr(record_mod, "urlopen", rec_transport)
+    d = _srt_dir(tmp_path)
+    result = CliRunner().invoke(
+        main,
+        ["flightmap", str(d), "-f", "all", "--airspace", "--airspace-refresh"],
+    )
+    assert result.exit_code == 0, result.output
+    assert fake.calls == 1                       # one refreshed fetch, overlay-side
+    # Positive form (#433 review F4): the record touched the network for
+    # terrain tiles only — any zone-feed host would fail this, not just
+    # the fixture's spelling.
+    assert all("mapterhorn" in u for u in rec_transport.urls), rec_transport.urls
