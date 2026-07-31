@@ -19,7 +19,9 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // The one persisted GUI state (workspace spec): MRU folders +
-            // window bounds in %APPDATA%/DjiEmbed/state.json.
+            // window bounds in DjiEmbed/state.json under the platform's
+            // app-data folder — %APPDATA% on Windows, ~/Library/Application
+            // Support on macOS (the .NET 8+ GetFolderPath mapping).
             var store = new GuiStateStore(GuiState.DefaultPath);
             desktop.MainWindow = new MainWindow(store)
             {

@@ -182,9 +182,10 @@ public class ScreenshotCaptureTests
     }
 
     /// <summary>
-    /// Done step on a machine without a usable WebView2: the done card
-    /// with the WebView2-unavailable note visible instead of the inline
-    /// map, above the output row whose Open button the note points at.
+    /// Done step on a machine without a usable web view engine: the done
+    /// card with the preview-unavailable note visible instead of the
+    /// inline map, above the output row whose Open button the note
+    /// points at.
     /// </summary>
     [AvaloniaFact]
     public void Captures_degraded_done_state_to_dir_when_requested()

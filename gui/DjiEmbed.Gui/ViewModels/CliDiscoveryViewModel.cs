@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -29,16 +30,28 @@ public partial class CliDiscoveryViewModel(string? cliPath, Action goHome)
     /// the live --help expander covers completeness.
     /// </summary>
     public IReadOnlyList<StarterCommand> StarterCommands { get; } =
-    [
-        new(@"dji-embed convert gpx flight.SRT",
-            "Turn one flight log into a GPX track any mapping tool can read"),
-        new(@"dji-embed embed D:\Footage --redact fuzz",
-            "Embed telemetry with the GPS positions fuzzed for privacy"),
-        new(@"dji-embed validate D:\Footage",
-            "Check every video/flight-log pair for telemetry drift"),
-        new("dji-embed doctor",
-            "Full system diagnostics, beyond the app's setup check"),
-    ];
+        StarterCommandsFor(Platforms.Current);
+
+    /// <summary>The examples are copy-paste bait, so the sample folder
+    /// follows the OS — a D:\ drive path is Windows-only truth.</summary>
+    internal static IReadOnlyList<StarterCommand> StarterCommandsFor(
+        OSPlatform platform)
+    {
+        var footage = platform == OSPlatform.Windows ? @"D:\Footage"
+            : platform == OSPlatform.OSX ? "~/Movies/Footage"
+            : "~/Videos/Footage";
+        return
+        [
+            new("dji-embed convert gpx flight.SRT",
+                "Turn one flight log into a GPX track any mapping tool can read"),
+            new($"dji-embed embed {footage} --redact fuzz",
+                "Embed telemetry with the GPS positions fuzzed for privacy"),
+            new($"dji-embed validate {footage}",
+                "Check every video/flight-log pair for telemetry drift"),
+            new("dji-embed doctor",
+                "Full system diagnostics, beyond the app's setup check"),
+        ];
+    }
 
     [ObservableProperty]
     public partial string? HelpText { get; set; }

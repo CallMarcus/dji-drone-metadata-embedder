@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DjiEmbed.Gui.ViewModels"
+             xmlns:services="using:DjiEmbed.Gui.Services"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
@@ -36,7 +37,7 @@
 
                 <Button HorizontalAlignment="Left"
                         Command="{Binding OpenTerminalCommand}">
-                    <TextBlock Text="Open PowerShell and try it" />
+                    <TextBlock Text="{x:Static services:TerminalLauncher.ButtonLabel}" />
                 </Button>
 
                 <TextBlock Text="A few things only the command line can do:"
