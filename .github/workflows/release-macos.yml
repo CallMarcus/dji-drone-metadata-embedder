@@ -62,11 +62,12 @@ jobs:
     runs-on: macos-14
     # Notarization budget: a routine submission takes single-digit minutes,
     # but this young account gets extended vetting — 2026-07-31 observed
-    # 30m, ~40m, then 2h+ on successive submissions, with the Apple status
-    # page green throughout. The generous allowance costs nothing on a
-    # healthy day (the poll exits on Accepted) and saves the run on a slow
-    # one; it shrinks to minutes once Apple trusts the account.
-    timeout-minutes: 300
+    # 30m, ~40m, 2h20m, then >3h on successive submissions, with the Apple
+    # status page green throughout. The poll deadline sits at the ceiling
+    # GitHub's 360-minute job cap allows; it costs nothing on a healthy day
+    # (the poll exits on Accepted) and shrinks to minutes once Apple trusts
+    # the account.
+    timeout-minutes: 360
     env:
       KEYCHAIN: release-macos.keychain-db
     outputs:
@@ -205,7 +206,7 @@ jobs:
             --output-format json \
             | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
           echo "Submission id: $sub_id"
-          deadline=$((SECONDS + 180 * 60))
+          deadline=$((SECONDS + 330 * 60))
           status="In Progress"
           while [ "$SECONDS" -lt "$deadline" ]; do
             sleep 60
