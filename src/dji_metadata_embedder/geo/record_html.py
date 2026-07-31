@@ -3,7 +3,7 @@ external assets — the record must open and print anywhere, forever."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
 
@@ -96,18 +96,26 @@ def _height_block(rec: FlightRecordData) -> str:
 
 def _zone_row(f: ZoneFinding) -> str:
     z = f.zone
-    limit = z.upper.label() if z.upper else "not stated"
+    # ED-269 permits a stated lowerLimit with no upper (a zone that begins
+    # above a floor) — state the floor, never "not stated" (#422).
+    if z.upper is not None:
+        limit = z.upper.label()
+    elif z.lower is not None:
+        limit = f"from {z.lower.label()}"
+    else:
+        limit = "not stated"
+    stated = z.upper or z.lower
     if not f.entered:
         status, compare = "outside", "—"
     else:
         status = f"entered {_utc(f.entry_utc)} – {_utc(f.exit_utc)}"
-        if z.upper is None:
+        if stated is None:
             compare = "no stated limit to compare against"
-        elif z.upper.reference == "AGL":
+        elif stated.reference == "AGL":
             if f.max_surface_m is not None:
                 compare = (
                     "est. max height above surface during dwell: "
-                    + _both_units(f.max_surface_m, z.upper.unit)
+                    + _both_units(f.max_surface_m, stated.unit)
                 )
             else:
                 compare = (
@@ -115,11 +123,11 @@ def _zone_row(f: ZoneFinding) -> str:
                     "estimate is unavailable — not directly comparable "
                     "with the aircraft's takeoff-referenced height"
                 )
-        elif z.upper.reference == "AMSL":
+        elif stated.reference == "AMSL":
             if f.max_amsl_m is not None:
                 compare = (
                     "max altitude (AMSL) during dwell: "
-                    + _both_units(f.max_amsl_m, z.upper.unit)
+                    + _both_units(f.max_amsl_m, stated.unit)
                 )
             else:
                 compare = "limit stated in AMSL; no absolute altitude recorded"
@@ -172,10 +180,39 @@ def _svg(rec: FlightRecordData) -> str:
     )
 
 
+def _offset_label(offset: timedelta) -> str:
+    total = int(offset.total_seconds())
+    sign = "+" if total >= 0 else "-"
+    h, m = divmod(abs(total) // 60, 60)
+    return f"{sign}{h:02d}:{m:02d}"
+
+
+def _cover_time(dt: datetime | None, offset: timedelta | None) -> str:
+    """Local + UTC when the track resolved an offset, UTC alone otherwise.
+    Generated digits only — safe to embed unescaped."""
+    if dt is None:
+        return "unknown"
+    if offset is None:
+        return dt.strftime("%H:%M:%S UTC")
+    local = dt + offset
+    return (
+        f"{local:%H:%M:%S} {_offset_label(offset)}"
+        f"<br><small>{dt:%H:%M:%S} UTC</small>"
+    )
+
+
 def _cover_row(rec: FlightRecordData) -> str:
-    date = rec.start_utc.strftime("%Y-%m-%d") if rec.start_utc else "unknown"
-    if rec.max_rel_alt_m is not None:
-        height = f"{rec.max_rel_alt_m:.0f} m"
+    # The logbook date is the pilot's local date when the offset is known
+    # (a 23:30 UTC flight at +02:00 happened on the next local day).
+    date_dt = rec.start_utc
+    if date_dt is not None and rec.local_offset is not None:
+        date_dt = date_dt + rec.local_offset
+    date = date_dt.strftime("%Y-%m-%d") if date_dt else "unknown"
+    # The spec's logbook column is the est. max height above surface — the
+    # measure the regulations approximate; a missing estimate is stated,
+    # never substituted with the takeoff-referenced height (#422).
+    if rec.max_surface_m is not None:
+        height = f"{rec.max_surface_m:.0f} m"
     else:
         height = "unavailable"
     n_entered = sum(1 for f in rec.airspace.findings if f.entered)
@@ -191,8 +228,8 @@ def _cover_row(rec: FlightRecordData) -> str:
         "<tr>"
         f"<td>{_esc(rec.name)}</td>"
         f"<td>{_esc(date)}</td>"
-        f"<td>{_esc(_utc(rec.start_utc))}</td>"
-        f"<td>{_esc(_utc(rec.end_utc))}</td>"
+        f"<td>{_cover_time(rec.start_utc, rec.local_offset)}</td>"
+        f"<td>{_cover_time(rec.end_utc, rec.local_offset)}</td>"
         f"<td>{_esc(_duration(rec.duration_s))}</td>"
         f"<td>{rec.takeoff[0]:.5f}, {rec.takeoff[1]:.5f}</td>"
         f"<td>{_esc(height)}</td>"
@@ -335,7 +372,8 @@ def record_to_html(
     cover = (
         "<table class='cover'><tr><th>Flight</th><th>Date</th>"
         "<th>Start</th><th>End</th><th>Duration</th><th>Takeoff</th>"
-        "<th>Max height</th><th>Airspace</th></tr>"
+        "<th>Max height<br><small>est. above surface</small></th>"
+        "<th>Airspace</th></tr>"
         + cover_rows + "</table>"
     )
     sections = "".join(_flight_section(r, version) for r in records)

@@ -98,3 +98,28 @@ def test_build_track_video_drop_redaction_empty(monkeypatch, tmp_path):
     monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
     track = build_track(f, redact="drop")
     assert track.points == []
+
+
+# #422: the resolved local->UTC offset was computed and then discarded;
+# the flight record's cover table needs it to print local times.
+def test_build_track_records_the_resolved_local_offset():
+    track = build_track(CLIP, tz_offset=timedelta(hours=2))
+    assert track.local_offset == timedelta(hours=2)
+
+
+def test_auto_detected_offset_is_recorded_too(tmp_path):
+    # First telemetry local time is 2026-05-17 08:28:30; an mtime two hours
+    # earlier in UTC makes the auto-detector resolve +02:00.
+    srt = tmp_path / "clip.SRT"
+    srt.write_bytes(CLIP.read_bytes())
+    import os
+    from datetime import timezone
+    mtime = datetime(2026, 5, 17, 6, 28, 30, tzinfo=timezone.utc).timestamp()
+    os.utime(srt, (mtime, mtime))
+    assert build_track(srt).local_offset == timedelta(hours=2)
+
+
+def test_synthesized_utc_leaves_local_offset_unknown(tmp_path):
+    srt = tmp_path / "nodt.SRT"
+    srt.write_text(NODT_SRT, encoding="utf-8")
+    assert build_track(srt).local_offset is None

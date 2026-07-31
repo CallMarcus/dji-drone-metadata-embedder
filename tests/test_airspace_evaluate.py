@@ -125,3 +125,31 @@ def test_mismatched_surface_heights_length_raises():
         assert False, "expected ValueError"
     except ValueError as e:
         assert "1" in str(e) and "2" in str(e)
+
+
+# #422: providers flatten interior rings (holes) into the same polygons
+# list; even-odd parity across the rings restores the hole, so a point
+# inside one is not "entered".
+HOLE = [(6.05, 49.05), (6.15, 49.05), (6.15, 49.15), (6.05, 49.15),
+        (6.05, 49.05)]
+
+
+def test_a_point_inside_an_interior_ring_is_not_entered():
+    donut = _zone(polygons=[SQUARE, HOLE])
+    track = Track(name="t", points=[_pt(49.1, 6.1, 0)])  # inside the hole
+    report = evaluate(track, [donut], surface_heights_m=None)
+    assert not report.findings[0].entered
+
+
+def test_a_point_between_outer_ring_and_hole_is_entered():
+    donut = _zone(polygons=[SQUARE, HOLE])
+    track = Track(name="t", points=[_pt(49.175, 6.1, 0)])  # the donut band
+    report = evaluate(track, [donut], surface_heights_m=None)
+    assert report.findings[0].entered
+
+
+def test_two_disjoint_polygons_both_count_as_the_zone():
+    second = [(7.0, 50.0), (7.2, 50.0), (7.2, 50.2), (7.0, 50.2), (7.0, 50.0)]
+    z = _zone(polygons=[SQUARE, second])
+    track = Track(name="t", points=[_pt(50.1, 7.1, 0)])  # in the second only
+    assert evaluate(track, [z], surface_heights_m=None).findings[0].entered

@@ -182,3 +182,94 @@ def test_write_flight_record_writes_utf8(tmp_path):
     out = write_flight_record([_record()], tmp_path / "flight-record.html", "t")
     assert out.exists()
     assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
+# #422 item 2: a zone with only a stated lowerLimit (ED-269 permits it)
+# must state its floor, not claim "not stated" / "no stated limit".
+def test_a_lower_limit_only_zone_states_its_floor():
+    floor_zone = Zone(
+        identifier="FI-R-77", name="Begins above floor",
+        restriction="REQ_AUTHORISATION",
+        lower=VerticalLimit(500, "ft", "AMSL"), upper=None,
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=floor_zone, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2),
+            max_amsl_m=303.0,
+        )],
+        source=SRC,
+    ))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "from 500 ft AMSL" in html
+    assert "no stated limit" not in html
+    # The comparison follows the floor's datum (AMSL here).
+    assert "max altitude (amsl) during dwell" in html.lower()
+
+
+def test_a_zone_with_no_limits_at_all_still_says_not_stated():
+    bare = Zone(
+        identifier="FI-R-78", name="No limits", restriction="REQ_AUTHORISATION",
+        lower=None, upper=None,
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(zone=bare, entered=True,
+                              entry_utc=datetime(2026, 7, 30, 12, 1),
+                              exit_utc=datetime(2026, 7, 30, 12, 2))],
+        source=SRC,
+    ))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "not stated" in html
+    assert "no stated limit to compare against" in html
+
+
+# #422 item 1: the cover table shows local + UTC times and the estimated
+# max height above surface (the spec's logbook columns).
+def _cover(html: str) -> str:
+    return html.split("<table class='cover'>")[1].split("</table>")[0]
+
+
+def test_cover_shows_local_and_utc_times_when_offset_known():
+    from datetime import timedelta
+
+    rec = _record(local_offset=timedelta(hours=2))
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "14:00:00 +02:00" in cover      # 12:00 UTC start, +02:00
+    assert "12:00:00 UTC" in cover
+    assert "14:03:00 +02:00" in cover      # end
+
+
+def test_cover_dates_follow_local_time_across_midnight():
+    from datetime import timedelta
+
+    rec = _record(
+        start_utc=datetime(2026, 7, 30, 23, 30),
+        end_utc=datetime(2026, 7, 30, 23, 40),
+        local_offset=timedelta(hours=2),
+    )
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "2026-07-31" in cover           # the pilot's logbook date
+
+
+def test_cover_without_offset_states_utc_only():
+    cover = _cover(record_to_html([_record()], "t", "2.4.0"))
+    assert "12:00:00 UTC" in cover
+    assert "+02:00" not in cover
+
+
+def test_cover_height_column_is_the_surface_estimate():
+    html = record_to_html([_record()], "t", "2.4.0")
+    assert "est. above surface" in html.split("</th>")[0] or \
+        "est. above surface" in html   # header labels the datum
+    cover = _cover(html)
+    assert "34 m" in cover             # max_surface_m 33.5 -> "34 m"
+    assert "30 m" not in cover         # rel-alt no longer masquerades
+
+
+def test_cover_surface_unavailable_is_stated():
+    rec = _record(max_surface_m=None, surface_note="no terrain data")
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "unavailable" in cover

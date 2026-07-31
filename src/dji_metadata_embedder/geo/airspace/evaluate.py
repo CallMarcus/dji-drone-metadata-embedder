@@ -95,7 +95,14 @@ def evaluate(
             continue
         finding = ZoneFinding(zone=zone, entered=False)
         for i, p in enumerate(track.points):
-            if not any(point_in_ring(p.lon, p.lat, ring) for ring in zone.polygons):
+            # Even-odd parity across the rings: both providers flatten a
+            # polygon's interior rings (holes) into the same list, so a
+            # point inside a hole crosses two rings and lands outside
+            # (#422). Disjoint multi-polygons still work — one crossing.
+            crossings = sum(
+                1 for ring in zone.polygons if point_in_ring(p.lon, p.lat, ring)
+            )
+            if crossings % 2 == 0:
                 continue
             finding.entered = True
             if p.utc is not None:
