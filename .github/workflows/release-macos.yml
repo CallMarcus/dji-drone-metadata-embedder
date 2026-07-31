@@ -61,10 +61,10 @@ jobs:
               && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: macos-14
     # Notarization budget: a routine submission takes single-digit minutes,
-    # but this account still gets extended vetting — the first PyInstaller
-    # submission sat In Progress ~40 minutes before Accepted (2026-07-31),
-    # blowing a 35m budget. Hence the generous allowance; runs just finish
-    # sooner once Apple trusts the account.
+    # but this young account gets extended vetting — 2026-07-31 observed
+    # 30m, then ~40m, then 75m+ In Progress on successive submissions.
+    # Hence the generous allowance; runs just finish sooner once Apple
+    # trusts the account.
     timeout-minutes: 80
     env:
       KEYCHAIN: release-macos.keychain-db
@@ -193,13 +193,40 @@ jobs:
           test -x ziptest/dji-embed
           ziptest/dji-embed --version
           rm -rf ziptest
-          xcrun notarytool submit dist/dji-embed-macos-arm64.zip \
+          # Submit without --wait and poll ourselves: notarytool's built-in
+          # wait aborts on the first transient network error (a runner blip
+          # 53 minutes in cost a whole run), while each poll below is an
+          # independent request.
+          sub_id="$(xcrun notarytool submit dist/dji-embed-macos-arm64.zip \
             --key notary-key.p8 \
             --key-id "$APPLE_NOTARY_KEY_ID" \
             --issuer "$APPLE_NOTARY_ISSUER_ID" \
-            --wait --timeout 60m | tee notary.log
+            --output-format json \
+            | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+          echo "Submission id: $sub_id"
+          deadline=$((SECONDS + 70 * 60))
+          status="In Progress"
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            sleep 60
+            if ! out="$(xcrun notarytool info "$sub_id" \
+                --key notary-key.p8 \
+                --key-id "$APPLE_NOTARY_KEY_ID" \
+                --issuer "$APPLE_NOTARY_ISSUER_ID" 2>&1)"; then
+              echo "poll failed (transient), retrying: $(printf '%s' "$out" | head -1)"
+              continue
+            fi
+            status="$(printf '%s\n' "$out" | sed -n 's/^ *status: //p' | head -1)"
+            echo "[$((SECONDS / 60))m] status: $status"
+            case "$status" in
+              "In Progress"|"") ;;
+              *) break ;;
+            esac
+          done
           rm -f notary-key.p8
-          grep -q "status: Accepted" notary.log
+          if [ "$status" != "Accepted" ]; then
+            echo "::error::notarization did not accept (status: $status)"
+            exit 1
+          fi
           echo "Notarization: Accepted"
 
       - name: Upload dist
