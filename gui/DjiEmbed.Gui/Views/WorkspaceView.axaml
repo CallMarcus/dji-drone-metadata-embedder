@@ -265,7 +265,7 @@
                                                        VerticalAlignment="Center" />
                                         </DockPanel>
                                         <TextBlock Name="FlightThreeDNote"
-                                                   Text="Map style and KML/GeoJSON export don't apply to the 3D map."
+                                                   Text="Map style, airspace zones and KML/GeoJSON export don't apply to the 3D map."
                                                    IsVisible="{Binding FlightOptions.ThreeD}"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.5" FontSize="11" />
@@ -315,6 +315,23 @@
                                     </StackPanel>
 
                                     <StackPanel Spacing="4">
+                                        <CheckBox Name="FlightAirspaceCheck"
+                                                  IsChecked="{Binding FlightOptions.Airspace}"
+                                                  IsEnabled="{Binding !FlightOptions.ThreeD}"
+                                                  Content="Airspace zones" />
+                                        <TextBlock Name="FlightAirspaceNote"
+                                                   Text="Draws official airspace zones (FAA / EU ED-269) on the map. This is the run's only network access besides map tiles: zone data comes from the official feeds and is cached next to the map (airspace-cache/), so later runs reuse the cache."
+                                                   IsVisible="{Binding FlightOptions.Airspace}"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                        <TextBlock Name="FlightAirspaceFuzzNote"
+                                                   Text="With fuzzed locations the zones stay off — zones checked against coarsened coordinates would mislead."
+                                                   IsVisible="{Binding FlightOptions.ShowsAirspaceFuzzNote}"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.5" FontSize="11" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
                                         <DockPanel>
                                             <TextBlock DockPanel.Dock="Right"
                                                        Text="{Binding FlightOptions.JoinGap, StringFormat='{}{0} s'}"
@@ -334,10 +351,17 @@
                                     <Expander Name="FlightAdvanced" Header="Advanced"
                                               IsExpanded="False">
                                         <StackPanel Spacing="12" Margin="0,8,0,0">
-                                            <CheckBox Name="FlightExportAllCheck"
-                                                      IsChecked="{Binding FlightOptions.ExportAll}"
-                                                      IsEnabled="{Binding !FlightOptions.ThreeD}"
-                                                      Content="Also export KML + GeoJSON" />
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Name="FlightExportAllCheck"
+                                                          IsChecked="{Binding FlightOptions.ExportAll}"
+                                                          IsEnabled="{Binding !FlightOptions.ThreeD}"
+                                                          Content="Also export KML + GeoJSON + flight record" />
+                                                <TextBlock Name="FlightRecordSkipNote"
+                                                           Text="With fuzzed locations the flight record is skipped — a record built on coarsened coordinates would mislead. KML and GeoJSON still export, fuzzed."
+                                                           IsVisible="{Binding FlightOptions.ShowsRecordSkipNote}"
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
+                                            </StackPanel>
 
                                             <StackPanel Spacing="4">
                                                 <TextBlock Text="Time zone of the clips"

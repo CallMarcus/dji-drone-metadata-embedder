@@ -81,6 +81,44 @@ public class ExistingMapFinderTests : IDisposable
             maps.Select(m => m.Title).ToArray());
     }
 
+    // #427: --format all also writes flight-record.html since v2.3.0; the
+    // record must be discoverable from the workspace like the maps it
+    // ships beside.
+    [Fact]
+    public void Finds_the_flight_record()
+    {
+        var path = Map("flight-record.html", Recent);
+
+        var map = Assert.Single(ExistingMapFinder.Find(_dir, Contents()));
+
+        Assert.Equal(path, map.Path);
+        Assert.Equal("Flight record", map.Title);
+    }
+
+    [Fact]
+    public void A_flight_record_older_than_its_flight_logs_is_stale()
+    {
+        Map("flight-record.html", Old);
+
+        var map = Assert.Single(
+            ExistingMapFinder.Find(_dir, Contents(newestFlightLog: Recent)));
+
+        Assert.True(map.Stale);
+    }
+
+    [Fact]
+    public void Lists_the_flight_record_between_flight_and_photo_maps()
+    {
+        Map("photomap.html", Recent);
+        Map("flight-record.html", Recent);
+        Map("flightmap.html", Recent);
+
+        var maps = ExistingMapFinder.Find(_dir, Contents());
+
+        Assert.Equal(["Flight map", "Flight record", "Photo map"],
+            maps.Select(m => m.Title).ToArray());
+    }
+
     [Fact]
     public void A_map_older_than_its_own_footage_is_stale()
     {

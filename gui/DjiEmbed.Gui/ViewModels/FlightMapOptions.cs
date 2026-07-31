@@ -20,6 +20,11 @@ public enum MapPrivacy
 /// so the builder suppresses both while this is set.</param>
 /// <param name="TileStyle">A <c>tiles.py</c> key: <c>osm</c> (default),
 /// <c>osm-hot</c>, <c>opentopomap</c>, or <c>cyclosm</c>.</param>
+/// <param name="Airspace">Overlay official airspace zones
+/// (<c>--airspace</c>, #427). The CLI rejects the flag with <c>--3d</c>
+/// (a 3D zone overlay is #424) and with <c>--redact fuzz</c> (zones
+/// checked against coarsened coordinates would mislead), so the builder
+/// suppresses it in both cases.</param>
 /// <param name="JoinGap">Seconds to chain size-split recordings; 15 = the CLI
 /// default, 0 = don't join.</param>
 /// <param name="LinkOriginals">Embed links to each flight's source videos
@@ -35,6 +40,7 @@ public sealed record FlightMapOptions(
     bool ThreeD,
     string TileStyle,
     MapPrivacy Privacy,
+    bool Airspace,
     int JoinGap,
     bool LinkOriginals,
     bool ExportAll,
@@ -47,6 +53,7 @@ public sealed record FlightMapOptions(
         ThreeD: false,
         TileStyle: "osm",
         Privacy: MapPrivacy.Keep,
+        Airspace: false,
         JoinGap: 15,
         LinkOriginals: false,
         ExportAll: false,

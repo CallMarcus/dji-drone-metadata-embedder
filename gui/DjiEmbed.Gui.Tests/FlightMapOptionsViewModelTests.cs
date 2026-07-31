@@ -19,6 +19,7 @@ public class FlightMapOptionsViewModelTests
         Assert.False(vm.ThreeD);
         Assert.Equal("osm", vm.SelectedTileStyle.Key);
         Assert.Equal(MapPrivacy.Keep, vm.SelectedPrivacy.Value);
+        Assert.False(vm.Airspace);
         Assert.Equal(15, vm.JoinGap);
         Assert.False(vm.LinkOriginals);
         Assert.False(vm.ExportAll);
@@ -44,6 +45,7 @@ public class FlightMapOptionsViewModelTests
         {
             Recursive = false,
             ThreeD = true,
+            Airspace = true,
             JoinGap = 0,
             LinkOriginals = true,
             ExportAll = true,
@@ -55,8 +57,8 @@ public class FlightMapOptionsViewModelTests
         vm.SelectedPrivacy = vm.PrivacyOptions.Single(p => p.Value == MapPrivacy.Fuzz);
 
         Assert.Equal(
-            new FlightMapOptions(false, true, "cyclosm", MapPrivacy.Fuzz, 0,
-                true, true, "-8", "Trip", "/out/map.html"),
+            new FlightMapOptions(false, true, "cyclosm", MapPrivacy.Fuzz, true,
+                0, true, true, "-8", "Trip", "/out/map.html"),
             vm.ToOptions());
     }
 
@@ -98,6 +100,87 @@ public class FlightMapOptionsViewModelTests
         vm.LinkOriginals = true;
         vm.SelectedPrivacy = vm.PrivacyOptions.Single(
             p => p.Value == MapPrivacy.Fuzz);
+        Assert.Equal(3, raised);
+    }
+
+    // #427: the airspace overlay is suppressed under fuzz (the CLI rejects
+    // the pair), so a note must say so exactly while the checkbox is ticked
+    // but the flag stays out of the argv. Under 3D the 3D note already
+    // names the suppression, so this one stays quiet there.
+    [Fact]
+    public void Airspace_fuzz_note_needs_airspace_and_fuzz_on_the_flat_map()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        Assert.False(vm.ShowsAirspaceFuzzNote);   // defaults: nothing on
+
+        vm.Airspace = true;
+        Assert.False(vm.ShowsAirspaceFuzzNote);   // airspace + Keep
+
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        Assert.True(vm.ShowsAirspaceFuzzNote);    // airspace + Fuzz
+
+        vm.ThreeD = true;
+        Assert.False(vm.ShowsAirspaceFuzzNote);   // the 3D note covers it
+    }
+
+    [Fact]
+    public void Airspace_fuzz_note_notifies_on_each_of_its_three_inputs()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        var raised = 0;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName
+                == nameof(FlightMapOptionsViewModel.ShowsAirspaceFuzzNote))
+            {
+                raised++;
+            }
+        };
+        vm.Airspace = true;
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        vm.ThreeD = true;
+        Assert.Equal(3, raised);
+    }
+
+    // #427: under --format all the CLI deliberately skips the flight record
+    // when fuzz is on (a record built on coarsened coordinates would
+    // mislead) — the note pre-empts the "where is my record?" surprise.
+    [Fact]
+    public void Record_skip_note_needs_export_all_and_fuzz_on_the_flat_map()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        Assert.False(vm.ShowsRecordSkipNote);     // defaults: nothing on
+
+        vm.ExportAll = true;
+        Assert.False(vm.ShowsRecordSkipNote);     // export + Keep
+
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        Assert.True(vm.ShowsRecordSkipNote);      // export + Fuzz
+
+        vm.ThreeD = true;
+        Assert.False(vm.ShowsRecordSkipNote);     // export suppressed under 3D
+    }
+
+    [Fact]
+    public void Record_skip_note_notifies_on_each_of_its_three_inputs()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        var raised = 0;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName
+                == nameof(FlightMapOptionsViewModel.ShowsRecordSkipNote))
+            {
+                raised++;
+            }
+        };
+        vm.ExportAll = true;
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        vm.ThreeD = true;
         Assert.Equal(3, raised);
     }
 

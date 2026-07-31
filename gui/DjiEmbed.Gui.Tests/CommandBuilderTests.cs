@@ -130,6 +130,55 @@ public class CommandBuilderTests
             CommandBuilder.FlightMap("/x", opts));
     }
 
+    // #427: --airspace overlays official zone data on the flat map. The CLI
+    // rejects it with --3d (a 3D zone overlay is #424) and with --redact
+    // fuzz (zones checked against coarsened coordinates would mislead), so
+    // the builder suppresses it in both cases — every argv stays legal by
+    // construction, same as the --format all suppression.
+    [Fact]
+    public void Airspace_adds_the_flag()
+    {
+        var opts = FlightMapOptions.Defaults with { Airspace = true };
+        Assert.Equal(["flightmap", "/x", "-r", "--airspace"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Airspace_with_export_all_keeps_the_golden_order()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            Airspace = true,
+            ExportAll = true,
+        };
+        Assert.Equal(["flightmap", "/x", "-r", "--airspace", "--format", "all"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Airspace_with_three_d_is_suppressed()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            Airspace = true,
+            ThreeD = true,
+        };
+        Assert.Equal(["flightmap", "/x", "-r", "--3d"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Airspace_with_fuzz_is_suppressed()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            Airspace = true,
+            Privacy = MapPrivacy.Fuzz,
+        };
+        Assert.Equal(["flightmap", "/x", "-r", "--redact", "fuzz"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
     [Theory]
     [InlineData("auto")]
     [InlineData("AUTO")]
@@ -271,10 +320,12 @@ public class CommandBuilderTests
     [Fact]
     public void All_options_compose_in_a_stable_order()
     {
+        // Airspace is on but Fuzz suppresses it (#427) — the one pair that
+        // can't compose, so "all options" legally yields no --airspace.
         var opts = new FlightMapOptions(
             Recursive: false, ThreeD: false, TileStyle: "cyclosm", Privacy: MapPrivacy.Fuzz,
-            JoinGap: 0, LinkOriginals: false, ExportAll: true, TzOffset: "-8",
-            Title: "T", Output: "/o.html");
+            Airspace: true, JoinGap: 0, LinkOriginals: false, ExportAll: true,
+            TzOffset: "-8", Title: "T", Output: "/o.html");
         Assert.Equal(
             ["flightmap", "/x", "--tile-style", "cyclosm", "--redact", "fuzz",
              "--join-gap", "0", "--format", "all", "--tz-offset", "-8",
