@@ -110,6 +110,7 @@ site/
 # git history).
 docs/superpowers/plans/
 docs/superpowers/specs/
+docs/superpowers/research/
 
 # Windows shortcuts (e.g. "samples - Shortcut.lnk")
 *.lnk
