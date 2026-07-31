@@ -179,6 +179,36 @@ public class CommandBuilderTests
             CommandBuilder.FlightMap("/x", opts));
     }
 
+    [Fact]
+    public void Airspace_with_three_d_and_fuzz_keeps_only_their_flags()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            Airspace = true,
+            ThreeD = true,
+            Privacy = MapPrivacy.Fuzz,
+        };
+        Assert.Equal(["flightmap", "/x", "-r", "--3d", "--redact", "fuzz"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    // The three-behavior interaction: --format all survives fuzz while
+    // --airspace is suppressed — and CLI-side the record is then silently
+    // skipped, which is what the panel's record-skip note discloses.
+    [Fact]
+    public void Airspace_with_export_all_and_fuzz_keeps_the_export_only()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            Airspace = true,
+            ExportAll = true,
+            Privacy = MapPrivacy.Fuzz,
+        };
+        Assert.Equal(
+            ["flightmap", "/x", "-r", "--redact", "fuzz", "--format", "all"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
     [Theory]
     [InlineData("auto")]
     [InlineData("AUTO")]

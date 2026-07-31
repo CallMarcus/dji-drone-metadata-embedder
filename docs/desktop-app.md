@@ -29,8 +29,9 @@ likely mode is picked for you. The **Mode** strip offers:
   terrain map** toggle renders the flights draped over real terrain
   instead (writes `flightmap-3d.html`, so the flat map is never
   overwritten). An **Airspace zones** option overlays official zone
-  data (FAA / EU ED-269) on the flat map — the run's only network
-  access besides map tiles, cached beside the map for reuse.
+  data on the flat map (US FAA, plus ED-269 feeds where a country
+  publishes one), fetched from the official sources and cached beside
+  the map for reuse.
 - **Photo map** — your still photos pinned on a map, including a full
   360° panorama viewer for drone panoramas.
 - **Embed telemetry** — writes each flight log's GPS track into the video

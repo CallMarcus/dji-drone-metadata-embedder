@@ -315,13 +315,18 @@
                                     </StackPanel>
 
                                     <StackPanel Spacing="4">
+                                        <!-- Two affordances for one "flag suppressed" state, on
+                                             purpose: 3D greys the checkbox (a toggle right above
+                                             it), while Fuzz keeps it enabled and explains in a
+                                             note — greying on a combo set elsewhere in the panel
+                                             would be action at a distance. -->
                                         <CheckBox Name="FlightAirspaceCheck"
                                                   IsChecked="{Binding FlightOptions.Airspace}"
                                                   IsEnabled="{Binding !FlightOptions.ThreeD}"
                                                   Content="Airspace zones" />
                                         <TextBlock Name="FlightAirspaceNote"
-                                                   Text="Draws official airspace zones (FAA / EU ED-269) on the map. This is the run's only network access besides map tiles: zone data comes from the official feeds and is cached next to the map (airspace-cache/), so later runs reuse the cache."
-                                                   IsVisible="{Binding FlightOptions.Airspace}"
+                                                   Text="Draws official airspace zones on the map — US FAA, plus ED-269 feeds where a country publishes one (currently Luxembourg and Finland). Zone data is fetched from those feeds and cached next to the map (airspace-cache/); later runs reuse the cache."
+                                                   IsVisible="{Binding FlightOptions.ShowsAirspaceNote}"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.5" FontSize="11" />
                                         <TextBlock Name="FlightAirspaceFuzzNote"
@@ -356,6 +361,11 @@
                                                           IsChecked="{Binding FlightOptions.ExportAll}"
                                                           IsEnabled="{Binding !FlightOptions.ThreeD}"
                                                           Content="Also export KML + GeoJSON + flight record" />
+                                                <TextBlock Name="FlightRecordNetworkNote"
+                                                           Text="The flight record fetches airspace and terrain data from official feeds, cached next to the map (airspace-cache/). KML and GeoJSON are written locally."
+                                                           IsVisible="{Binding FlightOptions.ShowsRecordNetworkNote}"
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.5" FontSize="11" />
                                                 <TextBlock Name="FlightRecordSkipNote"
                                                            Text="With fuzzed locations the flight record is skipped — a record built on coarsened coordinates would mislead. KML and GeoJSON still export, fuzzed."
                                                            IsVisible="{Binding FlightOptions.ShowsRecordSkipNote}"

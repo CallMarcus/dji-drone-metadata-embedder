@@ -32,8 +32,11 @@ public enum MapPrivacy
 /// Only useful with <paramref name="ThreeD"/> — on the flat map the CLI
 /// warns it embeds dead weight — so the builder emits it only alongside
 /// <c>--3d</c> (#392).</param>
-/// <param name="ExportAll">Also write KML + GeoJSON (<c>--format all</c>); the
-/// CLI format is single-valued, so this is one honest toggle, not per-format.</param>
+/// <param name="ExportAll">Also write KML + GeoJSON and the printable flight
+/// record (<c>--format all</c>, record since v2.3.0); the CLI format is
+/// single-valued, so this is one honest toggle, not per-format. The record
+/// fetches airspace and terrain data (its own network opt-in) and is
+/// skipped under Fuzz — the panel's notes disclose both (#427).</param>
 /// <param name="TzOffset"><c>auto</c> (default) or an explicit UTC offset.</param>
 public sealed record FlightMapOptions(
     bool Recursive,

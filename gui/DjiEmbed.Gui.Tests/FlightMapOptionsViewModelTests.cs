@@ -144,6 +144,88 @@ public class FlightMapOptionsViewModelTests
         Assert.Equal(3, raised);
     }
 
+    // #431 review: the network note must mirror the argv exactly — visible
+    // only while --airspace is actually emitted, so it never claims a fetch
+    // for a run that makes none (ticked + 3D, ticked + Fuzz).
+    [Fact]
+    public void Airspace_network_note_shows_exactly_while_the_flag_is_emitted()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        Assert.False(vm.ShowsAirspaceNote);       // defaults: unticked
+
+        vm.Airspace = true;
+        Assert.True(vm.ShowsAirspaceNote);        // ticked, Keep, flat map
+
+        vm.ThreeD = true;
+        Assert.False(vm.ShowsAirspaceNote);       // suppressed under 3D
+
+        vm.ThreeD = false;
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        Assert.False(vm.ShowsAirspaceNote);       // suppressed under Fuzz
+    }
+
+    [Fact]
+    public void Airspace_network_note_notifies_on_each_of_its_three_inputs()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        var raised = 0;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName
+                == nameof(FlightMapOptionsViewModel.ShowsAirspaceNote))
+            {
+                raised++;
+            }
+        };
+        vm.Airspace = true;
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        vm.ThreeD = true;
+        Assert.Equal(3, raised);
+    }
+
+    // #431 review: the flight record itself fetches airspace and terrain
+    // data, so Export all needs its own disclosure whenever the record will
+    // actually be written (ticked, flat map, exact locations).
+    [Fact]
+    public void Record_network_note_shows_exactly_while_the_record_is_written()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        Assert.False(vm.ShowsRecordNetworkNote);  // defaults: unticked
+
+        vm.ExportAll = true;
+        Assert.True(vm.ShowsRecordNetworkNote);   // ticked, Keep, flat map
+
+        vm.ThreeD = true;
+        Assert.False(vm.ShowsRecordNetworkNote);  // export suppressed
+
+        vm.ThreeD = false;
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        Assert.False(vm.ShowsRecordNetworkNote);  // record skipped: no fetch
+    }
+
+    [Fact]
+    public void Record_network_note_notifies_on_each_of_its_three_inputs()
+    {
+        var vm = new FlightMapOptionsViewModel();
+        var raised = 0;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName
+                == nameof(FlightMapOptionsViewModel.ShowsRecordNetworkNote))
+            {
+                raised++;
+            }
+        };
+        vm.ExportAll = true;
+        vm.SelectedPrivacy = vm.PrivacyOptions.Single(
+            p => p.Value == MapPrivacy.Fuzz);
+        vm.ThreeD = true;
+        Assert.Equal(3, raised);
+    }
+
     // #427: under --format all the CLI deliberately skips the flight record
     // when fuzz is on (a record built on coarsened coordinates would
     // mislead) — the note pre-empts the "where is my record?" surprise.

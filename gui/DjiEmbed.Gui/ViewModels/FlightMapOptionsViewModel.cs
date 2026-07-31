@@ -76,6 +76,15 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
         ThreeD && LinkOriginals && SelectedPrivacy.Value == MapPrivacy.Fuzz;
 
     /// <summary>
+    /// True exactly while <c>--airspace</c> is in the emitted argv, so the
+    /// network-disclosure note never claims a fetch for a run that makes
+    /// none (#427, tightened by the #431 review). A real property so it is
+    /// assertable headless.
+    /// </summary>
+    public bool ShowsAirspaceNote =>
+        Airspace && !ThreeD && SelectedPrivacy.Value != MapPrivacy.Fuzz;
+
+    /// <summary>
     /// True when the airspace checkbox is ticked but the builder keeps
     /// <c>--airspace</c> out of the argv because Fuzz privacy is on (the
     /// CLI rejects the pair — zones checked against coarsened coordinates
@@ -84,6 +93,15 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     /// </summary>
     public bool ShowsAirspaceFuzzNote =>
         Airspace && !ThreeD && SelectedPrivacy.Value == MapPrivacy.Fuzz;
+
+    /// <summary>
+    /// True exactly while "Export all" will write the flight record — which
+    /// itself fetches airspace and terrain data, a fetch the CLI announces
+    /// only on stderr where the GUI discards it on success, so the panel
+    /// must disclose it up front (#431 review).
+    /// </summary>
+    public bool ShowsRecordNetworkNote =>
+        ExportAll && !ThreeD && SelectedPrivacy.Value != MapPrivacy.Fuzz;
 
     /// <summary>
     /// True when "Export all" runs without the flight record: under Fuzz
@@ -98,23 +116,33 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     partial void OnThreeDChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
+        OnPropertyChanged(nameof(ShowsAirspaceNote));
         OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
+        OnPropertyChanged(nameof(ShowsRecordNetworkNote));
         OnPropertyChanged(nameof(ShowsRecordSkipNote));
     }
 
     partial void OnLinkOriginalsChanged(bool value) =>
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
 
-    partial void OnAirspaceChanged(bool value) =>
+    partial void OnAirspaceChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowsAirspaceNote));
         OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
+    }
 
-    partial void OnExportAllChanged(bool value) =>
+    partial void OnExportAllChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowsRecordNetworkNote));
         OnPropertyChanged(nameof(ShowsRecordSkipNote));
+    }
 
     partial void OnSelectedPrivacyChanged(PrivacyChoice value)
     {
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
+        OnPropertyChanged(nameof(ShowsAirspaceNote));
         OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
+        OnPropertyChanged(nameof(ShowsRecordNetworkNote));
         OnPropertyChanged(nameof(ShowsRecordSkipNote));
     }
 
