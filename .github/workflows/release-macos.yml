@@ -178,11 +178,14 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$APPLE_NOTARY_KEY_P8" > notary-key.p8
-          # The submitted zip is the shipped release asset. Zip from inside
-          # dist/ so the binary sits at the archive root, then prove the
-          # asset in the exact form users download it — entry at the root,
-          # exec bit intact — before burning a notary submission.
-          (cd dist && ditto -c -k --keepParent dji-embed dji-embed-macos-arm64.zip)
+          # The submitted zip is the shipped release asset. Info-ZIP `zip`,
+          # not `ditto --keepParent`: for a plain file ditto embeds the
+          # parent directory name (the entry came out as dist/dji-embed),
+          # while zip puts the named entry at the archive root and records
+          # the exec bit. The round-trip below proves the asset in the
+          # exact form users download it — before burning a notary
+          # submission.
+          (cd dist && zip -X dji-embed-macos-arm64.zip dji-embed)
           rm -rf ziptest && mkdir ziptest
           ditto -x -k dist/dji-embed-macos-arm64.zip ziptest
           test -x ziptest/dji-embed
