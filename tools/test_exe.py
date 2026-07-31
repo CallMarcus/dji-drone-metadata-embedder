@@ -2,11 +2,12 @@
 
 import subprocess
 import sys
-from pathlib import Path
+
+from build_exe import dist_binary
 
 
 def test_executable() -> bool:
-    exe_path = Path("dist/dji-embed.exe")
+    exe_path = dist_binary()
 
     if not exe_path.exists():
         print("\u274c Executable not found")

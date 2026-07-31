@@ -143,6 +143,12 @@ sudo apt update && sudo apt install ffmpeg exiftool   # Debian/Ubuntu
 pip install dji-drone-metadata-embedder
 ```
 
+On Apple Silicon you can also skip Python entirely: download the signed and
+notarized **dji-embed-macos-arm64.zip** from the
+[GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases),
+unzip, and run `./dji-embed` (first run needs network — Gatekeeper fetches
+the notarization ticket online).
+
 <details>
 <summary>Docker and building from source</summary>
 

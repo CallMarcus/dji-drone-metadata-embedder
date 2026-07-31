@@ -5,7 +5,8 @@ This project publishes packages to PyPI and Windows Package Manager (winget) via
 ## Release Workflow
 
 The release process is mostly automated. Pushing the tag runs the PyPI, EXE,
-and changelog workflows; the winget submission is a separate manual step.
+macOS CLI, and changelog workflows; the winget submission is a separate
+manual step.
 
 ### 1. PyPI Release (`release-pypi.yml`)
 1. Build the wheel and source distribution using `python -m build`
@@ -35,6 +36,25 @@ Five jobs: `build` → `sign-app` → `assemble` → `sign-installer` → `publi
    Inno-generated uninstaller is knowingly unsigned (compile-time-only)
 4. Sign the setup EXE
 5. Checksums + attestation + release upload
+
+### 2c. macOS CLI Build (`release-macos.yml`)
+Two jobs: `build` (arm64 macOS runner) → `publish`.
+1. Build a standalone `dji-embed` binary with PyInstaller (embedded dylibs
+   signed with the Developer ID identity so hardened-runtime library
+   validation passes at runtime), codesign the binary with hardened runtime
+   + secure timestamp, smoke-test `--version`, then notarize the zip with
+   `notarytool`
+2. Generate `SHA256SUMS-macos.txt` (a separate file — this leg races the
+   Windows leg on the same release, and same-named assets clobber), attest
+   build provenance (Sigstore), and attach `dji-embed-macos-arm64.zip` to
+   the GitHub release
+
+A bare binary has nowhere to staple the notarization ticket, so a user's
+first run needs network for Gatekeeper's online check. Apple credentials
+live in the `APPLE_*` repository secrets; after rotating any of them, run
+the manual **Mac sign test** workflow (`mac-sign-test.yml`) — it proves the
+whole chain without cutting a release. Same-repo PRs touching this leg run
+the full build + sign + notarize as a check, skipping only the publish job.
 
 ### Code signing (Certum SimplySign)
 Signing runs headlessly on Linux inside the pinned
@@ -105,7 +125,8 @@ The following workflows will run automatically:
 
 1. ✅ **PyPI Release** - Package uploaded to PyPI
 2. ✅ **Windows EXE** - Standalone executable built and attached (triggered by the PyPI workflow completing)
-3. ✅ **Auto-Changelog** - Changelog updated from commits
+3. ✅ **macOS CLI** - Notarized arm64 binary built and attached (also triggered by the PyPI workflow completing)
+4. ✅ **Auto-Changelog** - Changelog updated from commits
 
 **Winget Submission is a separate manual step** — see [Winget Integration](#winget-integration) below.
 
