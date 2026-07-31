@@ -32,6 +32,9 @@ on:
         required: true
         type: string
   pull_request:
+    # Deliberately narrow: pyproject.toml/uv.lock bumps could in principle
+    # break this build too, but a 40-minute macOS job plus a real Apple
+    # notary submission on every dependency PR is the wrong trade.
     paths:
       - '.github/workflows/release-macos.yml'
       - 'tools/build_exe.py'
@@ -39,9 +42,23 @@ on:
 permissions:
   contents: read
 
+# A PR push mid-notarization should cancel the obsolete run (each one costs
+# a macos-14 slot and a real notary submission); release runs never cancel.
+concurrency:
+  group: release-macos-${{ github.event.pull_request.number || github.event.workflow_run.head_branch || inputs.version }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
-    if: ${{ (github.event_name != 'workflow_run') || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
+    # Fork PRs get no secrets, so the signing steps can only fail there —
+    # run the PR proof for same-repo branches only.
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch')
+          || (github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name == github.repository)
+          || (github.event_name == 'workflow_run'
+              && github.event.workflow_run.conclusion == 'success'
+              && startsWith(github.event.workflow_run.head_branch, 'v')) }}
     runs-on: macos-14
     # Notarization budget: a routine submission takes single-digit minutes,
     # but extended vetting (seen on this account's maiden submission) can
@@ -116,6 +133,7 @@ jobs:
           APPLE_CERT_FINGERPRINT: ${{ secrets.APPLE_CERT_FINGERPRINT }}
         run: |
           set -euo pipefail
+          security find-identity -v -p codesigning "$KEYCHAIN"
           security find-identity -v -p codesigning "$KEYCHAIN" \
             | grep -q "Developer ID Application"
           actual="$(security find-certificate -c 'Developer ID Application' \
@@ -146,6 +164,8 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
+          # The asset name hard-codes arm64 — make sure that stays true.
+          file dist/dji-embed | grep arm64
           ./dist/dji-embed --version | grep -F "$VERSION"
           ./dist/dji-embed --help > /dev/null
           echo "Smoke test: OK ($(./dist/dji-embed --version))"
@@ -158,8 +178,16 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$APPLE_NOTARY_KEY_P8" > notary-key.p8
-          # The submitted zip is the shipped release asset.
-          ditto -c -k --keepParent dist/dji-embed dist/dji-embed-macos-arm64.zip
+          # The submitted zip is the shipped release asset. Zip from inside
+          # dist/ so the binary sits at the archive root, then prove the
+          # asset in the exact form users download it — entry at the root,
+          # exec bit intact — before burning a notary submission.
+          (cd dist && ditto -c -k --keepParent dji-embed dji-embed-macos-arm64.zip)
+          rm -rf ziptest && mkdir ziptest
+          ditto -x -k dist/dji-embed-macos-arm64.zip ziptest
+          test -x ziptest/dji-embed
+          ziptest/dji-embed --version
+          rm -rf ziptest
           xcrun notarytool submit dist/dji-embed-macos-arm64.zip \
             --key notary-key.p8 \
             --key-id "$APPLE_NOTARY_KEY_ID" \

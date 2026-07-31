@@ -1,6 +1,6 @@
 # Release Process
 
-This project publishes packages to PyPI and Windows Package Manager (winget) via GitHub Actions. Pushing a git tag that follows the pattern `vX.Y.Z` triggers the automated release workflow.
+This project publishes packages to PyPI and Windows Package Manager (winget), plus standalone Windows and macOS binaries, via GitHub Actions. Pushing a git tag that follows the pattern `vX.Y.Z` triggers the automated release workflow.
 
 ## Release Workflow
 
@@ -125,8 +125,9 @@ The following workflows will run automatically:
 
 1. ✅ **PyPI Release** - Package uploaded to PyPI
 2. ✅ **Windows EXE** - Standalone executable built and attached (triggered by the PyPI workflow completing)
-3. ✅ **macOS CLI** - Notarized arm64 binary built and attached (also triggered by the PyPI workflow completing)
-4. ✅ **Auto-Changelog** - Changelog updated from commits
+3. ✅ **Windows Installer** - Signed GUI installer built and attached (also triggered by the PyPI workflow completing)
+4. ✅ **macOS CLI** - Notarized arm64 binary built and attached (also triggered by the PyPI workflow completing)
+5. ✅ **Auto-Changelog** - Changelog updated from commits
 
 **Winget Submission is a separate manual step** — see [Winget Integration](#winget-integration) below.
 

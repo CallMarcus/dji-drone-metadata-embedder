@@ -128,7 +128,8 @@ repository's public build workflow. With the [GitHub CLI](https://cli.github.com
 gh attestation verify dji-metadata-embedder-setup-<version>.exe -R CallMarcus/dji-drone-metadata-embedder
 ```
 
-The same works for `dji-embed.exe`. PyPI wheels are attested separately by
+The same works for `dji-embed.exe` and `dji-embed-macos-arm64.zip`. PyPI
+wheels are attested separately by
 PyPI's [Trusted Publishing](https://docs.pypi.org/attestations/) — see the
 "provenance" details on each file at
 [pypi.org](https://pypi.org/project/dji-drone-metadata-embedder/#files).

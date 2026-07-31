@@ -98,9 +98,11 @@ if __name__ == '__main__':
         args = pyinstaller_args(
             str(entry_script),
             icon=icon_path if icon_path.exists() else None,
-            codesign_identity=os.environ.get("MACOS_CODESIGN_IDENTITY")
-            if sys.platform == "darwin"
-            else None,
+            codesign_identity=(
+                os.environ.get("MACOS_CODESIGN_IDENTITY")
+                if sys.platform == "darwin"
+                else None
+            ),
         )
 
         print("Building executable...")

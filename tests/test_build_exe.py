@@ -28,9 +28,12 @@ build_exe = _load_module()
 
 
 def test_module_imports_without_pyinstaller():
-    # The dev/test environment does not install the ``build`` extra; loading
-    # the module (as this file and tools/test_exe.py do) must not require
-    # PyInstaller — only actually building does.
+    # Loading the module (as this file and tools/test_exe.py do) must not
+    # require PyInstaller — only actually building does. CI installs the
+    # ``build`` extra so this passes trivially there; the real guard is the
+    # module-level ``_load_module()`` above, which fails collection in any
+    # environment without PyInstaller (like a default dev checkout) if a
+    # top-level ``import PyInstaller`` ever comes back.
     assert hasattr(build_exe, "build_executable")
 
 
@@ -40,17 +43,29 @@ def test_dist_binary_is_exe_on_windows_and_bare_elsewhere():
     assert build_exe.dist_binary("linux") == Path("dist/dji-embed")
 
 
-def test_windows_args_keep_the_icon_and_historic_shape():
-    args = build_exe.pyinstaller_args(
+def test_windows_args_are_identical_to_the_pre_macos_build():
+    # Full-list equality, not membership: the Windows release leg must keep
+    # producing exactly the argument list the old inline literal did.
+    assert build_exe.pyinstaller_args(
         "_pyinstaller_entry.py", "win32", icon=Path("assets/icon.ico")
-    )
-    assert args[0] == "_pyinstaller_entry.py"
-    assert "--onefile" in args
-    assert "--name=dji-embed" in args
-    assert f"--icon={Path('assets/icon.ico')}" in args
-    assert "--hidden-import=dji_metadata_embedder.cli" in args
-    assert not any(a.startswith("--codesign-identity") for a in args)
-    assert "--noupx" not in args
+    ) == [
+        "_pyinstaller_entry.py",
+        "--name=dji-embed",
+        "--onefile",
+        "--console",
+        "--paths=src",
+        "--hidden-import=dji_metadata_embedder",
+        "--hidden-import=dji_metadata_embedder.cli",
+        "--hidden-import=dji_metadata_embedder.core",
+        "--hidden-import=dji_metadata_embedder.telemetry_converter",
+        "--hidden-import=dji_metadata_embedder.metadata_check",
+        "--hidden-import=click",
+        "--hidden-import=rich",
+        "--distpath=dist",
+        "--workpath=build",
+        "--clean",
+        f"--icon={Path('assets/icon.ico')}",
+    ]
 
 
 def test_macos_args_skip_windows_icon_and_disable_upx():

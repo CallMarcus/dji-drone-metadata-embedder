@@ -78,7 +78,8 @@ Prefer no Python at all? On Apple Silicon, grab the standalone
 unzip it, and run `./dji-embed`. The binary is Developer ID-signed and
 notarized, but a bare binary can't carry a stapled notarization ticket, so
 the **first run needs a network connection** for Gatekeeper's online ticket
-check. FFmpeg and ExifTool still come from Homebrew
+check. Verify the download against `SHA256SUMS-macos.txt` from the same
+release. FFmpeg and ExifTool still come from Homebrew
 (`brew install ffmpeg exiftool`).
 
 ### Linux
