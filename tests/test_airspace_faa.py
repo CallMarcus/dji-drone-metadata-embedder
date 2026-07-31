@@ -134,3 +134,22 @@ def test_interior_rings_parse_into_holes():
                               (0.0, 0.0)]]
     assert zone.holes == [[(0.2, 0.2), (0.4, 0.2), (0.4, 0.4), (0.2, 0.4),
                            (0.2, 0.2)]]
+
+
+def test_objectid_less_cells_get_distinct_identifiers_across_pages():
+    # #424: the cell-{i} fallback restarted per page, so OBJECTID-less
+    # features at the same index of two pages collided on the overlay's
+    # (feed, identifier) dedupe key — silently dropping a zone.
+    outer = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]
+
+    def page():
+        return json.dumps({
+            "type": "FeatureCollection",
+            "features": [{
+                "properties": {"CEILING": 400},
+                "geometry": {"type": "Polygon", "coordinates": [outer]},
+            }],
+        }).encode()
+
+    zones = parse_faa([page(), page()], SRC)
+    assert len({z.identifier for z in zones}) == 2

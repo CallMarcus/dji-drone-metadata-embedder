@@ -117,11 +117,16 @@ def fetch_faa_pages(
 def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
     """Normalize UASFM grid cells: CEILING feet AGL -> Zone. All-or-nothing."""
     zones: list[Zone] = []
+    # One running index across pages: the cell-{n} identifier fallback must
+    # not restart per page, or OBJECTID-less features at the same index of
+    # two pages collide on the overlay's (feed, identifier) dedupe key and
+    # a zone silently vanishes from the map (#424).
+    index = 0
     for page in pages:
         doc = json.loads(page)
-        for i, feat in enumerate(doc.get("features") or []):
+        for feat in doc.get("features") or []:
             props = feat.get("properties") or {}
-            where = f"{source.feed}: cell {i}"
+            where = f"{source.feed}: cell {index}"
             ceiling = props.get("CEILING")
             if not isinstance(ceiling, (int, float)):
                 raise AirspaceError(f"{where}: CEILING is {ceiling!r}")
@@ -141,7 +146,8 @@ def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
             polygons = rings[:1]
             holes = rings[1:]
             apt = props.get("APT1_NAME") or props.get("APT1_ICAO") or "UASFM"
-            ident = str(props.get("OBJECTID", f"cell-{i}"))
+            ident = str(props.get("OBJECTID", f"cell-{index}"))
+            index += 1
             zones.append(
                 Zone(
                     identifier=f"UASFM-{ident}",
