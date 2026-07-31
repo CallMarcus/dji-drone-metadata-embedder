@@ -30,7 +30,10 @@ permissions:
 jobs:
   sign-and-notarize:
     runs-on: macos-14
-    timeout-minutes: 30
+    # Generous: a new account's first notary submissions get extended
+    # vetting (the maiden run sat In Progress past 20 minutes); routine
+    # submissions take single-digit minutes.
+    timeout-minutes: 45
     env:
       KEYCHAIN: sign-test.keychain-db
     steps:
@@ -97,7 +100,7 @@ jobs:
             --key notary-key.p8 \
             --key-id "$APPLE_NOTARY_KEY_ID" \
             --issuer "$APPLE_NOTARY_ISSUER_ID" \
-            --wait --timeout 20m | tee notary.log
+            --wait --timeout 35m | tee notary.log
           rm -f notary-key.p8
           grep -q "status: Accepted" notary.log
           echo "Notarization: Accepted"
