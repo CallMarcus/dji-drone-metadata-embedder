@@ -37,10 +37,12 @@ public static class CommandBuilder
     /// M3b). Flags are omitted at their defaults so an untouched run reads
     /// <c>flightmap &lt;folder&gt; -r</c>, exactly like M3a. Order is fixed for
     /// golden tests. No <c>--progress</c>: the runner appends that.
-    /// When <paramref name="opts"/>.ThreeD is set, <c>--tile-style</c> and
-    /// <c>--format all</c> are suppressed — the CLI ignores the first and
-    /// rejects the second with <c>--3d</c> — so every argv this method
-    /// returns is legal by construction (#366).
+    /// When <paramref name="opts"/>.ThreeD is set, <c>--tile-style</c>,
+    /// <c>--airspace</c> and <c>--format all</c> are suppressed — the CLI
+    /// ignores the first and rejects the others with <c>--3d</c> — and Fuzz
+    /// privacy suppresses <c>--airspace</c> too (the CLI rejects the pair),
+    /// so every argv this method returns is legal by construction
+    /// (#366, #427).
     /// </summary>
     public static string[] FlightMap(string folder, FlightMapOptions opts)
     {
@@ -64,6 +66,12 @@ public static class CommandBuilder
         {
             args.Add("--tile-style");
             args.Add(opts.TileStyle);
+        }
+        if (opts.Airspace && !opts.ThreeD && opts.Privacy != MapPrivacy.Fuzz)
+        {
+            // The CLI rejects --airspace with --3d (#424 will lift that)
+            // and with --redact fuzz, so both suppress it here (#427).
+            args.Add("--airspace");
         }
         if (opts.Privacy == MapPrivacy.Fuzz)
         {

@@ -10,9 +10,10 @@ public sealed record ExistingMap(
 
 /// <summary>
 /// Finds maps a previous run left in the chosen folder. The GUI never passes
-/// <c>-o</c> by default, so the CLI's defaults apply and the three paths are
+/// <c>-o</c> by default, so the CLI's defaults apply and the four paths are
 /// deterministic: <c>flightmap.html</c>, <c>flightmap-3d.html</c> (#366),
-/// and <c>photomap.html</c>, written
+/// <c>flight-record.html</c> (written by <c>--format all</c> since v2.3.0,
+/// #427), and <c>photomap.html</c>, written
 /// directly in the mapped folder. A map redirected elsewhere by either map
 /// mode's "Save map to" override is deliberately out of scope (#328 spec) —
 /// finding those would need a persisted record of past outputs.
@@ -32,6 +33,11 @@ public static class ExistingMapFinder
                 contents.NewestFlightLogUtc) is { } flight3d)
         {
             found.Add(flight3d);
+        }
+        if (Probe(directory, "flight-record.html", "Flight record",
+                contents.NewestFlightLogUtc) is { } record)
+        {
+            found.Add(record);
         }
         if (Probe(directory, "photomap.html", "Photo map",
                 contents.NewestPhotoUtc) is { } photo)

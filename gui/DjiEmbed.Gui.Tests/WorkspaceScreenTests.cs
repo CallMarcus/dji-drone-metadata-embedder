@@ -587,6 +587,13 @@ public class WorkspaceScreenTests
         Assert.Equal("opentopomap", vm.FlightOptions.SelectedTileStyle.Key);
         Assert.Contains("--tile-style opentopomap", vm.CommandPreview);
 
+        var airspace = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightAirspaceCheck");
+        airspace.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.FlightOptions.Airspace);
+        Assert.Contains("--airspace", vm.CommandPreview);
+
         var privacy = window.GetVisualDescendants().OfType<ComboBox>()
             .Single(c => c.Name == "FlightPrivacyCombo");
         Assert.Same(vm.FlightOptions.PrivacyOptions, privacy.ItemsSource);
@@ -595,6 +602,8 @@ public class WorkspaceScreenTests
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(MapPrivacy.Fuzz, vm.FlightOptions.SelectedPrivacy.Value);
         Assert.Contains("--redact fuzz", vm.CommandPreview);
+        // Fuzz suppresses the still-ticked airspace flag (#427).
+        Assert.DoesNotContain("--airspace", vm.CommandPreview);
 
         var joinGap = window.GetVisualDescendants().OfType<Slider>()
             .Single(s => s.Name == "JoinGapSlider");
@@ -652,6 +661,10 @@ public class WorkspaceScreenTests
             .Single(c => c.Name == "FlightStyleCombo");
         Assert.False(style.IsEnabled);
 
+        var airspace = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightAirspaceCheck");
+        Assert.False(airspace.IsEnabled);
+
         var advanced = window.GetVisualDescendants().OfType<Expander>()
             .Single(e => e.Name == "FlightAdvanced");
         advanced.IsExpanded = true;
@@ -665,8 +678,91 @@ public class WorkspaceScreenTests
         Dispatcher.UIThread.RunJobs();
         Assert.DoesNotContain("--3d", vm.CommandPreview);
         Assert.True(style.IsEnabled);
+        Assert.True(airspace.IsEnabled);
         Assert.True(exportAll.IsEnabled);
         Assert.False(note.IsVisible);
+    }
+
+    // #431 review: every airspace note must mirror the emitted argv — the
+    // network disclosure only while --airspace is actually in the command,
+    // the fuzz note exactly while the checkbox is ticked but Fuzz keeps the
+    // flag out, and both quiet under 3D where the 3D note names the
+    // suppression.
+    [AvaloniaFact]
+    public void Flight_map_airspace_notes_mirror_the_emitted_argv()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+        var check = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightAirspaceCheck");
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FlightAirspaceNote");
+        var fuzzNote = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FlightAirspaceFuzzNote");
+        Assert.False(note.IsVisible);
+        Assert.False(fuzzNote.IsVisible);
+
+        check.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.Contains("--airspace", vm.CommandPreview);
+        Assert.True(note.IsEffectivelyVisible);
+        Assert.False(fuzzNote.IsVisible);
+
+        vm.FlightOptions.SelectedPrivacy = vm.FlightOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Fuzz);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.DoesNotContain("--airspace", vm.CommandPreview);
+        Assert.False(note.IsVisible);
+        Assert.True(fuzzNote.IsEffectivelyVisible);
+
+        vm.FlightOptions.ThreeD = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(check.IsEnabled);
+        Assert.False(note.IsVisible);
+        Assert.False(fuzzNote.IsVisible);
+    }
+
+    // #431 review: the flight record fetches airspace + terrain data, so
+    // Export all discloses the fetch exactly while the record will be
+    // written, and swaps to the skip note under Fuzz (the CLI then skips
+    // the record and fetches nothing).
+    [AvaloniaFact]
+    public void Flight_map_record_notes_follow_export_all_and_privacy()
+    {
+        var window = ShowWorkspace();   // default mode Flight map
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+
+        var advanced = window.GetVisualDescendants().OfType<Expander>()
+            .Single(e => e.Name == "FlightAdvanced");
+        advanced.IsExpanded = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var exportAll = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "FlightExportAllCheck");
+        var networkNote = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FlightRecordNetworkNote");
+        var skipNote = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "FlightRecordSkipNote");
+        Assert.False(networkNote.IsVisible);
+        Assert.False(skipNote.IsVisible);
+
+        exportAll.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.True(networkNote.IsEffectivelyVisible);
+        Assert.False(skipNote.IsVisible);
+
+        vm.FlightOptions.SelectedPrivacy = vm.FlightOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Fuzz);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.False(networkNote.IsVisible);
+        Assert.True(skipNote.IsEffectivelyVisible);
     }
 
     // #392: the crossfade checkbox appears only while the 3D toggle is on —

@@ -36,6 +36,9 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     public partial PrivacyChoice SelectedPrivacy { get; set; }
 
     [ObservableProperty]
+    public partial bool Airspace { get; set; }
+
+    [ObservableProperty]
     public partial int JoinGap { get; set; } = 15;
 
     [ObservableProperty]
@@ -72,20 +75,83 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     public bool ShowsFuzzCaveat =>
         ThreeD && LinkOriginals && SelectedPrivacy.Value == MapPrivacy.Fuzz;
 
-    partial void OnThreeDChanged(bool value) =>
+    /// <summary>
+    /// True exactly while <c>--airspace</c> is in the emitted argv, so the
+    /// network-disclosure note never claims a fetch for a run that makes
+    /// none (#427, tightened by the #431 review). A real property so it is
+    /// assertable headless.
+    /// </summary>
+    public bool ShowsAirspaceNote =>
+        Airspace && !ThreeD && SelectedPrivacy.Value != MapPrivacy.Fuzz;
+
+    /// <summary>
+    /// True when the airspace checkbox is ticked but the builder keeps
+    /// <c>--airspace</c> out of the argv because Fuzz privacy is on (the
+    /// CLI rejects the pair — zones checked against coarsened coordinates
+    /// would mislead). Quiet under 3D, where the 3D note already names the
+    /// suppression (#427). A real property so it is assertable headless.
+    /// </summary>
+    public bool ShowsAirspaceFuzzNote =>
+        Airspace && !ThreeD && SelectedPrivacy.Value == MapPrivacy.Fuzz;
+
+    /// <summary>
+    /// True exactly while "Export all" will write the flight record — which
+    /// itself fetches airspace and terrain data, a fetch the CLI announces
+    /// only on stderr where the GUI discards it on success, so the panel
+    /// must disclose it up front (#431 review).
+    /// </summary>
+    public bool ShowsRecordNetworkNote =>
+        ExportAll && !ThreeD && SelectedPrivacy.Value != MapPrivacy.Fuzz;
+
+    /// <summary>
+    /// True when "Export all" runs without the flight record: under Fuzz
+    /// the CLI deliberately skips <c>flight-record.html</c> (a record
+    /// built on coarsened coordinates would mislead), and the note
+    /// pre-empts the missing-file surprise. Quiet under 3D, where the
+    /// export is suppressed entirely (#427).
+    /// </summary>
+    public bool ShowsRecordSkipNote =>
+        ExportAll && !ThreeD && SelectedPrivacy.Value == MapPrivacy.Fuzz;
+
+    partial void OnThreeDChanged(bool value)
+    {
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
+        OnPropertyChanged(nameof(ShowsAirspaceNote));
+        OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
+        OnPropertyChanged(nameof(ShowsRecordNetworkNote));
+        OnPropertyChanged(nameof(ShowsRecordSkipNote));
+    }
 
     partial void OnLinkOriginalsChanged(bool value) =>
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
 
-    partial void OnSelectedPrivacyChanged(PrivacyChoice value) =>
+    partial void OnAirspaceChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowsAirspaceNote));
+        OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
+    }
+
+    partial void OnExportAllChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowsRecordNetworkNote));
+        OnPropertyChanged(nameof(ShowsRecordSkipNote));
+    }
+
+    partial void OnSelectedPrivacyChanged(PrivacyChoice value)
+    {
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
+        OnPropertyChanged(nameof(ShowsAirspaceNote));
+        OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
+        OnPropertyChanged(nameof(ShowsRecordNetworkNote));
+        OnPropertyChanged(nameof(ShowsRecordSkipNote));
+    }
 
     public FlightMapOptions ToOptions() => new(
         Recursive: Recursive,
         ThreeD: ThreeD,
         TileStyle: SelectedTileStyle.Key,
         Privacy: SelectedPrivacy.Value,
+        Airspace: Airspace,
         JoinGap: JoinGap,
         LinkOriginals: LinkOriginals,
         ExportAll: ExportAll,
