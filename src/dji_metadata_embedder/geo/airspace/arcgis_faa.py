@@ -130,12 +130,16 @@ def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
                 raise AirspaceError(
                     f"{where}: geometry type {geom.get('type')!r} unsupported"
                 )
-            polygons = [
+            rings = [
                 [(float(x), float(y)) for x, y in ring]
                 for ring in geom.get("coordinates") or []
             ]
-            if not polygons:
+            if not rings:
                 raise AirspaceError(f"{where}: no polygon coordinates")
+            # GeoJSON Polygon: ring 0 is the exterior, the rest are holes —
+            # kept apart so the evaluator subtracts them (#422).
+            polygons = rings[:1]
+            holes = rings[1:]
             apt = props.get("APT1_NAME") or props.get("APT1_ICAO") or "UASFM"
             ident = str(props.get("OBJECTID", f"cell-{i}"))
             zones.append(
@@ -147,6 +151,7 @@ def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
                     upper=VerticalLimit(float(ceiling), "ft", "AGL"),
                     applicability=[],
                     polygons=polygons,
+                    holes=holes,
                     source=source,
                     native=props,
                 )

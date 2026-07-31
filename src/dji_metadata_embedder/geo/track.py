@@ -55,6 +55,12 @@ class Track:
     ``utc_source`` records whether point UTCs came from telemetry datetimes
     or were synthesized from the file mtime — the flight record labels the
     latter.
+
+    ``local_offset`` is the resolved local→UTC offset (local = utc +
+    offset): the explicit ``--tz-offset`` or the auto-detected one for SRT,
+    the explicit offset only for video (whose telemetry is already UTC),
+    ``None`` when unknown. The flight record's cover table prints local
+    times from it (#422).
     """
 
     name: str
@@ -62,6 +68,7 @@ class Track:
     segments: list[str] | None = None
     media: list[str | None] | None = None
     utc_source: str = "telemetry"
+    local_offset: timedelta | None = None
 
 
 def _cue_seconds(cue: str) -> float | None:
@@ -96,7 +103,9 @@ def build_track(
     path = Path(srt_file)
     samples = load_samples(path)
     if is_video(path):
-        return build_track_from_samples(path.stem, samples, redact, assume_utc=True)
+        return build_track_from_samples(
+            path.stem, samples, redact, assume_utc=True, tz_offset=tz_offset
+        )
     mtime_utc = datetime.fromtimestamp(
         path.stat().st_mtime, tz=timezone.utc
     ).replace(tzinfo=None)
@@ -134,7 +143,7 @@ def build_track_from_samples(
 
     coords = redact_coords([(s.lat, s.lon) for s in samples], redact)
     if redact == "drop":
-        return Track(name=name, points=[])
+        return Track(name=name, points=[], local_offset=None)
     if len(coords) != len(samples):
         raise ValueError(
             f"redact_coords returned {len(coords)} coords for {len(samples)} "
@@ -162,4 +171,10 @@ def build_track_from_samples(
                 gimbal_pitch=s.gimbal_pitch,
             )
         )
-    return Track(name=name, points=points, utc_source=utc_source)
+    # Video telemetry is already UTC, so its local offset is only known
+    # when the user stated one; SRT keeps the resolved (explicit or
+    # auto-detected) offset, or None when nothing carried a datetime.
+    return Track(
+        name=name, points=points, utc_source=utc_source,
+        local_offset=tz_offset if assume_utc else offset,
+    )

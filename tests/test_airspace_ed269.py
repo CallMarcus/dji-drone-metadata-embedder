@@ -130,3 +130,20 @@ def test_offset_applicability_start_is_normalized_to_naive_utc():
     zones = parse_ed269(json.dumps(data).encode(), SRC)
     parsed = next(z for z in zones if z.identifier == "LU-T-002")
     assert parsed.applicability[0].start == datetime(2026, 8, 1, 6, 0)
+
+
+def test_interior_rings_parse_into_holes():
+    # GeoJSON Polygon: coordinates[0] is the exterior, the rest are holes
+    # (#422 review) — they must not land in Zone.polygons, where the
+    # evaluator would treat them as more zone.
+    data = _lu_data()
+    proj = data["features"][0]["geometry"][0]["horizontalProjection"]
+    x, y = proj["coordinates"][0][0]
+    hole = [[x, y], [x + 0.001, y], [x + 0.001, y + 0.001], [x, y]]
+    proj["coordinates"].append(hole)
+    zones = parse_ed269(json.dumps(data).encode(), SRC)
+    z = zones[0]
+    assert len(z.holes) == 1
+    assert z.holes[0] == [(float(cx), float(cy)) for cx, cy in hole]
+    assert z.holes[0] not in z.polygons
+    assert z.polygons  # the exterior stayed where it was

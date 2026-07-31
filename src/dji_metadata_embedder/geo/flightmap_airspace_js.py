@@ -47,7 +47,12 @@ airspace.zones.forEach(z => {
   const style = { color: '#4a6a8a', weight: entered ? 3 : 1.5,
                   fillColor: '#4a6a8a', fillOpacity: entered ? 0.15 : 0.08 };
   z.polygons.forEach(ring => {
-    L.polygon(ring.map(c => [c[1], c[0]]), style)
+    // Subsequent rings render as holes (Leaflet native), keeping the map
+    // consistent with the evaluator's hole subtraction (#422). Zone-level
+    // holes attach to every exterior — right for single-volume zones,
+    // which is every zone either live feed publishes today.
+    const rings = [ring].concat(z.holes || []);
+    L.polygon(rings.map(r => r.map(c => [c[1], c[0]])), style)
       .bindPopup(zonePopupHtml(z)).addTo(zoneGroup);
   });
 });

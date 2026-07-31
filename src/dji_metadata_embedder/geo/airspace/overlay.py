@@ -81,6 +81,7 @@ def zones_to_overlay_json(
                         _fmt_window(w) for w in zone.applicability
                     ],
                     "polygons": zone.polygons,
+                    "holes": zone.holes,
                     "source": {
                         "feed": zone.source.feed,
                         "license": zone.source.license,

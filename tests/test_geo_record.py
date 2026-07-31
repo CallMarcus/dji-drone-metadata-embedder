@@ -136,3 +136,13 @@ def test_telemetry_utc_is_labelled_as_such():
     t = build_track_from_samples("x", samples,
                                  mtime_utc=datetime(2026, 7, 30, 12, 0))
     assert t.utc_source == "telemetry"
+
+
+def test_the_tracks_local_offset_reaches_the_record(tmp_path):
+    from datetime import timedelta
+
+    fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    track = _lux_track()
+    track.local_offset = timedelta(hours=2)
+    rec = build_records([track], cache_dir=tmp_path, transport=fake)[0]
+    assert rec.local_offset == timedelta(hours=2)

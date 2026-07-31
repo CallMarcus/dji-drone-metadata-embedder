@@ -95,7 +95,16 @@ def evaluate(
             continue
         finding = ZoneFinding(zone=zone, entered=False)
         for i, p in enumerate(track.points):
-            if not any(point_in_ring(p.lon, p.lat, ring) for ring in zone.polygons):
+            # Inside any exterior ring, minus the interior rings (holes)
+            # the parsers keep in zone.holes (#422). Plain even-odd parity
+            # over one flat list was rejected in review: it under-reports
+            # for overlapping same-limit volumes — and an under-reporting
+            # record misleads in the one direction it must not.
+            if not any(
+                point_in_ring(p.lon, p.lat, ring) for ring in zone.polygons
+            ):
+                continue
+            if any(point_in_ring(p.lon, p.lat, hole) for hole in zone.holes):
                 continue
             finding.entered = True
             if p.utc is not None:

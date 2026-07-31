@@ -182,3 +182,216 @@ def test_write_flight_record_writes_utf8(tmp_path):
     out = write_flight_record([_record()], tmp_path / "flight-record.html", "t")
     assert out.exists()
     assert "<!DOCTYPE html>" in out.read_text(encoding="utf-8")
+
+
+# #422 item 2: a zone with only a stated lowerLimit (ED-269 permits it)
+# must state its floor, not claim "not stated" / "no stated limit".
+def test_a_lower_limit_only_zone_states_its_floor():
+    floor_zone = Zone(
+        identifier="FI-R-77", name="Begins above floor",
+        restriction="REQ_AUTHORISATION",
+        lower=VerticalLimit(500, "ft", "AMSL"), upper=None,
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=floor_zone, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2),
+            max_amsl_m=303.0,
+        )],
+        source=SRC,
+    ))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "from 500 ft AMSL" in html
+    assert "no stated limit" not in html
+    # The comparison follows the floor's datum (AMSL here).
+    assert "max altitude (amsl) during dwell" in html.lower()
+
+
+def test_a_zone_with_no_limits_at_all_still_says_not_stated():
+    bare = Zone(
+        identifier="FI-R-78", name="No limits", restriction="REQ_AUTHORISATION",
+        lower=None, upper=None,
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(zone=bare, entered=True,
+                              entry_utc=datetime(2026, 7, 30, 12, 1),
+                              exit_utc=datetime(2026, 7, 30, 12, 2))],
+        source=SRC,
+    ))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "not stated" in html
+    assert "no stated limit to compare against" in html
+
+
+# #422 item 1: the cover table shows local + UTC times and the estimated
+# max height above surface (the spec's logbook columns).
+def _cover(html: str) -> str:
+    return html.split("<table class='cover'>")[1].split("</table>")[0]
+
+
+def test_cover_shows_local_and_utc_times_when_offset_known():
+    from datetime import timedelta
+
+    rec = _record(local_offset=timedelta(hours=2))
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "14:00:00 +02:00" in cover      # 12:00 UTC start, +02:00
+    assert "12:00:00 UTC" in cover
+    assert "14:03:00 +02:00" in cover      # end
+
+
+def test_cover_dates_follow_local_time_across_midnight():
+    from datetime import timedelta
+
+    rec = _record(
+        start_utc=datetime(2026, 7, 30, 23, 30),
+        end_utc=datetime(2026, 7, 30, 23, 40),
+        local_offset=timedelta(hours=2),
+    )
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "2026-07-31" in cover           # the pilot's logbook date
+
+
+def test_cover_without_offset_states_utc_only():
+    cover = _cover(record_to_html([_record()], "t", "2.4.0"))
+    assert "12:00:00 UTC" in cover
+    assert "+02:00" not in cover
+
+
+def test_cover_shows_both_height_columns_with_labelled_datums():
+    # The spec's logbook row carries BOTH heights: max above takeoff and
+    # est. max above surface (review finding: replacing one with the other
+    # left a terrain-less install with only "unavailable" rows).
+    html = record_to_html([_record()], "t", "2.4.0")
+    header = html.split("<table class='cover'>")[1].split("</tr>")[0]
+    assert "above takeoff" in header
+    assert "est. above surface" in header
+    cover = _cover(html)
+    assert "30 m" in cover             # max_rel_alt_m
+    assert "34 m" in cover             # max_surface_m 33.5 -> "34 m"
+
+
+def test_cover_surface_unavailable_is_stated():
+    rec = _record(max_surface_m=None, surface_note="no terrain data")
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "unavailable" in cover
+
+
+def test_cover_surface_column_alone_can_be_unavailable():
+    from datetime import timedelta as _td  # noqa: F401  (kept for symmetry)
+
+    rec = _record(max_surface_m=None, surface_note="no terrain data")
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "unavailable" in cover
+    assert "30 m" in cover             # the takeoff figure is still there
+
+
+# Review findings on #432: banded limits, the horizontal-entry footnote,
+# per-cell date datums, and offset-label edge cases.
+def test_a_banded_zone_states_floor_and_ceiling():
+    banded = Zone(
+        identifier="EFHKUASC", name="Helsinki C", restriction="REQ_AUTHORISATION",
+        lower=VerticalLimit(50, "m", "AGL"), upper=VerticalLimit(120, "m", "AGL"),
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=banded, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2), max_surface_m=33.5,
+        )], source=SRC))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "50&#x2013;120 m AGL" in html or "50–120 m AGL" in html
+    assert ">120 m AGL<" not in html   # never the ceiling alone
+
+
+def test_a_zero_floor_renders_the_ceiling_alone():
+    # The FAA shape: lower is always 0 ft AGL — "0–400" would be noise.
+    faa_like = Zone(
+        identifier="UASFM-1", name="Cell", restriction="CEILING",
+        lower=VerticalLimit(0, "ft", "AGL"), upper=VerticalLimit(400, "ft", "AGL"),
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=faa_like, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2),
+            max_surface_m=33.5, max_amsl_m=303.0,
+        )], source=SRC))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "400 ft AGL" in html
+    assert "0" + "\u2013" not in html and "0-400" not in html
+
+
+def test_a_mixed_datum_band_prints_each_sides_datum():
+    mixed = Zone(
+        identifier="X", name="Mixed", restriction="REQ_AUTHORISATION",
+        lower=VerticalLimit(500, "ft", "AMSL"), upper=VerticalLimit(120, "m", "AGL"),
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=mixed, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2),
+            max_surface_m=33.5, max_amsl_m=303.0,
+        )], source=SRC))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "500 ft AMSL" in html and "120 m AGL" in html
+
+
+def test_entered_is_defined_as_horizontal_below_the_airspace_table():
+    html = record_to_html([_record()], "t", "2.4.0")
+    assert "Entry is horizontal" in html
+    assert "makes no determination" in html
+
+
+def test_cover_date_cells_carry_their_datum():
+    from datetime import timedelta
+
+    with_offset = _record(local_offset=timedelta(hours=2))
+    cover = _cover(record_to_html([with_offset], "t", "2.4.0"))
+    assert "<small>local</small>" in cover
+    cover_utc = _cover(record_to_html([_record()], "t", "2.4.0"))
+    assert "<small>UTC</small>" in cover_utc
+
+
+def test_cover_utc_line_keeps_the_date_for_midnight_crossings():
+    from datetime import timedelta
+
+    rec = _record(
+        start_utc=datetime(2026, 7, 30, 23, 30),
+        end_utc=datetime(2026, 7, 30, 23, 40),
+        local_offset=timedelta(hours=2),
+    )
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "2026-07-30 23:30:00 UTC" in cover   # the UTC line self-dates
+
+
+def test_negative_and_odd_offsets_label_correctly():
+    from datetime import timedelta
+
+    rec = _record(local_offset=timedelta(hours=-5, minutes=-30))
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "06:30:00 -05:30" in cover           # 12:00 UTC at -05:30
+
+
+def test_a_zero_offset_renders_utc_only():
+    from datetime import timedelta
+
+    rec = _record(local_offset=timedelta(0))
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "+00:00" not in cover
+    assert "12:00:00 UTC" in cover
+
+
+def test_an_offset_with_unknown_times_stays_unknown():
+    from datetime import timedelta
+
+    rec = _record(start_utc=None, end_utc=None,
+                  local_offset=timedelta(hours=2))
+    cover = _cover(record_to_html([rec], "t", "2.4.0"))
+    assert "unknown" in cover

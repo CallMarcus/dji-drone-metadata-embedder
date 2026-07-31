@@ -10,7 +10,7 @@ stated note, never a substituted number.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -51,6 +51,7 @@ class FlightRecordData:
     time_note: str | None
     measure_note: str | None
     airspace: AirspaceReport
+    local_offset: timedelta | None = None
     points: list[tuple[float, float]] = field(default_factory=list)
     terrain_source: str | None = None
 
@@ -160,6 +161,7 @@ def build_records(
                     else None
                 ),
                 airspace=report,
+                local_offset=track.local_offset,
                 points=[(p.lat, p.lon) for p in pts],
                 terrain_source=TERRAIN_SOURCE if heights is not None else None,
             )

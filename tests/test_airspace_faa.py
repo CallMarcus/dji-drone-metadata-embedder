@@ -115,3 +115,22 @@ def test_parse_refuses_a_cell_without_a_ceiling():
     del doc["features"][0]["properties"]["CEILING"]
     with pytest.raises(AirspaceError, match="CEILING"):
         parse_faa([json.dumps(doc).encode()], SRC)
+
+
+def test_interior_rings_parse_into_holes():
+    # GeoJSON Polygon: coordinates[0] is the exterior, the rest are holes
+    # (#422 review).
+    outer = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]
+    hole = [[0.2, 0.2], [0.4, 0.2], [0.4, 0.4], [0.2, 0.4], [0.2, 0.2]]
+    page = json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "properties": {"CEILING": 400, "OBJECTID": 7},
+            "geometry": {"type": "Polygon", "coordinates": [outer, hole]},
+        }],
+    }).encode()
+    (zone,) = parse_faa([page], SRC)
+    assert zone.polygons == [[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0),
+                              (0.0, 0.0)]]
+    assert zone.holes == [[(0.2, 0.2), (0.4, 0.2), (0.4, 0.4), (0.2, 0.4),
+                           (0.2, 0.2)]]

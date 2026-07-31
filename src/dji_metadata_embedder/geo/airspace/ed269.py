@@ -128,6 +128,7 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
         lower: VerticalLimit | None = None
         upper: VerticalLimit | None = None
         polygons: list[list[tuple[float, float]]] = []
+        holes: list[list[tuple[float, float]]] = []
         for geom in feat.get("geometry") or []:
             unit = "ft" if str(geom.get("uomDimensions", "M")).upper() == "FT" else "m"
             geom_lower = _limit(geom, "lower", unit, where)
@@ -152,13 +153,16 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
                     f"{where} ({ident}): horizontalProjection type "
                     f"{proj.get('type')!r} is not supported"
                 )
-            for ring in proj.get("coordinates") or []:
+            for ring_index, ring in enumerate(proj.get("coordinates") or []):
                 try:
-                    polygons.append([(float(x), float(y)) for x, y in ring])
+                    parsed = [(float(x), float(y)) for x, y in ring]
                 except (TypeError, ValueError) as exc:
                     raise AirspaceError(
                         f"{where} ({ident}): malformed ring coordinates"
                     ) from exc
+                # GeoJSON Polygon: ring 0 is the exterior, the rest are
+                # holes — kept apart so the evaluator subtracts them (#422).
+                (polygons if ring_index == 0 else holes).append(parsed)
         if not polygons:
             raise AirspaceError(f"{where} ({ident}): no polygon geometry")
         zones.append(
@@ -170,6 +174,7 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
                 upper=upper,
                 applicability=applicability,
                 polygons=polygons,
+                holes=holes,
                 source=source,
                 native=feat,
             )
