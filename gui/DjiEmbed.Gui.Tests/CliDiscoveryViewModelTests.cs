@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Tests;
@@ -19,6 +20,25 @@ public class CliDiscoveryViewModelTests : IDisposable
             Assert.StartsWith("dji-embed", c.Command);
             Assert.False(string.IsNullOrWhiteSpace(c.Description));
         });
+    }
+
+    [Fact]
+    public void Starter_command_sample_folders_match_the_platform()
+    {
+        // The examples are copy-paste bait — a D:\ drive path handed to a
+        // macOS user cannot work, so the sample folder follows the OS.
+        var windows = CliDiscoveryViewModel.StarterCommandsFor(
+            OSPlatform.Windows);
+        Assert.Contains(windows, c => c.Command.Contains(@"D:\Footage"));
+
+        foreach (var platform in new[] { OSPlatform.OSX, OSPlatform.Linux })
+        {
+            var commands = CliDiscoveryViewModel.StarterCommandsFor(platform);
+            Assert.DoesNotContain(commands, c => c.Command.Contains(@"D:\"));
+            Assert.Contains(commands, c => c.Command.Contains(
+                platform == OSPlatform.OSX
+                    ? "~/Movies/Footage" : "~/Videos/Footage"));
+        }
     }
 
     [Fact]
