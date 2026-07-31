@@ -1,0 +1,113 @@
+---
+name: Mac sign test
+
+# End-to-end proof of the Apple signing + notarization credential chain
+# (#414 Stage A) WITHOUT shipping anything: imports the Developer ID
+# certificate into a throwaway keychain, pins its fingerprint, signs a
+# freshly compiled binary with hardened runtime + timestamp, and submits
+# it to Apple's notary service. "Accepted" back from notarytool proves
+# every secret this repo holds for macOS releases actually works.
+#
+# Runs on the PR that touches it (same-repo PRs get secrets) and on
+# demand. Run it after: rotating the Developer ID certificate, rotating
+# the App Store Connect API key, or changing the signing steps that
+# Stage C/D will copy from here.
+#
+# Secrets: APPLE_CERT_P12 (base64 .p12: leaf + Developer ID G2
+# intermediate), APPLE_CERT_PASSWORD, APPLE_CERT_FINGERPRINT (SHA-256 of
+# the leaf, hex no colons), APPLE_NOTARY_KEY_P8, APPLE_NOTARY_KEY_ID,
+# APPLE_NOTARY_ISSUER_ID.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/mac-sign-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sign-and-notarize:
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      KEYCHAIN: sign-test.keychain-db
+    steps:
+      - name: Import certificate into a throwaway keychain
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KC_PASSWORD="$(openssl rand -base64 24)"
+          printf '%s' "$APPLE_CERT_P12" | base64 -d > cert.p12
+          security create-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" -f pkcs12 \
+            -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f cert.p12
+          # Let codesign use the key non-interactively.
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KC_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+
+      - name: Verify identity and pin the fingerprint
+        env:
+          APPLE_CERT_FINGERPRINT: ${{ secrets.APPLE_CERT_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN" \
+            | grep -q "Developer ID Application"
+          actual="$(security find-certificate -c 'Developer ID Application' \
+            -Z "$KEYCHAIN" | awk '/SHA-256 hash/ {print $3}')"
+          if [ "$actual" != "$APPLE_CERT_FINGERPRINT" ]; then
+            echo "::error::certificate fingerprint does not match the pin"
+            exit 1
+          fi
+          echo "Fingerprint pin: MATCH"
+
+      - name: Sign a fresh binary (hardened runtime + timestamp)
+        run: |
+          set -euo pipefail
+          cat > hello.c <<'EOF'
+          #include <stdio.h>
+          int main(void) { puts("dji-embed mac sign test"); return 0; }
+          EOF
+          clang -o sign-test-hello hello.c
+          codesign --sign "Developer ID Application" \
+            --options runtime --timestamp \
+            --keychain "$KEYCHAIN" sign-test-hello
+          codesign --verify --strict --verbose=2 sign-test-hello
+          codesign --display --verbose=2 sign-test-hello 2>&1 \
+            | grep -E "Authority|TeamIdentifier"
+
+      - name: Notarize it
+        env:
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$APPLE_NOTARY_KEY_P8" > notary-key.p8
+          ditto -c -k --keepParent sign-test-hello sign-test-hello.zip
+          xcrun notarytool submit sign-test-hello.zip \
+            --key notary-key.p8 \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --wait --timeout 20m | tee notary.log
+          rm -f notary-key.p8
+          grep -q "status: Accepted" notary.log
+          echo "Notarization: Accepted"
+          # A bare binary can't be stapled (no place to attach the
+          # ticket) — Gatekeeper fetches it online on first run. The
+          # Accepted status above is the end of what this test can prove;
+          # stapling gets exercised by the Stage D .app/DMG build.
+
+      - name: Delete the throwaway keychain
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+          rm -f cert.p12 notary-key.p8
