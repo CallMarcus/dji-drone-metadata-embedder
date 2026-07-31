@@ -989,7 +989,7 @@
                     </ItemsControl>
                     <TextBlock IsVisible="{Binding PreviewUnavailable}"
                                Opacity="0.65" FontSize="12" TextWrapping="Wrap"
-                               Text="The map couldn't be previewed inside the app — Open shows it in your browser instead. Inline preview needs Microsoft Edge WebView2, which comes preinstalled from Windows 11 on." />
+                               Text="{x:Static svc:WebViewSupport.FallbackNote}" />
                     <StackPanel Spacing="10" IsVisible="{Binding !!SetupItems.Count}">
                         <TextBlock FontSize="16"
                                    IsVisible="{Binding AllGood}"

@@ -239,8 +239,10 @@ public class WorkspaceScreenTests
         vm.Step = FlowStep.Done;
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
+        // The note's tail is platform-aware (WebView2 is only named on
+        // Windows), so locate it by its platform-stable first sentence.
         var tip = window.GetVisualDescendants().OfType<TextBlock>()
-            .Single(t => (t.Text ?? "").Contains("WebView2"));
+            .Single(t => (t.Text ?? "").Contains("couldn't be previewed"));
         Assert.True(tip.IsEffectivelyVisible);
 
         vm.PreviewUnavailable = false;   // a healthy Done never shows the tip

@@ -2,26 +2,72 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace DjiEmbed.Gui.Services;
 
 /// <summary>
 /// Launches an interactive shell that lands the user on proof the CLI
-/// works (#293): Windows Terminal when installed, classic PowerShell
-/// otherwise, pre-running "dji-embed --help" so the first thing they see
-/// is output, not a blank prompt.
+/// works (#293): on Windows, Windows Terminal when installed and classic
+/// PowerShell otherwise; on macOS, Terminal.app via osascript. Both
+/// pre-run "dji-embed --help" so the first thing the user sees is
+/// output, not a blank prompt.
 /// </summary>
 public static class TerminalLauncher
 {
     private const string ProofCommand = "dji-embed --help";
 
-    /// <summary>
-    /// Candidate launches, best first. Pure so tests can assert the exact
-    /// invocations without spawning shells.
-    /// </summary>
+    /// <summary>What the launch button should say — the shell it will
+    /// actually open on this platform.</summary>
+    public static string ButtonLabel => ButtonLabelOn(Platforms.Current);
+
+    internal static string ButtonLabelOn(OSPlatform platform) =>
+        platform == OSPlatform.Windows ? "Open PowerShell and try it"
+        : platform == OSPlatform.OSX ? "Open Terminal and try it"
+        : "Open a terminal and try it";
+
+    /// <summary>Candidate launches for this machine, best first.</summary>
     public static IReadOnlyList<ProcessStartInfo> Candidates(
-        string workingDirectory)
+        string workingDirectory) =>
+        Candidates(workingDirectory, Platforms.Current);
+
+    /// <summary>
+    /// Candidate launches for a platform, best first. Pure so tests can
+    /// assert every platform's exact invocations on any CI host without
+    /// spawning shells.
+    /// </summary>
+    internal static IReadOnlyList<ProcessStartInfo> Candidates(
+        string workingDirectory, OSPlatform platform)
     {
+        if (platform == OSPlatform.OSX)
+        {
+            // Terminal.app is always present and its windows stay open on
+            // their own; "do script" opens a fresh window running the
+            // proof command in the requested folder, and the second -e
+            // brings Terminal in front of our window.
+            var osa = new ProcessStartInfo("osascript")
+            {
+                UseShellExecute = false,
+                WorkingDirectory = workingDirectory,
+            };
+            osa.ArgumentList.Add("-e");
+            osa.ArgumentList.Add(
+                "tell application \"Terminal\" to do script "
+                + AppleScriptString(
+                    $"cd {ShellSingleQuote(workingDirectory)} && {ProofCommand}"));
+            osa.ArgumentList.Add("-e");
+            osa.ArgumentList.Add("tell application \"Terminal\" to activate");
+            return [osa];
+        }
+
+        if (platform != OSPlatform.Windows)
+        {
+            // No dependable cross-distro terminal invocation (#360);
+            // Launch reports false and the view's copy already names
+            // any terminal.
+            return [];
+        }
+
         // wt.exe resolves through the App Execution Alias when Windows
         // Terminal is installed; a missing alias throws at Start and the
         // loop falls through to powershell.exe.
@@ -69,4 +115,12 @@ public static class TerminalLauncher
         }
         return false;
     }
+
+    /// <summary>POSIX single-quoting: '…' with embedded ' as '\''.</summary>
+    private static string ShellSingleQuote(string s) =>
+        "'" + s.Replace("'", @"'\''") + "'";
+
+    /// <summary>An AppleScript string literal: "…" with \ and " escaped.</summary>
+    private static string AppleScriptString(string s) =>
+        "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 }
