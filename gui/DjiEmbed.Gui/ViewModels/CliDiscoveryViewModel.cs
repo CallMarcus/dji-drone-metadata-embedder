@@ -32,6 +32,29 @@ public partial class CliDiscoveryViewModel(string? cliPath, Action goHome)
     public IReadOnlyList<StarterCommand> StarterCommands { get; } =
         StarterCommandsFor(Platforms.Current);
 
+    /// <summary>The opening revelation, phrased per platform.</summary>
+    public string IntroText { get; } = IntroTextFor(Platforms.Current);
+
+    /// <summary>How the CLI reaches a terminal differs per install: the
+    /// Windows installer appends it to PATH, the macOS DMG keeps it inside
+    /// the bundle, and Linux has no installer at all (#442).</summary>
+    internal static string IntroTextFor(OSPlatform platform) =>
+        platform == OSPlatform.Windows
+            ? "Everything this app does — and a lot more — runs on the "
+              + "dji-embed command line, and it is already installed: the "
+              + "app's installer put it on your PATH. Open any terminal, "
+              + "type dji-embed, and it just works."
+        : platform == OSPlatform.OSX
+            ? "Everything this app does — and a lot more — runs on the "
+              + "dji-embed command line, and it is already installed: it "
+              + "ships inside this app. The button below opens Terminal "
+              + "ready to use it; the guide below shows how to make it "
+              + "available in every terminal."
+        : "Everything this app does — and a lot more — runs on the "
+          + "dji-embed command line. Install it once with pipx "
+          + "(pipx install dji-drone-metadata-embedder) and it works "
+          + "in any terminal.";
+
     /// <summary>The examples are copy-paste bait, so the sample folder
     /// follows the OS — a D:\ drive path is Windows-only truth.</summary>
     internal static IReadOnlyList<StarterCommand> StarterCommandsFor(
@@ -131,7 +154,7 @@ public partial class CliDiscoveryViewModel(string? cliPath, Action goHome)
     }
 
     [RelayCommand]
-    private void OpenTerminal() => TerminalLauncher.Launch();
+    private void OpenTerminal() => TerminalLauncher.Launch(cliPath);
 
     [RelayCommand]
     private void OpenDocs() =>

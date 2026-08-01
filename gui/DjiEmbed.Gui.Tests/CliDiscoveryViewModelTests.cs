@@ -23,6 +23,48 @@ public class CliDiscoveryViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Windows_intro_keeps_the_installer_path_claim()
+    {
+        // On Windows the sentence is true: the installer appends the CLI
+        // to PATH, so bare dji-embed works in any terminal.
+        var text = CliDiscoveryViewModel.IntroTextFor(OSPlatform.Windows);
+        Assert.Contains("put it on your PATH", text);
+        Assert.Contains("type dji-embed", text);
+    }
+
+    [Fact]
+    public void Macos_intro_never_claims_path_or_bare_typing()
+    {
+        // #442: the DMG install puts the CLI inside the app bundle and
+        // touches no PATH — telling a Mac user to "type dji-embed" lands
+        // on command-not-found.
+        var text = CliDiscoveryViewModel.IntroTextFor(OSPlatform.OSX);
+        Assert.DoesNotContain("PATH", text);
+        Assert.DoesNotContain("type dji-embed", text);
+        Assert.Contains("inside this app", text);
+    }
+
+    [Fact]
+    public void Linux_intro_points_at_pipx()
+    {
+        // No installer exists on Linux (#360); pipx is the documented
+        // route to a CLI that works in any terminal.
+        var text = CliDiscoveryViewModel.IntroTextFor(OSPlatform.Linux);
+        Assert.DoesNotContain("installer", text);
+        Assert.Contains("pipx install dji-drone-metadata-embedder", text);
+    }
+
+    [Fact]
+    public void Intro_text_property_follows_the_current_platform()
+    {
+        var vm = new CliDiscoveryViewModel(null, () => { });
+        Assert.Equal(
+            CliDiscoveryViewModel.IntroTextFor(
+                DjiEmbed.Gui.Services.Platforms.Current),
+            vm.IntroText);
+    }
+
+    [Fact]
     public void Starter_command_sample_folders_match_the_platform()
     {
         // The examples are copy-paste bait — a D:\ drive path handed to a
