@@ -83,8 +83,14 @@ To use the bundled CLI from a terminal, symlink it rather than extending
 `PATH` — the directory also holds the app's two hundred runtime libraries:
 
 ```bash
-sudo ln -s "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+sudo mkdir -p /usr/local/bin
+sudo ln -sf "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
 ```
+
+The `mkdir` is not ceremony: on an Apple Silicon Mac, Homebrew installs to
+`/opt/homebrew` and nothing else creates `/usr/local/bin`, so it is often
+missing and `ln` fails with *No such file or directory*. macOS lists it in
+`/etc/paths` regardless, so once it exists it is on your `PATH`.
 
 ### pipx (CLI only — works on any Mac, Intel included)
 
@@ -109,6 +115,24 @@ the **first run needs a network connection** for Gatekeeper's online ticket
 check (the DMG app above is stapled and has no such requirement). Verify
 either download against `SHA256SUMS-macos.txt` from the same release.
 
+Run it from a terminal, not by double-clicking it in Finder. It is a
+command-line tool, so a double-click only opens a window, runs it with no
+arguments and closes; and because Finder applies the strictest Gatekeeper
+path to a downloaded executable, that is also where you may meet
+**"Apple could not verify 'dji-embed' is free of malware"**. That wording
+means the online ticket check could not be completed — it is not the
+"developer cannot be verified" message an unsigned binary gets. Check
+your network, then clear the download quarantine flag and run it
+normally:
+
+```bash
+xattr -d com.apple.quarantine ./dji-embed
+./dji-embed --version
+```
+
+If you would rather not think about any of this, use the DMG: its ticket
+is stapled, so it never needs the online check.
+
 ## Linux
 
 ```bash
@@ -125,6 +149,40 @@ copy in your user directory.
 ```bash
 docker run --rm -v "$PWD":/data callmarcus/dji-embed embed /data
 ```
+
+## Upgrading
+
+`dji-embed doctor` tells you when a newer version exists, and names the
+command for the way *you* installed it. The paths, for reference:
+
+| How you installed | How you upgrade |
+| --- | --- |
+| Windows installer | Run the new installer over the old one, or `winget upgrade CallMarcus.DJIMetadataEmbedder.Desktop` |
+| Windows, winget CLI | `winget upgrade CallMarcus.DJIMetadataEmbedder` |
+| macOS DMG | Open the new DMG and drag the app to Applications, replacing the old one — the bundled `dji-embed` comes with it |
+| macOS standalone binary | Download the new `dji-embed-macos-arm64.zip` and replace the binary you unzipped |
+| pipx (any OS) | `pipx upgrade dji-drone-metadata-embedder` |
+| pip (any OS) | `pip install --upgrade dji-drone-metadata-embedder` |
+
+**If `dji-embed --version` still shows the old version afterwards**, you
+have two copies and the older one comes first on `PATH`. `which -a
+dji-embed` (`where dji-embed` on Windows) lists them in the order the
+shell searches. This bites most often on macOS, where a `pipx` install
+in `~/.local/bin` predates a later DMG install.
+
+On macOS the tidiest fix is to keep one copy — the app's — and point a
+symlink at it, so it follows the app from then on:
+
+```bash
+pipx uninstall dji-drone-metadata-embedder   # if pipx put an older one on PATH
+sudo mkdir -p /usr/local/bin                 # often absent on Apple Silicon
+sudo ln -sf "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+hash -r && dji-embed --version
+```
+
+Loose copies you unzipped earlier are worth deleting rather than leaving
+around: they never update, and running one by its full path reports its
+own old version, which reads like a failed upgrade.
 
 ## Prefer clicking over typing?
 
