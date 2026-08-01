@@ -72,15 +72,30 @@ error — `pipx` installs the tool into its own isolated environment and puts
 `dji-embed` on your PATH (run `pipx ensurepath` once if the command isn't
 found in a new terminal).
 
-Prefer no Python at all? On Apple Silicon, grab the standalone
+The easiest install on Apple Silicon is the desktop app: download
+`dji-metadata-embedder-<version>-macos-arm64.dmg` from the
+[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest),
+open it, and drag **DJI Metadata Embedder** to Applications. The app is
+Developer ID-signed, notarized and stapled, and carries the full
+`dji-embed` CLI inside (at
+`/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed`). To
+use that CLI from a terminal, symlink it rather than extending `PATH` —
+the directory also holds the app's two hundred runtime libraries:
+
+```bash
+ln -s "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+```
+
+FFmpeg and ExifTool still come from Homebrew: `brew install ffmpeg exiftool`.
+
+Prefer a bare CLI binary? On Apple Silicon, grab the standalone
 `dji-embed-macos-arm64.zip` from the
 [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases),
 unzip it, and run `./dji-embed`. The binary is Developer ID-signed and
 notarized, but a bare binary can't carry a stapled notarization ticket, so
 the **first run needs a network connection** for Gatekeeper's online ticket
-check. Verify the download against `SHA256SUMS-macos.txt` from the same
-release. FFmpeg and ExifTool still come from Homebrew
-(`brew install ffmpeg exiftool`).
+check (the DMG app above is stapled and has no such requirement). Verify
+either download against `SHA256SUMS-macos.txt` from the same release.
 
 ### Linux
 

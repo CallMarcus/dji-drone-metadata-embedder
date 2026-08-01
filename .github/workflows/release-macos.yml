@@ -1,7 +1,7 @@
 ---
-name: Build macOS CLI
+name: Build macOS CLI + App
 
-# build + sign + notarize (macos, arm64) -> publish. (#414 Stage C)
+# build + sign + notarize CLI -> app (.app + DMG) -> publish. (#414 Stages C+D)
 #
 # The PyInstaller onefile binary is a single Mach-O with the payload archive
 # appended, so notarization only ever inspects the outer binary — hardened
@@ -17,7 +17,9 @@ name: Build macOS CLI
 # the install docs.
 #
 # Signing/notary steps are copied from mac-sign-test.yml (the Stage A
-# credential proof); keep the two in sync when rotating credentials.
+# credential proof); keep the two in sync when rotating credentials. The
+# notary poll loop lives in scripts/macos-notarize.sh (shared with the
+# app job).
 # Same-repo pull requests touching this leg run the full chain end-to-end
 # (secrets are available there) but skip the publish job.
 
@@ -33,11 +35,14 @@ on:
         type: string
   pull_request:
     # Deliberately narrow: pyproject.toml/uv.lock bumps could in principle
-    # break this build too, but a 40-minute macOS job plus a real Apple
-    # notary submission on every dependency PR is the wrong trade.
+    # break this build too, but a 40-minute macOS job plus real Apple
+    # notary submissions on every dependency PR is the wrong trade.
     paths:
       - '.github/workflows/release-macos.yml'
       - 'tools/build_exe.py'
+      - 'tools/macos_bundle.py'
+      - 'scripts/macos-notarize.sh'
+      - 'installer/macos/entitlements.plist'
 
 permissions:
   contents: read
@@ -181,7 +186,6 @@ jobs:
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
         run: |
           set -euo pipefail
-          printf '%s' "$APPLE_NOTARY_KEY_P8" > notary-key.p8
           # The submitted zip is the shipped release asset. Info-ZIP `zip`,
           # not `ditto --keepParent`: for a plain file ditto embeds the
           # parent directory name (the entry came out as dist/dji-embed),
@@ -195,41 +199,7 @@ jobs:
           test -x ziptest/dji-embed
           ziptest/dji-embed --version
           rm -rf ziptest
-          # Submit without --wait and poll ourselves: notarytool's built-in
-          # wait aborts on the first transient network error (a runner blip
-          # 53 minutes in cost a whole run), while each poll below is an
-          # independent request.
-          sub_id="$(xcrun notarytool submit dist/dji-embed-macos-arm64.zip \
-            --key notary-key.p8 \
-            --key-id "$APPLE_NOTARY_KEY_ID" \
-            --issuer "$APPLE_NOTARY_ISSUER_ID" \
-            --output-format json \
-            | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
-          echo "Submission id: $sub_id"
-          deadline=$((SECONDS + 330 * 60))
-          status="In Progress"
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            sleep 60
-            if ! out="$(xcrun notarytool info "$sub_id" \
-                --key notary-key.p8 \
-                --key-id "$APPLE_NOTARY_KEY_ID" \
-                --issuer "$APPLE_NOTARY_ISSUER_ID" 2>&1)"; then
-              echo "poll failed (transient), retrying: $(printf '%s' "$out" | head -1)"
-              continue
-            fi
-            status="$(printf '%s\n' "$out" | sed -n 's/^ *status: //p' | head -1)"
-            echo "[$((SECONDS / 60))m] status: $status"
-            case "$status" in
-              "In Progress"|"") ;;
-              *) break ;;
-            esac
-          done
-          rm -f notary-key.p8
-          if [ "$status" != "Accepted" ]; then
-            echo "::error::notarization did not accept (status: $status)"
-            exit 1
-          fi
-          echo "Notarization: Accepted"
+          scripts/macos-notarize.sh dist/dji-embed-macos-arm64.zip 330
 
       - name: Upload dist
         uses: actions/upload-artifact@v7
@@ -242,12 +212,222 @@ jobs:
         if: always()
         run: |
           security delete-keychain "$KEYCHAIN" || true
-          rm -f cert.p12 notary-key.p8
+          rm -f cert.p12
+
+  app:
+    # .app + DMG (#414 Stage D). Reuses the build job's signed CLI so the
+    # bundled dji-embed is byte-identical to the standalone zip asset and
+    # keeps the hardened-runtime signature already proven by that job's
+    # notarization. PR proof runs execute this chain too (three real
+    # submissions per proof run — the paths filter above keeps that rare).
+    needs: build
+    runs-on: macos-14
+    # Two sequential notary submissions (app zip, then DMG); see the build
+    # job's note on this young account's vetting latency. 150 min poll
+    # deadline each + build/publish time, under GitHub's 360-min job cap.
+    timeout-minutes: 350
+    env:
+      KEYCHAIN: release-macos-app.keychain-db
+      VERSION: ${{ needs.build.outputs.version }}
+      APP: staging/DJI Metadata Embedder.app
+      DMG: dji-metadata-embedder-${{ needs.build.outputs.version }}-macos-arm64.dmg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-dist
+          path: dist
+      - name: Unpack the signed CLI
+        run: |
+          set -euo pipefail
+          ditto -x -k dist/dji-embed-macos-arm64.zip cli
+          test -x cli/dji-embed
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish GUI (self-contained osx-arm64)
+        run: >
+          dotnet publish gui/DjiEmbed.Gui -c Release -r osx-arm64
+          --self-contained true
+          -p:Version="$VERSION"
+          -o publish
+      - name: Build app-icon.icns
+        # Renditions come from tools/macos_bundle.py so the no-upscaling
+        # rule is unit-tested; the source size is read from the asset, so
+        # a future 1024px master upgrades the .icns with no workflow
+        # change (today's 256px master yields no 512/1024 slots).
+        run: |
+          set -euo pipefail
+          src=gui/DjiEmbed.Gui/Assets/app-icon.png
+          px="$(sips -g pixelHeight "$src" | awk '/pixelHeight/ {print $2}')"
+          mkdir app.iconset
+          while read -r name size; do
+            sips -z "$size" "$size" "$src" --out "app.iconset/$name" > /dev/null
+          done < <(python3 tools/macos_bundle.py iconset --source-px "$px")
+          # bash swallows a failing process substitution — surface an
+          # empty iconset here, not as a misleading iconutil error.
+          test -n "$(ls -A app.iconset)"
+          iconutil -c icns -o app-icon.icns app.iconset
+      - name: Assemble the .app bundle
+        run: |
+          python3 tools/macos_bundle.py assemble \
+            --publish-dir publish --cli cli/dji-embed \
+            --icns app-icon.icns --version "$VERSION" --out staging
+      - name: Import certificate into a throwaway keychain
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KC_PASSWORD="$(openssl rand -base64 24)"
+          printf '%s' "$APPLE_CERT_P12" | base64 -d > cert.p12
+          security create-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" -f pkcs12 \
+            -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f cert.p12
+          # Let codesign use the key non-interactively.
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KC_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+      - name: Verify identity and pin the fingerprint
+        env:
+          APPLE_CERT_FINGERPRINT: ${{ secrets.APPLE_CERT_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN" \
+            | grep -q "Developer ID Application"
+          actual="$(security find-certificate -c 'Developer ID Application' \
+            -Z "$KEYCHAIN" | awk '/SHA-256 hash/ {print $3}')"
+          if [ "$actual" != "$APPLE_CERT_FINGERPRINT" ]; then
+            echo "::error::certificate fingerprint does not match the pin"
+            exit 1
+          fi
+          echo "Fingerprint pin: MATCH"
+      - name: Sign the bundle (inside-out, hardened runtime)
+        run: |
+          set -euo pipefail
+          # Each --timestamp is a round-trip to Apple's timestamp service,
+          # which intermittently refuses; ~200 calls in a burst must not
+          # cost the whole notarization chain to one blip.
+          sign() {
+            local attempt
+            for attempt in 1 2 3; do
+              if codesign "$@"; then return 0; fi
+              echo "codesign attempt $attempt failed; backing off"
+              sleep 15
+            done
+            return 1
+          }
+          # Nested files first, then the bundle itself — which signs the
+          # main executable with the entitlements. EVERY file in
+          # Contents/MacOS gets signed, not just Mach-Os: codesign treats
+          # the managed PE .dlls of a .NET publish as nested code, and the
+          # bundle seal fails on any left unsigned ("code object is not
+          # signed at all ... System.Web.dll"). Signing everything is the
+          # documented .NET flow (learn.microsoft.com/dotnet/core/deploying/
+          # macos-notarization). dji-embed keeps its build-job signature:
+          # --force would only discard a seal notarization already
+          # vouched for.
+          while IFS= read -r f; do
+            base="$(basename "$f")"
+            [ "$base" = "dji-embed" ] && continue
+            [ "$base" = "DjiEmbed.Gui" ] && continue
+            sign --force --sign "Developer ID Application" \
+              --options runtime --timestamp --keychain "$KEYCHAIN" "$f"
+          done < <(find "$APP/Contents/MacOS" -type f)
+          sign --force --sign "Developer ID Application" \
+            --options runtime --timestamp \
+            --entitlements installer/macos/entitlements.plist \
+            --keychain "$KEYCHAIN" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          # Prove the JIT entitlement actually landed: a signed, notarized
+          # app without it crashes CoreCLR on first launch while every
+          # gate here stays green (--verify checks the seal, not
+          # entitlement content).
+          codesign -d --entitlements - "$APP" 2>&1 \
+            | grep -q com.apple.security.cs.allow-jit
+          echo "Entitlement check: allow-jit present"
+      - name: Smoke test the bundled CLI
+        run: |
+          set -euo pipefail
+          "$APP/Contents/MacOS/dji-embed" --version | grep -F "$VERSION"
+          plutil -lint "$APP/Contents/Info.plist"
+      - name: Notarize and staple the app
+        env:
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          # For a DIRECTORY, --keepParent roots the archive at the .app
+          # itself — correct here (the plain-file case is the trap the
+          # build job's comment documents).
+          ditto -c -k --keepParent "$APP" app.zip
+          scripts/macos-notarize.sh app.zip 150
+          # An Accepted verdict can precede the ticket reaching Apple's
+          # CDN (the classic stapler Error 65) — retrying for a few
+          # minutes beats re-running the whole notarization chain.
+          for attempt in 1 2 3 4 5; do
+            xcrun stapler staple "$APP" && break
+            [ "$attempt" = 5 ] && exit 1
+            echo "staple attempt $attempt failed; waiting for ticket propagation"
+            sleep 30
+          done
+          xcrun stapler validate "$APP"
+          spctl -a -vv --type execute "$APP"
+      - name: Build, sign, notarize and staple the DMG
+        env:
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          mkdir dmg-root
+          # ditto (not cp) preserves the signed bundle bit-for-bit.
+          ditto "$APP" "dmg-root/DJI Metadata Embedder.app"
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "DJI Metadata Embedder" \
+            -srcfolder dmg-root -ov -format UDZO "dist/$DMG"
+          for attempt in 1 2 3; do
+            codesign --force --sign "Developer ID Application" \
+              --timestamp --keychain "$KEYCHAIN" "dist/$DMG" && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "codesign attempt $attempt failed; backing off"
+            sleep 15
+          done
+          scripts/macos-notarize.sh "dist/$DMG" 150
+          # Same ticket-propagation race as the app staple above.
+          for attempt in 1 2 3 4 5; do
+            xcrun stapler staple "dist/$DMG" && break
+            [ "$attempt" = 5 ] && exit 1
+            echo "staple attempt $attempt failed; waiting for ticket propagation"
+            sleep 30
+          done
+          xcrun stapler validate "dist/$DMG"
+          # Gatekeeper's verdict on the DMG itself — the artifact users
+          # actually download ("open" is the assessment type for disk
+          # images; "execute" above is the one for app bundles).
+          spctl -a -t open --context context:primary-signature -vv "dist/$DMG"
+      - name: Upload app dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-app
+          path: dist/*.dmg
+          if-no-files-found: error
+      - name: Delete the throwaway keychain
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+          rm -f cert.p12
 
   publish:
     # PR runs prove the chain but ship nothing.
     if: ${{ github.event_name != 'pull_request' }}
-    needs: build
+    needs: [build, app]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -259,19 +439,27 @@ jobs:
         with:
           name: macos-dist
           path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-app
+          path: dist
       - name: Generate SHA256SUMS-macos.txt
-        # Separate file from the Windows leg's SHA256SUMS.txt — both legs
-        # race on the same release, and same-named assets clobber.
+        # Separate file from the Windows leg's SHA256SUMS.txt — the legs
+        # race on the same release, and same-named assets clobber. Both
+        # macOS assets ship from this one workflow, so one file covers
+        # the zip and the DMG.
         run: |
           cd dist
           sha256sum -- * > SHA256SUMS-macos.txt
           cat SHA256SUMS-macos.txt
       - name: Attest build provenance
-        # Sigstore-signed proof the zip came from this workflow:
-        #   gh attestation verify dji-embed-macos-arm64.zip -R CallMarcus/dji-drone-metadata-embedder
+        # Sigstore-signed proof the assets came from this workflow:
+        #   gh attestation verify <asset> -R CallMarcus/dji-drone-metadata-embedder
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: dist/dji-embed-macos-arm64.zip
+          subject-path: |
+            dist/dji-embed-macos-arm64.zip
+            dist/*.dmg
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v3
         with:
@@ -284,4 +472,4 @@ jobs:
         env:
           TAG: ${{ needs.build.outputs.tag }}
         run: |
-          echo "Notarized macOS arm64 CLI attached to [release $TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Notarized macOS arm64 CLI zip + app DMG attached to [release $TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"

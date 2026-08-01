@@ -128,7 +128,8 @@ repository's public build workflow. With the [GitHub CLI](https://cli.github.com
 gh attestation verify dji-metadata-embedder-setup-<version>.exe -R CallMarcus/dji-drone-metadata-embedder
 ```
 
-The same works for `dji-embed.exe` and `dji-embed-macos-arm64.zip`. PyPI
+The same works for `dji-embed.exe`, `dji-embed-macos-arm64.zip` and the
+macOS DMG. PyPI
 wheels are attested separately by
 PyPI's [Trusted Publishing](https://docs.pypi.org/attestations/) — see the
 "provenance" details on each file at
@@ -144,11 +145,13 @@ sudo apt update && sudo apt install ffmpeg exiftool   # Debian/Ubuntu
 pip install dji-drone-metadata-embedder
 ```
 
-On Apple Silicon you can also skip Python entirely: download the signed and
-notarized **dji-embed-macos-arm64.zip** from the
-[GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases),
-unzip, and run `./dji-embed` (first run needs network — Gatekeeper fetches
-the notarization ticket online).
+On Apple Silicon you can also skip Python entirely: download the signed,
+notarized **DMG** (`dji-metadata-embedder-<version>-macos-arm64.dmg`) from
+the [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
+and drag the app to Applications — the `dji-embed` CLI ships inside the
+bundle. A standalone CLI zip (**dji-embed-macos-arm64.zip**) is on the same
+page (first run needs network — Gatekeeper fetches the notarization ticket
+online).
 
 <details>
 <summary>Docker and building from source</summary>
