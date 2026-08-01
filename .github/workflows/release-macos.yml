@@ -17,7 +17,9 @@ name: Build macOS CLI
 # the install docs.
 #
 # Signing/notary steps are copied from mac-sign-test.yml (the Stage A
-# credential proof); keep the two in sync when rotating credentials.
+# credential proof); keep the two in sync when rotating credentials. The
+# notary poll loop lives in scripts/macos-notarize.sh (shared with the
+# app job).
 # Same-repo pull requests touching this leg run the full chain end-to-end
 # (secrets are available there) but skip the publish job.
 
@@ -181,7 +183,6 @@ jobs:
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
         run: |
           set -euo pipefail
-          printf '%s' "$APPLE_NOTARY_KEY_P8" > notary-key.p8
           # The submitted zip is the shipped release asset. Info-ZIP `zip`,
           # not `ditto --keepParent`: for a plain file ditto embeds the
           # parent directory name (the entry came out as dist/dji-embed),
@@ -195,41 +196,7 @@ jobs:
           test -x ziptest/dji-embed
           ziptest/dji-embed --version
           rm -rf ziptest
-          # Submit without --wait and poll ourselves: notarytool's built-in
-          # wait aborts on the first transient network error (a runner blip
-          # 53 minutes in cost a whole run), while each poll below is an
-          # independent request.
-          sub_id="$(xcrun notarytool submit dist/dji-embed-macos-arm64.zip \
-            --key notary-key.p8 \
-            --key-id "$APPLE_NOTARY_KEY_ID" \
-            --issuer "$APPLE_NOTARY_ISSUER_ID" \
-            --output-format json \
-            | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
-          echo "Submission id: $sub_id"
-          deadline=$((SECONDS + 330 * 60))
-          status="In Progress"
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            sleep 60
-            if ! out="$(xcrun notarytool info "$sub_id" \
-                --key notary-key.p8 \
-                --key-id "$APPLE_NOTARY_KEY_ID" \
-                --issuer "$APPLE_NOTARY_ISSUER_ID" 2>&1)"; then
-              echo "poll failed (transient), retrying: $(printf '%s' "$out" | head -1)"
-              continue
-            fi
-            status="$(printf '%s\n' "$out" | sed -n 's/^ *status: //p' | head -1)"
-            echo "[$((SECONDS / 60))m] status: $status"
-            case "$status" in
-              "In Progress"|"") ;;
-              *) break ;;
-            esac
-          done
-          rm -f notary-key.p8
-          if [ "$status" != "Accepted" ]; then
-            echo "::error::notarization did not accept (status: $status)"
-            exit 1
-          fi
-          echo "Notarization: Accepted"
+          scripts/macos-notarize.sh dist/dji-embed-macos-arm64.zip 330
 
       - name: Upload dist
         uses: actions/upload-artifact@v7
@@ -242,7 +209,7 @@ jobs:
         if: always()
         run: |
           security delete-keychain "$KEYCHAIN" || true
-          rm -f cert.p12 notary-key.p8
+          rm -f cert.p12
 
   publish:
     # PR runs prove the chain but ship nothing.
