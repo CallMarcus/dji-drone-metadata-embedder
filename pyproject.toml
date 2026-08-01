@@ -36,10 +36,10 @@ dynamic = ["version"]
 dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "coverage==7.14.3",
+    "coverage==7.15.2",
     "black==26.5.1",
-    "ruff==0.15.20",
-    "mypy==2.1.0",
+    "ruff==0.16.0",
+    "mypy==2.3.0",
     "types-click==7.1.8",
     "jsonschema==4.26.0",
     "pillow==12.3.0",
@@ -57,7 +57,7 @@ browser = [
 build = [
     "build==1.5.0",
     "hatchling==1.31.0",
-    "twine==6.2.0",
+    "twine==7.0.0",
     "pyinstaller>=6.0.0",
     "setuptools>=65.0.0",
     "wheel>=0.38.0",
