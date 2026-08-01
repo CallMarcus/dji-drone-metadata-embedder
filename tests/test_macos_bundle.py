@@ -39,6 +39,10 @@ def test_info_plist_versions_and_platform():
     assert plist["NSHighResolutionCapable"] is True
     # .NET 10 supports macOS 14 "Sonoma" and later.
     assert plist["LSMinimumSystemVersion"] == "14.0"
+    # Convention for AppKit-backed (here: Avalonia) apps; its absence is
+    # the first suspect if the app ever launches without Dock presence or
+    # keyboard focus.
+    assert plist["NSPrincipalClass"] == "NSApplication"
 
 
 def test_info_plist_bundle_name_fits_finder_limit():

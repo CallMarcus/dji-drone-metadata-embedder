@@ -36,6 +36,10 @@ def info_plist(version: str) -> dict[str, object]:
         "NSHighResolutionCapable": True,
         # .NET 10 supports macOS 14 "Sonoma" and later.
         "LSMinimumSystemVersion": "14.0",
+        # Convention for AppKit-backed apps (Avalonia's macOS backend
+        # drives NSApplication); harmless if redundant, and its absence
+        # is the first suspect for missing Dock presence or focus.
+        "NSPrincipalClass": "NSApplication",
     }
 
 
@@ -68,7 +72,7 @@ def assemble(
     shutil.copy2(cli, macos / "dji-embed")
     (macos / "dji-embed").chmod(0o755)
     resources = contents / "Resources"
-    resources.mkdir()
+    resources.mkdir(parents=True, exist_ok=True)
     shutil.copy2(icns, resources / ICNS_NAME)
     with (contents / "Info.plist").open("wb") as fh:
         plistlib.dump(info_plist(version), fh)

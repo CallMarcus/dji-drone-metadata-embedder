@@ -250,19 +250,25 @@ jobs:
         run: >
           dotnet publish gui/DjiEmbed.Gui -c Release -r osx-arm64
           --self-contained true
-          -p:Version=${{ needs.build.outputs.version }}
+          -p:Version="$VERSION"
           -o publish
       - name: Build app-icon.icns
         # Renditions come from tools/macos_bundle.py so the no-upscaling
-        # rule is unit-tested; the 256px master yields no 512/1024 slots.
+        # rule is unit-tested; the source size is read from the asset, so
+        # a future 1024px master upgrades the .icns with no workflow
+        # change (today's 256px master yields no 512/1024 slots).
         run: |
           set -euo pipefail
+          src=gui/DjiEmbed.Gui/Assets/app-icon.png
+          px="$(sips -g pixelHeight "$src" | awk '/pixelHeight/ {print $2}')"
           mkdir app.iconset
-          while read -r name px; do
-            sips -z "$px" "$px" gui/DjiEmbed.Gui/Assets/app-icon.png \
-              --out "app.iconset/$name" > /dev/null
-          done < <(python3 tools/macos_bundle.py iconset --source-px 256)
-          iconutil -c icns app.iconset -o app-icon.icns
+          while read -r name size; do
+            sips -z "$size" "$size" "$src" --out "app.iconset/$name" > /dev/null
+          done < <(python3 tools/macos_bundle.py iconset --source-px "$px")
+          # bash swallows a failing process substitution — surface an
+          # empty iconset here, not as a misleading iconutil error.
+          test -n "$(ls -A app.iconset)"
+          iconutil -c icns -o app-icon.icns app.iconset
       - name: Assemble the .app bundle
         run: |
           python3 tools/macos_bundle.py assemble \
@@ -304,6 +310,18 @@ jobs:
       - name: Sign the bundle (inside-out, hardened runtime)
         run: |
           set -euo pipefail
+          # Each --timestamp is a round-trip to Apple's timestamp service,
+          # which intermittently refuses; ~200 calls in a burst must not
+          # cost the whole notarization chain to one blip.
+          sign() {
+            local attempt
+            for attempt in 1 2 3; do
+              if codesign "$@"; then return 0; fi
+              echo "codesign attempt $attempt failed; backing off"
+              sleep 15
+            done
+            return 1
+          }
           # Nested files first, then the bundle itself — which signs the
           # main executable with the entitlements. EVERY file in
           # Contents/MacOS gets signed, not just Mach-Os: codesign treats
@@ -318,14 +336,21 @@ jobs:
             base="$(basename "$f")"
             [ "$base" = "dji-embed" ] && continue
             [ "$base" = "DjiEmbed.Gui" ] && continue
-            codesign --force --sign "Developer ID Application" \
+            sign --force --sign "Developer ID Application" \
               --options runtime --timestamp --keychain "$KEYCHAIN" "$f"
           done < <(find "$APP/Contents/MacOS" -type f)
-          codesign --force --sign "Developer ID Application" \
+          sign --force --sign "Developer ID Application" \
             --options runtime --timestamp \
             --entitlements installer/macos/entitlements.plist \
             --keychain "$KEYCHAIN" "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
+          # Prove the JIT entitlement actually landed: a signed, notarized
+          # app without it crashes CoreCLR on first launch while every
+          # gate here stays green (--verify checks the seal, not
+          # entitlement content).
+          codesign -d --entitlements - "$APP" 2>&1 \
+            | grep -q com.apple.security.cs.allow-jit
+          echo "Entitlement check: allow-jit present"
       - name: Smoke test the bundled CLI
         run: |
           set -euo pipefail
@@ -343,7 +368,15 @@ jobs:
           # build job's comment documents).
           ditto -c -k --keepParent "$APP" app.zip
           scripts/macos-notarize.sh app.zip 150
-          xcrun stapler staple "$APP"
+          # An Accepted verdict can precede the ticket reaching Apple's
+          # CDN (the classic stapler Error 65) — retrying for a few
+          # minutes beats re-running the whole notarization chain.
+          for attempt in 1 2 3 4 5; do
+            xcrun stapler staple "$APP" && break
+            [ "$attempt" = 5 ] && exit 1
+            echo "staple attempt $attempt failed; waiting for ticket propagation"
+            sleep 30
+          done
           xcrun stapler validate "$APP"
           spctl -a -vv --type execute "$APP"
       - name: Build, sign, notarize and staple the DMG
@@ -359,11 +392,26 @@ jobs:
           ln -s /Applications dmg-root/Applications
           hdiutil create -volname "DJI Metadata Embedder" \
             -srcfolder dmg-root -ov -format UDZO "dist/$DMG"
-          codesign --force --sign "Developer ID Application" \
-            --timestamp --keychain "$KEYCHAIN" "dist/$DMG"
+          for attempt in 1 2 3; do
+            codesign --force --sign "Developer ID Application" \
+              --timestamp --keychain "$KEYCHAIN" "dist/$DMG" && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "codesign attempt $attempt failed; backing off"
+            sleep 15
+          done
           scripts/macos-notarize.sh "dist/$DMG" 150
-          xcrun stapler staple "dist/$DMG"
+          # Same ticket-propagation race as the app staple above.
+          for attempt in 1 2 3 4 5; do
+            xcrun stapler staple "dist/$DMG" && break
+            [ "$attempt" = 5 ] && exit 1
+            echo "staple attempt $attempt failed; waiting for ticket propagation"
+            sleep 30
+          done
           xcrun stapler validate "dist/$DMG"
+          # Gatekeeper's verdict on the DMG itself — the artifact users
+          # actually download ("open" is the assessment type for disk
+          # images; "execute" above is the one for app bundles).
+          spctl -a -t open --context context:primary-signature -vv "dist/$DMG"
       - name: Upload app dist
         uses: actions/upload-artifact@v7
         with:

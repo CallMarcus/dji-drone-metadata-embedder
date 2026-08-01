@@ -78,8 +78,14 @@ The easiest install on Apple Silicon is the desktop app: download
 open it, and drag **DJI Metadata Embedder** to Applications. The app is
 Developer ID-signed, notarized and stapled, and carries the full
 `dji-embed` CLI inside (at
-`/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed` — add
-that directory to your `PATH` if you want the CLI from a terminal).
+`/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed`). To
+use that CLI from a terminal, symlink it rather than extending `PATH` —
+the directory also holds the app's two hundred runtime libraries:
+
+```bash
+ln -s "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+```
+
 FFmpeg and ExifTool still come from Homebrew: `brew install ffmpeg exiftool`.
 
 Prefer a bare CLI binary? On Apple Silicon, grab the standalone
