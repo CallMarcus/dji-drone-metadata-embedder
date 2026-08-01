@@ -1,16 +1,17 @@
 # Desktop App
 
-The **DJI Metadata Embedder** desktop app is a Windows front-end for the
-`dji-embed` command line: drop a folder of footage, pick what to make, and
-watch the exact CLI command it runs in the strip under the Run button —
-everything the app does, the terminal can do too.
+The **DJI Metadata Embedder** desktop app is a Windows and macOS
+front-end for the `dji-embed` command line: drop a folder of footage,
+pick what to make, and watch the exact CLI command it runs in the strip
+under the Run button — everything the app does, the terminal can do too.
 
 ![The workspace](assets/gui/workspace-home.png)
 
 ## Install
 
-Download the installer (`dji-metadata-embedder-setup-<version>.exe`) from
-the [latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest)
+**Windows:** download the installer
+(`dji-metadata-embedder-setup-<version>.exe`) from the
+[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest)
 and run it — no admin rights needed. You get the desktop app in the Start
 menu plus the full `dji-embed` command line in any terminal, with FFmpeg
 and ExifTool bundled.
@@ -18,6 +19,12 @@ and ExifTool bundled.
 Already using winget? `winget install CallMarcus.DJIMetadataEmbedder`
 installs the portable command line only — the desktop app ships with the
 installer.
+
+**macOS** (Apple Silicon, macOS 14+): download the signed, notarized DMG
+(`dji-metadata-embedder-<version>-macos-arm64.dmg`) from the same page
+and drag the app to Applications. FFmpeg and ExifTool come from Homebrew
+(`brew install ffmpeg exiftool`) — the Setup screen confirms the app
+found them. Full details in [Installation](installation.md#macos).
 
 ## The six modes
 
@@ -56,9 +63,10 @@ Finished maps open right in the app, panoramas included:
 
 ![Inline map preview](assets/gui/workspace-preview.png)
 
-Inline preview uses Microsoft Edge WebView2, preinstalled from Windows 11
-on. Without it the app quietly opens results in your browser instead —
-nothing is lost.
+Inline preview uses Microsoft Edge WebView2 on Windows (preinstalled from
+Windows 11 on) and the system WKWebView on macOS (always present).
+Without a usable WebView the app quietly opens results in your browser
+instead — nothing is lost.
 
 ![Setup check](assets/gui/workspace-setup-done.png)
 
@@ -66,5 +74,7 @@ nothing is lost.
 
 Everything runs on your computer; nothing is uploaded, and there is no
 telemetry. The app stores exactly two things locally in
-`%APPDATA%\DjiEmbed\state.json`: your recent folders and the window
-size/position. Delete that file to reset both.
+`%APPDATA%\DjiEmbed\state.json` on Windows
+(`~/Library/Application Support/DjiEmbed/state.json` on macOS): your
+recent folders and the window size/position. Delete that file to reset
+both.

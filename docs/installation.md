@@ -2,9 +2,9 @@
 
 [← Back to Home](index.md)
 
-## Easy Windows install
+## Windows
 
-### Windows – installer with desktop app (recommended)
+### Installer with desktop app (recommended)
 
 Download `dji-metadata-embedder-setup-<version>.exe` from the
 [latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest)
@@ -22,7 +22,7 @@ PATH entries again. From v1.23.0 the installer and every binary inside it
 are Authenticode code-signed, so Windows shows a verified publisher instead
 of an "unknown publisher" warning.
 
-### Windows – bootstrap script
+### Bootstrap script
 
 ```powershell
 iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
@@ -31,7 +31,7 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 The bootstrap script also installs FFmpeg and ExifTool (CLI only, no
 desktop app).
 
-### Windows – winget
+### winget
 
 ```powershell
 winget install CallMarcus.DJIMetadataEmbedder
@@ -53,13 +53,40 @@ winget install CallMarcus.DJIMetadataEmbedder.Desktop
 
 Install one or the other — both put `dji-embed` on PATH.
 
-### Windows – manual path
+### Manual path
 
 ```powershell
 pip install dji-drone-metadata-embedder
 ```
 
-### macOS
+## macOS
+
+### DMG with desktop app (recommended)
+
+Download `dji-metadata-embedder-<version>-macos-arm64.dmg` from the
+[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest),
+open it, and drag **DJI Metadata Embedder** to Applications. The app is
+Developer ID-signed, notarized and stapled — first launch works offline
+and shows only the standard "downloaded from the internet" dialog. It's
+the same workspace as on Windows, and carries the full `dji-embed` CLI
+inside the bundle (at
+`/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed`).
+
+The app supports Apple Silicon Macs (M1 or later) on macOS 14 Sonoma or
+newer — that floor is deliberate. On Intel Macs or older macOS, use the
+pipx route below.
+
+FFmpeg and ExifTool come from Homebrew: `brew install ffmpeg exiftool`.
+The app's Setup screen confirms it found them.
+
+To use the bundled CLI from a terminal, symlink it rather than extending
+`PATH` — the directory also holds the app's two hundred runtime libraries:
+
+```bash
+sudo ln -s "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+```
+
+### pipx (CLI only — works on any Mac, Intel included)
 
 ```bash
 brew install ffmpeg exiftool pipx
@@ -72,24 +99,9 @@ error — `pipx` installs the tool into its own isolated environment and puts
 `dji-embed` on your PATH (run `pipx ensurepath` once if the command isn't
 found in a new terminal).
 
-The easiest install on Apple Silicon is the desktop app: download
-`dji-metadata-embedder-<version>-macos-arm64.dmg` from the
-[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest),
-open it, and drag **DJI Metadata Embedder** to Applications. The app is
-Developer ID-signed, notarized and stapled, and carries the full
-`dji-embed` CLI inside (at
-`/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed`). To
-use that CLI from a terminal, symlink it rather than extending `PATH` —
-the directory also holds the app's two hundred runtime libraries:
+### Standalone CLI binary
 
-```bash
-ln -s "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
-```
-
-FFmpeg and ExifTool still come from Homebrew: `brew install ffmpeg exiftool`.
-
-Prefer a bare CLI binary? On Apple Silicon, grab the standalone
-`dji-embed-macos-arm64.zip` from the
+On Apple Silicon, grab the standalone `dji-embed-macos-arm64.zip` from the
 [GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases),
 unzip it, and run `./dji-embed`. The binary is Developer ID-signed and
 notarized, but a bare binary can't carry a stapled notarization ticket, so
@@ -97,7 +109,7 @@ the **first run needs a network connection** for Gatekeeper's online ticket
 check (the DMG app above is stapled and has no such requirement). Verify
 either download against `SHA256SUMS-macos.txt` from the same release.
 
-### Linux
+## Linux
 
 ```bash
 sudo apt update && sudo apt install ffmpeg exiftool
@@ -108,7 +120,7 @@ Distro ExifTool packages are often too old for DJI MP4 timed metadata —
 run `dji-embed doctor --install exiftool` to get a current, checksum-verified
 copy in your user directory.
 
-### Docker
+## Docker
 
 ```bash
 docker run --rm -v "$PWD":/data callmarcus/dji-embed embed /data
@@ -116,9 +128,9 @@ docker run --rm -v "$PWD":/data callmarcus/dji-embed embed /data
 
 ## Prefer clicking over typing?
 
-On Windows, the installer bundles the [desktop app](desktop-app.md) —
-folder in, map or telemetry out, no terminal. For viewing maps from any
-OS there's `dji-embed photomap <folder> --serve`.
+The [desktop app](desktop-app.md) — folder in, map or telemetry out, no
+terminal — comes with the Windows installer and the macOS DMG. For
+viewing maps from any OS there's `dji-embed photomap <folder> --serve`.
 See the [User Guide](user_guide.md#web-ui-deprecated) for details.
 
 <details>
