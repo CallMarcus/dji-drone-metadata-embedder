@@ -243,7 +243,7 @@ jobs:
           ditto -x -k dist/dji-embed-macos-arm64.zip cli
           test -x cli/dji-embed
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
       - name: Publish GUI (self-contained osx-arm64)

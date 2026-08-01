@@ -135,13 +135,13 @@ jobs:
         run: uv sync --extra dev --extra browser --python 3.12
       - name: Cache Chromium
         if: github.event_name != 'pull_request' || steps.gate.outputs.run == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ hashFiles('uv.lock') }}
       - name: Cache map CDN assets
         if: github.event_name != 'pull_request' || steps.gate.outputs.run == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/djiembed-test-assets
           key: map-assets-${{ hashFiles('src/dji_metadata_embedder/geo/photomap_html.py', 'src/dji_metadata_embedder/geo/flightmap_html.py') }}
@@ -165,7 +165,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
       - name: Build
