@@ -1,7 +1,7 @@
 ---
-name: Build macOS CLI
+name: Build macOS CLI + App
 
-# build + sign + notarize (macos, arm64) -> publish. (#414 Stage C)
+# build + sign + notarize CLI -> app (.app + DMG) -> publish. (#414 Stages C+D)
 #
 # The PyInstaller onefile binary is a single Mach-O with the payload archive
 # appended, so notarization only ever inspects the outer binary — hardened
@@ -374,7 +374,7 @@ jobs:
   publish:
     # PR runs prove the chain but ship nothing.
     if: ${{ github.event_name != 'pull_request' }}
-    needs: build
+    needs: [build, app]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -386,19 +386,27 @@ jobs:
         with:
           name: macos-dist
           path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-app
+          path: dist
       - name: Generate SHA256SUMS-macos.txt
-        # Separate file from the Windows leg's SHA256SUMS.txt — both legs
-        # race on the same release, and same-named assets clobber.
+        # Separate file from the Windows leg's SHA256SUMS.txt — the legs
+        # race on the same release, and same-named assets clobber. Both
+        # macOS assets ship from this one workflow, so one file covers
+        # the zip and the DMG.
         run: |
           cd dist
           sha256sum -- * > SHA256SUMS-macos.txt
           cat SHA256SUMS-macos.txt
       - name: Attest build provenance
-        # Sigstore-signed proof the zip came from this workflow:
-        #   gh attestation verify dji-embed-macos-arm64.zip -R CallMarcus/dji-drone-metadata-embedder
+        # Sigstore-signed proof the assets came from this workflow:
+        #   gh attestation verify <asset> -R CallMarcus/dji-drone-metadata-embedder
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: dist/dji-embed-macos-arm64.zip
+          subject-path: |
+            dist/dji-embed-macos-arm64.zip
+            dist/*.dmg
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v3
         with:
@@ -411,4 +419,4 @@ jobs:
         env:
           TAG: ${{ needs.build.outputs.tag }}
         run: |
-          echo "Notarized macOS arm64 CLI attached to [release $TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Notarized macOS arm64 CLI zip + app DMG attached to [release $TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
