@@ -83,8 +83,14 @@ To use the bundled CLI from a terminal, symlink it rather than extending
 `PATH` — the directory also holds the app's two hundred runtime libraries:
 
 ```bash
-sudo ln -s "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+sudo mkdir -p /usr/local/bin
+sudo ln -sf "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
 ```
+
+The `mkdir` is not ceremony: on an Apple Silicon Mac, Homebrew installs to
+`/opt/homebrew` and nothing else creates `/usr/local/bin`, so it is often
+missing and `ln` fails with *No such file or directory*. macOS lists it in
+`/etc/paths` regardless, so once it exists it is on your `PATH`.
 
 ### pipx (CLI only — works on any Mac, Intel included)
 
@@ -164,13 +170,19 @@ dji-embed` (`where dji-embed` on Windows) lists them in the order the
 shell searches. This bites most often on macOS, where a `pipx` install
 in `~/.local/bin` predates a later DMG install.
 
-On macOS the tidiest fix is to point one symlink at the app's bundled
-CLI and let it follow the app forever:
+On macOS the tidiest fix is to keep one copy — the app's — and point a
+symlink at it, so it follows the app from then on:
 
 ```bash
-sudo ln -sf "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
 pipx uninstall dji-drone-metadata-embedder   # if pipx put an older one on PATH
+sudo mkdir -p /usr/local/bin                 # often absent on Apple Silicon
+sudo ln -sf "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed" /usr/local/bin/dji-embed
+hash -r && dji-embed --version
 ```
+
+Loose copies you unzipped earlier are worth deleting rather than leaving
+around: they never update, and running one by its full path reports its
+own old version, which reads like a failed upgrade.
 
 ## Prefer clicking over typing?
 
