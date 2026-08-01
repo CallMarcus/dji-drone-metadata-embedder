@@ -27,13 +27,11 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="16" Margin="0,0,12,0">
 
-                <!-- The key revelation: the CLI is already installed. -->
-                <TextBlock TextWrapping="Wrap" FontSize="14">
-                    Everything this app does — and a lot more — runs on the
-                    dji-embed command line, and it is already installed:
-                    the app's installer put it on your PATH. Open any
-                    terminal, type dji-embed, and it just works.
-                </TextBlock>
+                <!-- The key revelation: the CLI is already installed.
+                     Platform-phrased in the VM — the PATH claim is only
+                     true of the Windows installer (#442). -->
+                <TextBlock TextWrapping="Wrap" FontSize="14"
+                           Text="{Binding IntroText}" />
 
                 <Button HorizontalAlignment="Left"
                         Command="{Binding OpenTerminalCommand}">
