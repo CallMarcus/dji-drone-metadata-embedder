@@ -138,4 +138,61 @@ public class DjiEmbedRunnerTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             new DjiEmbedRunner().RunAsync(cli, ["flightmap", "/x"], ct: cts.Token));
     }
+
+    // A Finder-launched app inherits launchd's bare PATH, which hides
+    // Homebrew's ffmpeg/exiftool from the bundled CLI — path_helper only
+    // runs for shells. The runner prepends the conventional install
+    // prefixes on macOS; contracts asserted here on any CI OS via the
+    // Platforms seam (#414 Stage D review).
+
+    private static System.Diagnostics.ProcessStartInfo PsiWithPath(string? path)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo();
+        if (path is null)
+        {
+            psi.Environment.Remove("PATH");
+        }
+        else
+        {
+            psi.Environment["PATH"] = path;
+        }
+        return psi;
+    }
+
+    [Fact]
+    public void Mac_child_path_gains_homebrew_prefixes_first()
+    {
+        var psi = PsiWithPath("/usr/bin:/bin:/usr/sbin:/sbin");
+        DjiEmbedRunner.ApplyChildPath(psi, OSPlatform.OSX);
+        Assert.Equal(
+            "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            psi.Environment["PATH"]);
+    }
+
+    [Fact]
+    public void Mac_child_path_does_not_duplicate_present_prefixes()
+    {
+        var psi = PsiWithPath("/opt/homebrew/bin:/usr/bin");
+        DjiEmbedRunner.ApplyChildPath(psi, OSPlatform.OSX);
+        Assert.Equal(
+            "/usr/local/bin:/opt/homebrew/bin:/usr/bin",
+            psi.Environment["PATH"]);
+    }
+
+    [Fact]
+    public void Mac_child_path_survives_an_absent_path_variable()
+    {
+        var psi = PsiWithPath(null);
+        DjiEmbedRunner.ApplyChildPath(psi, OSPlatform.OSX);
+        Assert.Equal("/opt/homebrew/bin:/usr/local/bin", psi.Environment["PATH"]);
+    }
+
+    [Fact]
+    public void Windows_and_linux_child_paths_stay_untouched()
+    {
+        var psi = PsiWithPath("/usr/bin:/bin");
+        DjiEmbedRunner.ApplyChildPath(psi, OSPlatform.Windows);
+        DjiEmbedRunner.ApplyChildPath(psi, OSPlatform.Linux);
+        Assert.Equal("/usr/bin:/bin", psi.Environment["PATH"]);
+    }
 }

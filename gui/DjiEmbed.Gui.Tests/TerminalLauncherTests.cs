@@ -62,6 +62,43 @@ public class TerminalLauncherTests
     }
 
     [Fact]
+    public void Macos_proof_command_runs_the_bundled_cli_when_its_path_is_known()
+    {
+        // #442: nothing puts dji-embed on PATH on macOS, so the bare
+        // proof command lands a DMG-only user on "command not found".
+        // With the bundled CLI's location known, the do-script runs it
+        // by absolute path (single-quoted — the bundle name has spaces).
+        var osa = Assert.Single(TerminalLauncher.Candidates(
+            "/Users/demo", OSPlatform.OSX,
+            "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed"));
+
+        var doScript = osa.ArgumentList.Single(a => a.Contains("do script"));
+        Assert.Contains(
+            "'/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed'"
+            + " --help", doScript);
+        Assert.DoesNotContain(" dji-embed --help", doScript);
+    }
+
+    [Fact]
+    public void Windows_candidates_ignore_the_cli_path()
+    {
+        // The installer put dji-embed on PATH — the bare command is the
+        // proof the sentence promises, so a known CLI path changes nothing.
+        var bare = TerminalLauncher.Candidates(
+            @"C:\Users\demo", OSPlatform.Windows);
+        var withPath = TerminalLauncher.Candidates(
+            @"C:\Users\demo", OSPlatform.Windows,
+            @"C:\Program Files\DjiEmbed\dji-embed.exe");
+
+        Assert.Equal(bare.Count, withPath.Count);
+        for (var i = 0; i < bare.Count; i++)
+        {
+            Assert.Equal(bare[i].FileName, withPath[i].FileName);
+            Assert.Equal(bare[i].ArgumentList, withPath[i].ArgumentList);
+        }
+    }
+
+    [Fact]
     public void Macos_do_script_survives_a_folder_with_a_single_quote()
     {
         var osa = Assert.Single(TerminalLauncher.Candidates(

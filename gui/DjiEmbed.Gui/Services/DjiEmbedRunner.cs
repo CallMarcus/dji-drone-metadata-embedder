@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +34,33 @@ public sealed record CliRunResult(
 /// </summary>
 public sealed class DjiEmbedRunner
 {
+    /// <summary>
+    /// Make Homebrew's tools visible to the spawned CLI on macOS. A
+    /// Finder-launched app inherits launchd's bare PATH
+    /// (/usr/bin:/bin:/usr/sbin:/sbin) — path_helper and `brew shellenv`
+    /// only run for shells — so ffmpeg/exiftool installed per the docs
+    /// would be invisible to the bundled dji-embed. Prepending the two
+    /// conventional prefixes makes a Finder launch behave like a
+    /// terminal launch; other platforms pass through untouched.
+    /// </summary>
+    internal static void ApplyChildPath(ProcessStartInfo psi) =>
+        ApplyChildPath(psi, Platforms.Current);
+
+    internal static void ApplyChildPath(ProcessStartInfo psi, OSPlatform platform)
+    {
+        if (platform != OSPlatform.OSX)
+        {
+            return;
+        }
+        var inherited = psi.Environment.TryGetValue("PATH", out var p) ? p : null;
+        var parts = (inherited ?? string.Empty)
+            .Split(':', StringSplitOptions.RemoveEmptyEntries);
+        var missing = new[] { "/opt/homebrew/bin", "/usr/local/bin" }
+            .Where(dir => !parts.Contains(dir));
+        psi.Environment["PATH"] =
+            string.Join(':', missing.Concat(parts));
+    }
+
     public async Task<CliRunResult> RunAsync(
         string cliPath,
         IReadOnlyList<string> args,
@@ -50,6 +79,7 @@ public sealed class DjiEmbedRunner
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
+        ApplyChildPath(psi);
         foreach (var a in args)
         {
             psi.ArgumentList.Add(a);

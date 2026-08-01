@@ -1,7 +1,7 @@
 # DJI Drone Metadata Embedder
 
 [![GitHub Release](https://img.shields.io/github/v/release/CallMarcus/dji-drone-metadata-embedder?logo=github)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
-[![Version](https://img.shields.io/badge/version-2.4.0-blue)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue)](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases)
 [![PyPI](https://img.shields.io/pypi/v/dji-drone-metadata-embedder?logo=pypi)](https://pypi.org/project/dji-drone-metadata-embedder/)
 [![Winget](https://img.shields.io/winget/v/CallMarcus.DJIMetadataEmbedder?logo=windows&label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/c/CallMarcus/DJIMetadataEmbedder)
 
@@ -54,12 +54,14 @@ it's a handful of copy-paste commands. For a guided tour see
 
 Works on Windows, macOS, and Linux; whole folders are processed in one go,
 with a progress bar. `.DAT` flight logs can be merged in where available.
+The desktop app runs on Windows and macOS; the command line runs anywhere.
 
 ## Get started
 
-You'll need Python 3.10+ and FFmpeg (ExifTool is optional, but unlocks the
-photo map and a few other features). On Windows the bootstrap script below
-installs all of it for you.
+The desktop app needs nothing else — the Windows installer bundles FFmpeg
+and ExifTool, and the macOS app gets them from Homebrew. For the
+`pip`/`pipx` command-line route you'll need Python 3.10+ and FFmpeg
+(ExifTool is optional, but unlocks the photo map and a few other features).
 
 ### Windows
 
@@ -128,7 +130,8 @@ repository's public build workflow. With the [GitHub CLI](https://cli.github.com
 gh attestation verify dji-metadata-embedder-setup-<version>.exe -R CallMarcus/dji-drone-metadata-embedder
 ```
 
-The same works for `dji-embed.exe` and `dji-embed-macos-arm64.zip`. PyPI
+The same works for `dji-embed.exe`, `dji-embed-macos-arm64.zip` and the
+macOS DMG. PyPI
 wheels are attested separately by
 PyPI's [Trusted Publishing](https://docs.pypi.org/attestations/) — see the
 "provenance" details on each file at
@@ -136,19 +139,49 @@ PyPI's [Trusted Publishing](https://docs.pypi.org/attestations/) — see the
 
 </details>
 
-### macOS / Linux
+### macOS
+
+Download the signed, notarized **DMG**
+(`dji-metadata-embedder-<version>-macos-arm64.dmg`) from the
+[latest release](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest),
+open it, and drag **DJI Metadata Embedder** to Applications — it's the same
+desktop app shown above, with the full `dji-embed` CLI inside the bundle.
+Install FFmpeg and ExifTool with `brew install ffmpeg exiftool` and the
+Setup screen in the app will confirm it found them.
+
+The app is for Apple Silicon Macs (M1 or later) on macOS 14 Sonoma or
+newer. It's the newest arrival here — if anything looks off on your Mac,
+[an issue](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues)
+is very welcome.
+
+<details>
+<summary>Other ways to install on macOS (Intel Macs, CLI only)</summary>
+
+- **pipx** (any Mac, Intel included):
+
+  ```bash
+  brew install ffmpeg exiftool pipx
+  pipx install dji-drone-metadata-embedder
+  ```
+
+  Homebrew's Python refuses a bare `pip install`
+  ([externally managed](https://peps.python.org/pep-0668/)); `pipx` gives
+  the CLI its own isolated environment and puts `dji-embed` on your PATH.
+
+- **Standalone CLI binary** (Apple Silicon): grab
+  **dji-embed-macos-arm64.zip** from the same release page, unzip, and run
+  `./dji-embed`. Signed and notarized, but a bare binary can't carry a
+  stapled ticket, so the first run needs a network connection for
+  Gatekeeper's online check.
+
+</details>
+
+### Linux
 
 ```bash
-brew install ffmpeg exiftool                          # macOS
 sudo apt update && sudo apt install ffmpeg exiftool   # Debian/Ubuntu
 pip install dji-drone-metadata-embedder
 ```
-
-On Apple Silicon you can also skip Python entirely: download the signed and
-notarized **dji-embed-macos-arm64.zip** from the
-[GitHub Releases page](https://github.com/CallMarcus/dji-drone-metadata-embedder/releases),
-unzip, and run `./dji-embed` (first run needs network — Gatekeeper fetches
-the notarization ticket online).
 
 <details>
 <summary>Docker and building from source</summary>

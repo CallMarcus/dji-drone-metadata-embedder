@@ -227,10 +227,60 @@ def test_upgrade_hint_pipx():
     assert uc.upgrade_hint("pipx") == "pipx upgrade dji-drone-metadata-embedder"
 
 
-def test_upgrade_hint_frozen_mentions_winget_and_releases():
-    hint = uc.upgrade_hint("frozen")
+def test_upgrade_hint_frozen_windows_mentions_winget_and_releases():
+    hint = uc.upgrade_hint("frozen", system="Windows")
     assert "winget upgrade CallMarcus.DJIMetadataEmbedder" in hint
     assert "releases" in hint
+
+
+# The frozen hint is platform-shaped: both macOS artefacts (the standalone
+# zip binary and the CLI inside the .app) are PyInstaller builds, so "frozen"
+# alone used to hand Mac users an EXE and a winget command (#448). `system`
+# and `executable` are explicit so these assert from any CI runner.
+
+
+def test_upgrade_hint_frozen_macos_never_names_windows_things():
+    for executable in (
+        "/usr/local/bin/dji-embed",
+        "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed",
+    ):
+        hint = uc.upgrade_hint("frozen", system="Darwin", executable=executable)
+        assert "winget" not in hint.lower()
+        assert ".exe" not in hint.lower()
+        assert "EXE" not in hint
+        assert uc.RELEASES_URL in hint
+
+
+def test_upgrade_hint_frozen_macos_app_bundle_points_at_the_dmg():
+    hint = uc.upgrade_hint(
+        "frozen",
+        system="Darwin",
+        executable="/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed",
+    )
+    assert "DMG" in hint
+    assert "Applications" in hint
+
+
+def test_upgrade_hint_frozen_macos_standalone_points_at_the_zip():
+    hint = uc.upgrade_hint(
+        "frozen", system="Darwin", executable="/usr/local/bin/dji-embed"
+    )
+    assert uc.MACOS_CLI_ASSET in hint
+    assert "DMG" not in hint
+
+
+def test_upgrade_hint_frozen_elsewhere_names_no_package_manager():
+    hint = uc.upgrade_hint("frozen", system="Linux")
+    assert uc.RELEASES_URL in hint
+    assert "winget" not in hint.lower()
+    assert "brew" not in hint.lower()
+
+
+def test_upgrade_hint_non_frozen_ignores_platform():
+    # pipx and pip upgrade the same way everywhere; only frozen has artefacts.
+    assert uc.upgrade_hint("pipx", system="Darwin") == uc.upgrade_hint(
+        "pipx", system="Windows"
+    )
 
 
 # ---------------------------------------------------------------------------

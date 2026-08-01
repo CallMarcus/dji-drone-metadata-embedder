@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import platform
 import re
 import sys
 from pathlib import Path
@@ -29,6 +30,7 @@ PYPI_PROJECT = "dji-drone-metadata-embedder"
 PYPI_URL = f"https://pypi.org/pypi/{PYPI_PROJECT}/json"
 RELEASES_URL = "https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest"
 WINGET_ID = "CallMarcus.DJIMetadataEmbedder"
+MACOS_CLI_ASSET = "dji-embed-macos-arm64.zip"
 NO_UPDATE_CHECK_ENV = "DJIEMBED_NO_UPDATE_CHECK"
 
 # Hard latency bound for the one optional network call (issue #277: ~3 s).
@@ -183,14 +185,44 @@ def detect_install_environment(executable: str | None = None) -> str:
     return "pip"
 
 
-def upgrade_hint(env: str | None = None) -> str:
-    """Environment-aware upgrade command for an outdated dji-embed."""
-    env = env or detect_install_environment()
+def _in_app_bundle(executable: str) -> bool:
+    """True when the frozen binary sits inside a macOS ``.app`` bundle."""
+    return any(part.endswith(".app") for part in _norm_parts(executable))
+
+
+def upgrade_hint(
+    env: str | None = None,
+    system: str | None = None,
+    executable: str | None = None,
+) -> str:
+    """Environment-aware upgrade command for an outdated dji-embed.
+
+    ``frozen`` is not one artefact. It is the Windows EXE, the macOS
+    standalone binary, and the CLI inside the macOS app bundle — three
+    downloads, three upgrade paths. Before v2.5.0 it could only mean the
+    EXE, so the hint named winget unconditionally and told Mac users to
+    fetch a file that does not exist for them (#448). ``system`` and
+    ``executable`` are injectable so every platform's wording stays
+    assertable from a single CI runner.
+    """
+    exe = executable or sys.executable
+    env = env or detect_install_environment(exe)
     if env == "frozen":
-        return (
-            f"download the new EXE from {RELEASES_URL} "
-            f"or run: winget upgrade {WINGET_ID}"
-        )
+        system = system or platform.system()
+        if system == "Windows":
+            return (
+                f"download the new EXE from {RELEASES_URL} "
+                f"or run: winget upgrade {WINGET_ID}"
+            )
+        if system == "Darwin":
+            if _in_app_bundle(exe):
+                return (
+                    f"download the new DMG from {RELEASES_URL} and drag it "
+                    "to Applications, replacing the app (which carries this "
+                    "command line)"
+                )
+            return f"download the new {MACOS_CLI_ASSET} from {RELEASES_URL}"
+        return f"download the new release from {RELEASES_URL}"
     if env == "pipx":
         return f"pipx upgrade {PYPI_PROJECT}"
     # Literal interpreter path defeats the multi-Python trap: bare `pip`

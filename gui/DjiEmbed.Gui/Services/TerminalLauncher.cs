@@ -28,19 +28,27 @@ public static class TerminalLauncher
 
     /// <summary>Candidate launches for this machine, best first.</summary>
     public static IReadOnlyList<ProcessStartInfo> Candidates(
-        string workingDirectory) =>
-        Candidates(workingDirectory, Platforms.Current);
+        string workingDirectory, string? cliPath = null) =>
+        Candidates(workingDirectory, Platforms.Current, cliPath);
 
     /// <summary>
     /// Candidate launches for a platform, best first. Pure so tests can
     /// assert every platform's exact invocations on any CI host without
-    /// spawning shells.
+    /// spawning shells. On macOS the proof command runs the bundled CLI
+    /// by absolute path when known — the DMG install touches no PATH, so
+    /// the bare command would land on "command not found" (#442); on
+    /// Windows the installer's PATH entry makes the bare command the
+    /// proof the discovery screen promises.
     /// </summary>
     internal static IReadOnlyList<ProcessStartInfo> Candidates(
-        string workingDirectory, OSPlatform platform)
+        string workingDirectory, OSPlatform platform, string? cliPath = null)
     {
         if (platform == OSPlatform.OSX)
         {
+            var proof = cliPath is null
+                ? ProofCommand
+                : $"{ShellSingleQuote(cliPath)} --help";
+
             // Terminal.app is always present and its windows stay open on
             // their own; "do script" opens a fresh window running the
             // proof command in the requested folder, and the second -e
@@ -54,7 +62,7 @@ public static class TerminalLauncher
             osa.ArgumentList.Add(
                 "tell application \"Terminal\" to do script "
                 + AppleScriptString(
-                    $"cd {ShellSingleQuote(workingDirectory)} && {ProofCommand}"));
+                    $"cd {ShellSingleQuote(workingDirectory)} && {proof}"));
             osa.ArgumentList.Add("-e");
             osa.ArgumentList.Add("tell application \"Terminal\" to activate");
             return [osa];
@@ -96,11 +104,11 @@ public static class TerminalLauncher
     }
 
     /// <summary>Tries each candidate in order; false when none started.</summary>
-    public static bool Launch()
+    public static bool Launch(string? cliPath = null)
     {
         var home = Environment.GetFolderPath(
             Environment.SpecialFolder.UserProfile);
-        foreach (var psi in Candidates(home))
+        foreach (var psi in Candidates(home, cliPath))
         {
             try
             {

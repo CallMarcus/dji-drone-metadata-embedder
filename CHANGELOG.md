@@ -33,6 +33,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+## [2.5.0] - 2026-08-01
+
+### Added
+
+- **gui**: Committed icon generator + 1024px master (#438) (#439) (77b9a85)
+- **gui**: Expose the compliance package in Flight map mode (#427) (#431) (4b8725a)
+- **release**: Notarized macOS .app + DMG (#414 Stage D) (#437) (ff59fcf)
+- **release**: Notarized macOS arm64 CLI binary (#414 Stage C) (#430) (6333902)
+
+### Fixed
+
+- **geo**: Airspace refetch + FAA identifier fallback (#424 fold-ins) (#433) (fcb89fb)
+- **geo**: Flight-record follow-ups (#422) (#432) (56e6dca)
+- **gui**: Platform-honest CLI discovery intro + bundled-CLI proof command (#442) (#444) (73dc159)
+
+### Documentation
+
+- Auto-generate changelog for v2.4.0 (#426) (01175c0)
+- Make macOS a first-class platform across README and docs (#445) (31ee6d5)
+
+### Other
+
+- Prepare version 2.5.0 (#446) (6194167)
+
+
 ## [2.4.0] - 2026-07-30
 
 ### Added

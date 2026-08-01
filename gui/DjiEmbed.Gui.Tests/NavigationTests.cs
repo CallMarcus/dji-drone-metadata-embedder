@@ -51,4 +51,22 @@ public class NavigationTests
         Assert.NotNull(window.GetVisualDescendants()
             .OfType<CliDiscoveryView>().FirstOrDefault());
     }
+
+    [AvaloniaFact]
+    public void Discovery_intro_renders_the_view_models_platform_text()
+    {
+        // #442/#336: the intro was a hardcoded literal; assert the view
+        // actually renders the platform-aware VM text, not a stale copy.
+        var main = new MainViewModel();
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        ((WorkspaceViewModel)main.CurrentPage)
+            .OpenCliDiscoveryCommand.Execute(null);
+        var discovery = Assert.IsType<CliDiscoveryViewModel>(main.CurrentPage);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+            t => t.Text == discovery.IntroText);
+    }
 }
