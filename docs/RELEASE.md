@@ -37,17 +37,24 @@ Five jobs: `build` → `sign-app` → `assemble` → `sign-installer` → `publi
 4. Sign the setup EXE
 5. Checksums + attestation + release upload
 
-### 2c. macOS CLI Build (`release-macos.yml`)
-Two jobs: `build` (arm64 macOS runner) → `publish`.
+### 2c. macOS CLI + App Build (`release-macos.yml`)
+Three jobs: `build` (arm64 macOS runner) → `app` → `publish`.
 1. Build a standalone `dji-embed` binary with PyInstaller (embedded dylibs
    signed with the Developer ID identity so hardened-runtime library
    validation passes at runtime), codesign the binary with hardened runtime
    + secure timestamp, smoke-test `--version`, then notarize the zip with
-   `notarytool`
-2. Generate `SHA256SUMS-macos.txt` (a separate file — this leg races the
-   Windows leg on the same release, and same-named assets clobber), attest
-   build provenance (Sigstore), and attach `dji-embed-macos-arm64.zip` to
-   the GitHub release
+   `notarytool` (the submit-and-poll loop is `scripts/macos-notarize.sh`)
+2. Assemble `DJI Metadata Embedder.app`: `dotnet publish` the Avalonia GUI
+   (self-contained osx-arm64), bundle it with the **build job's already
+   signed CLI** (byte-identical to the zip asset, never re-signed) via
+   `tools/macos_bundle.py`, sign inside-out with the allow-jit-only
+   entitlements (`installer/macos/entitlements.plist`), then notarize and
+   staple the app and again the DMG — two real notary submissions
+3. Generate `SHA256SUMS-macos.txt` covering both assets (a separate file —
+   this leg races the Windows leg on the same release, and same-named
+   assets clobber), attest build provenance (Sigstore), and attach
+   `dji-embed-macos-arm64.zip` +
+   `dji-metadata-embedder-<version>-macos-arm64.dmg` to the GitHub release
 
 A bare binary has nowhere to staple the notarization ticket, so a user's
 first run needs network for Gatekeeper's online check. Apple credentials
@@ -126,7 +133,7 @@ The following workflows will run automatically:
 1. ✅ **PyPI Release** - Package uploaded to PyPI
 2. ✅ **Windows EXE** - Standalone executable built and attached (triggered by the PyPI workflow completing)
 3. ✅ **Windows Installer** - Signed GUI installer built and attached (also triggered by the PyPI workflow completing)
-4. ✅ **macOS CLI** - Notarized arm64 binary built and attached (also triggered by the PyPI workflow completing)
+4. ✅ **macOS CLI + App** - Notarized arm64 binary + app DMG built and attached (also triggered by the PyPI workflow completing)
 5. ✅ **Auto-Changelog** - Changelog updated from commits
 
 **Winget Submission is a separate manual step** — see [Winget Integration](#winget-integration) below.
