@@ -35,11 +35,14 @@ on:
         type: string
   pull_request:
     # Deliberately narrow: pyproject.toml/uv.lock bumps could in principle
-    # break this build too, but a 40-minute macOS job plus a real Apple
-    # notary submission on every dependency PR is the wrong trade.
+    # break this build too, but a 40-minute macOS job plus real Apple
+    # notary submissions on every dependency PR is the wrong trade.
     paths:
       - '.github/workflows/release-macos.yml'
       - 'tools/build_exe.py'
+      - 'tools/macos_bundle.py'
+      - 'scripts/macos-notarize.sh'
+      - 'installer/macos/entitlements.plist'
 
 permissions:
   contents: read
@@ -205,6 +208,163 @@ jobs:
           path: dist/dji-embed-macos-arm64.zip
           if-no-files-found: error
 
+      - name: Delete the throwaway keychain
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+          rm -f cert.p12
+
+  app:
+    # .app + DMG (#414 Stage D). Reuses the build job's signed CLI so the
+    # bundled dji-embed is byte-identical to the standalone zip asset and
+    # keeps the hardened-runtime signature already proven by that job's
+    # notarization. PR proof runs execute this chain too (three real
+    # submissions per proof run — the paths filter above keeps that rare).
+    needs: build
+    runs-on: macos-14
+    # Two sequential notary submissions (app zip, then DMG); see the build
+    # job's note on this young account's vetting latency. 150 min poll
+    # deadline each + build/publish time, under GitHub's 360-min job cap.
+    timeout-minutes: 350
+    env:
+      KEYCHAIN: release-macos-app.keychain-db
+      VERSION: ${{ needs.build.outputs.version }}
+      APP: staging/DJI Metadata Embedder.app
+      DMG: dji-metadata-embedder-${{ needs.build.outputs.version }}-macos-arm64.dmg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-dist
+          path: dist
+      - name: Unpack the signed CLI
+        run: |
+          set -euo pipefail
+          ditto -x -k dist/dji-embed-macos-arm64.zip cli
+          test -x cli/dji-embed
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish GUI (self-contained osx-arm64)
+        run: >
+          dotnet publish gui/DjiEmbed.Gui -c Release -r osx-arm64
+          --self-contained true
+          -p:Version=${{ needs.build.outputs.version }}
+          -o publish
+      - name: Build app-icon.icns
+        # Renditions come from tools/macos_bundle.py so the no-upscaling
+        # rule is unit-tested; the 256px master yields no 512/1024 slots.
+        run: |
+          set -euo pipefail
+          mkdir app.iconset
+          while read -r name px; do
+            sips -z "$px" "$px" gui/DjiEmbed.Gui/Assets/app-icon.png \
+              --out "app.iconset/$name" > /dev/null
+          done < <(python3 tools/macos_bundle.py iconset --source-px 256)
+          iconutil -c icns app.iconset -o app-icon.icns
+      - name: Assemble the .app bundle
+        run: |
+          python3 tools/macos_bundle.py assemble \
+            --publish-dir publish --cli cli/dji-embed \
+            --icns app-icon.icns --version "$VERSION" --out staging
+      - name: Import certificate into a throwaway keychain
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KC_PASSWORD="$(openssl rand -base64 24)"
+          printf '%s' "$APPLE_CERT_P12" | base64 -d > cert.p12
+          security create-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" -f pkcs12 \
+            -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f cert.p12
+          # Let codesign use the key non-interactively.
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KC_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+      - name: Verify identity and pin the fingerprint
+        env:
+          APPLE_CERT_FINGERPRINT: ${{ secrets.APPLE_CERT_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN" \
+            | grep -q "Developer ID Application"
+          actual="$(security find-certificate -c 'Developer ID Application' \
+            -Z "$KEYCHAIN" | awk '/SHA-256 hash/ {print $3}')"
+          if [ "$actual" != "$APPLE_CERT_FINGERPRINT" ]; then
+            echo "::error::certificate fingerprint does not match the pin"
+            exit 1
+          fi
+          echo "Fingerprint pin: MATCH"
+      - name: Sign the bundle (inside-out, hardened runtime)
+        run: |
+          set -euo pipefail
+          # Nested Mach-Os first (dylibs, createdump, ...), then the bundle
+          # itself — which signs the main executable with the entitlements.
+          # dji-embed keeps its build-job signature: --force would only
+          # discard a seal three notary verdicts already vouched for.
+          while IFS= read -r f; do
+            file "$f" | grep -q "Mach-O" || continue
+            base="$(basename "$f")"
+            [ "$base" = "dji-embed" ] && continue
+            [ "$base" = "DjiEmbed.Gui" ] && continue
+            codesign --force --sign "Developer ID Application" \
+              --options runtime --timestamp --keychain "$KEYCHAIN" "$f"
+          done < <(find "$APP/Contents/MacOS" -type f)
+          codesign --force --sign "Developer ID Application" \
+            --options runtime --timestamp \
+            --entitlements installer/macos/entitlements.plist \
+            --keychain "$KEYCHAIN" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+      - name: Smoke test the bundled CLI
+        run: |
+          set -euo pipefail
+          "$APP/Contents/MacOS/dji-embed" --version | grep -F "$VERSION"
+          plutil -lint "$APP/Contents/Info.plist"
+      - name: Notarize and staple the app
+        env:
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          # For a DIRECTORY, --keepParent roots the archive at the .app
+          # itself — correct here (the plain-file case is the trap the
+          # build job's comment documents).
+          ditto -c -k --keepParent "$APP" app.zip
+          scripts/macos-notarize.sh app.zip 150
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+          spctl -a -vv --type execute "$APP"
+      - name: Build, sign, notarize and staple the DMG
+        env:
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          mkdir dmg-root
+          # ditto (not cp) preserves the signed bundle bit-for-bit.
+          ditto "$APP" "dmg-root/DJI Metadata Embedder.app"
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "DJI Metadata Embedder" \
+            -srcfolder dmg-root -ov -format UDZO "dist/$DMG"
+          codesign --force --sign "Developer ID Application" \
+            --timestamp --keychain "$KEYCHAIN" "dist/$DMG"
+          scripts/macos-notarize.sh "dist/$DMG" 150
+          xcrun stapler staple "dist/$DMG"
+          xcrun stapler validate "dist/$DMG"
+      - name: Upload app dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-app
+          path: dist/*.dmg
+          if-no-files-found: error
       - name: Delete the throwaway keychain
         if: always()
         run: |
