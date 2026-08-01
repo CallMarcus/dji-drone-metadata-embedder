@@ -304,12 +304,17 @@ jobs:
       - name: Sign the bundle (inside-out, hardened runtime)
         run: |
           set -euo pipefail
-          # Nested Mach-Os first (dylibs, createdump, ...), then the bundle
-          # itself — which signs the main executable with the entitlements.
-          # dji-embed keeps its build-job signature: --force would only
-          # discard a seal three notary verdicts already vouched for.
+          # Nested files first, then the bundle itself — which signs the
+          # main executable with the entitlements. EVERY file in
+          # Contents/MacOS gets signed, not just Mach-Os: codesign treats
+          # the managed PE .dlls of a .NET publish as nested code, and the
+          # bundle seal fails on any left unsigned ("code object is not
+          # signed at all ... System.Web.dll"). Signing everything is the
+          # documented .NET flow (learn.microsoft.com/dotnet/core/deploying/
+          # macos-notarization). dji-embed keeps its build-job signature:
+          # --force would only discard a seal notarization already
+          # vouched for.
           while IFS= read -r f; do
-            file "$f" | grep -q "Mach-O" || continue
             base="$(basename "$f")"
             [ "$base" = "dji-embed" ] && continue
             [ "$base" = "DjiEmbed.Gui" ] && continue
