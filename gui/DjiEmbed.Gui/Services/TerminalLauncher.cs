@@ -3,8 +3,23 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace DjiEmbed.Gui.Services;
+
+/// <summary>How a terminal launch ended. The refused-permission case is
+/// separate because it is the only one with a way back out (#443).</summary>
+public enum TerminalLaunchResult
+{
+    /// <summary>A terminal opened.</summary>
+    Started,
+
+    /// <summary>macOS refused this app permission to drive Terminal.</summary>
+    AutomationDenied,
+
+    /// <summary>No terminal opened, for any other reason.</summary>
+    Failed,
+}
 
 /// <summary>
 /// Launches an interactive shell that lands the user on proof the CLI
@@ -15,6 +30,10 @@ namespace DjiEmbed.Gui.Services;
 /// </summary>
 public static class TerminalLauncher
 {
+    /// <summary>errAEEventNotPermitted, as osascript prints it. macOS
+    /// translates the message around it but never the number.</summary>
+    private const string AppleEventsDenied = "(-1743)";
+
     private const string ProofCommand = "dji-embed --help";
 
     /// <summary>What the launch button should say — the shell it will
@@ -57,6 +76,10 @@ public static class TerminalLauncher
             {
                 UseShellExecute = false,
                 WorkingDirectory = workingDirectory,
+                // The consent prompt is answered after osascript has
+                // already started, so this stream carries the only word
+                // of a refusal (#443).
+                RedirectStandardError = true,
             };
             osa.ArgumentList.Add("-e");
             osa.ArgumentList.Add(
@@ -103,26 +126,64 @@ public static class TerminalLauncher
         return [wt, ps];
     }
 
-    /// <summary>Tries each candidate in order; false when none started.</summary>
-    public static bool Launch(string? cliPath = null)
+    /// <summary>
+    /// Tries each candidate in order and reports what the user will see.
+    /// Starting is not the same as succeeding on macOS: osascript starts
+    /// cleanly and only then asks permission to drive Terminal, so a
+    /// refusal arrives on its error stream after the fact (#443).
+    /// </summary>
+    public static async Task<TerminalLaunchResult> LaunchAsync(
+        string? cliPath = null)
     {
         var home = Environment.GetFolderPath(
             Environment.SpecialFolder.UserProfile);
         foreach (var psi in Candidates(home, cliPath))
         {
+            Process? process;
             try
             {
-                Process.Start(psi);
-                return true;
+                process = Process.Start(psi);
             }
             catch (Exception e) when (e is Win32Exception
                 or InvalidOperationException or PlatformNotSupportedException)
             {
                 // Not installed on this machine — try the next one.
+                continue;
+            }
+            if (!psi.RedirectStandardError)
+            {
+                // A shell we handed a window to: it belongs to the user now
+                // and waiting on it would never return. A null Process here
+                // means the shell reused a running instance, which is still
+                // a window on screen — not a reason to open a second one.
+                process?.Dispose();
+                return TerminalLaunchResult.Started;
+            }
+            if (process is null)
+            {
+                continue;
+            }
+            using (process)
+            {
+                // osascript returns as soon as Terminal has been told, so
+                // this wait is short — and it lasts exactly as long as the
+                // consent prompt, which keeps the button busy meanwhile.
+                var stderr = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+                return ClassifyOsascript(process.ExitCode, stderr);
             }
         }
-        return false;
+        return TerminalLaunchResult.Failed;
     }
+
+    /// <summary>Reads an osascript run's outcome from what it left behind.
+    /// Pure so the refusal path can be tested off a Mac.</summary>
+    internal static TerminalLaunchResult ClassifyOsascript(
+        int exitCode, string stderr) =>
+        exitCode == 0 ? TerminalLaunchResult.Started
+        : stderr.Contains(AppleEventsDenied, StringComparison.Ordinal)
+            ? TerminalLaunchResult.AutomationDenied
+            : TerminalLaunchResult.Failed;
 
     /// <summary>POSIX single-quoting: '…' with embedded ' as '\''.</summary>
     private static string ShellSingleQuote(string s) =>

@@ -19,11 +19,17 @@ public sealed record StarterCommand(string Command, string Description);
 /// task cards. One shell-launch button, curated examples, the live --help
 /// output — no settings, no new task flows (anti-bloat rules).
 /// </summary>
-public partial class CliDiscoveryViewModel(string? cliPath, Action goHome)
+public partial class CliDiscoveryViewModel(
+    string? cliPath,
+    Action goHome,
+    Func<string?, Task<TerminalLaunchResult>>? launch = null)
     : ViewModelBase
 {
     public const string DocsUrl =
         "https://callmarcus.github.io/dji-drone-metadata-embedder/";
+
+    private readonly Func<string?, Task<TerminalLaunchResult>> _launch =
+        launch ?? TerminalLauncher.LaunchAsync;
 
     /// <summary>
     /// Curated to show what the GUI deliberately can't do. Static strings —
@@ -153,8 +159,39 @@ public partial class CliDiscoveryViewModel(string? cliPath, Action goHome)
         return stdout.Trim();
     }
 
+    /// <summary>Why no terminal appeared; null when one did.</summary>
+    [ObservableProperty]
+    public partial string? TerminalMessage { get; set; }
+
     [RelayCommand]
-    private void OpenTerminal() => TerminalLauncher.Launch(cliPath);
+    private async Task OpenTerminalAsync() =>
+        TerminalMessage = TerminalMessageFor(
+            await _launch(cliPath), Platforms.Current);
+
+    /// <summary>
+    /// What to say under the button when nothing opened. The refused-
+    /// permission wording carries the way back out: macOS remembers Don't
+    /// Allow, so without it the button is silently dead forever (#443).
+    /// </summary>
+    internal static string? TerminalMessageFor(
+        TerminalLaunchResult result, OSPlatform platform) => result switch
+    {
+        TerminalLaunchResult.Started => null,
+        TerminalLaunchResult.AutomationDenied =>
+            "⚠️ macOS is blocking this app from opening Terminal. To allow "
+            + "it, open System Settings > Privacy & Security > Automation, "
+            + "find DJI Metadata Embedder in the list, and switch Terminal "
+            + "back on. Then try this button again.",
+        _ => platform == OSPlatform.OSX
+            ? "⚠️ Terminal could not be opened. You can open it yourself — "
+              + "the guide below shows how to reach the command line from "
+              + "there."
+            : platform == OSPlatform.Windows
+            ? "⚠️ No terminal could be opened. Open PowerShell yourself and "
+              + "enter  dji-embed --help  to see the same thing."
+            : "⚠️ No terminal could be opened. Open your own and enter  "
+              + "dji-embed --help  to see the same thing.",
+    };
 
     [RelayCommand]
     private void OpenDocs() =>

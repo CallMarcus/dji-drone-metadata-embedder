@@ -129,4 +129,55 @@ public class TerminalLauncherTests
         Assert.Equal("Open a terminal and try it",
             TerminalLauncher.ButtonLabelOn(OSPlatform.Linux));
     }
+
+    [Fact]
+    public void Macos_candidate_captures_the_error_stream()
+    {
+        // #443: osascript starts fine and fails asynchronously, so its
+        // stderr and exit code are the only evidence the tell was refused.
+        var osa = Assert.Single(TerminalLauncher.Candidates(
+            "/Users/demo", OSPlatform.OSX));
+
+        Assert.True(osa.RedirectStandardError);
+        Assert.False(osa.UseShellExecute);
+    }
+
+    [Fact]
+    public void A_clean_osascript_run_reports_started()
+    {
+        Assert.Equal(TerminalLaunchResult.Started,
+            TerminalLauncher.ClassifyOsascript(0, string.Empty));
+    }
+
+    [Fact]
+    public void A_refused_apple_event_reports_automation_denied()
+    {
+        // What Don't Allow on the automation consent prompt produces.
+        Assert.Equal(TerminalLaunchResult.AutomationDenied,
+            TerminalLauncher.ClassifyOsascript(1,
+                "execution error: Not authorized to send Apple events to "
+                + "Terminal. (-1743)\n"));
+    }
+
+    [Fact]
+    public void A_refused_apple_event_is_recognised_in_any_language()
+    {
+        // macOS localizes the message but never the error number, so the
+        // number is what the check hangs on.
+        Assert.Equal(TerminalLaunchResult.AutomationDenied,
+            TerminalLauncher.ClassifyOsascript(1,
+                "Fehler beim Ausführen: Keine Berechtigung, Apple-Events an "
+                + "\"Terminal\" zu senden. (-1743)\n"));
+    }
+
+    [Fact]
+    public void Other_osascript_errors_are_ordinary_failures()
+    {
+        // Not a permission problem — pointing the user at System Settings
+        // would send them somewhere that cannot help.
+        Assert.Equal(TerminalLaunchResult.Failed,
+            TerminalLauncher.ClassifyOsascript(1,
+                "execution error: Terminal got an error: Application isn't "
+                + "running. (-600)\n"));
+    }
 }
