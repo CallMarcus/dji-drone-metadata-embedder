@@ -38,6 +38,17 @@
                     <TextBlock Text="{x:Static services:TerminalLauncher.ButtonLabel}" />
                 </Button>
 
+                <!-- Nothing opens on the deny path, so the only feedback
+                     available is this note (#443). -->
+                <Border Name="TerminalMessageNote"
+                        Background="#20808080" CornerRadius="4"
+                        Padding="10,8"
+                        IsVisible="{Binding TerminalMessage,
+                                    Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding TerminalMessage}"
+                               TextWrapping="Wrap" FontSize="13" />
+                </Border>
+
                 <TextBlock Text="A few things only the command line can do:"
                            FontWeight="SemiBold" Margin="0,4,0,0" />
 

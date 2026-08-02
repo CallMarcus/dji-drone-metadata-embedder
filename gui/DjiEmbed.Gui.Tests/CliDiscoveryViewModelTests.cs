@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Tests;
@@ -141,5 +142,97 @@ public class CliDiscoveryViewModelTests : IDisposable
         var vm = new CliDiscoveryViewModel(cli, () => { });
         await vm.LoadHelpCommand.ExecuteAsync(null);
         Assert.Contains("dji-embed --help", vm.HelpText);
+    }
+
+    [Fact]
+    public void A_terminal_that_opened_says_nothing()
+    {
+        // The Terminal window in front of them is the feedback.
+        Assert.Null(CliDiscoveryViewModel.TerminalMessageFor(
+            TerminalLaunchResult.Started, OSPlatform.OSX));
+    }
+
+    [Fact]
+    public void Denied_automation_names_the_pane_that_undoes_it()
+    {
+        // #443: macOS remembers Don't Allow, so every later click is
+        // silent too — the way back out has to be on screen.
+        var text = CliDiscoveryViewModel.TerminalMessageFor(
+            TerminalLaunchResult.AutomationDenied, OSPlatform.OSX);
+
+        Assert.Contains("System Settings", text);
+        Assert.Contains("Privacy & Security", text);
+        Assert.Contains("Automation", text);
+        Assert.Contains("DJI Metadata Embedder", text);
+        Assert.Contains("Terminal", text);
+    }
+
+    [Fact]
+    public void A_failed_launch_hands_the_job_back_to_the_user()
+    {
+        foreach (var platform in
+                 new[] { OSPlatform.Windows, OSPlatform.OSX, OSPlatform.Linux })
+        {
+            var text = CliDiscoveryViewModel.TerminalMessageFor(
+                TerminalLaunchResult.Failed, platform);
+            Assert.False(string.IsNullOrWhiteSpace(text));
+        }
+    }
+
+    [Fact]
+    public void The_macos_fallback_never_tells_them_to_type_bare_dji_embed()
+    {
+        // #442 again: nothing puts the CLI on PATH on macOS, so the
+        // fallback advice cannot be "open Terminal and type dji-embed".
+        var text = CliDiscoveryViewModel.TerminalMessageFor(
+            TerminalLaunchResult.Failed, OSPlatform.OSX);
+
+        Assert.DoesNotContain("type dji-embed", text);
+        Assert.DoesNotContain("run dji-embed", text);
+    }
+
+    [Fact]
+    public async Task Clicking_the_button_surfaces_a_denied_launch()
+    {
+        var vm = new CliDiscoveryViewModel(null, () => { },
+            _ => Task.FromResult(TerminalLaunchResult.AutomationDenied));
+
+        await vm.OpenTerminalCommand.ExecuteAsync(null);
+
+        Assert.Contains("Automation", vm.TerminalMessage);
+    }
+
+    [Fact]
+    public async Task A_launch_that_works_clears_an_earlier_complaint()
+    {
+        var result = TerminalLaunchResult.AutomationDenied;
+        var vm = new CliDiscoveryViewModel(null, () => { },
+            _ => Task.FromResult(result));
+
+        await vm.OpenTerminalCommand.ExecuteAsync(null);
+        Assert.NotNull(vm.TerminalMessage);
+
+        // They granted the permission and clicked again.
+        result = TerminalLaunchResult.Started;
+        await vm.OpenTerminalCommand.ExecuteAsync(null);
+
+        Assert.Null(vm.TerminalMessage);
+    }
+
+    [Fact]
+    public async Task The_launch_gets_the_bundled_cli_path()
+    {
+        string? seen = null;
+        var vm = new CliDiscoveryViewModel("/Applications/x.app/dji-embed",
+            () => { },
+            path =>
+            {
+                seen = path;
+                return Task.FromResult(TerminalLaunchResult.Started);
+            });
+
+        await vm.OpenTerminalCommand.ExecuteAsync(null);
+
+        Assert.Equal("/Applications/x.app/dji-embed", seen);
     }
 }

@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
 
+### Fixed
+
+- **gui**: Refusing macOS permission to open Terminal no longer fails in
+  silence. The command-line screen's launch button now waits for the
+  answer and, when it is refused, names the System Settings > Privacy &
+  Security > Automation switch that turns the permission back on.
+  Previously the click did nothing visible, and because macOS remembers
+  the refusal, so did every click after it (#443).
+
 ## [2.5.0] - 2026-08-01
 
 ### Added

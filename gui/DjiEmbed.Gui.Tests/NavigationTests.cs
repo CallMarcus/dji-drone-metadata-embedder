@@ -69,4 +69,32 @@ public class NavigationTests
         Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
             t => t.Text == discovery.IntroText);
     }
+
+    [AvaloniaFact]
+    public void The_terminal_note_appears_only_when_there_is_something_to_say()
+    {
+        // #443: on the deny path no window opens, so this note is the
+        // entire feedback — a wrong binding leaves the button silent
+        // exactly the way the bug did.
+        var main = new MainViewModel();
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        ((WorkspaceViewModel)main.CurrentPage)
+            .OpenCliDiscoveryCommand.Execute(null);
+        var discovery = Assert.IsType<CliDiscoveryViewModel>(main.CurrentPage);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var note = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "TerminalMessageNote");
+        Assert.False(note.IsVisible);
+
+        discovery.TerminalMessage = "macOS is blocking this app.";
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        Assert.True(note.IsVisible);
+        Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+            t => t.Text == discovery.TerminalMessage);
+    }
 }
