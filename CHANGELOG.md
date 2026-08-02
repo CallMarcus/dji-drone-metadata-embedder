@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Security > Automation switch that turns the permission back on.
   Previously the click did nothing visible, and because macOS remembers
   the refusal, so did every click after it (#443).
+- **gui**: The command-line screen's fallback advice, shown when the live
+  command list cannot be read, no longer tells macOS users to run a bare
+  `dji-embed` that is not on their PATH. It now names the bundled CLI by
+  its absolute path, the same rule the launch button already followed
+  (#454).
 
 ## [2.5.0] - 2026-08-01
 

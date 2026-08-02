@@ -145,6 +145,33 @@ public class CliDiscoveryViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_macos_help_fallback_names_the_bundled_cli_by_path()
+    {
+        // #454/#442: nothing puts dji-embed on PATH on macOS, so advice to
+        // run the bare command sends a user whose CLI is already misbehaving
+        // straight to command-not-found.
+        var text = CliDiscoveryViewModel.HelpFallbackFor(OSPlatform.OSX,
+            "/Applications/DJI Metadata Embedder.app/Contents/MacOS/dji-embed");
+
+        Assert.Contains(
+            "'/Applications/DJI Metadata Embedder.app/Contents/MacOS/"
+            + "dji-embed' --help", text);
+        Assert.DoesNotContain(" dji-embed --help", text);
+    }
+
+    [Fact]
+    public void The_windows_help_fallback_keeps_the_bare_command()
+    {
+        // The installer put it on PATH, so the bare command is both true
+        // and the shorter thing to type.
+        var text = CliDiscoveryViewModel.HelpFallbackFor(OSPlatform.Windows,
+            @"C:\Program Files\DjiEmbed\dji-embed.exe");
+
+        Assert.Contains("dji-embed --help", text);
+        Assert.DoesNotContain(@"C:\Program Files", text);
+    }
+
+    [Fact]
     public void A_terminal_that_opened_says_nothing()
     {
         // The Terminal window in front of them is the feedback.

@@ -64,9 +64,7 @@ public static class TerminalLauncher
     {
         if (platform == OSPlatform.OSX)
         {
-            var proof = cliPath is null
-                ? ProofCommand
-                : $"{ShellSingleQuote(cliPath)} --help";
+            var proof = ProofCommandFor(platform, cliPath);
 
             // Terminal.app is always present and its windows stay open on
             // their own; "do script" opens a fresh window running the
@@ -184,6 +182,19 @@ public static class TerminalLauncher
         : stderr.Contains(AppleEventsDenied, StringComparison.Ordinal)
             ? TerminalLaunchResult.AutomationDenied
             : TerminalLaunchResult.Failed;
+
+    /// <summary>
+    /// The command that proves the CLI works, written the way this platform
+    /// can actually run it: bare where an installer put it on PATH, absolute
+    /// where nothing did. On macOS the DMG keeps the CLI inside the bundle
+    /// and touches no PATH, so the bare command is command-not-found (#442).
+    /// Anything showing the user a command to type owes them this rule.
+    /// </summary>
+    internal static string ProofCommandFor(
+        OSPlatform platform, string? cliPath) =>
+        platform == OSPlatform.OSX && cliPath is not null
+            ? $"{ShellSingleQuote(cliPath)} --help"
+            : ProofCommand;
 
     /// <summary>POSIX single-quoting: '…' with embedded ' as '\''.</summary>
     private static string ShellSingleQuote(string s) =>
