@@ -126,10 +126,20 @@ public partial class CliDiscoveryViewModel(
         }
         catch (Exception)
         {
-            HelpText = "The command list could not be loaded. Open a "
-                + "terminal and run  dji-embed --help  to see it.";
+            HelpText = HelpFallbackFor(Platforms.Current, cliPath);
         }
     }
+
+    /// <summary>
+    /// The manual way to the command list when reading it failed. Only a
+    /// user whose CLI is already misbehaving ever sees this, so the command
+    /// it names has to be one their machine can actually run (#454).
+    /// </summary>
+    internal static string HelpFallbackFor(
+        OSPlatform platform, string? cliPath) =>
+        "The command list could not be loaded. Open a terminal and run  "
+        + TerminalLauncher.ProofCommandFor(platform, cliPath)
+        + "  to see it.";
 
     private static async Task<string> RunHelpAsync(string cliPath)
     {
