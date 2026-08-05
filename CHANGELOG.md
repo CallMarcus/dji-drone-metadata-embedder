@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Switzerland airspace coverage (#456): `-f record` and `flightmap
+  --airspace` now resolve Swiss plateau flights against BAZL's ED-269
+  UAS-geozone feed (O-BY licence, attribution confirmed in writing by
+  BAZL). The feed's `99999 m` "no effective ceiling" sentinel renders as
+  an open-ended zone, never as a literal altitude.
+
 - `dji-embed fetch-log` — opt-in decode of TXT flight records through the
   Flight Reader API with your own key (`FLIGHTREADER_API_KEY`); writes
   `NAME.flightreader.csv` beside each record for `flightmap --flight-log`,

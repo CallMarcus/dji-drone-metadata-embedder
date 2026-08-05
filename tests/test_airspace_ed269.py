@@ -147,3 +147,84 @@ def test_interior_rings_parse_into_holes():
     assert z.holes[0] == [(float(cx), float(cy)) for cx, cy in hole]
     assert z.holes[0] not in z.polygons
     assert z.polygons  # the exterior stayed where it was
+
+
+def _ch() -> bytes:
+    return (FIXTURES / "ed269-ch.json").read_bytes()
+
+
+def _ch_data() -> dict:
+    return json.loads((FIXTURES / "ed269-ch.json").read_text(encoding="utf-8-sig"))
+
+
+def test_parses_the_switzerland_fixture():
+    zones = parse_ed269(_ch(), SRC, no_ceiling_m=99999)
+    assert [z.identifier for z in zones] == [
+        "CH-GT9990", "CH-AGL-NOCAP", "CH-ZH-120", "CH-MV-2VOL",
+    ]
+    assert all(z.restriction == "REQ_AUTHORISATION" for z in zones)
+
+
+def test_the_swiss_no_ceiling_sentinel_becomes_not_stated():
+    # 99999 m AMSL is BAZL's no-effective-ceiling sentinel (#456). Rendered
+    # literally it would read as a real ceiling and feed the AMSL height
+    # comparison — misleading in the one direction the record must not be.
+    zones = parse_ed269(_ch(), SRC, no_ceiling_m=99999)
+    z = next(z for z in zones if z.identifier == "CH-GT9990")
+    assert z.upper is None
+    assert z.lower is not None and z.lower.label() == "0 m AGL"
+    # the published value survives untouched as evidence
+    assert z.native["geometry"][0]["upperLimit"] == 99999
+
+
+def test_without_a_sentinel_config_99999_stays_literal():
+    zones = parse_ed269(_ch(), SRC)
+    z = next(z for z in zones if z.identifier == "CH-GT9990")
+    assert z.upper is not None and z.upper.value == 99999
+
+
+def test_the_sentinel_fires_in_the_agl_datum_too():
+    # The live feed publishes the sentinel in BOTH datums (881 AGL + 138
+    # AMSL volumes on 2026-08-05) — "no effective ceiling" is the meaning
+    # regardless of reference.
+    zones = parse_ed269(_ch(), SRC, no_ceiling_m=99999)
+    z = next(z for z in zones if z.identifier == "CH-AGL-NOCAP")
+    assert z.upper is None
+    assert z.lower is not None and z.lower.label() == "0 m AGL"
+
+
+def test_the_sentinel_only_fires_on_metres():
+    data = _ch_data()
+    zone = next(f for f in data["features"] if f["identifier"] == "CH-GT9990")
+    zone["geometry"][0]["uomDimensions"] = "FT"
+    zones = parse_ed269(json.dumps(data).encode(), SRC, no_ceiling_m=99999)
+    z = next(z for z in zones if z.identifier == "CH-GT9990")
+    assert z.upper is not None and z.upper.label() == "99999 ft AMSL"
+
+
+def test_a_real_amsl_ceiling_is_untouched_by_the_sentinel():
+    zones = parse_ed269(_ch(), SRC, no_ceiling_m=99999)
+    z = next(z for z in zones if z.identifier == "CH-MV-2VOL")
+    assert z.upper is not None and z.upper.label() == "1500 m AMSL"
+    assert len(z.polygons) == 2  # both volumes' rings merged at zone level
+
+
+def test_mixed_sentinel_and_real_ceilings_within_a_zone_still_conflict():
+    # The sentinel maps to "not stated" only after the differing-limits
+    # check: one volume at 99999 and one at a real ceiling is a stratified
+    # zone, and all-or-nothing must reject it, not silently keep one side.
+    data = _ch_data()
+    zone = next(f for f in data["features"] if f["identifier"] == "CH-MV-2VOL")
+    zone["geometry"][1]["upperLimit"] = 99999
+    with pytest.raises(AirspaceError, match="differing"):
+        parse_ed269(json.dumps(data).encode(), SRC, no_ceiling_m=99999)
+
+
+def test_feed_registry_pins_switzerland():
+    feed = ED269_FEEDS["CH"]
+    assert "data.geo.admin.ch" in feed.url
+    assert "einschraenkungen-drohnen_4326.json" in feed.url
+    assert feed.no_ceiling_m == 99999
+    # BAZL's proposed attribution, carried verbatim (email 2026-08-05, #456)
+    assert "Bundesamt für Zivilluftfahrt (BAZL)" in feed.license
+    assert "O-BY" in feed.license

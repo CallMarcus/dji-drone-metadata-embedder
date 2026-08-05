@@ -121,3 +121,50 @@ def test_a_point_near_the_gentingen_border_band_gaps_by_design():
 def test_a_point_inside_the_bettendorf_band_resolves_to_lu():
     r = resolve_jurisdiction(_track((49.89, 6.15)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "LU"
+
+
+# Switzerland (#456): plateau core boxes, Nominatim-verified 2026-08-05 —
+# every edge and margin probe resolved to CH with >=5 km of border buffer.
+def test_a_zurich_flight_resolves_to_ch_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((47.37, 8.54)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "CH"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_bern_resolves_to_ch():
+    r = resolve_jurisdiction(_track((46.95, 7.45)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "CH"
+
+
+def test_lucerne_resolves_to_ch():
+    r = resolve_jurisdiction(_track((47.05, 8.31)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "CH"
+
+
+def test_geneva_gaps_as_a_border_band():
+    # Geneva is enclosed by France on three sides; inside the CH hull but
+    # deliberately outside every core box.
+    r = resolve_jurisdiction(_track((46.20, 6.15)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_basel_gaps_as_a_border_band():
+    r = resolve_jurisdiction(_track((47.56, 7.59)))
+    assert r.jurisdiction is None
+
+
+def test_konstanz_germany_gaps_instead_of_resolving_ch():
+    r = resolve_jurisdiction(_track((47.66, 9.17)))
+    assert r.jurisdiction is None
+
+
+def test_bregenz_austria_gaps_instead_of_resolving_ch():
+    r = resolve_jurisdiction(_track((47.50, 9.75)))
+    assert r.jurisdiction is None
+
+
+def test_milan_gaps_outside_the_ch_hull():
+    r = resolve_jurisdiction(_track((45.46, 9.19)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "no supported airspace data" in r.gap_reason
