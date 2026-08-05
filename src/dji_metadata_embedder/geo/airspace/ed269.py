@@ -1,7 +1,8 @@
 """ED-269 (EUROCAE) UAS geographical-zone document parser (#413).
 
 One parser covers every state that publishes the common format; the feed
-registry pins the live-verified endpoints (Luxembourg CC0, Finland CC BY).
+registry pins the live-verified endpoints (Luxembourg CC0, Finland CC BY,
+Switzerland O-BY).
 All-or-nothing: any malformed zone raises — a record listing 700 of 720
 zones without saying so would be silently wrong. Wire quirks from the live
 feeds are contract: UTF-8 BOM (utf-8-sig), absent limits mean "not stated".
@@ -24,6 +25,11 @@ class Ed269Feed:
     license: str
     caveat: str
     note: str | None = None
+    # A published metres upper limit that means "no effective ceiling"
+    # (Switzerland publishes 99999, in both AGL and AMSL datums — live
+    # feed re-verified 2026-08-05). Mapped to "not stated" at parse time
+    # so it never renders or compares as a real altitude.
+    no_ceiling_m: float | None = None
 
 
 _CAVEAT = (
@@ -52,6 +58,22 @@ ED269_FEEDS: dict[str, Ed269Feed] = {
             "Established zones only — temporary reservations and "
             "activations are not part of this document."
         ),
+    ),
+    "CH": Ed269Feed(
+        code="CH",
+        url=(
+            "https://data.geo.admin.ch/ch.bazl.einschraenkungen-drohnen/"
+            "einschraenkungen-drohnen/einschraenkungen-drohnen_4326.json"
+        ),
+        feed_name="Switzerland UAS geographical zones (ED-269, BAZL)",
+        # BAZL's proposed attribution, verbatim (written confirmation
+        # 2026-08-05, issue #456; O-BY per opendata.swiss terms).
+        license=(
+            "© Datenquelle: Bundesamt für Zivilluftfahrt (BAZL), "
+            "freie Nutzung mit Quellenangabe (O-BY)"
+        ),
+        caveat=_CAVEAT,
+        no_ceiling_m=99999,
     ),
 }
 
@@ -82,7 +104,12 @@ def _limit(
     return VerticalLimit(float(value), unit, ref)
 
 
-def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
+def parse_ed269(
+    raw: bytes,
+    source: SourceInfo,
+    *,
+    no_ceiling_m: float | None = None,
+) -> list[Zone]:
     """Every zone of an ED-269 document as normalized :class:`Zone`s."""
     try:
         data = json.loads(raw.decode("utf-8-sig"))
@@ -165,6 +192,16 @@ def parse_ed269(raw: bytes, source: SourceInfo) -> list[Zone]:
                 (polygons if ring_index == 0 else holes).append(parsed)
         if not polygons:
             raise AirspaceError(f"{where} ({ident}): no polygon geometry")
+        # The sentinel maps to "not stated" only AFTER the differing-limits
+        # check above: one volume at the sentinel and one at a real ceiling
+        # is a stratified zone and must be rejected, not silently merged.
+        if (
+            no_ceiling_m is not None
+            and upper is not None
+            and upper.unit == "m"
+            and upper.value == no_ceiling_m
+        ):
+            upper = None
         zones.append(
             Zone(
                 identifier=ident,

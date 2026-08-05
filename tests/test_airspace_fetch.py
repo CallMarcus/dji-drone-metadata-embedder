@@ -170,3 +170,14 @@ def test_corrupted_primary_cache_hit_is_a_gap_not_a_false_announce(tmp_path):
                        announce=lines.append)
     assert data.gap_reason is not None and not data.zones
     assert not any("using cached" in ln.lower() for ln in lines)
+
+
+def test_switzerland_fetch_applies_the_no_ceiling_sentinel(tmp_path):
+    fake = FakeTransport([(FIXTURES / "ed269-ch.json").read_bytes()])
+    data = fetch_zones(_track(47.37, 8.54), tmp_path, transport=fake)
+    assert data.gap_reason is None and len(data.zones) == 4
+    assert data.source is not None and "data.geo.admin.ch" in data.source.url
+    assert "O-BY" in data.source.license
+    assert (tmp_path / "ed269-CH.json").exists()
+    sentinel_zone = next(z for z in data.zones if z.identifier == "CH-GT9990")
+    assert sentinel_zone.upper is None  # 99999 m AMSL sentinel, not a ceiling

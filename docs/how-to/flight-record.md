@@ -40,7 +40,8 @@ Three feeds are used:
   bounding box sent to the endpoint is padded and snapped outward to a
   0.1° grid before it goes on the wire, so the endpoint learns no more
   about where you flew than a map-tile fetch already would.
-- **Luxembourg and Finland** flights fetch the country's whole ED-269
+- **Luxembourg, Finland and Switzerland** flights fetch the country's
+  whole ED-269
   geographical-zone document — the feed has no query parameter for a
   location at all, so nothing about the flight is sent; the entire country's
   zones come back regardless of where the flight was.
@@ -58,10 +59,11 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
-United States, Luxembourg, or Finland. Everywhere else — including
+United States, Luxembourg, Finland, or Switzerland. Everywhere else —
+including
 Sweden — the record states the gap instead of guessing: *"no supported
 airspace data source for this location."* A flight near a jurisdiction
 boundary gaps the same way, deliberately, rather than borrowing a

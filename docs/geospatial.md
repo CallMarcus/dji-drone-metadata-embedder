@@ -430,7 +430,7 @@ already reports.
 `dji-embed flightmap FLIGHTS --airspace` overlays the official airspace zones
 for the flight area on the 2D HTML map — FAA UAS Facility Maps in the US,
 ED-269 UAS geographical zones where a national feed is available (currently
-Luxembourg and Finland). Zones draw in one neutral style; clicking one shows
+Luxembourg, Finland and Switzerland). Zones draw in one neutral style; clicking one shows
 the published facts: restriction class, vertical limits (or "not stated"),
 applicability windows, and the feed, license and fetch time. Zones the
 flight entered get a slightly stronger outline plus the entry/exit times and

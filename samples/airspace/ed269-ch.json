@@ -1,0 +1,129 @@
+{
+  "title": "SwissUASGeozones - created on 2026-08-02T10:04:59+02:00",
+  "description": "Swiss UAS Geozones according to ED-269 - format version 1.0",
+  "features": [
+    {
+      "identifier": "CH-GT9990",
+      "country": "CHE",
+      "name": "BE - Cantonal Police of Bern",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["OTHER"],
+      "zoneAuthority": [
+        {
+          "name": "Cantonal Police of Bern",
+          "contactName": "Kantonspolizei Bern",
+          "email": "geozonen@police.example",
+          "purpose": "AUTHORIZATION",
+          "intervalBefore": "P30D"
+        }
+      ],
+      "applicability": [{"permanent": "YES"}],
+      "geometry": [
+        {
+          "uomDimensions": "M",
+          "lowerLimit": 0,
+          "lowerVerticalReference": "AGL",
+          "upperLimit": 99999,
+          "upperVerticalReference": "AMSL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [7.42, 46.93], [7.48, 46.93], [7.48, 46.97],
+              [7.42, 46.97], [7.42, 46.93]
+            ]]
+          }
+        }
+      ]
+    },
+    {
+      "identifier": "CH-AGL-NOCAP",
+      "country": "CHE",
+      "name": "ZH - Nature reserve, AGL-datum sentinel",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["NATURE"],
+      "applicability": [{"permanent": "YES"}],
+      "geometry": [
+        {
+          "uomDimensions": "M",
+          "lowerLimit": 0,
+          "lowerVerticalReference": "AGL",
+          "upperLimit": 99999,
+          "upperVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [8.60, 47.20], [8.66, 47.20], [8.66, 47.24],
+              [8.60, 47.24], [8.60, 47.20]
+            ]]
+          }
+        }
+      ]
+    },
+    {
+      "identifier": "CH-ZH-120",
+      "country": "CHE",
+      "name": "ZH - Zurich CTR segment",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["AIR_TRAFFIC"],
+      "applicability": [{"permanent": "YES"}],
+      "geometry": [
+        {
+          "uomDimensions": "M",
+          "lowerLimit": 0,
+          "lowerVerticalReference": "AGL",
+          "upperLimit": 120,
+          "upperVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [8.50, 47.35], [8.58, 47.35], [8.58, 47.40],
+              [8.50, 47.40], [8.50, 47.35]
+            ]]
+          }
+        }
+      ]
+    },
+    {
+      "identifier": "CH-MV-2VOL",
+      "country": "CHE",
+      "name": "LU - Multi-volume zone, shared limits",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["SENSITIVE"],
+      "applicability": [{"permanent": "YES"}],
+      "geometry": [
+        {
+          "uomDimensions": "M",
+          "lowerLimit": 0,
+          "lowerVerticalReference": "AGL",
+          "upperLimit": 1500,
+          "upperVerticalReference": "AMSL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [8.28, 47.03], [8.33, 47.03], [8.33, 47.07],
+              [8.28, 47.07], [8.28, 47.03]
+            ]]
+          }
+        },
+        {
+          "uomDimensions": "M",
+          "lowerLimit": 0,
+          "lowerVerticalReference": "AGL",
+          "upperLimit": 1500,
+          "upperVerticalReference": "AMSL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [[
+              [8.34, 47.03], [8.39, 47.03], [8.39, 47.07],
+              [8.34, 47.07], [8.34, 47.03]
+            ]]
+          }
+        }
+      ]
+    }
+  ]
+}

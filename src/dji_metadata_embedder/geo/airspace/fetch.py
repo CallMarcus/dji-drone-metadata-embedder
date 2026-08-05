@@ -150,7 +150,9 @@ def fetch_zones(
             pages_raw = _faa_pages_from_doc(doc)
             zones = parse_faa(pages_raw, source)
         else:
-            zones = parse_ed269(body, source)
+            zones = parse_ed269(
+                body, source, no_ceiling_m=feed.no_ceiling_m
+            )
         if from_cache:
             # Only claim the cache was usable once it has actually
             # parsed — an announce made before this point could be a lie.
@@ -171,7 +173,9 @@ def fetch_zones(
                     pages_raw = _faa_pages_from_doc(doc)
                     zones = parse_faa(pages_raw, source)
                 else:
-                    zones = parse_ed269(body, source)
+                    zones = parse_ed269(
+                        body, source, no_ceiling_m=feed.no_ceiling_m
+                    )
             except AirspaceError as exc2:
                 return AirspaceData(
                     gap_reason=f"airspace data unavailable: {exc2}"

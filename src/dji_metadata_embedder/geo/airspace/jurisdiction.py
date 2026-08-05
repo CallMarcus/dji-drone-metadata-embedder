@@ -60,6 +60,15 @@ _CORE: dict[str, list[Box]] = {
         (24.5, 64.5, 29.0, 66.8),
         (25.0, 66.8, 27.5, 68.3),
     ],
+    # Plateau-focused (#456): Geneva, Basel, Ticino, Valais and Grisons sit
+    # against five neighbours and gap honestly as border bands. Every edge
+    # and outside-margin point Nominatim-verified CH on 2026-08-05, >=5 km
+    # of buffer to the nearest border throughout.
+    "CH": [
+        (7.05, 46.6, 7.9, 47.05),   # Bern / Fribourg / Thun / Interlaken
+        (7.3, 47.0, 8.0, 47.3),     # Biel / Solothurn / Zofingen
+        (8.0, 46.8, 8.9, 47.42),    # Lucerne / Zug / Zurich
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -69,8 +78,11 @@ _HULL: dict[str, list[Box]] = {
     ],
     "LU": [(5.70, 49.44, 6.60, 50.20)],
     "FI": [(19.0, 59.5, 31.6, 70.1)],
+    "CH": [(5.9, 45.8, 10.5, 47.85)],
 }
-_MEASURE = {"US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU}
+# CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
+# since 2023-01-01 under the CH-EU air transport agreement.
+_MEASURE = {"US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU}
 
 
 @dataclass(frozen=True)
@@ -100,7 +112,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
         return Resolution(
             None,
             "no supported airspace data source for this location "
-            "(v1 covers the US, Luxembourg and Finland)",
+            "(covered: the US, Luxembourg, Finland and Switzerland)",
         )
     code = hulls[0]
     if not _all_inside(track, _CORE[code]):
