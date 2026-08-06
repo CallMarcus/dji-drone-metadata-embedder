@@ -2,9 +2,11 @@
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from dji_metadata_embedder.geo.airspace.ed269 import ED269_FEEDS, parse_ed269
 from dji_metadata_embedder.geo.airspace.fetch import AirspaceData
-from dji_metadata_embedder.geo.airspace.model import SourceInfo
+from dji_metadata_embedder.geo.airspace.model import SourceInfo, VerticalLimit, Zone
 from dji_metadata_embedder.geo.airspace.overlay import zones_to_overlay_json
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
@@ -80,8 +82,8 @@ def test_zone_dict_shape_and_source_footer():
     )
     z = out["zones"][0]
     assert set(z) == {
-        "id", "name", "restriction", "lower", "upper", "applicability",
-        "polygons", "holes", "source", "entered",
+        "id", "name", "restriction", "lower", "upper", "upper_m", "upper_ref",
+        "applicability", "polygons", "holes", "source", "entered",
     }
     assert z["source"] == {
         "feed": source.feed, "license": source.license, "fetched": source.fetched,
@@ -144,3 +146,33 @@ def test_no_verdict_vocabulary_in_output():
     blob = _json.dumps(out).lower()
     for banned in ("legal", "compliant", "violation"):  # "legal" subsumes "illegal"
         assert banned not in blob
+
+
+def test_zone_dicts_carry_numeric_ceilings_for_the_3d_map():
+    # #424: ft converts through M_PER_FT, metres pass through,
+    # "not stated" stays None (this is what keeps no-ceiling zones flat).
+    src = SourceInfo(feed="F", url="u", fetched="t", license="l", caveat="c")
+
+    def zone(upper, ident):
+        return Zone(
+            identifier=ident, name=ident, restriction="CEILING",
+            lower=None, upper=upper, applicability=[],
+            polygons=[[(6.0, 49.0), (6.1, 49.0), (6.1, 49.1), (6.0, 49.0)]],
+            source=src,
+        )
+
+    zones = [
+        zone(VerticalLimit(400, "ft", "AGL"), "FT"),
+        zone(VerticalLimit(2500, "m", "AMSL"), "M"),
+        zone(None, "NONE"),
+    ]
+    out = zones_to_overlay_json(
+        [_track_far()], [AirspaceData(zones=zones, source=src)]
+    )
+    by_id = {z["id"]: z for z in out["zones"]}
+    assert by_id["FT"]["upper_m"] == pytest.approx(400 * 0.3048)
+    assert by_id["FT"]["upper_ref"] == "AGL"
+    assert by_id["M"]["upper_m"] == 2500.0
+    assert by_id["M"]["upper_ref"] == "AMSL"
+    assert by_id["NONE"]["upper_m"] is None
+    assert by_id["NONE"]["upper_ref"] is None
