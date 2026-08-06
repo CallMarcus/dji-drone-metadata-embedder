@@ -13,8 +13,8 @@ opacity (a fact the evaluator established, not a verdict).
 
 Heights: fill-extrusion prisms are measured from the rendered terrain
 surface, so an AGL ceiling is exact by construction. An AMSL ceiling
-subtracts the surface elevation sampled once at the zone's centroid —
-constant per zone, so the volume top follows the terrain instead of
+subtracts the surface elevation sampled at the centroid of each of the zone's polygon parts —
+constant per part, so the volume top follows the terrain instead of
 sitting flat at the published altitude; a panel note discloses that, and
 the popup always states the published limit verbatim. With terrain off or
 failed, extrusion measures from sea level, where AMSL is again exact and
