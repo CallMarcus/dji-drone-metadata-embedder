@@ -667,9 +667,16 @@ function gazeHighlight(entries) {
 
 function gazeLookup(ev) {
   const lineIds = flights.map(f => f.id).filter(id => map.getLayer(id));
-  if (lineIds.length
-      && map.queryRenderedFeatures(ev.point, { layers: lineIds }).length) {
-    return;                    // the flight line owns this click
+  // #424: airspace zone volumes/footprints are also click targets with their
+  // own published-facts popup -- same "owns this click" deferral the flight
+  // line already gets, so clicking a zone never doubles up with an unrelated
+  // gaze/no-footprint popup underneath it.
+  const ownedIds = lineIds.concat(
+    ['airspace-volume', 'airspace-volume-entered', 'airspace-footprint']
+      .filter(id => map.getLayer(id)));
+  if (ownedIds.length
+      && map.queryRenderedFeatures(ev.point, { layers: ownedIds }).length) {
+    return;                    // another layer's click handler owns this click
   }
   if (gazePopup) gazePopup.remove();   // see gazePopup's own comment above
   const el = document.createElement('div');
