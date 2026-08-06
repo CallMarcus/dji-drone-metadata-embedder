@@ -109,7 +109,7 @@ def test_airspace_overlays_the_3d_map(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     html = (d / "flightmap-3d.html").read_text(encoding="utf-8")
     assert 'id="airspace-data"' in html
-    assert "airspace-volume" in html
+    assert "airspaceFeatures" in html
     assert fake.calls == 1
 
 

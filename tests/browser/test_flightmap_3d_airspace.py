@@ -118,6 +118,29 @@ def test_zone_click_opens_published_facts_popup(serve_map, page):
         "upper limit: not stated")
 
 
+def test_entered_zone_lands_in_the_entered_layer(serve_map, page):
+    entered = [{"flight": "DJI_0001", "entry_utc": "2026-06-15 12:00:10 UTC",
+                "exit_utc": "2026-06-15 12:00:30 UTC",
+                "max_rel_alt_m": 45.0, "max_amsl_m": 145.0, "time_note": None}]
+    html = flights_to_3d_html(
+        [_flight()], "t", airspace_json=_overlay([_zone(entered=entered)]))
+    serve_map(html, terrain_stub=100.0)
+    _wait_layers(page)
+    feats = _vol_features(page)
+    assert len(feats) == 1
+    assert feats[0]["properties"]["entered"] is True
+    # The twin-layer filters partition the source on `entered`: assert the
+    # filter expressions directly rather than queryRenderedFeatures, which
+    # can read empty under SwiftShader's cold-render timing in CI and would
+    # then pass regardless of whether the filters were swapped or wrong.
+    assert page.evaluate(
+        "() => map.getFilter('airspace-volume-entered')"
+    ) == ["get", "entered"]
+    assert page.evaluate(
+        "() => map.getFilter('airspace-volume')"
+    ) == ["!", ["get", "entered"]]
+
+
 def test_airspace_toggle_hides_all_layers(serve_map, page):
     html = flights_to_3d_html(
         [_flight()], "t", airspace_json=_overlay([_zone()]))

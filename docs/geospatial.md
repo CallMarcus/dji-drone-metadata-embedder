@@ -452,10 +452,12 @@ On the 3D map, zones with a published ceiling rise from the terrain as
 translucent volumes, so you can see a flight thread pass under or over
 them. Ceilings published above ground level (all FAA grid cells) are exact
 by construction. Ceilings published above mean sea level are converted
-using the terrain elevation at the zone's centre — an approximation the
-map notes openly; the popup always states the published limit verbatim.
-Zones with no published ceiling stay flat on the terrain: the map never
-draws a height nobody published.
+using the terrain elevation at the centre of each zone polygon — an
+approximation the map notes openly; the popup always states the
+published limit verbatim. Zones with no published ceiling stay flat on
+the terrain: the map never draws a height nobody published. Inside a
+zone, clicking shows the zone's facts; untick "Airspace zones" in the
+panel to use the map's click-to-look-up-the-camera view instead.
 
 ## Photo map (`photomap`)
 

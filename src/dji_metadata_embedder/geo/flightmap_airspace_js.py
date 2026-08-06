@@ -75,8 +75,12 @@ function syncZoneLabels() {
   const show = map.getZoom() >= AIRSPACE_LABEL_MIN_ZOOM;
   labeledPolys.forEach(lp => {
     if (show && !lp.poly.getTooltip()) {
-      lp.poly.bindTooltip(lp.text, { permanent: true, direction: 'center',
-                                     className: 'airspace-label' });
+      // esc() pins the invariant: label text must never reach the DOM
+      // unescaped, even though today's VerticalLimit.label() emits only
+      // number+unit+datum.
+      lp.poly.bindTooltip(esc(lp.text),
+        { permanent: true, direction: 'center',
+          className: 'airspace-label' });
     } else if (!show && lp.poly.getTooltip()) {
       lp.poly.unbindTooltip();
     }

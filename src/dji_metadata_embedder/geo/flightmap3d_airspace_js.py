@@ -141,8 +141,8 @@ function mountAirspacePanel() {
   const notes = airspace.notes.slice();
   if (hasAmslVolume()) {
     notes.push('AMSL ceiling volumes are approximated from the terrain ' +
-               'elevation at each zone centre; popups state the ' +
-               'published limits.');
+               'elevation at the centre of each zone polygon; popups ' +
+               'state the published limits.');
   }
   if (notes.length) {
     const div = document.createElement('div');
