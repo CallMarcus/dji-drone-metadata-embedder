@@ -428,21 +428,34 @@ already reports.
 ### Airspace overlay (`--airspace`)
 
 `dji-embed flightmap FLIGHTS --airspace` overlays the official airspace zones
-for the flight area on the 2D HTML map — FAA UAS Facility Maps in the US,
-ED-269 UAS geographical zones where a national feed is available (currently
-Luxembourg, Finland and Switzerland). Zones draw in one neutral style; clicking one shows
+for the flight area on the HTML maps — the flat map and the 3D terrain view
+(`--3d`) — FAA UAS Facility Maps in the US, ED-269 UAS geographical zones
+where a national feed is available (currently Luxembourg, Finland and
+Switzerland). Zones draw in one neutral style; clicking one shows
 the published facts: restriction class, vertical limits (or "not stated"),
 applicability windows, and the feed, license and fetch time. Zones the
 flight entered get a slightly stronger outline plus the entry/exit times and
 maximum heights in the popup. The map states facts and makes no
 determination.
 
+On the flat map, zones with a published ceiling also carry a small ceiling
+label once you zoom in past the point where a metro-area grid would drown
+the map in text.
+
 Like `-f record`, the flag is the opt-in for network access: every fetch is
 announced before it happens, responses are cached in `airspace-cache/`
 beside the output (`--airspace-refresh` refetches), and areas without a
 supported feed get an honest "no data available" note on the map itself.
-`--airspace` needs exact coordinates, so it refuses `--redact`; the 3D map
-does not support the overlay yet.
+`--airspace` needs exact coordinates, so it refuses `--redact`.
+
+On the 3D map, zones with a published ceiling rise from the terrain as
+translucent volumes, so you can see a flight thread pass under or over
+them. Ceilings published above ground level (all FAA grid cells) are exact
+by construction. Ceilings published above mean sea level are converted
+using the terrain elevation at the zone's centre — an approximation the
+map notes openly; the popup always states the published limit verbatim.
+Zones with no published ceiling stay flat on the terrain: the map never
+draws a height nobody published.
 
 ## Photo map (`photomap`)
 
