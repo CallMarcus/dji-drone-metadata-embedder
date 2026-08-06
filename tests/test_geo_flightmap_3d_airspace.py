@@ -21,13 +21,16 @@ def test_3d_html_embeds_airspace_when_given():
         airspace_json={"zones": [], "notes": [], "covered": True},
     )
     assert 'id="airspace-data"' in html
-    assert "airspace-volume" in html
+    assert "airspaceFeatures" in html
 
 
 def test_3d_html_omits_airspace_by_default():
     html = flights_to_3d_html([_flight()], "t")
     assert 'id="airspace-data"' not in html
-    assert "airspace-volume" not in html
+    # Not "airspace-volume": the gaze click-arbitration guard names the layer
+    # ids in every 3D map's JS (and no-ops when the layers don't exist);
+    # airspaceFeatures is defined only by the embedded airspace module.
+    assert "airspaceFeatures" not in html
 
 
 def test_airspace_data_block_escapes_script_breakout():
