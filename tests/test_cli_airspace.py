@@ -98,10 +98,19 @@ def test_airspace_refuses_redact(tmp_path):
     assert "exact coordinates" in result.output
 
 
-def test_airspace_refuses_3d(tmp_path):
+def test_airspace_overlays_the_3d_map(tmp_path, monkeypatch):
+    # #424: the 3D map takes the same overlay the 2D map does.
+    fake = FakeTransport([_lux_body()])
+    monkeypatch.setattr(airspace_fetch, "urlopen", fake)
     d = _srt_dir(tmp_path)
-    result = CliRunner().invoke(main, ["flightmap", str(d), "--airspace", "--3d"])
-    assert result.exit_code != 0
+    result = CliRunner().invoke(
+        main, ["flightmap", str(d), "--airspace", "--3d"]
+    )
+    assert result.exit_code == 0, result.output
+    html = (d / "flightmap-3d.html").read_text(encoding="utf-8")
+    assert 'id="airspace-data"' in html
+    assert "airspace-volume" in html
+    assert fake.calls == 1
 
 
 def test_airspace_refuses_non_map_formats(tmp_path):

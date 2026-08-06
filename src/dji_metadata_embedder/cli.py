@@ -816,11 +816,11 @@ def photomap(
         ["html", "kml", "geojson", "record", "all"], case_sensitive=False
     ),
     default="html", show_default=True,
-    help="Map output format. 'record' (also written by 'all') writes a printable "
-         "flight record, fetching airspace data from official feeds (FAA / "
-         "ED-269) and terrain tiles from Mapterhorn. Along with --airspace, "
-         "these are the command's only network access; responses are cached "
-         "beside the output.",
+    help="Map output format. 'record' (also written by 'all') writes a "
+         "printable flight record; building it fetches airspace data from "
+         "official feeds (FAA / ED-269) and terrain tiles from Mapterhorn. "
+         "These fetches — and --airspace's — are the command's only network "
+         "access; responses are cached beside the output.",
 )
 @click.option(
     "--airspace-refresh", is_flag=True,
@@ -829,8 +829,9 @@ def photomap(
 @click.option(
     "--airspace", is_flag=True,
     help="Overlay official airspace zones (FAA UAS Facility Maps / ED-269) "
-         "on the 2D HTML map — announced, cached network fetches, exactly "
-         "like -f record. Zones draw in one neutral style; the map states "
+         "on the HTML map, flat or --3d — announced, cached network fetches, "
+         "exactly like -f record. Zones draw in one neutral style (in 3D, "
+         "published ceilings become translucent volumes); the map states "
          "facts and makes no determination.",
 )
 @click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
@@ -979,14 +980,9 @@ def flightmap(
                     "airspace features need exact coordinates; drop --redact "
                     "or --airspace"
                 )
-            if three_d:
-                raise click.UsageError(
-                    "--airspace draws on the flat 2D map; a 3D zone overlay is "
-                    "a planned follow-up — drop --3d"
-                )
             if fmt.lower() not in ("html", "all"):
                 raise click.UsageError(
-                    "--airspace overlays the 2D HTML map (use -f html or all); "
+                    "--airspace overlays the HTML maps (use -f html or all); "
                     "the flight record already includes airspace"
                 )
         if airspace_refresh and not (
@@ -1121,7 +1117,8 @@ def flightmap(
                 if f == "html":
                     if three_d:
                         write_flights_3d_html(
-                            tracks, out, map_title, redact=redact.lower()
+                            tracks, out, map_title, redact=redact.lower(),
+                            airspace_json=overlay_json,
                         )
                     else:
                         write_flights_html(
