@@ -26,6 +26,7 @@ from html import escape
 from pathlib import Path
 
 from .flightmap import flights_to_geojson
+from .flightmap3d_airspace_js import AIRSPACE_3D_JS
 from .flightmap3d_gaze_js import GAZE_JS
 from .flightmap_js import FLIGHT_POPUP_JS
 from .track import Track
@@ -112,7 +113,7 @@ _TEMPLATE = """<!DOCTYPE html>
 <div id="map"></div>
 <script type="application/json" id="flight-data">
 {data}
-</script>
+</script>{airspace_block}
 <script src="https://unpkg.com/maplibre-gl@{maplibre}/dist/maplibre-gl.js" integrity="{js_sri}"
         crossorigin=""></script>
 <script>
@@ -1029,20 +1030,36 @@ function syncCrossfadePlayback() {
   // A slideshow is honest; a decoder falling silently behind is not.
   if (!v.paused) v.pause();
 }
+__AIRSPACE_3D_JS__
 """
 
 
 def flights_to_3d_html(
-    tracks: list[Track], title: str, redact: str = "none"
+    tracks: list[Track], title: str, redact: str = "none",
+    airspace_json: dict | None = None,
 ) -> str:
-    """Return a complete 3D-terrain HTML flight map (draped tracks)."""
+    """Return a complete 3D-terrain HTML flight map (draped tracks).
+
+    ``airspace_json`` (#424): the overlay dict from
+    :func:`~.airspace.overlay.zones_to_overlay_json`; None renders the
+    map exactly as before.
+    """
     geojson = flights_to_geojson(tracks, redact=redact)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
+    airspace_block = airspace_js = ""
+    if airspace_json is not None:
+        adata = json.dumps(airspace_json).replace("<", "\\u003c")
+        airspace_block = (
+            '\n<script type="application/json" id="airspace-data">\n'
+            f"{adata}\n</script>"
+        )
+        airspace_js = AIRSPACE_3D_JS
     app_js = (
         _APP_JS.replace("__SHARED_JS__", FLIGHT_POPUP_JS)
         .replace("__GAZE_JS__", GAZE_JS)
+        .replace("__AIRSPACE_3D_JS__", airspace_js)
         .replace("__OSM_TILES__", _OSM_TILES)
         .replace("__MAPTERHORN__", _MAPTERHORN_TILEJSON)
     )
@@ -1052,16 +1069,21 @@ def flights_to_3d_html(
         css_sri=_MAPLIBRE_CSS_SRI,
         js_sri=_MAPLIBRE_JS_SRI,
         data=data,
+        airspace_block=airspace_block,
         app_js=app_js,
     )
 
 
 def write_flights_3d_html(
-    tracks: list[Track], output_path: Path, title: str, redact: str = "none"
+    tracks: list[Track], output_path: Path, title: str, redact: str = "none",
+    airspace_json: dict | None = None,
 ) -> Path:
     """Write *tracks* as a 3D HTML map to *output_path* and return it."""
     output_path.write_text(
-        flights_to_3d_html(tracks, title, redact=redact), encoding="utf-8"
+        flights_to_3d_html(
+            tracks, title, redact=redact, airspace_json=airspace_json
+        ),
+        encoding="utf-8",
     )
     logger.info("3D HTML flight map created: %s", output_path)
     return output_path
