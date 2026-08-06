@@ -8,13 +8,19 @@ same layer control, and ``bringToBack()`` puts them under the tracks that
 were just added. One neutral style for every zone — the published
 restriction class is popup data, not a color: this map states facts and
 makes no determination.
+
+``AIRSPACE_POPUP_JS`` (the popup builder alone) is shared with the 3D
+map's :mod:`.flightmap3d_airspace_js` (#424): both maps must show the
+same published facts for the same zone.
+
+Ceiling labels (#424) are zoom-gated: a metro-area FAA grid is 300+
+cells, so below ``AIRSPACE_LABEL_MIN_ZOOM`` the labels come off rather
+than shout over the map.
 """
 
 from __future__ import annotations
 
-AIRSPACE_OVERLAY_JS = """\
-const airspace = JSON.parse(document.getElementById('airspace-data').textContent);
-
+AIRSPACE_POPUP_JS = """\
 function zonePopupHtml(z) {
   let html = `<div class="flight-popup"><b>${esc(z.name)}</b>`;
   if (z.id && z.id !== z.name) html += `<br>${esc(z.id)}`;
@@ -40,8 +46,14 @@ function zonePopupHtml(z) {
   html += '</div>';
   return html;
 }
+"""
+
+AIRSPACE_OVERLAY_JS = AIRSPACE_POPUP_JS + """\
+const airspace = JSON.parse(document.getElementById('airspace-data').textContent);
+const AIRSPACE_LABEL_MIN_ZOOM = 11;
 
 const zoneGroup = L.layerGroup();
+const labeledPolys = [];
 airspace.zones.forEach(z => {
   const entered = z.entered.length > 0;
   const style = { color: '#4a6a8a', weight: entered ? 3 : 1.5,
@@ -52,10 +64,30 @@ airspace.zones.forEach(z => {
     // holes attach to every exterior — right for single-volume zones,
     // which is every zone either live feed publishes today.
     const rings = [ring].concat(z.holes || []);
-    L.polygon(rings.map(r => r.map(c => [c[1], c[0]])), style)
+    const poly = L.polygon(rings.map(r => r.map(c => [c[1], c[0]])), style)
       .bindPopup(zonePopupHtml(z)).addTo(zoneGroup);
+    // Only a STATED ceiling earns a label — an unlabelled zone still has
+    // its "not stated" popup, and a label must never invent a limit.
+    if (z.upper) labeledPolys.push({ poly: poly, text: z.upper });
   });
 });
+function syncZoneLabels() {
+  const show = map.getZoom() >= AIRSPACE_LABEL_MIN_ZOOM;
+  labeledPolys.forEach(lp => {
+    if (show && !lp.poly.getTooltip()) {
+      lp.poly.bindTooltip(lp.text, { permanent: true, direction: 'center',
+                                     className: 'airspace-label' });
+    } else if (!show && lp.poly.getTooltip()) {
+      lp.poly.unbindTooltip();
+    }
+  });
+}
+if (labeledPolys.length) {
+  // Runs once now (harmless before the view is set: getZoom() is NaN and
+  // compares false) and again after fitBounds/setView fires zoomend.
+  map.on('zoomend', syncZoneLabels);
+  syncZoneLabels();
+}
 if (airspace.covered) {
   // Registered even when empty: "fetched and empty" must stay
   // distinguishable from "never fetched".
