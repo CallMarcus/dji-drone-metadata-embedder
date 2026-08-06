@@ -109,13 +109,22 @@ def test_zone_click_opens_published_facts_popup(serve_map, page):
         [_flight()], "t", airspace_json=_overlay([zone]))
     serve_map(html, terrain_stub=100.0)
     _wait_layers(page)
+    # Layer existence is not renderedness: on the CI software renderer the
+    # click can beat the first frame that makes the footprint hit-testable,
+    # and a click that queryRenderedFeatures can't see opens no popup.
+    page.wait_for_function(
+        "() => map.queryRenderedFeatures({layers: ['airspace-footprint']})"
+        ".length > 0",
+        timeout=20000,
+    )
     pos = page.evaluate(
         "() => { const p = map.project([20.005, 10.005]);"
         " return { x: p.x, y: p.y }; }")
     page.mouse.click(pos["x"], pos["y"])
-    expect(page.locator(".flight-popup")).to_contain_text("Test zone")
     expect(page.locator(".flight-popup")).to_contain_text(
-        "upper limit: not stated")
+        "Test zone", timeout=10000)
+    expect(page.locator(".flight-popup")).to_contain_text(
+        "upper limit: not stated", timeout=10000)
 
 
 def test_entered_zone_lands_in_the_entered_layer(serve_map, page):
