@@ -457,7 +457,8 @@ approximation the map notes openly; the popup always states the
 published limit verbatim. Zones with no published ceiling stay flat on
 the terrain: the map never draws a height nobody published. Inside a
 zone, clicking shows the zone's facts; untick "Airspace zones" in the
-panel to use the map's click-to-look-up-the-camera view instead.
+panel to get the gaze lookup back — clicking a spot to see which
+seconds of recording covered it.
 
 ## Photo map (`photomap`)
 
