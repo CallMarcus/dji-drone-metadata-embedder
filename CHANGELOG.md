@@ -53,6 +53,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its absolute path, the same rule the launch button already followed
   (#454).
 
+## [2.6.0] - 2026-08-07
+
+### Added
+
+- **airspace**: 3D zone volumes + zoom-gated 2D ceiling labels (#424) (#459) (4e4526d)
+- **airspace**: Switzerland via BAZL's ED-269 feed (#456) (#457) (dc3f760)
+
+### Fixed
+
+- **cli**: Platform-aware upgrade hint, and upgrade docs (#448) (#449) (50b7640)
+- **gui**: Surface a denied macOS Terminal automation consent (#443) (#453) (ba4f60b)
+- **gui**: The --help fallback names a command the platform can run (#454) (#455) (ef1be19)
+
+### Documentation
+
+- Auto-generate changelog for v2.5.0 (#447) (bacbeff)
+
+### CI/CD
+
+- Bump the actions group across 1 directory with 5 updates (#434) (76daf8b)
+
+### Maintenance
+
+- **deps**: Bump cryptography 48.0.1 -> 50.0.0 (Dependabot alert 4) (#458) (d720151)
+- **deps-dev**: Bump hatchling from 1.30.1 to 1.31.0 in the development-deps group (#436) (d76228d)
+
+### Other
+
+- Prepare version 2.6.0 (#460) (668d61f)
+
+
 ## [2.5.0] - 2026-08-01
 
 ### Added
