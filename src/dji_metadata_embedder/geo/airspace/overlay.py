@@ -16,7 +16,7 @@ from datetime import datetime
 from ..track import Track
 from .evaluate import evaluate
 from .fetch import AirspaceData
-from .model import Applicability, VerticalLimit
+from .model import Applicability, M_PER_FT, VerticalLimit
 
 _MTIME_NOTE = (
     "times derived from file modification times, not telemetry datetimes"
@@ -30,6 +30,17 @@ def _fmt_utc(dt: datetime | None) -> str | None:
 
 def _fmt_limit(limit: VerticalLimit | None) -> str | None:
     return limit.label() if limit is not None else None
+
+
+def _upper_numeric(
+    limit: VerticalLimit | None,
+) -> tuple[float | None, str | None]:
+    """Published ceiling in metres + datum for the 3D volumes (#424);
+    (None, None) when not stated — the 3D map renders those flat."""
+    if limit is None:
+        return None, None
+    metres = limit.value * M_PER_FT if limit.unit == "ft" else limit.value
+    return metres, limit.reference
 
 
 def _fmt_window(win: Applicability) -> str:
@@ -71,12 +82,15 @@ def zones_to_overlay_json(
         for zone in data.zones:
             key = (zone.source.feed, zone.identifier)
             if key not in zone_dicts:
+                upper_m, upper_ref = _upper_numeric(zone.upper)
                 zone_dicts[key] = {
                     "id": zone.identifier,
                     "name": zone.name,
                     "restriction": zone.restriction,
                     "lower": _fmt_limit(zone.lower),
                     "upper": _fmt_limit(zone.upper),
+                    "upper_m": upper_m,
+                    "upper_ref": upper_ref,
                     "applicability": [
                         _fmt_window(w) for w in zone.applicability
                     ],

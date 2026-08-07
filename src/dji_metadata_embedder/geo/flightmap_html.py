@@ -240,6 +240,10 @@ if (runs.length && maxT > 0) {
 _AIRSPACE_CSS = """  .airspace-note { background: rgba(255,255,255,.85);
                    border-radius: 4px; padding: 4px 8px;
                    font: 12px/1.5 sans-serif; max-width: 320px; }
+  .airspace-label { background: rgba(255,255,255,.75); border: none;
+                    box-shadow: none; color: #2b3a4a; padding: 1px 4px;
+                    font: 11px/1.2 sans-serif; }
+  .airspace-label::before { display: none; }
 """
 
 

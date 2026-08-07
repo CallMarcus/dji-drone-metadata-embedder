@@ -34,7 +34,7 @@ it's a handful of copy-paste commands. For a guided tour see
   telemetry lines up.
 - **Flight records** — `dji-embed flightmap -f record` writes a printable
   logbook with airspace facts (FAA / ED-269) and honestly-labelled heights,
-  and `--airspace` overlays the same zones on the interactive map.
+  and `--airspace` overlays the same zones on the interactive maps — as translucent ceiling-height volumes in the 3D view.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
