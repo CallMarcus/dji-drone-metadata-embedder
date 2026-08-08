@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -60,36 +59,43 @@ def test_scan_panos_no_panos_raises(monkeypatch, tmp_path):
         pe.scan_panos(tmp_path)
 
 
-def _fake_exiftool(tmp_path: Path, monkeypatch, log: Path,
-                   read_json: str) -> None:
-    """A shim exiftool that logs argv (one element per line) and answers
-    -json reads."""
-    shim = tmp_path / "exiftool"
-    shim.write_text(
-        "#!/bin/sh\n"
-        f'printf \'%s\\n\' "$@" >> "{log}"\n'
-        'case "$*" in *-json*) cat <<\'EOF\'\n'
-        f"{read_json}\n"
-        "EOF\n"
-        ";; esac\n"
-    )
-    shim.chmod(0o755)
-    monkeypatch.setenv("DJIEMBED_EXIFTOOL_PATH", str(shim))
+def _fake_exiftool(monkeypatch, read_json: str,
+                   returncode: int = 0, stderr: str = "") -> list[list[str]]:
+    """Fake ``subprocess.run`` inside panoedit, recording every argv.
+
+    A monkeypatch rather than an on-disk shim script: a ``#!/bin/sh`` file
+    is not executable on the Windows CI leg (WinError 193), and the write
+    path's real-exiftool behaviour is covered end-to-end by
+    tests/browser/test_panoedit_editor.py.
+    """
+    calls: list[list[str]] = []
+
+    class _Result:
+        def __init__(self, args: list[str]):
+            self.returncode = returncode
+            self.stderr = stderr
+            self.stdout = read_json if "-json" in args else ""
+
+    def fake_run(args, **kwargs):
+        calls.append(list(args))
+        return _Result(args)
+
+    monkeypatch.setattr(pe.subprocess, "run", fake_run)
+    return calls
 
 
 def test_write_initial_view_argv_and_verify(monkeypatch, tmp_path):
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
-    log = tmp_path / "argv.log"
     verified = json.dumps([{
         "InitialViewHeadingDegrees": 123.456,
         "InitialViewPitchDegrees": -4.0,
         "InitialHorizontalFOVDegrees": 100.0,
         "PoseHeadingDegrees": 90.0,
     }])
-    _fake_exiftool(tmp_path, monkeypatch, log, verified)
+    calls = _fake_exiftool(monkeypatch, verified)
     result = pe.write_initial_view(target, heading=123.456, pitch=-4.0, hfov=100.0)
-    argv = log.read_text().splitlines()
+    argv = [a for call in calls for a in call]
     assert "-XMP-GPano:InitialViewHeadingDegrees=123.456" in argv
     assert "-XMP-GPano:InitialViewPitchDegrees=-4.0" in argv
     assert "-XMP-GPano:InitialHorizontalFOVDegrees=100.0" in argv
@@ -102,9 +108,7 @@ def test_write_initial_view_argv_and_verify(monkeypatch, tmp_path):
 def test_write_initial_view_failure_raises(monkeypatch, tmp_path):
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
-    shim = tmp_path / "exiftool"
-    shim.write_text("#!/bin/sh\necho 'Error: not writable' >&2\nexit 1\n")
-    shim.chmod(0o755)
-    monkeypatch.setenv("DJIEMBED_EXIFTOOL_PATH", str(shim))
+    _fake_exiftool(monkeypatch, "", returncode=1,
+                   stderr="Error: not writable")
     with pytest.raises(pe.PanoEditError, match="not writable"):
         pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
