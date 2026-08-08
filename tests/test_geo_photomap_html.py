@@ -487,3 +487,25 @@ def test_html_alternate_tile_style_swaps_provider():
     assert "CyclOSM" in html
     assert "tile.openstreetmap.org" not in html
     assert "__TILE_LAYER__" not in html
+
+
+def test_vthumb_prop_and_popup_title():
+    from dji_metadata_embedder.geo.photomap import photos_to_geojson
+
+    p = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="p.jpg",
+                   thumbnail_b64="QUJD", is_pano=True, pano_yaw=5.0,
+                   thumb_is_view=True)
+    geo = photos_to_geojson([p], include_thumbnails=True)
+    assert geo["features"][0]["properties"]["vthumb"] is True
+    html = photos_to_html([p], title="t")
+    assert "Opening view of the panorama" in html
+    assert "Full 360" in html
+
+
+def test_no_vthumb_prop_for_strip_thumbs():
+    from dji_metadata_embedder.geo.photomap import photos_to_geojson
+
+    p = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="p.jpg",
+                   thumbnail_b64="QUJD", is_pano=True, pano_yaw=5.0)
+    geo = photos_to_geojson([p], include_thumbnails=True)
+    assert "vthumb" not in geo["features"][0]["properties"]

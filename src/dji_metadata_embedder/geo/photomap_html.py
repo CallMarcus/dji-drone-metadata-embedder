@@ -45,7 +45,8 @@ _PANNELLUM_JS_SRI = "sha256-oosvezOf0KYCxnad8dymrUOvc7yMalvmcglxUonBKpo="
 # not leak in its source what it hides in its UI. thumb/link/pano always
 # survive (the thumbnail is the photo itself, the link powers the 360°
 # viewer, and pano is marker-type metadata), as do the pano initial-view
-# props (yaw/pitch/hfov, #309 — view configuration, not personal data).
+# props (yaw/pitch/hfov, #309 — view configuration, not personal data) and
+# vthumb (#441 — marks the thumb as an opening-view crop, same category).
 POPUP_FIELDS = ("name", "timestamp", "camera", "altitude", "credit")
 _FIELD_TO_PROP = {
     "name": "name",
@@ -304,7 +305,12 @@ function buildPopup(f) {
   const p = f.properties || {};
   let inner = '';
   if (p.thumb) {
-    inner += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt="">`;
+    // Honest thumbnails (#441): a square opening-view crop and the full
+    // 2:1 strip look nothing alike — the title says which one this is.
+    const kind = p.vthumb ? 'Opening view of the panorama'
+      : (p.pano ? 'Full 360° panorama' : '');
+    inner += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt=""` +
+      (kind ? ` title="${kind}"` : '') + `>`;
   }
   // Every text line is presence-guarded: --popup-fields (issue #296) strips
   // properties from the embedded data, so nothing here may assume one exists.
