@@ -46,7 +46,6 @@ from .geo import (
 )
 from .geo.airspace import fetch as airspace_fetch
 from .geo.panoedit import PanoEditError, run_editor
-from .geo.panorender import apply_view_thumbnails
 from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
@@ -761,7 +760,19 @@ def photomap(
                 f"None of the {total} photos in {src} carry GPS coordinates"
             )
         if pano_view_thumbs:
-            replaced = apply_view_thumbnails(points, src)
+            # Imported here, not at module load: panorender needs Pillow
+            # (the [terrain] extra) and a base install must keep working
+            # when the flag is never used (v2.7.0 shipped this import at
+            # the top and broke every bare pip install).
+            from .geo.panorender import (
+                PanorenderUnavailable,
+                apply_view_thumbnails,
+            )
+
+            try:
+                replaced = apply_view_thumbnails(points, src)
+            except PanorenderUnavailable as e:
+                raise click.ClickException(str(e))
             if replaced and not quiet:
                 click.echo(
                     f"Rendered {replaced} opening-view thumbnail"

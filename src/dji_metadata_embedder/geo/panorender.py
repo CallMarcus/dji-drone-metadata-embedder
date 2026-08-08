@@ -15,11 +15,34 @@ import logging
 from math import asin, atan2, cos, pi, radians, sin, sqrt, tan
 from pathlib import Path
 
-from PIL import Image
-
 from .photomap import PhotoPoint
 
 logger = logging.getLogger(__name__)
+
+
+class PanorenderUnavailable(RuntimeError):
+    """Pillow is missing — opening-view thumbnails cannot be rendered."""
+
+
+def _pil_image():
+    """Import Pillow lazily, mirroring geo/terrain.py.
+
+    Pillow ships in the ``[terrain]`` extra, not the base install; importing
+    it at module load broke every bare ``pip install`` in v2.7.0 (the CLI
+    imports this module's caller). The import must happen only when an
+    opening-view render is actually requested, and fail with instructions
+    rather than a traceback.
+    """
+    try:
+        from PIL import Image  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise PanorenderUnavailable(
+            "opening-view thumbnails need Pillow, which is not installed. "
+            "Install the terrain extra: "
+            "pip install 'dji-drone-metadata-embedder[terrain]' "
+            "(pipx: pipx inject dji-drone-metadata-embedder pillow)"
+        ) from exc
+    return Image
 
 # The source is downscaled to this width before sampling: a 320 px crop of
 # a <=170 degree view never needs more than ~2x that angular resolution,
@@ -40,7 +63,11 @@ def render_view(
     ``pano_yaw``), so no pose handling is needed here — the equirect's own
     frame is the reference. Pitch/hfov are clamped to the same physical
     ranges the viewer enforces.
+
+    Raises :class:`PanorenderUnavailable` when Pillow is absent — that is
+    a setup problem to surface, never a per-file failure to swallow.
     """
+    Image = _pil_image()
     try:
         with Image.open(path) as im:
             im.draft("RGB", (_MAX_SRC_WIDTH, _MAX_SRC_WIDTH // 2))
