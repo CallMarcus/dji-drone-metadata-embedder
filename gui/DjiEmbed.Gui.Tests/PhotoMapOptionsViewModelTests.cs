@@ -49,6 +49,7 @@ public class PhotoMapOptionsViewModelTests
         {
             Recursive = false,
             LinkOriginals = false,
+            PanoViewThumbs = true,
             ShowCamera = false,
             ShowAltitude = false,
             ExportAll = true,
@@ -65,6 +66,7 @@ public class PhotoMapOptionsViewModelTests
             TileStyle: "opentopomap",
             Privacy: MapPrivacy.Fuzz,
             LinkOriginals: false,
+            PanoViewThumbs: true,
             Popup: new PopupFields(Name: true, Timestamp: true, Camera: false,
                                    Altitude: false, Credit: true),
             ExportAll: true,

@@ -35,11 +35,15 @@ public sealed record PopupFields(
 /// Off produces a self-contained map with no local paths in it.</param>
 /// <param name="ExportAll">Also write KML + GeoJSON (<c>--format all</c>); the
 /// CLI format is single-valued, so this is one honest toggle, not per-format.</param>
+/// <param name="PanoViewThumbs">Popup thumbnails for tagged panoramas are
+/// square opening-view crops (<c>--pano-view-thumbs</c>, #441) instead of the
+/// full 2:1 strip. Off by default, matching the CLI.</param>
 public sealed record PhotoMapOptions(
     bool Recursive,
     string TileStyle,
     MapPrivacy Privacy,
     bool LinkOriginals,
+    bool PanoViewThumbs,
     PopupFields Popup,
     bool ExportAll,
     string Title,
@@ -50,6 +54,7 @@ public sealed record PhotoMapOptions(
         TileStyle: "osm",
         Privacy: MapPrivacy.Keep,
         LinkOriginals: true,
+        PanoViewThumbs: false,
         Popup: PopupFields.All,
         ExportAll: false,
         Title: "",

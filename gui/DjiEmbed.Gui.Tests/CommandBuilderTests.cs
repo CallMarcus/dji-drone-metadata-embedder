@@ -498,17 +498,33 @@ public class CommandBuilderTests
     }
 
     [Fact]
+    public void Photo_map_emits_pano_view_thumbs_when_set()
+    {
+        var argv = CommandBuilder.PhotoMap("/x",
+            PhotoMapOptions.Defaults with { PanoViewThumbs = true });
+        Assert.Contains("--pano-view-thumbs", argv);
+    }
+
+    [Fact]
+    public void Photo_map_default_omits_pano_view_thumbs()
+    {
+        Assert.DoesNotContain("--pano-view-thumbs",
+            CommandBuilder.PhotoMap("/x", PhotoMapOptions.Defaults));
+    }
+
+    [Fact]
     public void Photo_map_all_options_compose_in_a_stable_order()
     {
         var opts = new PhotoMapOptions(
             Recursive: true, TileStyle: "cyclosm", Privacy: MapPrivacy.Fuzz,
-            LinkOriginals: true,
+            LinkOriginals: true, PanoViewThumbs: true,
             Popup: new PopupFields(Name: true, Timestamp: false, Camera: true,
                                     Altitude: false, Credit: true),
             ExportAll: true, Title: "T", Output: "/o.html");
         Assert.Equal(
             ["photomap", "/x", "-r", "--tile-style", "cyclosm", "--redact", "fuzz",
-             "--link-originals", "--popup-fields", "name,camera,credit",
+             "--link-originals", "--pano-view-thumbs",
+             "--popup-fields", "name,camera,credit",
              "--format", "all", "--title", "T", "--output", "/o.html"],
             CommandBuilder.PhotoMap("/x", opts));
     }

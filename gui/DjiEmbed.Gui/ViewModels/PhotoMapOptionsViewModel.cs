@@ -33,6 +33,9 @@ public partial class PhotoMapOptionsViewModel : ViewModelBase
     public partial bool LinkOriginals { get; set; } = true;
 
     [ObservableProperty]
+    public partial bool PanoViewThumbs { get; set; }
+
+    [ObservableProperty]
     public partial bool ShowName { get; set; } = true;
 
     [ObservableProperty]
@@ -85,6 +88,7 @@ public partial class PhotoMapOptionsViewModel : ViewModelBase
         TileStyle: SelectedTileStyle.Key,
         Privacy: SelectedPrivacy.Value,
         LinkOriginals: LinkOriginals,
+        PanoViewThumbs: PanoViewThumbs,
         Popup: new PopupFields(
             Name: ShowName,
             Timestamp: ShowTimestamp,

@@ -488,6 +488,11 @@
                                               Content="Link pins to the original photos"
                                               ToolTip.Tip="Needed for the 360° panorama viewer. Off writes a map that stands alone." />
 
+                                    <CheckBox Name="PanoViewThumbsCheck"
+                                              IsChecked="{Binding PhotoOptions.PanoViewThumbs}"
+                                              Content="Square pano thumbnails (opening view)"
+                                              ToolTip.Tip="Popup thumbnails show each panorama's saved opening view instead of the full 2:1 strip. Set views with the 360° views mode." />
+
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Popup details" Opacity="0.7"
                                                    FontSize="12" />

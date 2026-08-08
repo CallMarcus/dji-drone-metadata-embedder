@@ -139,6 +139,10 @@ public static class CommandBuilder
         {
             args.Add("--link-originals");
         }
+        if (opts.PanoViewThumbs)
+        {
+            args.Add("--pano-view-thumbs");
+        }
         if (PopupFieldsValue(opts.Popup) is { } popup)
         {
             args.Add("--popup-fields");
