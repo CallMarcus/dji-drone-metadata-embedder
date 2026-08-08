@@ -53,6 +53,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its absolute path, the same rule the launch button already followed
   (#454).
 
+## [2.7.0] - 2026-08-08
+
+### Added
+
+- 360° opening-view editor + view thumbnails (#440, #441) (#462) (5a04d8e)
+
+### Fixed
+
+- **tools**: Mtp-copy.ps1 finds RC 2 flight records — new path and prefix (#463) (ce3a21c)
+
+### Documentation
+
+- Auto-generate changelog for v2.6.0 (#461) (e5cd187)
+
+### Other
+
+- Prepare version 2.7.0 (#464) (e42acbf)
+
+
 ## [2.6.0] - 2026-08-07
 
 ### Added
