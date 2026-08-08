@@ -51,6 +51,8 @@ def render_view(
         if W < 2 or H < 2 or size < 1:
             return None
         px = src.load()
+        if px is None:
+            return None
         yaw = radians(yaw_deg)
         p = radians(max(-90.0, min(90.0, pitch_deg)))
         hfov = radians(max(10.0, min(170.0, hfov_deg)))
@@ -58,6 +60,8 @@ def render_view(
         cp, sp = cos(p), sin(p)
         out = Image.new("RGB", (size, size))
         opx = out.load()
+        if opx is None:
+            return None
         half = size / 2.0
         two_pi = 2.0 * pi
         for j in range(size):

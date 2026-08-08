@@ -532,6 +532,28 @@ stitcher, records where the image center points; without it the center is
 assumed to face North). `InitialViewPitchDegrees` tilts the opening view
 above/below the horizon.
 
+### Setting the opening view
+
+DJI cameras don't write initial-view tags in camera, and hand-typing
+ExifTool commands per pano doesn't scale, so there is an editor:
+
+```bash
+dji-embed panoedit /path/to/panoramas
+```
+
+This opens a local editor page (your machine only): drag and zoom each
+panorama to the view it should open with — the live readout shows the
+exact GPano values — then Save writes `InitialViewHeadingDegrees`,
+`InitialViewPitchDegrees` and `InitialHorizontalFOVDegrees` into the file
+with ExifTool and moves on to the next panorama. Each original is kept
+beside the file as `<name>_original`. In the desktop app this is the
+"360° views" mode.
+
+With views saved, `photomap --pano-view-thumbs` renders each tagged
+panorama's popup thumbnail as a square crop of that opening view instead
+of the distorted 2:1 strip (panoramas without a saved view keep the
+strip).
+
 Photos that carry `Artist`/`Copyright` EXIF (or the XMP Dublin Core
 equivalents) get an attribution line in their popup, and the 360° viewer
 shows it as a byline — add it once with

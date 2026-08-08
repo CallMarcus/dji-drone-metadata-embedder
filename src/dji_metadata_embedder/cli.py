@@ -1350,8 +1350,7 @@ def serve(
 
 
 @main.command()
-@click.argument("directory", type=click.Path(exists=True, file_okay=False,
-                                             path_type=Path))
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option("-r", "--recursive", is_flag=True,
               help="Include panoramas in subfolders.")
 @click.option("--port", type=int, default=0, show_default="random",
@@ -1369,7 +1368,7 @@ def serve(
          "the app that started it.",
 )
 def panoedit(
-    directory: Path,
+    directory: str,
     recursive: bool,
     port: int,
     no_browser: bool,
@@ -1388,7 +1387,7 @@ def panoedit(
     """
     try:
         run_editor(
-            directory,
+            Path(directory),
             recursive=recursive,
             port=port,
             open_browser=not no_browser,
