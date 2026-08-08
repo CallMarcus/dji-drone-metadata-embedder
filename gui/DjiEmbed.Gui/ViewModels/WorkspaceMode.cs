@@ -11,6 +11,7 @@ public enum WorkspaceModeKind
     Embed,
     Convert,
     Verify,
+    PanoEdit,
     Setup,
 }
 
@@ -52,6 +53,9 @@ public sealed record WorkspaceMode(
         new(WorkspaceModeKind.Verify, "Verify footage", "Check metadata",
             Sources: SourceKinds.Folder | SourceKinds.File,
             "Something went wrong while verifying the footage."),
+        new(WorkspaceModeKind.PanoEdit, "360° views", "Open view editor",
+            Sources: SourceKinds.Folder,
+            "The 360° view editor could not be started."),
         new(WorkspaceModeKind.Setup, "Setup", "Check my setup",
             Sources: SourceKinds.None,
             "The setup check could not be completed."),

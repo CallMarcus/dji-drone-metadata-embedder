@@ -37,6 +37,13 @@ public class CommandBuilderTests
     }
 
     [Fact]
+    public void Pano_edit_is_panoedit_folder()
+    {
+        string[] expected = ["panoedit", "/x"];
+        Assert.Equal(expected, CommandBuilder.Build(WorkspaceModeKind.PanoEdit, "/x"));
+    }
+
+    [Fact]
     public void No_mode_ever_includes_the_progress_flag()
     {
         foreach (var kind in Enum.GetValues<WorkspaceModeKind>())

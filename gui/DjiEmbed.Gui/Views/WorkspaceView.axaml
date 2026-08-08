@@ -906,6 +906,20 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Name="PanoEditOptionsPanel"
+                            IsVisible="{Binding IsPanoEditMode}"
+                            IsEnabled="{Binding !IsBusy}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <TextBlock Name="PanoEditHint"
+                                           TextWrapping="Wrap" Opacity="0.7"
+                                           FontSize="12"
+                                           Text="Pick the folder with your 360° panoramas. Drag each one to its best opening view, then Save — the view is written into the photo itself (a backup is kept beside it) and the photo map opens it that way." />
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Classes="zone" Text="ACTION" />
                     <Button Name="RunButton" Classes="Flat"
                             HorizontalAlignment="Stretch"

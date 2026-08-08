@@ -11,10 +11,19 @@ internal sealed class FakeMapServer(string? url) : IMapServer
 {
     public List<string> Requests { get; } = [];
 
+    public List<string> EditorRequests { get; } = [];
+
     public Task<string?> GetUrlAsync(
         string cliPath, string htmlPath, CancellationToken cancellationToken)
     {
         Requests.Add(htmlPath);
+        return Task.FromResult(url);
+    }
+
+    public Task<string?> GetEditorUrlAsync(
+        string cliPath, string folder, CancellationToken cancellationToken)
+    {
+        EditorRequests.Add(folder);
         return Task.FromResult(url);
     }
 }

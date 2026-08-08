@@ -15,4 +15,11 @@ public interface IMapServer
     /// OperationCanceledException, never as null.</summary>
     Task<string?> GetUrlAsync(
         string cliPath, string htmlPath, CancellationToken cancellationToken);
+
+    /// <summary>Launches (or reuses) a <c>dji-embed panoedit</c> child for
+    /// <paramref name="folder"/> and returns its editor URL (#440). Null
+    /// when the editor could not start (no panoramas, no CLI);
+    /// cancellation surfaces as OperationCanceledException.</summary>
+    Task<string?> GetEditorUrlAsync(
+        string cliPath, string folder, CancellationToken cancellationToken);
 }

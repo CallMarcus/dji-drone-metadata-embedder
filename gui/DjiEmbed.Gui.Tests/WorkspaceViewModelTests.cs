@@ -2078,10 +2078,55 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Null(vm.VerifyHeadline);
     }
 
+    // ---- 360° view editor mode (#440) -----------------------------------
+
+    [Fact]
+    public async Task Pano_edit_run_launches_editor_and_shows_preview()
+    {
+        var cli = Path.Combine(_dir, "dji-embed-fake");
+        File.WriteAllText(cli, "");
+        var folder = MakeFolder(photos: true);
+        var fake = new FakeMapServer("http://127.0.0.1:9/");
+        var vm = Vm(cli, mapServer: fake, previewAvailable: static () => true);
+        await vm.SetFolderAsync(folder);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal([folder], fake.EditorRequests);
+        Assert.Equal("http://127.0.0.1:9/", vm.PreviewUrl);
+        Assert.Equal(FlowStep.Done, vm.Step);
+    }
+
+    [Fact]
+    public async Task Pano_edit_run_fails_cleanly_when_editor_cannot_start()
+    {
+        var cli = Path.Combine(_dir, "dji-embed-fake");
+        File.WriteAllText(cli, "");
+        var folder = MakeFolder(photos: true);
+        var vm = Vm(cli, mapServer: new FakeMapServer(null),
+                    previewAvailable: static () => true);
+        await vm.SetFolderAsync(folder);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Null(vm.PreviewUrl);
+    }
+
+    [Fact]
+    public void Pano_edit_command_preview_teaches_panoedit()
+    {
+        var vm = Vm(null);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        Assert.Equal("dji-embed panoedit <folder>", vm.CommandPreview);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(
             string cliPath, string htmlPath, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("server exploded");
+
+        public Task<string?> GetEditorUrlAsync(
+            string cliPath, string folder, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("server exploded");
     }
 
@@ -2089,6 +2134,10 @@ public class WorkspaceViewModelTests : IDisposable
     {
         public Task<string?> GetUrlAsync(
             string cliPath, string htmlPath, CancellationToken cancellationToken) =>
+            throw new OperationCanceledException();
+
+        public Task<string?> GetEditorUrlAsync(
+            string cliPath, string folder, CancellationToken cancellationToken) =>
             throw new OperationCanceledException();
     }
 

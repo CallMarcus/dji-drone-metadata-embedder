@@ -100,12 +100,12 @@ public class WorkspaceScreenTests
     }
 
     [AvaloniaFact]
-    public void Mode_strip_shows_exactly_the_six_modes()
+    public void Mode_strip_shows_exactly_the_seven_modes()
     {
         var window = ShowWorkspace();
         var strip = window.GetVisualDescendants().OfType<ListBox>()
             .Single(l => l.Name == "ModeStrip");
-        Assert.Equal(6, strip.ItemCount);
+        Assert.Equal(7, strip.ItemCount);
     }
 
     [AvaloniaFact]

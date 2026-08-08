@@ -28,6 +28,7 @@ public static class CommandBuilder
             Convert(folder!, batch: true, ConvertTelemetryOptions.Defaults),
         WorkspaceModeKind.Verify =>
             Verify(folder!, VerifyTelemetryOptions.Defaults),
+        WorkspaceModeKind.PanoEdit => PanoEdit(folder!),
         WorkspaceModeKind.Setup => ["doctor"],
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
@@ -344,6 +345,12 @@ public static class CommandBuilder
                     nameof(opts), opts.SubAction, null);
         }
     }
+
+    /// <summary>The 360° view editor argv (#440). The strip teaches
+    /// <c>panoedit &lt;folder&gt;</c>; MapServer appends
+    /// <c>--no-browser --url-only --exit-with-stdin</c> at launch, the
+    /// same split the serve child uses.</summary>
+    public static string[] PanoEdit(string folder) => ["panoedit", folder];
 
     /// <summary>
     /// The <c>--popup-fields</c> value, or <c>null</c> to omit the flag.

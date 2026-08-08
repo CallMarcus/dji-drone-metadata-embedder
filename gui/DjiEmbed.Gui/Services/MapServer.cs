@@ -39,14 +39,44 @@ public sealed class MapServer : IMapServer, IDisposable
             return null;
         }
         var page = Path.GetFileName(htmlPath);
-        if (_running.TryGetValue(dir, out var live))
+        var baseUrl = await LaunchAsync(
+            cliPath, dir,
+            ["serve", dir, "--page", page, "--no-browser", "--url-only",
+             "--exit-with-stdin"],
+            cancellationToken);
+        return baseUrl is null ? null : baseUrl + page;
+    }
+
+    public Task<string?> GetEditorUrlAsync(
+        string cliPath, string folder, CancellationToken cancellationToken)
+    {
+        var dir = Path.GetFullPath(folder);
+        // The key prefix keeps a served map folder and an edited pano
+        // folder from colliding in the reuse table; the editor's URL is
+        // its base URL (the child prints "http://127.0.0.1:PORT/").
+        return LaunchAsync(
+            cliPath, "panoedit:" + dir,
+            ["panoedit", dir, "--no-browser", "--url-only",
+             "--exit-with-stdin"],
+            cancellationToken);
+    }
+
+    /// <summary>One child per <paramref name="key"/>: reuses a live one,
+    /// reaps a dead one, else spawns <paramref name="args"/> and reads the
+    /// URL contract. Returns the child's base URL (through the trailing
+    /// slash), or null when it could not start.</summary>
+    private async Task<string?> LaunchAsync(
+        string cliPath, string key, string[] args,
+        CancellationToken cancellationToken)
+    {
+        if (_running.TryGetValue(key, out var live))
         {
             if (!live.Process.HasExited)
             {
-                return live.BaseUrl + page;
+                return live.BaseUrl;
             }
             live.Process.Dispose();   // dead child: reap the handle too
-            _running.Remove(dir);
+            _running.Remove(key);
         }
 
         var psi = new ProcessStartInfo
@@ -59,9 +89,6 @@ public sealed class MapServer : IMapServer, IDisposable
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
         };
-        string[] args =
-            ["serve", dir, "--page", page, "--no-browser", "--url-only",
-             "--exit-with-stdin"];
         foreach (var a in args)
         {
             psi.ArgumentList.Add(a);
@@ -82,8 +109,9 @@ public sealed class MapServer : IMapServer, IDisposable
             process.Dispose();
             return null;
         }
-        _running[dir] = (process, url[..(url.LastIndexOf('/') + 1)]);
-        return url;
+        var baseUrl = url[..(url.LastIndexOf('/') + 1)];
+        _running[key] = (process, baseUrl);
+        return baseUrl;
     }
 
     private static async Task<string?> ReadUrlLineAsync(
