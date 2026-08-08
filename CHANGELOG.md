@@ -53,6 +53,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its absolute path, the same rule the launch button already followed
   (#454).
 
+## [2.7.1] - 2026-08-08
+
+### Fixed
+
+- **cli**: Base install broke — panorender imported Pillow at CLI load (#466) (3a30caa)
+
+### Documentation
+
+- Auto-generate changelog for v2.7.0 (#465) (0b1ab80)
+
+### Other
+
+- Prepare version 2.7.1 (#467) (6dfa60c)
+
+
 ## [2.7.0] - 2026-08-08
 
 ### Added
