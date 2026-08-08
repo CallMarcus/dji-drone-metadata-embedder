@@ -20,17 +20,21 @@ several flights.
 ## Getting the TXT off your controller
 
 Flight records are small `.txt` files your DJI app or RC writes per
-flight — named like `DJIFlightRecord_2026-07-27_[17-28-49].txt`. Despite
-the extension they are encrypted binary, not text.
+flight — named like `DJIFlightRecord_2026-07-27_[17-28-49].txt` or, on
+the DJI RC 2 with current DJI Fly, `FlightRecord_2026-08-08_[15-43-20].txt`
+(no `DJI` prefix). Despite the extension they are encrypted binary, not
+text.
 
 **DJI RC (RC 2, RC Pro, ...):**
 
 1. Plug the RC into your computer over USB, with the RC **powered on and
    unlocked**. It appears in Explorer as a portable (MTP) device — no
    drive letter, which is why some copy tools cannot see it.
-2. Open the device › *Internal shared storage*. The flight records sit
-   at the **root** of that storage, not in a folder.
-3. Copy the `DJIFlightRecord_*.txt` files anywhere on your computer.
+2. Open the device › *Internal shared storage*. Where the records sit
+   depends on the controller generation: older RCs keep them at the
+   **root** of that storage; the **DJI RC 2** keeps them under
+   `Android\data\dji.go.v5\files\FlightRecord`.
+3. Copy the `*FlightRecord_*.txt` files anywhere on your computer.
 
 Or let the [helper script from the
 repository](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/master/tools/mtp-copy.ps1)
