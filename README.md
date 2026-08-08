@@ -38,6 +38,10 @@ it's a handful of copy-paste commands. For a guided tour see
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
+- **Choose each panorama's opening view** — `dji-embed panoedit` is a
+  drag-and-save editor for the GPano initial-view tags, honored by the photo
+  map and Google Photos; `photomap --pano-view-thumbs` turns the saved views
+  into square popup thumbnails.
 - **Make videos searchable by location** — `dji-embed embed` writes the GPS
   data into the video files so Windows Photos, Google Photos, and similar apps
   can find them by place. No re-encoding, no quality loss, and the full

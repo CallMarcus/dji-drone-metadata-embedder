@@ -45,6 +45,8 @@ from .geo import (
     write_photos_kml,
 )
 from .geo.airspace import fetch as airspace_fetch
+from .geo.panoedit import PanoEditError, run_editor
+from .geo.panorender import apply_view_thumbnails
 from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
@@ -205,6 +207,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       convert   Convert SRT telemetry to GPX or CSV formats
       flightmap Map every flight in a folder of SRT logs on one combined map
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
+      panoedit  Edit the opening view of 360° panoramas (drag, save, next)
       check     Analyze video files for embedded metadata
       doctor    Check system dependencies and configuration
     """
@@ -650,6 +653,12 @@ def convert(
          "browsers block when the map is opened straight from disk. "
          "With -v, each HTTP request is logged.",
 )
+@click.option(
+    "--pano-view-thumbs", "pano_view_thumbs", is_flag=True,
+    help="Render square popup thumbnails at each panorama's saved opening "
+         "view (GPano initial-view tags; set them with 'dji-embed "
+         "panoedit'). Panoramas without a saved view keep the 2:1 strip.",
+)
 @_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -665,6 +674,7 @@ def photomap(
     popup_fields: str | None,
     redact: str,
     serve_map: bool,
+    pano_view_thumbs: bool,
     tile_style: str,
     progress_mode: str | None,
     verbose: bool,
@@ -750,6 +760,13 @@ def photomap(
             raise click.ClickException(
                 f"None of the {total} photos in {src} carry GPS coordinates"
             )
+        if pano_view_thumbs:
+            replaced = apply_view_thumbnails(points, src)
+            if replaced and not quiet:
+                click.echo(
+                    f"Rendered {replaced} opening-view thumbnail"
+                    f"{'s' if replaced != 1 else ''}"
+                )
         for name in skipped:
             progress.warning("No GPS data", item=name)
             if verbose:
@@ -1330,6 +1347,55 @@ def serve(
         bare_url=url_only,
         stop_on_stdin_eof=exit_with_stdin,
     )
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option("-r", "--recursive", is_flag=True,
+              help="Include panoramas in subfolders.")
+@click.option("--port", type=int, default=0, show_default="random",
+              help="Local port to serve the editor on.")
+@click.option("--no-browser", is_flag=True,
+              help="Do not open the browser; just print the URL and serve.")
+@click.option(
+    "--url-only", is_flag=True,
+    help="Print the bare URL as the first output line — a stable contract "
+         "for wrapper apps that parse it.",
+)
+@click.option(
+    "--exit-with-stdin", is_flag=True,
+    help="Stop serving when stdin closes, tying the server's lifetime to "
+         "the app that started it.",
+)
+def panoedit(
+    directory: str,
+    recursive: bool,
+    port: int,
+    no_browser: bool,
+    url_only: bool,
+    exit_with_stdin: bool,
+) -> None:
+    """Edit the opening view of 360° panoramas in DIRECTORY (#440).
+
+    Opens a local editor (http://127.0.0.1, loopback only): drag and zoom
+    each panorama to the view it should open with, then Save writes the
+    GPano initial-view tags (InitialViewHeadingDegrees / Pitch /
+    InitialHorizontalFOVDegrees) into the file via ExifTool and advances
+    to the next one. Each original is kept beside the file as
+    ``<name>_original``. The photomap 360° viewer and Google Photos both
+    honor the saved view.
+    """
+    try:
+        run_editor(
+            Path(directory),
+            recursive=recursive,
+            port=port,
+            open_browser=not no_browser,
+            bare_url=url_only,
+            stop_on_stdin_eof=exit_with_stdin,
+        )
+    except PanoEditError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 @main.command(hidden=True)

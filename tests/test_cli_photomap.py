@@ -420,3 +420,56 @@ def test_photomap_tile_style_selects_basemap(monkeypatch, tmp_path):
     text = (tmp_path / "photomap.html").read_text(encoding="utf-8")
     assert "tile.openstreetmap.fr/hot" in text
     assert "Humanitarian" in text
+
+
+def test_pano_view_thumbs_flag_replaces_thumbnails(monkeypatch, tmp_path):
+    from click.testing import CliRunner
+
+    from dji_metadata_embedder import cli as cli_mod
+    from dji_metadata_embedder.geo.photomap import PhotoPoint
+
+    pano = PhotoPoint(lat=59.3, lon=18.1, alt=10.0, name="p.jpg",
+                      thumbnail_b64="c3RyaXA=", is_pano=True,
+                      pano_yaw=10.0, pano_pitch=None, pano_hfov=None)
+    flat = PhotoPoint(lat=59.3, lon=18.1, alt=None, name="f.jpg",
+                      thumbnail_b64="ZmxhdA==")
+    monkeypatch.setattr(cli_mod, "scan_photos",
+                        lambda d, recursive=False: ([pano, flat], []))
+
+    calls = {}
+
+    def fake_apply(points, root):
+        calls["points"] = points
+        calls["root"] = root
+        points[0].thumbnail_b64 = "dmlldw=="
+        points[0].thumb_is_view = True
+        return 1
+    monkeypatch.setattr(cli_mod, "apply_view_thumbnails", fake_apply)
+
+    result = CliRunner().invoke(cli_mod.main, [
+        "photomap", str(tmp_path), "--pano-view-thumbs",
+        "-o", str(tmp_path / "map.html")])
+    assert result.exit_code == 0, result.output
+    assert calls["points"][0] is pano
+    html = (tmp_path / "map.html").read_text(encoding="utf-8")
+    assert "dmlldw==" in html   # the vthumb prop itself is asserted
+                                # precisely in test_geo_photomap_html.py
+
+
+def test_no_flag_no_render(monkeypatch, tmp_path):
+    from click.testing import CliRunner
+
+    from dji_metadata_embedder import cli as cli_mod
+    from dji_metadata_embedder.geo.photomap import PhotoPoint
+
+    pano = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="p.jpg",
+                      is_pano=True, pano_yaw=0.0)
+    monkeypatch.setattr(cli_mod, "scan_photos",
+                        lambda d, recursive=False: ([pano], []))
+    called = []
+    monkeypatch.setattr(cli_mod, "apply_view_thumbnails",
+                        lambda pts, root: called.append(1))
+    result = CliRunner().invoke(cli_mod.main, [
+        "photomap", str(tmp_path), "-o", str(tmp_path / "m.html")])
+    assert result.exit_code == 0, result.output
+    assert called == []

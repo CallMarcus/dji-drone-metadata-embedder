@@ -488,6 +488,11 @@
                                               Content="Link pins to the original photos"
                                               ToolTip.Tip="Needed for the 360° panorama viewer. Off writes a map that stands alone." />
 
+                                    <CheckBox Name="PanoViewThumbsCheck"
+                                              IsChecked="{Binding PhotoOptions.PanoViewThumbs}"
+                                              Content="Square pano thumbnails (opening view)"
+                                              ToolTip.Tip="Popup thumbnails show each panorama's saved opening view instead of the full 2:1 strip. Set views with the 360° views mode." />
+
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Popup details" Opacity="0.7"
                                                    FontSize="12" />
@@ -902,6 +907,20 @@
                                         </StackPanel>
                                     </Expander>
                                 </StackPanel>
+                            </suki:GlassCard>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Name="PanoEditOptionsPanel"
+                            IsVisible="{Binding IsPanoEditMode}"
+                            IsEnabled="{Binding !IsBusy}">
+                        <StackPanel>
+                            <TextBlock Classes="zone" Text="OPTIONS" />
+                            <suki:GlassCard Padding="14">
+                                <TextBlock Name="PanoEditHint"
+                                           TextWrapping="Wrap" Opacity="0.7"
+                                           FontSize="12"
+                                           Text="Pick the folder with your 360° panoramas. Drag each one to its best opening view, then Save — the view is written into the photo itself (a backup is kept beside it) and the photo map opens it that way." />
                             </suki:GlassCard>
                         </StackPanel>
                     </Border>

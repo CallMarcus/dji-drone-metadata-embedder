@@ -229,6 +229,10 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// <summary>Whether the Verify options panel applies to the current mode.</summary>
     public bool IsVerifyMode => SelectedMode.Kind == WorkspaceModeKind.Verify;
 
+    /// <summary>The 360° view editor mode (#440) is selected.</summary>
+    public bool IsPanoEditMode =>
+        SelectedMode.Kind == WorkspaceModeKind.PanoEdit;
+
     /// <summary>Validate pairing needs a folder — a single file greys its
     /// segment out (the M4b enablement table).</summary>
     public bool VerifyValidateEnabled => SelectedFile is null;
@@ -353,6 +357,8 @@ public partial class WorkspaceViewModel : FlowViewModel
                     CommandBuilder.Verify(
                         SelectedFile ?? SelectedFolder ?? "<source>",
                         VerifyOptions.ToOptions()),
+                WorkspaceModeKind.PanoEdit =>
+                    CommandBuilder.PanoEdit(folder!),
                 _ => CommandBuilder.Build(SelectedMode.Kind, folder),
             };
             return CommandLine.Format("dji-embed", argv);
@@ -414,6 +420,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         OnPropertyChanged(nameof(IsEmbedMode));
         OnPropertyChanged(nameof(IsConvertMode));
         OnPropertyChanged(nameof(IsVerifyMode));
+        OnPropertyChanged(nameof(IsPanoEditMode));
         OnPropertyChanged(nameof(ActionVerb));
         RunCommand.NotifyCanExecuteChanged();
     }
@@ -754,6 +761,40 @@ public partial class WorkspaceViewModel : FlowViewModel
             await RunSetupAsync();
             return;
         }
+        if (mode.Kind == WorkspaceModeKind.PanoEdit
+            && SelectedFolder is { } panoFolder && SelectedFile is null)
+        {
+            // No runner child here: the editor IS the product, launched
+            // through the same stdin-lifeline contract as the serve
+            // preview and shown in the preview pane (#440).
+            ResetPreview();
+            await ExecuteFlowAsync(async () =>
+            {
+                var url = await _mapServer.GetEditorUrlAsync(
+                    CliPath!, panoFolder, FlowToken);
+                if (url is null)
+                {
+                    Fail("The 360° view editor could not be started — "
+                         + "check that the folder contains 360° panoramas "
+                         + "(equirectangular JPGs).");
+                    return false;
+                }
+                if (_previewAvailable())
+                {
+                    PreviewPath = panoFolder;  // path first: view reads it
+                    PreviewUrl = url;          // when the URL lands
+                }
+                else
+                {
+                    // No WebView2: the editor still works — in the
+                    // default browser (same open pattern as outputs).
+                    Process.Start(
+                        new ProcessStartInfo(url) { UseShellExecute = true });
+                }
+                return true;
+            });
+            return;
+        }
         // A file in the slot with a folder-only mode selected: say which folder
         // the mode wants instead of failing into the CLI's usage error (#346
         // discipline — reach-aware guidance in the panel's own language).
@@ -770,6 +811,9 @@ public partial class WorkspaceViewModel : FlowViewModel
                 WorkspaceModeKind.Embed =>
                     "Embed telemetry works on a folder of videos with their .SRT "
                     + "flight logs — pick that folder, not a single file.",
+                WorkspaceModeKind.PanoEdit =>
+                    "The 360° view editor works on a folder of panoramas — "
+                    + "pick the folder that holds them, not a single file.",
                 _ => throw new ArgumentOutOfRangeException(nameof(mode), mode.Kind, null),
             });
             return;

@@ -5,12 +5,13 @@ namespace DjiEmbed.Gui.Tests;
 public class WorkspaceModeTests
 {
     [Fact]
-    public void Catalogue_has_the_six_modes_in_strip_order() =>
+    public void Catalogue_has_the_seven_modes_in_strip_order() =>
         Assert.Equal(
             [
                 WorkspaceModeKind.FlightMap, WorkspaceModeKind.PhotoMap,
                 WorkspaceModeKind.Embed, WorkspaceModeKind.Convert,
-                WorkspaceModeKind.Verify, WorkspaceModeKind.Setup,
+                WorkspaceModeKind.Verify, WorkspaceModeKind.PanoEdit,
+                WorkspaceModeKind.Setup,
             ],
             WorkspaceMode.All.Select(m => m.Kind));
 

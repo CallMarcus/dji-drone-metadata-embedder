@@ -107,6 +107,9 @@ class PhotoPoint:
     pano_pitch: float | None = None
     pano_hfov: float | None = None
     credit: str | None = None
+    # True when thumbnail_b64 is an opening-view crop (#441), not the
+    # EXIF strip — popups label the two honestly.
+    thumb_is_view: bool = False
 
 
 def _display_datetime(value: object) -> str | None:
@@ -416,6 +419,8 @@ def photos_to_geojson(
             props["credit"] = p.credit
         if include_thumbnails and p.thumbnail_b64:
             props["thumb"] = p.thumbnail_b64
+            if p.thumb_is_view:
+                props["vthumb"] = True
         features.append(
             {
                 "type": "Feature",
