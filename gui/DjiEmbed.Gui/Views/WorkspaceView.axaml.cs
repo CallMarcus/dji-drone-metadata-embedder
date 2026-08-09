@@ -154,7 +154,17 @@ public partial class WorkspaceView : UserControl
         if (DataContext is WorkspaceViewModel vm
             && await FilePicker(this) is { } path)
         {
-            vm.SetFile(path);
+            // A picked photo stands for its folder — the photo modes
+            // (Photo map, 360° views) work on folders, and SetFile means
+            // "a telemetry source for Convert".
+            if (FolderPicking.PhotoFolderFor(path) is { } photoFolder)
+            {
+                await vm.SetFolderAsync(photoFolder);
+            }
+            else
+            {
+                vm.SetFile(path);
+            }
         }
     }
 

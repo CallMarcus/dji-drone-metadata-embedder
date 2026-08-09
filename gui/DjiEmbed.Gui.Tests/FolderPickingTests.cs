@@ -74,4 +74,46 @@ public class FolderPickingTests : IDisposable
         Assert.Null(folder);
         Assert.Equal(file, resolvedFile);
     }
+
+    // Field report (2026-08-09): dropping a photo did nothing — the photo
+    // modes work on folders, so a dropped photo stands for its folder.
+    [Theory]
+    [InlineData("pano.jpg")]
+    [InlineData("pano.JPEG")]
+    public void Drop_resolution_maps_a_photo_to_its_folder(string fileName)
+    {
+        var file = Touch(fileName);
+
+        FolderPicking.ResolveDrop([file], out var folder, out var resolvedFile);
+
+        Assert.Equal(_dir, folder);
+        Assert.Null(resolvedFile);
+    }
+
+    [Fact]
+    public void Drop_resolution_prefers_telemetry_files_over_photos()
+    {
+        var photo = Touch("pano.jpg");
+        var srt = Touch("clip.srt");
+
+        FolderPicking.ResolveDrop([photo, srt], out var folder, out var file);
+
+        Assert.Null(folder);
+        Assert.Equal(srt, file);
+    }
+
+    [Theory]
+    [InlineData("pano.jpg", true)]
+    [InlineData("PANO.JPEG", true)]
+    [InlineData("clip.srt", false)]
+    [InlineData("movie.mp4", false)]
+    public void Photo_folder_resolution_claims_only_photos(
+        string fileName, bool isPhoto)
+    {
+        var path = Path.Combine(_dir, fileName);
+
+        var folder = FolderPicking.PhotoFolderFor(path);
+
+        Assert.Equal(isPhoto ? _dir : null, folder);
+    }
 }

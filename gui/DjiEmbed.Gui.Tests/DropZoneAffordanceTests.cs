@@ -62,6 +62,18 @@ public class DropZoneAffordanceTests
         Assert.DoesNotContain("dragover", zone.Classes);
     }
 
+    // Field report (2026-08-09): with a null Background the Border is
+    // invisible to hit-testing, so drags over the empty middle of the zone
+    // never reached AllowDrop — the highlight only fired over the text.
+    [AvaloniaFact]
+    public void Drop_zone_has_a_hit_testable_background()
+    {
+        var window = ShowView(PickView());
+        var zone = window.GetVisualDescendants().OfType<Border>()
+            .First(b => b.Name == "DropZone");
+        Assert.NotNull(zone.Background);
+    }
+
     // Carried from Task 9 review: the dragover style used to be beaten by a
     // local Stroke= value on the Rectangle, so the highlight never rendered.
     // This proves the Stroke brush itself changes, not just the class.
