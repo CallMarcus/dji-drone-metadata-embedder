@@ -96,7 +96,12 @@
                     <suki:GlassCard Name="SourceCard" Padding="14"
                                     IsEnabled="{Binding !IsBusy}">
                         <StackPanel Spacing="10">
+                            <!-- Background must not be null: a null-background
+                                 Border is invisible to hit-testing, so drags
+                                 over the empty middle of the zone would never
+                                 reach AllowDrop (only the text would). -->
                             <Border Name="DropZone" DragDrop.AllowDrop="True"
+                                    Background="Transparent"
                                     CornerRadius="10">
                                 <Panel>
                                     <Rectangle Classes="dropOutline"

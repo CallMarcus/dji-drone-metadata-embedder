@@ -59,27 +59,53 @@ internal static class FolderPicking
     private static readonly string[] SourceFileExtensions =
         [".srt", ".mp4", ".mov"];
 
+    /// <summary>Photo extensions the SOURCE area accepts as a single file:
+    /// resolved to the photo's folder, because the photo modes (Photo map,
+    /// 360° views) work on folders, never on one file.</summary>
+    private static readonly string[] PhotoFileExtensions =
+        [".jpg", ".jpeg"];
+
+    private static bool HasExtension(string path, string[] extensions) =>
+        Array.Exists(extensions, e => path.EndsWith(
+            e, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The folder a picked photo stands for, or <c>null</c> when
+    /// *path* is not a photo.</summary>
+    internal static string? PhotoFolderFor(string path) =>
+        HasExtension(path, PhotoFileExtensions)
+            ? System.IO.Path.GetDirectoryName(path)
+            : null;
+
     /// <summary>Pure drop-payload resolution: the first directory wins,
-    /// otherwise the first telemetry file; anything else yields nothing.</summary>
+    /// otherwise the first telemetry file, otherwise the first photo's
+    /// folder; anything else yields nothing.</summary>
     internal static void ResolveDrop(
         IEnumerable<string> paths, out string? folder, out string? file)
     {
         folder = null;
         file = null;
+        string? photoFolder = null;
         foreach (var path in paths)
         {
             if (System.IO.Directory.Exists(path))
             {
                 folder = path;
+                file = null;
                 return;
             }
-            if (file is null
-                && System.IO.File.Exists(path)
-                && Array.Exists(SourceFileExtensions, e => path.EndsWith(
-                    e, StringComparison.OrdinalIgnoreCase)))
+            if (!System.IO.File.Exists(path))
+            {
+                continue;
+            }
+            if (file is null && HasExtension(path, SourceFileExtensions))
             {
                 file = path;
             }
+            photoFolder ??= PhotoFolderFor(path);
+        }
+        if (file is null)
+        {
+            folder = photoFolder;
         }
     }
 
@@ -169,13 +195,23 @@ internal static class FolderPicking
             new FilePickerOpenOptions
             {
                 AllowMultiple = false,
-                Title = "Choose a flight log or drone video",
+                Title = "Choose a flight log, drone video, or photo",
                 FileTypeFilter =
                 [
+                    new FilePickerFileType("All supported")
+                    {
+                        Patterns = ["*.srt", "*.SRT", "*.mp4", "*.MP4",
+                                    "*.mov", "*.MOV", "*.jpg", "*.JPG",
+                                    "*.jpeg", "*.JPEG"],
+                    },
                     new FilePickerFileType("Telemetry sources")
                     {
                         Patterns = ["*.srt", "*.SRT", "*.mp4", "*.MP4",
                                     "*.mov", "*.MOV"],
+                    },
+                    new FilePickerFileType("Photos")
+                    {
+                        Patterns = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG"],
                     },
                 ],
             });

@@ -47,9 +47,11 @@ _PAGE = """<!DOCTYPE html>
     border-radius: 50%; background: #666; margin-right: 6px; }}
   .chip.hasview .dot {{ background: #5ec26a; }}
   #counter {{ position: fixed; right: 12px; bottom: 104px; z-index: 10;
-    color: #aaa; }}
+    color: #ddd; background: rgba(0,0,0,.55); padding: 4px 10px;
+    border-radius: 6px; }}
   #note {{ position: fixed; left: 12px; bottom: 104px; z-index: 10;
-    color: #888; font-size: 12px; }}
+    color: #ccc; font-size: 12px; background: rgba(0,0,0,.55);
+    padding: 4px 10px; border-radius: 6px; }}
 </style>
 </head>
 <body>

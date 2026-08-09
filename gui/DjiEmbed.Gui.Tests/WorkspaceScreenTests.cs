@@ -1534,6 +1534,40 @@ public class WorkspaceScreenTests
         Assert.Equal("C:/x/DJI_1.SRT", vm.SelectedFile);
     }
 
+    // Field report (2026-08-09): the picker gained photo file types, and a
+    // picked photo must land as its FOLDER — the photo modes (Photo map,
+    // 360° views) work on folders; SetFile means "telemetry for Convert".
+    [AvaloniaFact]
+    public void Choose_file_button_routes_a_photo_to_its_folder()
+    {
+        var dir = Directory.CreateTempSubdirectory("djiembed-photo-pick");
+        try
+        {
+            var photo = Path.Combine(dir.FullName, "PANO0001.jpg");
+            File.WriteAllText(photo, "");
+            var view = new WorkspaceView { WebViewGate = static () => false };
+            var vm = NewWorkspaceViewModel();
+            view.FilePicker = (_) => Task.FromResult<string?>(photo);
+            view.DataContext = vm;
+            var button = view.FindControl<Button>("ChooseFileButton")!;
+            button.RaiseEvent(
+                new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(dir.FullName, vm.SelectedFolder);
+            Assert.Null(vm.SelectedFile);
+            // Let the folder scan finish before the directory disappears.
+            for (var i = 0; i < 200 && vm.SuggestedMode is null; i++)
+            {
+                Thread.Sleep(10);
+                Dispatcher.UIThread.RunJobs();
+            }
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
+    }
+
     // M4a: the Convert options panel renders only for Convert, with the
     // Advanced expander closed by default. The panel's freeze-while-busy
     // behaviour is covered alongside the other three panels' by

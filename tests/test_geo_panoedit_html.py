@@ -29,3 +29,13 @@ def test_page_embeds_token_and_hooks():
 def test_page_token_is_json_escaped():
     html = build_editor_page('</script><script>alert(1)')
     assert "</script><script>alert(1)" not in html
+
+
+def test_caption_overlays_have_a_backdrop():
+    # Field report (2026-08-09): the counter and the backup note float over
+    # the panorama and were bare grey text — unreadable against bright
+    # skies. Both need the readout's backdrop-box treatment.
+    html = build_editor_page("tok123")
+    for elem in ("#counter", "#note"):
+        rule = html.split(elem, 1)[1].split("}", 1)[0]
+        assert "background: rgba(0,0,0" in rule, elem
