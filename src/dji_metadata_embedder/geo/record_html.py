@@ -8,6 +8,7 @@ from html import escape
 from pathlib import Path
 
 from .airspace import M_PER_FT
+from .provenance import stamp
 from .airspace.evaluate import ZoneFinding
 from .record import FlightRecordData
 
@@ -414,7 +415,7 @@ def record_to_html(
         + cover_rows + "</table>"
     )
     sections = "".join(_flight_section(r, version) for r in records)
-    return (
+    return stamp(
         "<!DOCTYPE html>\n"
         "<html lang='en'><head><meta charset='utf-8'>"
         f"<title>{_esc(title)}</title>"

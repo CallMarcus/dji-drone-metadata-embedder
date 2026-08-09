@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 
+from .provenance import stamp
 from .photomap_html import (
     _PANNELLUM_CSS_SRI,
     _PANNELLUM_JS_SRI,
@@ -195,9 +196,9 @@ def build_editor_page(token: str) -> str:
     making breakout impossible. Real tokens are ``token_urlsafe`` output,
     but the page must be safe by construction, not by caller convention.
     """
-    return _PAGE.format(
+    return stamp(_PAGE.format(
         pannellum=_PANNELLUM_VERSION,
         pannellum_css_sri=_PANNELLUM_CSS_SRI,
         pannellum_js_sri=_PANNELLUM_JS_SRI,
         token=json.dumps(token).replace("<", "\\u003c"),
-    )
+    ))

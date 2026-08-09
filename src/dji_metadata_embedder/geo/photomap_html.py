@@ -18,6 +18,7 @@ from html import escape
 from pathlib import Path
 
 from .photomap import PhotoPoint, photos_to_geojson
+from .provenance import stamp
 from .tiles import DEFAULT_TILE_STYLE, tile_layer_js
 
 logger = logging.getLogger(__name__)
@@ -468,7 +469,7 @@ def photos_to_html(
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
     pano_enabled = link_base is not None and any(p.is_pano for p in points)
-    return _TEMPLATE.format(
+    return stamp(_TEMPLATE.format(
         title=escape(title),
         leaflet=_LEAFLET_VERSION,
         leaflet_css_sri=_LEAFLET_CSS_SRI,
@@ -484,7 +485,7 @@ def photos_to_html(
         app_js=(_APP_JS + (_PANO_JS if pano_enabled else "")).replace(
             "__TILE_LAYER__", tile_layer_js(tile_style)
         ),
-    )
+    ))
 
 
 def write_photos_html(

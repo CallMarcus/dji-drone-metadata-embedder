@@ -28,6 +28,7 @@ from pathlib import Path
 from .flightmap import flights_to_geojson
 from .flightmap3d_airspace_js import AIRSPACE_3D_JS
 from .flightmap3d_gaze_js import GAZE_JS
+from .provenance import attribution_credit, stamp
 from .flightmap_js import FLIGHT_POPUP_JS
 from .track import Track
 
@@ -188,7 +189,7 @@ try {
       sources: {
         osm: { type: 'raster', tiles: ['__OSM_TILES__'], tileSize: 256,
                maxzoom: 19,
-               attribution: '&copy; OpenStreetMap contributors' },
+               attribution: '&copy; OpenStreetMap contributors | __CREDIT__' },
         terrain: { type: 'raster-dem', url: '__MAPTERHORN__',
                    attribution: 'Terrain &copy; Mapterhorn (Copernicus DEM)' },
         hillshade: { type: 'raster-dem', url: '__MAPTERHORN__' },
@@ -1062,8 +1063,9 @@ def flights_to_3d_html(
         .replace("__AIRSPACE_3D_JS__", airspace_js)
         .replace("__OSM_TILES__", _OSM_TILES)
         .replace("__MAPTERHORN__", _MAPTERHORN_TILEJSON)
+        .replace("__CREDIT__", attribution_credit())
     )
-    return _TEMPLATE.format(
+    return stamp(_TEMPLATE.format(
         title=escape(title),
         maplibre=_MAPLIBRE_VERSION,
         css_sri=_MAPLIBRE_CSS_SRI,
@@ -1071,7 +1073,7 @@ def flights_to_3d_html(
         data=data,
         airspace_block=airspace_block,
         app_js=app_js,
-    )
+    ))
 
 
 def write_flights_3d_html(

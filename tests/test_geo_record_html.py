@@ -67,6 +67,13 @@ def test_sources_caveats_and_footer_identify_the_record():
     assert "factual record, not a determination" in html
 
 
+def test_record_carries_the_generator_comment():
+    from dji_metadata_embedder.geo.provenance import generator_comment
+
+    html = record_to_html([_record()], "My flights", "2.4.0")
+    assert html.startswith("<!DOCTYPE html>\n" + generator_comment())
+
+
 def test_no_verdict_vocabulary_ever():
     html = record_to_html([_record()], "t", "2.4.0").lower()
     for word in ("legal", "illegal", "compliant", "violation"):
