@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
+from .provenance import attribution_credit
+
 
 @dataclass(frozen=True)
 class TileStyle:
@@ -65,9 +67,12 @@ def tile_layer_js(style: str) -> str:
     the CLI restricts choices to :data:`TILE_STYLES` before this runs.
     """
     ts = TILE_STYLES[style]
+    # The generator credit joins the provider's line at render time so the
+    # TILE_STYLES data stays purely the providers' required attribution.
+    attribution = f"{ts.attribution} | {attribution_credit()}"
     return (
         f"L.tileLayer({json.dumps(ts.url)}, {{\n"
         f"  maxZoom: {ts.max_zoom},\n"
-        f"  attribution: {json.dumps(ts.attribution)}\n"
+        f"  attribution: {json.dumps(attribution)}\n"
         "}).addTo(map);"
     )

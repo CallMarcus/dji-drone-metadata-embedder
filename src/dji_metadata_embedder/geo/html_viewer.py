@@ -15,6 +15,7 @@ from html import escape
 from pathlib import Path
 
 from .geojson import track_to_geojson
+from .provenance import attribution_credit, stamp
 from .track import Track, build_track
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ const data = JSON.parse(document.getElementById('flight-data').textContent);
 const map = L.map('map');
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
+  attribution: '&copy; OpenStreetMap contributors | __CREDIT__'
 }).addTo(map);
 
 const features = data.features || [];
@@ -133,14 +134,14 @@ def track_to_html(track: Track) -> str:
     # it back to "<" while no literal "</script>" can break out of the data
     # block.
     data = json.dumps(geojson, indent=2).replace("<", "\\u003c")
-    return _TEMPLATE.format(
+    return stamp(_TEMPLATE.format(
         title=escape(track.name),
         leaflet=_LEAFLET_VERSION,
         css_sri=_LEAFLET_CSS_SRI,
         js_sri=_LEAFLET_JS_SRI,
         data=data,
-        app_js=_APP_JS,
-    )
+        app_js=_APP_JS.replace("__CREDIT__", attribution_credit()),
+    ))
 
 
 def write_html(track: Track, output_path: Path) -> Path:

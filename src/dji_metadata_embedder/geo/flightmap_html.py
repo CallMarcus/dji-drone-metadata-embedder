@@ -18,6 +18,7 @@ from pathlib import Path
 from .flightmap import flights_to_geojson
 from .flightmap_airspace_js import AIRSPACE_OVERLAY_JS
 from .flightmap_js import FLIGHT_POPUP_JS
+from .provenance import stamp
 from .tiles import DEFAULT_TILE_STYLE, tile_layer_js
 from .track import Track
 
@@ -273,7 +274,7 @@ def flights_to_html(
         )
         airspace_css = _AIRSPACE_CSS
         airspace_js = AIRSPACE_OVERLAY_JS
-    return _TEMPLATE.format(
+    return stamp(_TEMPLATE.format(
         title=escape(title),
         leaflet=_LEAFLET_VERSION,
         css_sri=_LEAFLET_CSS_SRI,
@@ -284,7 +285,7 @@ def flights_to_html(
         app_js=_APP_JS.replace("__TILE_LAYER__", tile_layer_js(tile_style))
         .replace("__SHARED_JS__", FLIGHT_POPUP_JS)
         .replace("__AIRSPACE_JS__", airspace_js),
-    )
+    ))
 
 
 def write_flights_html(
