@@ -14,6 +14,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.8.0] - 2026-08-10
+
+### Added
+
+- **embed**: Warn when MP4 output cannot carry DJI djmd/dbgi telemetry (#478) (#480) (8fb99fd)
+- **geo**: Provenance stamp — every emitted page names its generator (#474) (73e3c9b)
+- **panoedit**: Reset and saved-vs-composed comparison (#473) (#487) (910c597)
+
+### Fixed
+
+- **gui**: A folder scan no longer overrides an explicit mode choice (#476) (#486) (1f11723)
+- **gui**: Field-report polish — photo picking, drop-zone hit-test, caption legibility (#469) (a0bbf90)
+- **panoedit**: Bound the save chain so a stalled write cannot dead-end (#475) (#485) (65db3f0)
+- **panoedit**: Serve oversized panoramas downscaled (#471) (#483) (671a4fd)
+- **provision**: SourceForge first + retry — exiftool.org stopped hosting zips (#481) (#482) (abfa0fa)
+- **validate**: Text report crashed on legacy Windows consoles (#477) (#479) (c257472)
+
+### Documentation
+
+- Auto-generate changelog for v2.7.1 (#468) (bbdbd55)
+
+### Other
+
+- Prepare version 2.8.0 (#488) (ba3f166)
+
+
 ## [2.7.1] - 2026-08-08
 
 ### Fixed
