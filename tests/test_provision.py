@@ -74,6 +74,14 @@ def test_verify_sha256_rejects_mismatch(tmp_path):
         _verify_sha256(f, hashlib.sha256(b"payload").hexdigest())
 
 
+# Exact expected mirror URLs for the fetch tests. Full-URL comparisons keep
+# the tests strong and steer clear of CodeQL's URL-substring rule, which
+# flags host-fragment `in` checks even in assertions.
+_TEST_ARTIFACT = "exiftool-13.59_64.zip"
+_SF_URL = f"https://downloads.sourceforge.net/project/exiftool/{_TEST_ARTIFACT}"
+_ET_URL = f"https://exiftool.org/{_TEST_ARTIFACT}"
+
+
 def test_fetch_artifact_tries_sourceforge_first(monkeypatch, tmp_path):
     # SourceForge hosts every version; exiftool.org stopped hosting the zips
     # entirely (#481), so it is the fallback, not the primary.
@@ -85,11 +93,9 @@ def test_fetch_artifact_tries_sourceforge_first(monkeypatch, tmp_path):
 
     monkeypatch.setattr(provision, "_download", fake_download)
     dest = tmp_path / "artifact.zip"
-    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    _fetch_artifact(_TEST_ARTIFACT, dest)
     assert dest.read_bytes() == b"from-mirror"
-    assert calls == [
-        "https://downloads.sourceforge.net/project/exiftool/exiftool-13.59_64.zip"
-    ]
+    assert calls == [_SF_URL]
 
 
 def test_fetch_artifact_falls_back_to_second_mirror(monkeypatch, tmp_path):
@@ -97,18 +103,16 @@ def test_fetch_artifact_falls_back_to_second_mirror(monkeypatch, tmp_path):
 
     def fake_download(url, dest):
         calls.append(url)
-        if "sourceforge" in url:
+        if url == _SF_URL:
             raise URLError("handshake operation timed out")
         dest.write_bytes(b"from-mirror")
 
     monkeypatch.setattr(provision, "_download", fake_download)
     dest = tmp_path / "artifact.zip"
-    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    _fetch_artifact(_TEST_ARTIFACT, dest)
     assert dest.read_bytes() == b"from-mirror"
     # Transient failure: SourceForge is retried once, then exiftool.org serves.
-    assert len(calls) == 3
-    assert "sourceforge" in calls[0] and "sourceforge" in calls[1]
-    assert "exiftool.org" in calls[2]
+    assert calls == [_SF_URL, _SF_URL, _ET_URL]
 
 
 def test_fetch_artifact_retries_transient_failure_on_same_mirror(
@@ -124,10 +128,9 @@ def test_fetch_artifact_retries_transient_failure_on_same_mirror(
 
     monkeypatch.setattr(provision, "_download", fake_download)
     dest = tmp_path / "artifact.zip"
-    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    _fetch_artifact(_TEST_ARTIFACT, dest)
     assert dest.read_bytes() == b"second-try"
-    assert len(calls) == 2
-    assert calls[0] == calls[1]  # the retry hit the same mirror
+    assert calls == [_SF_URL, _SF_URL]  # the retry hit the same mirror
 
 
 def test_fetch_artifact_404_skips_retry(monkeypatch, tmp_path):
@@ -136,17 +139,15 @@ def test_fetch_artifact_404_skips_retry(monkeypatch, tmp_path):
 
     def fake_download(url, dest):
         calls.append(url)
-        if "sourceforge" in url:
+        if url == _SF_URL:
             raise HTTPError(url, 404, "Not Found", None, None)
         dest.write_bytes(b"from-fallback")
 
     monkeypatch.setattr(provision, "_download", fake_download)
     dest = tmp_path / "artifact.zip"
-    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    _fetch_artifact(_TEST_ARTIFACT, dest)
     assert dest.read_bytes() == b"from-fallback"
-    assert len(calls) == 2
-    assert "sourceforge" in calls[0]
-    assert "exiftool.org" in calls[1]
+    assert calls == [_SF_URL, _ET_URL]
 
 
 def test_fetch_artifact_reports_all_mirrors_on_total_failure(monkeypatch, tmp_path):
@@ -155,9 +156,13 @@ def test_fetch_artifact_reports_all_mirrors_on_total_failure(monkeypatch, tmp_pa
 
     monkeypatch.setattr(provision, "_download", fake_download)
     with pytest.raises(ProvisionError) as excinfo:
-        _fetch_artifact("exiftool-13.59_64.zip", tmp_path / "artifact.zip")
-    assert "exiftool.org" in str(excinfo.value)
-    assert "sourceforge" in str(excinfo.value)
+        _fetch_artifact(_TEST_ARTIFACT, tmp_path / "artifact.zip")
+    # Every attempted URL is named: two tries per mirror, in order.
+    attempted = [
+        line.strip().split(": ", 1)[0]
+        for line in str(excinfo.value).splitlines()[1:]
+    ]
+    assert attempted == [_SF_URL, _SF_URL, _ET_URL, _ET_URL]
 
 
 def _make_windows_zip(path, version=EXIFTOOL_VERSION):
