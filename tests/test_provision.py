@@ -4,7 +4,7 @@ import os
 import tarfile
 import zipfile
 from pathlib import Path
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -74,21 +74,79 @@ def test_verify_sha256_rejects_mismatch(tmp_path):
         _verify_sha256(f, hashlib.sha256(b"payload").hexdigest())
 
 
-def test_fetch_artifact_falls_back_to_second_mirror(monkeypatch, tmp_path):
+def test_fetch_artifact_tries_sourceforge_first(monkeypatch, tmp_path):
+    # SourceForge hosts every version; exiftool.org stopped hosting the zips
+    # entirely (#481), so it is the fallback, not the primary.
     calls = []
 
     def fake_download(url, dest):
         calls.append(url)
-        if "exiftool.org" in url:
-            raise URLError("404 gone after release rollover")
         dest.write_bytes(b"from-mirror")
 
     monkeypatch.setattr(provision, "_download", fake_download)
     dest = tmp_path / "artifact.zip"
     _fetch_artifact("exiftool-13.59_64.zip", dest)
     assert dest.read_bytes() == b"from-mirror"
+    assert calls == [
+        "https://downloads.sourceforge.net/project/exiftool/exiftool-13.59_64.zip"
+    ]
+
+
+def test_fetch_artifact_falls_back_to_second_mirror(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_download(url, dest):
+        calls.append(url)
+        if "sourceforge" in url:
+            raise URLError("handshake operation timed out")
+        dest.write_bytes(b"from-mirror")
+
+    monkeypatch.setattr(provision, "_download", fake_download)
+    dest = tmp_path / "artifact.zip"
+    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    assert dest.read_bytes() == b"from-mirror"
+    # Transient failure: SourceForge is retried once, then exiftool.org serves.
+    assert len(calls) == 3
+    assert "sourceforge" in calls[0] and "sourceforge" in calls[1]
+    assert "exiftool.org" in calls[2]
+
+
+def test_fetch_artifact_retries_transient_failure_on_same_mirror(
+    monkeypatch, tmp_path
+):
+    calls = []
+
+    def fake_download(url, dest):
+        calls.append(url)
+        if len(calls) == 1:
+            raise URLError("connection reset")
+        dest.write_bytes(b"second-try")
+
+    monkeypatch.setattr(provision, "_download", fake_download)
+    dest = tmp_path / "artifact.zip"
+    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    assert dest.read_bytes() == b"second-try"
     assert len(calls) == 2
-    assert "sourceforge" in calls[1]
+    assert calls[0] == calls[1]  # the retry hit the same mirror
+
+
+def test_fetch_artifact_404_skips_retry(monkeypatch, tmp_path):
+    # A 404 is deterministic — retrying the same URL cannot help.
+    calls = []
+
+    def fake_download(url, dest):
+        calls.append(url)
+        if "sourceforge" in url:
+            raise HTTPError(url, 404, "Not Found", None, None)
+        dest.write_bytes(b"from-fallback")
+
+    monkeypatch.setattr(provision, "_download", fake_download)
+    dest = tmp_path / "artifact.zip"
+    _fetch_artifact("exiftool-13.59_64.zip", dest)
+    assert dest.read_bytes() == b"from-fallback"
+    assert len(calls) == 2
+    assert "sourceforge" in calls[0]
+    assert "exiftool.org" in calls[1]
 
 
 def test_fetch_artifact_reports_all_mirrors_on_total_failure(monkeypatch, tmp_path):
@@ -96,8 +154,10 @@ def test_fetch_artifact_reports_all_mirrors_on_total_failure(monkeypatch, tmp_pa
         raise URLError("no route")
 
     monkeypatch.setattr(provision, "_download", fake_download)
-    with pytest.raises(ProvisionError, match="exiftool.org"):
+    with pytest.raises(ProvisionError) as excinfo:
         _fetch_artifact("exiftool-13.59_64.zip", tmp_path / "artifact.zip")
+    assert "exiftool.org" in str(excinfo.value)
+    assert "sourceforge" in str(excinfo.value)
 
 
 def _make_windows_zip(path, version=EXIFTOOL_VERSION):
