@@ -45,6 +45,41 @@ def _ffprobe_duration(path: Path) -> Optional[float]:
         return None
 
 
+def _dji_data_stream_tags(path: Path) -> list[str]:
+    """DJI data-stream tags (``djmd``/``dbgi``) present in *path*.
+
+    Returns an empty list when the file has none, or when ffprobe is
+    missing/unreadable — detection is best-effort and must never block
+    processing (issue #478).
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-select_streams", "d",
+                "-show_entries", "stream=codec_tag_string",
+                "-of", "json",
+                str(path),
+            ],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+    if result.returncode != 0:
+        return []
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, dict):
+        return []
+    return [
+        s["codec_tag_string"]
+        for s in payload.get("streams", [])
+        if isinstance(s, dict) and s.get("codec_tag_string") in ("djmd", "dbgi")
+    ]
+
+
 def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
     """Validate temp output before moving to final destination.
 
@@ -655,6 +690,33 @@ class DJIMetadataEmbedder:
 
                 progress.update(task, description=video_path.name)
                 logger.debug("Processing %s", video_path.name)
+
+                # The MP4 muxer cannot carry DJI's djmd/dbgi data streams
+                # (see embed_metadata_ffmpeg), so the "with metadata" output
+                # would silently lose the manufacturer's own embedded
+                # telemetry. Say so instead of staying quiet (issue #478).
+                if self.container != "mkv":
+                    dji_tags = _dji_data_stream_tags(video_path)
+                    if dji_tags:
+                        streams = "/".join(dji_tags)
+                        if self.overwrite:
+                            warning_msg = (
+                                f"{video_path.name} carries embedded DJI "
+                                f"telemetry ({streams}) that MP4 output cannot "
+                                "include; overwrite mode replaces the original, "
+                                "so this telemetry will be LOST. Use "
+                                "--container mkv to preserve it."
+                            )
+                        else:
+                            warning_msg = (
+                                f"{video_path.name} carries embedded DJI "
+                                f"telemetry ({streams}) that MP4 output cannot "
+                                "include; the original file remains the "
+                                "authoritative source for it. Use --container "
+                                "mkv to preserve it in the output."
+                            )
+                        logger.warning(warning_msg)
+                        result["warnings"].append(warning_msg)
 
                 # Parse SRT telemetry
                 telemetry = self.parse_dji_srt(srt_path)
