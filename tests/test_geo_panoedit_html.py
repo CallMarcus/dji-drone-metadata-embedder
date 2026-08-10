@@ -31,6 +31,40 @@ def test_page_token_is_json_escaped():
     assert "</script><script>alert(1)" not in html
 
 
+def test_page_offers_reset_and_comparison():
+    # #473: leaving a good existing view alone must not cost a rewrite,
+    # and the choice to overwrite should be made against the alternative.
+    html = build_editor_page("tok123")
+    assert 'id="reset"' in html and 'id="compare"' in html
+    assert "Reset (Esc)" in html and "Show saved (C)" in html
+    for key in ('e.key === "Escape"', 'e.key === "c"'):
+        assert key in html
+    # Reset returns to the view the viewer opened at, which for a file
+    # with no saved view is Pannellum's own default.
+    assert "openingView = viewerView()" in html
+    # Comparing must not be a way to rewrite a file with its own contents.
+    assert "showingSaved" in html
+    assert "saving || !viewer || showingSaved" in html
+
+
+def test_page_protects_an_in_flight_save():
+    # Review finding: navigation during a save applied the save's answer to
+    # whichever file was on screen when it landed. One gate for every move.
+    html = build_editor_page("tok123")
+    assert "function navigate(i)" in html
+    assert "if (saving || i < 0 || i >= files.length) return;" in html
+    assert "const target = idx;" in html
+    assert "Object.assign(files[target], body)" in html
+
+
+def test_page_retires_the_comparison_on_any_movement():
+    # Review finding: mousedown/touchstart miss wheel zoom and arrow-key
+    # panning, which left Save disabled on a changed view.
+    html = build_editor_page("tok123")
+    assert "viewsDiffer(viewerView(), openingView)" in html
+    assert "compareArmed" in html
+
+
 def test_page_reports_load_failures_honestly():
     # Pannellum blames the file for every load failure ("could not be
     # accessed"), which sent a field tester hunting a corrupt image when

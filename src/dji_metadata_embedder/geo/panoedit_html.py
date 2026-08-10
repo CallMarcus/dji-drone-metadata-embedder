@@ -33,9 +33,13 @@ _PAGE = """<!DOCTYPE html>
   #readout b {{ color: #ffd24d; }}
   #savebar {{ position: fixed; top: 12px; right: 12px; z-index: 10;
     text-align: right; }}
-  #save {{ font: inherit; padding: 8px 18px; border: 0; border-radius: 6px;
-    background: #2a81cb; color: #fff; cursor: pointer; }}
-  #save:disabled {{ background: #555; cursor: default; }}
+  #savebar button {{ font: inherit; padding: 8px 18px; border: 0;
+    border-radius: 6px; background: #2a81cb; color: #fff; cursor: pointer; }}
+  #savebar button:disabled {{ background: #555; color: #bbb;
+    cursor: default; }}
+  /* Reset and Compare are second thoughts next to Save, not rivals. */
+  #reset, #compare {{ background: #3a3a3a; padding: 8px 14px; }}
+  #compare.on {{ background: #7a5c14; color: #fff; }}
   #status {{ margin-top: 6px; min-height: 1.2em; }}
   #status.err {{ color: #ff7b6b; }}
   #strip {{ position: fixed; left: 0; right: 0; bottom: 0; height: 96px;
@@ -70,11 +74,17 @@ _PAGE = """<!DOCTYPE html>
 <div id="readout">loading…</div>
 <div id="savebar">
   <button id="save" type="button">Save view (Enter)</button>
+  <button id="reset" type="button" title="Back to this file's opening view"
+    >Reset (Esc)</button>
+  <button id="compare" type="button"
+    title="Compare the saved view with the one you are composing"
+    >Show saved (C)</button>
   <div id="status"></div>
 </div>
 <div id="counter"></div>
 <div id="note">Saving keeps a backup of each original beside it
-(<code>*_original</code>). N/P: next/previous.</div>
+(<code>*_original</code>). N/P: next/previous. Esc: back to the opening
+view. C: compare with the saved one.</div>
 <div id="strip"></div>
 <script src="https://unpkg.com/pannellum@{pannellum}/build/pannellum.js"
         integrity="{pannellum_js_sri}" crossorigin=""></script>
@@ -83,6 +93,11 @@ _PAGE = """<!DOCTYPE html>
 const TOKEN = {token};
 const SERVE = {serve};
 let files = [], idx = 0, viewer = null, saving = false;
+// The view this file opened at (its saved view, or Pannellum's defaults
+// where none is saved) and the one being composed when the comparison
+// flips away from it (#473).
+let openingView = null, pendingView = null, showingSaved = false;
+let compareArmed = false;
 window.__panoReady = false;
 const $ = (id) => document.getElementById(id);
 
@@ -153,6 +168,86 @@ function currentView() {{
   }};
 }}
 
+// Reset / compare (#473) -------------------------------------------------
+
+const EASE_MS = 400;
+
+function viewerView() {{
+  return {{ yaw: viewer.getYaw(), pitch: viewer.getPitch(),
+    hfov: viewer.getHfov() }};
+}}
+
+function lookAt(v) {{ viewer.lookAt(v.pitch, v.yaw, v.hfov, EASE_MS); }}
+
+function viewsDiffer(a, b) {{
+  return !a || !b || Math.abs(a.yaw - b.yaw) > 0.5
+    || Math.abs(a.pitch - b.pitch) > 0.5 || Math.abs(a.hfov - b.hfov) > 0.5;
+}}
+
+function updateCompare() {{
+  const f = files[idx] || {{}};
+  const compare = $("compare");
+  // Nothing to compare against until a view has been saved for this file.
+  compare.disabled = !(f.hasView && openingView);
+  compare.classList.toggle("on", showingSaved);
+  compare.textContent = showingSaved ? "Back to yours (C)" : "Show saved (C)";
+  // Saving while the saved view is on screen would rewrite the file with
+  // what it already contains, which is the pointless write #473 is about.
+  $("save").disabled = saving || showingSaved;
+  $("reset").disabled = !openingView;
+}}
+
+// Snap back to the view this file opened at: the point of Reset is to
+// leave a good existing view alone without rewriting the file.
+function resetView() {{
+  // Not mid-save: the write in flight is of the view that was on screen
+  // when it started, and moving the camera under it would leave Reset
+  // and the comparison pointing at something that is not on disk.
+  if (!viewer || !openingView || saving) return;
+  showingSaved = false;
+  pendingView = null;
+  lookAt(openingView);
+  updateCompare();
+  $("status").className = "";
+  $("status").textContent = files[idx] && files[idx].hasView
+    ? "Back to the saved view" : "Back to the opening view";
+}}
+
+// Flip between what is on disk and what you have composed, so the choice
+// to overwrite is made against the alternative rather than from memory.
+function toggleCompare() {{
+  if (!viewer || !openingView || !files[idx] || !files[idx].hasView
+      || saving) return;
+  if (showingSaved) {{
+    const back = pendingView;
+    showingSaved = false;
+    pendingView = null;
+    if (back) lookAt(back);
+  }} else {{
+    pendingView = viewerView();
+    showingSaved = true;
+    // Armed only once the ease has landed, so the animation towards the
+    // saved view is not itself read as the user moving away from it.
+    compareArmed = false;
+    setTimeout(() => {{ compareArmed = showingSaved; }}, EASE_MS + 150);
+    lookAt(openingView);
+  }}
+  updateCompare();
+}}
+
+// Any movement while the saved view is shown means the user has moved on
+// from comparing: their new framing is the pending one from here. Watched
+// as a divergence rather than hooked to mousedown, because Pannellum also
+// pans with the arrow keys and zooms with the wheel — leaving Save
+// disabled on a view the user has visibly changed.
+function dropCompare() {{
+  if (!showingSaved) return;
+  showingSaved = false;
+  compareArmed = false;
+  pendingView = null;
+  updateCompare();
+}}
+
 function renderStrip() {{
   const strip = $("strip");
   strip.textContent = "";
@@ -164,15 +259,27 @@ function renderStrip() {{
     dot.className = "dot";
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(f.name));
-    chip.addEventListener("click", () => open(i));
+    chip.addEventListener("click", () => navigate(i));
     strip.appendChild(chip);
   }});
   $("counter").textContent = (idx + 1) + " / " + files.length;
 }}
 
+// Every user-initiated move between panoramas. A save in flight owns the
+// file it started on: leaving mid-write would apply its answer to whatever
+// is on screen when it lands (#473/#475).
+function navigate(i) {{
+  if (saving || i < 0 || i >= files.length) return;
+  open(i);
+}}
+
 function open(i) {{
   idx = i;
   window.__panoReady = false;
+  openingView = null;
+  pendingView = null;
+  showingSaved = false;
+  compareArmed = false;
   clearPanoError();
   if (viewer) {{ viewer.destroy(); viewer = null; }}
   const f = files[i];
@@ -183,26 +290,48 @@ function open(i) {{
   if (f.hfov !== null) cfg.hfov = f.hfov;
   viewer = pannellum.viewer("viewer", cfg);
   window.__viewer = viewer;
-  viewer.on("load", () => {{ window.__panoReady = true; }});
+  viewer.on("load", () => {{
+    // Read the opening view off the viewer rather than the file: for a
+    // panorama with no saved view that is Pannellum's own default, which
+    // is exactly what Reset should return to.
+    openingView = viewerView();
+    updateCompare();
+    window.__panoReady = true;
+  }});
   viewer.on("error", showPanoError);
+  viewer.on("mousedown", dropCompare);
+  viewer.on("touchstart", dropCompare);
   $("status").textContent = "";
+  updateCompare();
   renderStrip();
 }}
 
 function readoutLoop() {{
   if (viewer && files.length) {{
+    // Wheel zoom and arrow-key panning never reach the mousedown handler,
+    // so the comparison is retired by watching the view itself.
+    if (showingSaved && compareArmed
+        && viewsDiffer(viewerView(), openingView)) dropCompare();
     const v = currentView();
     $("readout").innerHTML =
       "<b>" + files[idx].name.replace(/[<>&]/g, "") + "</b><br>" +
       "Heading " + v.heading.toFixed(1) + "° · " +
       "Pitch " + v.pitch.toFixed(1) + "° · " +
-      "FOV " + v.hfov.toFixed(1) + "°";
+      "FOV " + v.hfov.toFixed(1) + "°" +
+      // Whose numbers these are matters while comparing (#473).
+      (showingSaved ? "<br>showing the saved view" : "");
   }}
   requestAnimationFrame(readoutLoop);
 }}
 
 async function save() {{
-  if (saving || !viewer) return;
+  // Enter reaches here even though the button is disabled while the saved
+  // view is on screen; rewriting the file with its own contents is not a
+  // save, it is noise.
+  if (saving || !viewer || showingSaved) return;
+  // The write belongs to this panorama for its whole flight, however long
+  // ExifTool takes: `idx` after the await is not necessarily this file.
+  const target = idx;
   saving = true;
   $("save").disabled = true;
   const status = $("status");
@@ -213,17 +342,24 @@ async function save() {{
     const resp = await fetch("/api/save", {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
-      body: JSON.stringify({{ index: files[idx].index, token: TOKEN,
+      body: JSON.stringify({{ index: files[target].index, token: TOKEN,
         heading: v.heading, pitch: v.pitch, hfov: v.hfov }}),
     }});
     const body = await resp.json();
     if (!resp.ok) throw new Error(body.error || ("HTTP " + resp.status));
-    Object.assign(files[idx], body);
+    Object.assign(files[target], body);
     status.textContent = "Saved ✓";
-    if (idx + 1 < files.length) {{
-      open(idx + 1);
+    if (target + 1 < files.length) {{
+      open(target + 1);
       $("status").textContent = "Saved ✓";
     }} else {{
+      // Staying on this file: what was just written is now its saved view.
+      // Taken from the server's verified read-back, not from the live
+      // camera, so Reset and the comparison point at what is on disk.
+      openingView = (body.yaw !== null && body.yaw !== undefined)
+        ? {{ yaw: body.yaw, pitch: body.pitch, hfov: body.hfov }}
+        : viewerView();
+      pendingView = null;
       renderStrip();
       status.textContent = "Saved ✓ — all panoramas done";
     }}
@@ -232,18 +368,19 @@ async function save() {{
     status.textContent = "Save failed: " + e.message;
   }} finally {{
     saving = false;
-    $("save").disabled = false;
+    updateCompare();
   }}
 }}
 
 $("save").addEventListener("click", save);
+$("reset").addEventListener("click", resetView);
+$("compare").addEventListener("click", toggleCompare);
 document.addEventListener("keydown", (e) => {{
   if (e.key === "Enter") {{ e.preventDefault(); save(); }}
-  else if (e.key === "n" || e.key === "N") {{
-    if (idx + 1 < files.length) open(idx + 1);
-  }} else if (e.key === "p" || e.key === "P") {{
-    if (idx > 0) open(idx - 1);
-  }}
+  else if (e.key === "Escape") {{ e.preventDefault(); resetView(); }}
+  else if (e.key === "c" || e.key === "C") {{ toggleCompare(); }}
+  else if (e.key === "n" || e.key === "N") {{ navigate(idx + 1); }}
+  else if (e.key === "p" || e.key === "P") {{ navigate(idx - 1); }}
 }});
 
 fetch("/api/list").then((r) => r.json()).then((list) => {{
