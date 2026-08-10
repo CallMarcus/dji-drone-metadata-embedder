@@ -58,7 +58,8 @@ def test_page_and_list(editor):
     assert status == 200
     assert data == [{"index": 0, "name": "a.jpg", "pose": 90.0,
                      "yaw": None, "pitch": None, "hfov": None,
-                     "hasView": False}]
+                     "hasView": False, "width": 0, "height": 0,
+                     "downscaled": False}]
 
 
 def test_image_by_index_only(editor):

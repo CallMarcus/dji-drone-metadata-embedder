@@ -602,6 +602,40 @@ Panoramas need their GPano metadata intact to be detected — see
 [Maps & Panoramas](geospatial.md) before resizing or re-exporting them, as
 most editors silently strip it.
 
+### A panorama stays black, or "the file could not be accessed"
+
+**Problem:** In the 360° views editor (`panoedit`) the first panorama opens
+but later ones stay black, sometimes with *"The file
+http://127.0.0.1:.../img/1 could not be accessed"*. The same panoramas may
+also refuse to open from a photomap. Which image works can change from one
+try to the next.
+
+**Cause:** The file is almost certainly fine — that message is the viewer's
+wording for *any* failure to load, including running out of graphics
+memory. Very large equirectangular panoramas (8000 px wide and up) are
+uploaded to the GPU as one enormous texture, and older cards run out of
+video memory as viewers are opened and closed, even when their advertised
+maximum texture size is far larger. That is why the failure looks random.
+
+**Solutions:**
+
+- The editor already serves panoramas wider than 6000 px downscaled. If it
+  still fails, lower the ceiling further:
+  ```bash
+  dji-embed panoedit /path/to/panoramas --max-width 4000
+  ```
+  Your files are not modified — only the copy sent to the viewer is
+  smaller, and the heading, pitch and field of view you save are the same
+  at any resolution.
+- Downscaling needs Pillow. If the editor reports that it is missing:
+  ```bash
+  pip install "dji-drone-metadata-embedder[terrain]"
+  # pipx install: pipx inject dji-drone-metadata-embedder pillow
+  ```
+- For panoramas on a **published** map, resize the copies you publish
+  (`--max-width` only affects the editor). The popup's *open original*
+  link always works, since it is a plain image, not a WebGL texture.
+
 ### Maps open in the browser instead of inside the app
 
 The inline map preview uses **Microsoft Edge WebView2**, which ships

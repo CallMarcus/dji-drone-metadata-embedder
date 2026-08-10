@@ -509,7 +509,7 @@ requires-dist = [
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.1.0" },
     { name = "pillow", marker = "extra == 'dev'", specifier = "==12.3.0" },
-    { name = "pillow", marker = "extra == 'terrain'", specifier = ">=10.0" },
+    { name = "pillow", marker = "extra == 'terrain'", specifier = ">=11.0" },
     { name = "playwright", marker = "extra == 'browser'", specifier = "==1.61.0" },
     { name = "pyinstaller", marker = "extra == 'build'", specifier = ">=6.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },

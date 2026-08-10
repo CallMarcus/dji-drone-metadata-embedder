@@ -53,10 +53,20 @@ _PAGE = """<!DOCTYPE html>
   #note {{ position: fixed; left: 12px; bottom: 104px; z-index: 10;
     color: #ccc; font-size: 12px; background: rgba(0,0,0,.55);
     padding: 4px 10px; border-radius: 6px; }}
+  /* Sits over the viewer when Pannellum cannot show the image: its own
+     "could not be accessed" text blames the file, which is almost never
+     the real cause on the machines this happens to (#471). */
+  #panoerr {{ position: fixed; inset: 0 0 96px 0; z-index: 20;
+    display: none; align-items: center; justify-content: center;
+    padding: 0 2em; background: rgba(17,17,17,.93); }}
+  #panoerr > div {{ max-width: 36em; line-height: 1.6; text-align: center; }}
+  #panoerr b {{ color: #ff7b6b; }}
+  #panoerr code {{ color: #ffd24d; }}
 </style>
 </head>
 <body>
 <div id="viewer"></div>
+<div id="panoerr"><div></div></div>
 <div id="readout">loading…</div>
 <div id="savebar">
   <button id="save" type="button">Save view (Enter)</button>
@@ -71,11 +81,68 @@ _PAGE = """<!DOCTYPE html>
 <script>
 "use strict";
 const TOKEN = {token};
+const SERVE = {serve};
 let files = [], idx = 0, viewer = null, saving = false;
 window.__panoReady = false;
 const $ = (id) => document.getElementById(id);
 
 function norm360(d) {{ return ((d % 360) + 360) % 360; }}
+
+function plain(s) {{ return String(s).replace(/[<>&"]/g, ""); }}
+
+// Why this panorama probably failed. Pannellum reports every load failure
+// as "the file could not be accessed", including the decode and GPU-memory
+// failures that oversized equirects hit on older hardware (#471).
+function panoAdvice(f) {{
+  const oversize = SERVE.maxWidth && f.width > SERVE.maxWidth;
+  if (f.downscaled)
+    return "It is already shown downscaled to " + SERVE.maxWidth +
+      " px, so the size alone should not be the problem. Reopening it, or "
+      + "restarting the editor with a smaller <code>--max-width</code>, is "
+      + "the next thing to try.";
+  if (oversize && SERVE.hint)
+    return plain(SERVE.hint);
+  if (oversize)
+    // Oversized, downscaling was meant to apply, and it did not: the
+    // rendition could not be built (the terminal says why).
+    return "It should have been shown downscaled to " + SERVE.maxWidth +
+      " px but could not be, so the full-size image was served - see the "
+      + "terminal for the reason. A panorama this large can exhaust an "
+      + "older GPU's memory even when the file itself is fine.";
+  if (f.width > 4000)
+    return "Panoramas this large can exhaust an older GPU's memory even "
+      + "when the file itself is fine. Restart the editor with "
+      + "<code>--max-width 4000</code> to view smaller copies of them; "
+      + "the files on disk are never modified.";
+  return "Check that the file is a readable JPEG and that this browser has "
+    + "WebGL enabled.";
+}}
+
+function renderPanoError(f, msg) {{
+  const size = (f.width && f.height) ? f.width + " x " + f.height + " px"
+    : "size unknown";
+  $("panoerr").firstElementChild.innerHTML =
+    "<b>Could not display " + plain(f.name || "this panorama") + "</b> ("
+    + size + ").<br>" + plain(msg) + "<br><br>" + panoAdvice(f);
+  $("panoerr").style.display = "flex";
+}}
+
+function showPanoError(msg) {{
+  const failed = idx;
+  renderPanoError(files[failed] || {{}}, msg);
+  // Re-read the list before settling on the advice: `downscaled` is a
+  // prediction until the image has been requested, and by now the server
+  // knows whether the rendition was actually built. Advice from the
+  // prediction can point away from the setting that would fix it.
+  fetch("/api/list").then((r) => r.json()).then((list) => {{
+    if (list[failed]) files[failed] = list[failed];
+    if (idx === failed) renderPanoError(files[failed], msg);
+  }}).catch(() => {{}});
+}}
+
+function clearPanoError() {{
+  $("panoerr").style.display = "none";
+}}
 
 function currentView() {{
   const f = files[idx];
@@ -106,6 +173,7 @@ function renderStrip() {{
 function open(i) {{
   idx = i;
   window.__panoReady = false;
+  clearPanoError();
   if (viewer) {{ viewer.destroy(); viewer = null; }}
   const f = files[i];
   const cfg = {{ type: "equirectangular", panorama: "/img/" + f.index,
@@ -116,6 +184,7 @@ function open(i) {{
   viewer = pannellum.viewer("viewer", cfg);
   window.__viewer = viewer;
   viewer.on("load", () => {{ window.__panoReady = true; }});
+  viewer.on("error", showPanoError);
   $("status").textContent = "";
   renderStrip();
 }}
@@ -179,6 +248,12 @@ document.addEventListener("keydown", (e) => {{
 
 fetch("/api/list").then((r) => r.json()).then((list) => {{
   files = list;
+  const big = files.filter((f) => f.downscaled).length;
+  if (big) {{
+    $("note").innerHTML += "<br>" + big + " panorama" +
+      (big === 1 ? " is" : "s are") + " shown downscaled to " +
+      SERVE.maxWidth + " px for compatibility; the files are untouched.";
+  }}
   open(0);
   readoutLoop();
 }});
@@ -188,17 +263,34 @@ fetch("/api/list").then((r) => r.json()).then((list) => {{
 """
 
 
-def build_editor_page(token: str) -> str:
+def build_editor_page(
+    token: str,
+    *,
+    max_width: int = 0,
+    renditions: bool = True,
+    hint: str = "",
+) -> str:
     """The complete editor page with *token* embedded.
 
     ``json.dumps`` alone leaves ``<`` intact, so a hostile token could
     close the script tag; ``\\u003c`` keeps the JS value identical while
     making breakout impossible. Real tokens are ``token_urlsafe`` output,
     but the page must be safe by construction, not by caller convention.
+
+    ``max_width`` is the server's downscale ceiling (0 = off) and *hint*
+    the message to show when a panorama is over it but no rendition could
+    be made — both only ever reach the user through the failure overlay
+    and the footer note (#471).
     """
+    serve = {
+        "maxWidth": max_width,
+        "renditions": renditions,
+        "hint": "" if renditions else hint,
+    }
     return stamp(_PAGE.format(
         pannellum=_PANNELLUM_VERSION,
         pannellum_css_sri=_PANNELLUM_CSS_SRI,
         pannellum_js_sri=_PANNELLUM_JS_SRI,
         token=json.dumps(token).replace("<", "\\u003c"),
+        serve=json.dumps(serve).replace("<", "\\u003c"),
     ))

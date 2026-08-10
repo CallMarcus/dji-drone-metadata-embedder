@@ -231,6 +231,18 @@ function openPano(a) {
   // Pannellum renders the author byline with innerHTML — esc() is mandatory.
   if (a.dataset.credit) cfg.author = esc(a.dataset.credit);
   panoViewer = pannellum.viewer('pano-viewer', cfg);
+  // Pannellum reports every load failure as "the file could not be
+  // accessed", which reads as a missing file. On older graphics hardware
+  // the usual cause is a panorama too large for the GPU to hold (#471),
+  // and the file is fine — say so, and point at the link that still works.
+  panoViewer.on('error', msg => {
+    if (panoViewer) { panoViewer.destroy(); panoViewer = null; }
+    panoContainer.innerHTML = '<div class="pano-blocked">' +
+      esc(msg) + '<br><br>Very large panoramas (8000\\u00a0px and wider) ' +
+      'can exceed what older graphics hardware can display, even when the ' +
+      'file itself is fine. The "open original" link in the popup shows ' +
+      'the image itself.</div>';
+  });
 }
 function closePano() {
   panoOverlay.style.display = 'none';
