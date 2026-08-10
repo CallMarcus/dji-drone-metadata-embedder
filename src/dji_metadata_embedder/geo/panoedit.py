@@ -357,7 +357,7 @@ def run_editor(
             n = len(server.pano_files)            # type: ignore[attr-defined]
             click.echo(
                 f"Editing {n} panorama{'s' if n != 1 else ''} at {url} "
-                "— press Ctrl+C to stop"
+                "- press Ctrl+C to stop"
             )
         if open_browser:
             webbrowser.open(url)

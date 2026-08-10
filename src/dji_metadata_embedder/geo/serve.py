@@ -241,7 +241,7 @@ def serve_directory(
             click.echo(url)
             sys.stdout.flush()
         else:
-            click.echo(f"Serving map at {url} — press Ctrl+C to stop")
+            click.echo(f"Serving map at {url} - press Ctrl+C to stop")
         if open_browser:
             webbrowser.open(url)
         if stop_on_stdin_eof:

@@ -1642,8 +1642,11 @@ def validate(
             click.echo(f"Valid pairs: {validation_result.get('valid_pairs', 0)}")
             click.echo(f"Issues found: {len(validation_result.get('issues', []))}")
             
+            # ASCII marker: legacy Windows consoles (cp1252/cp437) cannot
+            # encode emoji, and the resulting UnicodeEncodeError would be
+            # swallowed below and rebranded "Validation failed" (#477).
             for issue in validation_result.get('issues', []):
-                click.echo(f"  ⚠️ {issue}")
+                click.echo(f"  [!] {issue}")
         
         # Exit with appropriate code
         if validation_result.get('issues'):
