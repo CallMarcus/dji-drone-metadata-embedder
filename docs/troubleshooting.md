@@ -636,6 +636,32 @@ maximum texture size is far larger. That is why the failure looks random.
   (`--max-width` only affects the editor). The popup's *open original*
   link always works, since it is a plain image, not a WebGL texture.
 
+### Saving a 360° view hangs, and the Save button stops responding
+
+**Problem:** In the 360° views editor, Save says *Saving…* and never
+finishes; the button stays greyed out.
+
+**Cause:** Writing the tags rewrites the whole JPEG and copies the
+original to `<name>_original`. On a spinning disk, or with real-time
+antivirus scanning both files, that can take a long time — or wedge on a
+file lock.
+
+**What happens now:** ExifTool is given 60 seconds per save, the page a
+little longer. If the time runs out you get a message instead of a dead
+button, and the terminal logs how long each save took (saves over 10
+seconds are logged as warnings) — quote that number if you report it.
+Opening the folder is bounded the same way, scaled to how many panoramas
+are in it, so a stalled scan reports itself instead of hanging before the
+editor ever appears.
+
+**Solutions:**
+
+- Retry: a save that lost a race with a scanner usually works second time.
+- Exclude your photo folder from real-time antivirus scanning, or copy the
+  panoramas to a local SSD before editing.
+- If a save was interrupted, look for `<name>_original` and
+  `<name>_exiftool_tmp` beside the file — your image is in one of them.
+
 ### Maps open in the browser instead of inside the app
 
 The inline map preview uses **Microsoft Edge WebView2**, which ships

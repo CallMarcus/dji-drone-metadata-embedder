@@ -6,6 +6,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import threading
+import time
 
 import pytest
 
@@ -295,5 +296,34 @@ def test_zooming_while_comparing_returns_control_to_the_user(
         page.wait_for_function(
             "!document.querySelector('#save').disabled")
         assert "saved view" not in page.inner_text("#readout")
+    finally:
+        httpd.shutdown()
+
+
+@needs_exiftool
+def test_save_timeout_frees_the_button(tmp_path, page, monkeypatch):
+    # #475: a save that stalls used to leave the button disabled and
+    # unresponsive until the app was restarted. It must always come back,
+    # with a message that says what happened.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    _make_pano(tmp_path / "a.jpg", pose=0.0)
+
+    def stalls(path, heading, pitch, hfov):
+        time.sleep(5)
+        return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
+
+    monkeypatch.setattr(pe, "write_initial_view", stalls)
+    httpd, url = _serve(tmp_path, page)
+    # Same page, with the backstop pulled in so the test is seconds long.
+    httpd.pano_page = build_editor_page(
+        httpd.pano_token, save_timeout_ms=800).encode("utf-8")
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+        page.click("#save")
+        page.wait_for_function(
+            "document.querySelector('#status').innerText"
+            ".includes('Save timed out')")
+        assert page.locator("#save").is_enabled()
     finally:
         httpd.shutdown()

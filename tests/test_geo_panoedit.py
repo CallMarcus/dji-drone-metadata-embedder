@@ -112,3 +112,134 @@ def test_write_initial_view_failure_raises(monkeypatch, tmp_path):
                    stderr="Error: not writable")
     with pytest.raises(pe.PanoEditError, match="not writable"):
         pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+
+
+# Save timeouts (#475): no layer of the save chain was bounded, so an
+# ExifTool run stalled behind a virus scanner left the page waiting on a
+# request that never returned and a Save button that stayed dead until the
+# app was restarted.
+
+
+def test_write_bounds_both_exiftool_runs(monkeypatch, tmp_path):
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+    timeouts: list[object] = []
+    verified = json.dumps([{"InitialViewHeadingDegrees": 1.0,
+                            "InitialViewPitchDegrees": 0.0,
+                            "InitialHorizontalFOVDegrees": 90.0,
+                            "PoseHeadingDegrees": 0.0}])
+
+    class _Result:
+        def __init__(self, args):
+            self.returncode = 0
+            self.stderr = ""
+            self.stdout = verified if "-json" in args else ""
+
+    def fake_run(args, **kwargs):
+        timeouts.append(kwargs.get("timeout"))
+        return _Result(args)
+
+    monkeypatch.setattr(pe.subprocess, "run", fake_run)
+    pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    assert timeouts == [pe._WRITE_TIMEOUT, pe._WRITE_TIMEOUT]
+
+
+def test_write_timeout_is_an_actionable_error(monkeypatch, tmp_path):
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+
+    def hang(args, **kwargs):
+        raise pe.subprocess.TimeoutExpired(args, kwargs.get("timeout", 0))
+
+    monkeypatch.setattr(pe.subprocess, "run", hang)
+    with pytest.raises(pe.PanoEditError) as exc:
+        pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    message = str(exc.value)
+    assert "did not finish writing pano.jpg" in message
+    assert "Antivirus" in message
+    # ExifTool renames the original out of the way before moving its
+    # rewritten copy in, so the message must not promise an untouched
+    # file — it must say where to look for the image.
+    assert "pano.jpg_original" in message
+    assert "pano.jpg_exiftool_tmp" in message
+
+
+def test_readback_timeout_says_the_write_happened(monkeypatch, tmp_path):
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+
+    class _Result:
+        returncode = 0
+        stderr = ""
+        stdout = ""
+
+    def run(args, **kwargs):
+        if "-json" in args:
+            raise pe.subprocess.TimeoutExpired(args, kwargs.get("timeout", 0))
+        return _Result()
+
+    monkeypatch.setattr(pe.subprocess, "run", run)
+    with pytest.raises(pe.PanoEditError) as exc:
+        pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    assert "were written" in str(exc.value)
+    assert "could not be verified" in str(exc.value)
+
+
+def test_slow_save_is_logged_as_a_warning(monkeypatch, tmp_path, caplog):
+    # The difference between "slow disk" and "hung" is a number, and the
+    # next field report should be able to quote it.
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+    _fake_exiftool(monkeypatch, json.dumps([{
+        "InitialViewHeadingDegrees": 1.0, "InitialViewPitchDegrees": 0.0,
+        "InitialHorizontalFOVDegrees": 90.0, "PoseHeadingDegrees": 0.0}]))
+    clock = iter([0.0, float(pe._SLOW_WRITE_SECONDS + 5)])
+    monkeypatch.setattr(pe.time, "monotonic", lambda: next(clock))
+    with caplog.at_level("INFO", logger=pe.logger.name):
+        pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    record = next(r for r in caplog.records if "ExifTool wrote" in r.message)
+    assert record.levelname == "WARNING"
+    assert "pano.jpg" in record.getMessage()
+
+
+def test_scan_is_bounded_and_scales_with_the_folder(monkeypatch, tmp_path):
+    # A scan stalls for the same reasons a save does, but earlier: it runs
+    # before the URL is printed, and the GUI waits for that line.
+    for i in range(5):
+        (tmp_path / f"p{i}.jpg").write_bytes(b"\xff\xd8")
+    (tmp_path / "notes.txt").write_text("not a panorama")
+    expected = pe._WRITE_TIMEOUT + 5 * pe._SCAN_SECONDS_PER_FILE
+    assert pe._scan_timeout(tmp_path, recursive=False) == expected
+    # The allowance is per file, but bounded: a wedged scan still ends.
+    monkeypatch.setattr(pe, "_SCAN_TIMEOUT_CAP", 1.0)
+    assert pe._scan_timeout(tmp_path, recursive=False) == 1.0
+
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["timeout"] = kwargs.get("timeout")
+        raise pe.subprocess.TimeoutExpired(args, kwargs.get("timeout", 0))
+
+    monkeypatch.setattr(pe.subprocess, "run", fake_run)
+    with pytest.raises(pe.PanoEditError) as exc:
+        pe.scan_panos(tmp_path)
+    assert seen["timeout"] == 1.0
+    assert "did not finish reading" in str(exc.value)
+    assert "Antivirus" in str(exc.value)
+
+
+def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path,
+                                                     caplog):
+    # The page tells the user to check the terminal, so the terminal has
+    # to have something in it.
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+    monkeypatch.setattr(
+        pe.subprocess, "run",
+        lambda args, **kw: (_ for _ in ()).throw(
+            pe.subprocess.TimeoutExpired(args, kw.get("timeout", 0))))
+    with caplog.at_level("WARNING", logger=pe.logger.name):
+        with pytest.raises(pe.PanoEditError):
+            pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    assert any("did not finish writing pano.jpg" in r.getMessage()
+               for r in caplog.records)
