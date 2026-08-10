@@ -549,6 +549,14 @@ with ExifTool and moves on to the next panorama. Each original is kept
 beside the file as `<name>_original`. In the desktop app this is the
 "360° views" mode.
 
+Two keys matter when a panorama already has a view you like: **Esc**
+resets the viewer to the view the file opened at, so you can look around
+and then move on with `N` without rewriting anything, and **C** flips
+between the saved view and the one you are composing, so you can see what
+you would be replacing before you replace it. Saving is held back while
+the saved view is on screen — that write would only put back what is
+already there.
+
 Panoramas wider than 6000 px are shown downscaled to that width. Very
 large equirectangular images (8000 px and up) fail to render on older
 graphics hardware — often erratically, one image loading and the next
