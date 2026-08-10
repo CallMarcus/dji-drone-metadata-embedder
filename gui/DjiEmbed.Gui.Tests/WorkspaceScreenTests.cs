@@ -1568,6 +1568,29 @@ public class WorkspaceScreenTests
         }
     }
 
+    // #476: the mode strip's suggestion is a hint, not a command. It shows
+    // only when it differs from what is selected — repeating the current
+    // mode back at the user is noise, and imposing it was the bug.
+    [AvaloniaFact]
+    public void Mode_suggestion_hint_shows_only_when_it_differs()
+    {
+        var window = ShowWorkspace();
+        var view = (WorkspaceView)window.Content!;
+        var vm = (WorkspaceViewModel)view.DataContext!;
+        var hint = view.FindControl<TextBlock>("ModeSuggestionHint")!;
+        Assert.False(hint.IsVisible);
+
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        vm.SuggestedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(hint.IsVisible);
+        Assert.Contains("Photo map", hint.Text!);
+
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(hint.IsVisible);
+    }
+
     // M4a: the Convert options panel renders only for Convert, with the
     // Advanced expander closed by default. The panel's freeze-while-busy
     // behaviour is covered alongside the other three panels' by

@@ -137,6 +137,60 @@ public partial class WorkspaceViewModel : FlowViewModel
     [ObservableProperty]
     public partial WorkspaceMode? SuggestedMode { get; set; }
 
+    /// <summary>True once the user has picked a mode themselves; the
+    /// starting selection is where the strip happens to open, not a
+    /// choice. Session-only, like every other mode-related state — the
+    /// persisted state is folders and window bounds, nothing else.</summary>
+    private bool _modeChosenByUser;
+
+    /// <summary>Set while the app follows its own folder suggestion, so
+    /// <see cref="OnSelectedModeChanged"/> can tell that apart from a
+    /// click on the mode strip.</summary>
+    private bool _adoptingSuggestion;
+
+    /// <summary>The suggestion is worth showing only when it differs from
+    /// what is selected; repeating the current mode back at the user is
+    /// noise.</summary>
+    public bool ShowModeSuggestion =>
+        SuggestedMode is not null && SuggestedMode != SelectedMode;
+
+    private void AdoptSuggestion(WorkspaceMode mode)
+    {
+        _adoptingSuggestion = true;
+        try
+        {
+            SelectedMode = mode;
+        }
+        finally
+        {
+            _adoptingSuggestion = false;
+        }
+    }
+
+    /// <summary>
+    /// Whether <paramref name="mode"/> has anything to work with in a
+    /// folder holding <paramref name="contents"/>. Deliberately the loose
+    /// "anywhere in the tree" question, not the pre-flight guards' strict
+    /// "where this command will look": this only decides whether to keep a
+    /// user's choice, and the guards still explain a mismatch at Run time
+    /// with far better wording than a silent mode switch ever could.
+    /// </summary>
+    private static bool ModeFits(WorkspaceMode mode, FolderContents contents) =>
+        mode.Kind switch
+        {
+            WorkspaceModeKind.FlightMap => contents.HasFlightLogs,
+            WorkspaceModeKind.PhotoMap => contents.HasPhotos,
+            WorkspaceModeKind.PanoEdit => contents.HasPhotos,
+            WorkspaceModeKind.Embed => contents.HasVideos,
+            WorkspaceModeKind.Convert =>
+                contents.HasFlightLogs || contents.HasVideos,
+            WorkspaceModeKind.Verify =>
+                contents.HasVideos || contents.HasPhotos,
+            // Setup takes no source at all, so a folder pick always means
+            // the user has moved on from it.
+            _ => false,
+        };
+
     [ObservableProperty]
     public partial bool AllGood { get; set; }
 
@@ -411,8 +465,19 @@ public partial class WorkspaceViewModel : FlowViewModel
         RunCommand.NotifyCanExecuteChanged();
     }
 
+    partial void OnSuggestedModeChanged(WorkspaceMode? value) =>
+        OnPropertyChanged(nameof(ShowModeSuggestion));
+
     partial void OnSelectedModeChanged(WorkspaceMode value)
     {
+        // Anything that is not the app following its own suggestion is the
+        // user choosing (the mode strip binds SelectedItem straight to this
+        // property), and a choice outranks a suggestion from then on.
+        if (!_adoptingSuggestion)
+        {
+            _modeChosenByUser = true;
+        }
+        OnPropertyChanged(nameof(ShowModeSuggestion));
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(CommandPreview));
         OnPropertyChanged(nameof(IsFlightMapMode));
@@ -485,9 +550,16 @@ public partial class WorkspaceViewModel : FlowViewModel
             : scan.contents.HasPhotos ? WorkspaceMode.Of(WorkspaceModeKind.PhotoMap)
             : scan.contents.HasVideos ? WorkspaceMode.Of(WorkspaceModeKind.Embed)
             : null;
-        if (SuggestedMode is not null)
+        // A suggestion must not defeat a choice the user has already made
+        // and that still works here: picking 360° views and then the pano
+        // folder used to snap straight back to Photo map, every time, since
+        // any folder with photos suggests Photo map (#476). Switch only
+        // when nothing was chosen yet, or when what was chosen has nothing
+        // to work with in this folder; otherwise the hint carries it.
+        if (SuggestedMode is not null
+            && (!_modeChosenByUser || !ModeFits(SelectedMode, scan.contents)))
         {
-            SelectedMode = SuggestedMode;
+            AdoptSuggestion(SuggestedMode);
         }
         // A new folder is a fresh start: the previous run's outputs and
         // warnings must not frame a map that was already sitting here.
@@ -513,7 +585,12 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
         SelectedFile = path;
         SuggestedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
-        SelectedMode = SuggestedMode;
+        // Same rule as the folder pick (#476): Verify also takes a single
+        // file, so someone who chose it and then picked one keeps it.
+        if (!_modeChosenByUser || !SelectedMode.Sources.HasFlag(SourceKinds.File))
+        {
+            AdoptSuggestion(SuggestedMode);
+        }
         ResetDerivedSourceState();
         Step = FlowStep.Pick;
     }
