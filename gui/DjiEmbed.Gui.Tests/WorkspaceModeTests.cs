@@ -1,3 +1,4 @@
+using DjiEmbed.Gui.Services;
 using DjiEmbed.Gui.ViewModels;
 
 namespace DjiEmbed.Gui.Tests;
@@ -14,6 +15,29 @@ public class WorkspaceModeTests
                 WorkspaceModeKind.Setup,
             ],
             WorkspaceMode.All.Select(m => m.Kind));
+
+    // #476: what a mode needs from a folder is carried by the mode, so a
+    // new entry cannot compile without answering it — a switch elsewhere
+    // would quietly answer "nothing fits" and override the user's choice.
+    [Fact]
+    public void Every_folder_mode_declares_what_it_needs() =>
+        Assert.All(WorkspaceMode.All, m => Assert.Equal(
+            m.Sources.HasFlag(SourceKinds.Folder),
+            m.Needs != MediaKinds.None));
+
+    [Fact]
+    public void Fits_is_answered_from_the_folder_contents()
+    {
+        var photosOnly = new FolderContents(
+            false, true, false, false, true, false, null, null);
+        Assert.True(WorkspaceMode.Of(WorkspaceModeKind.PanoEdit).Fits(photosOnly));
+        Assert.True(WorkspaceMode.Of(WorkspaceModeKind.PhotoMap).Fits(photosOnly));
+        Assert.True(WorkspaceMode.Of(WorkspaceModeKind.Verify).Fits(photosOnly));
+        Assert.False(WorkspaceMode.Of(WorkspaceModeKind.Convert).Fits(photosOnly));
+        Assert.False(WorkspaceMode.Of(WorkspaceModeKind.FlightMap).Fits(photosOnly));
+        // Setup takes no source at all, so nothing ever fits it.
+        Assert.False(WorkspaceMode.Of(WorkspaceModeKind.Setup).Fits(photosOnly));
+    }
 
     [Fact]
     public void Verify_accepts_both_source_kinds() =>

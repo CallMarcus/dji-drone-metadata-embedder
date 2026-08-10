@@ -167,30 +167,6 @@ public partial class WorkspaceViewModel : FlowViewModel
         }
     }
 
-    /// <summary>
-    /// Whether <paramref name="mode"/> has anything to work with in a
-    /// folder holding <paramref name="contents"/>. Deliberately the loose
-    /// "anywhere in the tree" question, not the pre-flight guards' strict
-    /// "where this command will look": this only decides whether to keep a
-    /// user's choice, and the guards still explain a mismatch at Run time
-    /// with far better wording than a silent mode switch ever could.
-    /// </summary>
-    private static bool ModeFits(WorkspaceMode mode, FolderContents contents) =>
-        mode.Kind switch
-        {
-            WorkspaceModeKind.FlightMap => contents.HasFlightLogs,
-            WorkspaceModeKind.PhotoMap => contents.HasPhotos,
-            WorkspaceModeKind.PanoEdit => contents.HasPhotos,
-            WorkspaceModeKind.Embed => contents.HasVideos,
-            WorkspaceModeKind.Convert =>
-                contents.HasFlightLogs || contents.HasVideos,
-            WorkspaceModeKind.Verify =>
-                contents.HasVideos || contents.HasPhotos,
-            // Setup takes no source at all, so a folder pick always means
-            // the user has moved on from it.
-            _ => false,
-        };
-
     [ObservableProperty]
     public partial bool AllGood { get; set; }
 
@@ -557,7 +533,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         // when nothing was chosen yet, or when what was chosen has nothing
         // to work with in this folder; otherwise the hint carries it.
         if (SuggestedMode is not null
-            && (!_modeChosenByUser || !ModeFits(SelectedMode, scan.contents)))
+            && (!_modeChosenByUser || !SelectedMode.Fits(scan.contents)))
         {
             AdoptSuggestion(SuggestedMode);
         }
