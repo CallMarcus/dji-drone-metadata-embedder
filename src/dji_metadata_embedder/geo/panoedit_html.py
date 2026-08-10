@@ -97,6 +97,7 @@ let files = [], idx = 0, viewer = null, saving = false;
 // where none is saved) and the one being composed when the comparison
 // flips away from it (#473).
 let openingView = null, pendingView = null, showingSaved = false;
+let compareArmed = false;
 window.__panoReady = false;
 const $ = (id) => document.getElementById(id);
 
@@ -178,6 +179,11 @@ function viewerView() {{
 
 function lookAt(v) {{ viewer.lookAt(v.pitch, v.yaw, v.hfov, EASE_MS); }}
 
+function viewsDiffer(a, b) {{
+  return !a || !b || Math.abs(a.yaw - b.yaw) > 0.5
+    || Math.abs(a.pitch - b.pitch) > 0.5 || Math.abs(a.hfov - b.hfov) > 0.5;
+}}
+
 function updateCompare() {{
   const f = files[idx] || {{}};
   const compare = $("compare");
@@ -194,7 +200,10 @@ function updateCompare() {{
 // Snap back to the view this file opened at: the point of Reset is to
 // leave a good existing view alone without rewriting the file.
 function resetView() {{
-  if (!viewer || !openingView) return;
+  // Not mid-save: the write in flight is of the view that was on screen
+  // when it started, and moving the camera under it would leave Reset
+  // and the comparison pointing at something that is not on disk.
+  if (!viewer || !openingView || saving) return;
   showingSaved = false;
   pendingView = null;
   lookAt(openingView);
@@ -207,7 +216,8 @@ function resetView() {{
 // Flip between what is on disk and what you have composed, so the choice
 // to overwrite is made against the alternative rather than from memory.
 function toggleCompare() {{
-  if (!viewer || !openingView || !files[idx] || !files[idx].hasView) return;
+  if (!viewer || !openingView || !files[idx] || !files[idx].hasView
+      || saving) return;
   if (showingSaved) {{
     const back = pendingView;
     showingSaved = false;
@@ -216,16 +226,24 @@ function toggleCompare() {{
   }} else {{
     pendingView = viewerView();
     showingSaved = true;
+    // Armed only once the ease has landed, so the animation towards the
+    // saved view is not itself read as the user moving away from it.
+    compareArmed = false;
+    setTimeout(() => {{ compareArmed = showingSaved; }}, EASE_MS + 150);
     lookAt(openingView);
   }}
   updateCompare();
 }}
 
-// Dragging while the saved view is shown means the user has moved on from
-// comparing: their new framing is the pending one from here.
+// Any movement while the saved view is shown means the user has moved on
+// from comparing: their new framing is the pending one from here. Watched
+// as a divergence rather than hooked to mousedown, because Pannellum also
+// pans with the arrow keys and zooms with the wheel — leaving Save
+// disabled on a view the user has visibly changed.
 function dropCompare() {{
   if (!showingSaved) return;
   showingSaved = false;
+  compareArmed = false;
   pendingView = null;
   updateCompare();
 }}
@@ -241,10 +259,18 @@ function renderStrip() {{
     dot.className = "dot";
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(f.name));
-    chip.addEventListener("click", () => open(i));
+    chip.addEventListener("click", () => navigate(i));
     strip.appendChild(chip);
   }});
   $("counter").textContent = (idx + 1) + " / " + files.length;
+}}
+
+// Every user-initiated move between panoramas. A save in flight owns the
+// file it started on: leaving mid-write would apply its answer to whatever
+// is on screen when it lands (#473/#475).
+function navigate(i) {{
+  if (saving || i < 0 || i >= files.length) return;
+  open(i);
 }}
 
 function open(i) {{
@@ -253,6 +279,7 @@ function open(i) {{
   openingView = null;
   pendingView = null;
   showingSaved = false;
+  compareArmed = false;
   clearPanoError();
   if (viewer) {{ viewer.destroy(); viewer = null; }}
   const f = files[i];
@@ -281,6 +308,10 @@ function open(i) {{
 
 function readoutLoop() {{
   if (viewer && files.length) {{
+    // Wheel zoom and arrow-key panning never reach the mousedown handler,
+    // so the comparison is retired by watching the view itself.
+    if (showingSaved && compareArmed
+        && viewsDiffer(viewerView(), openingView)) dropCompare();
     const v = currentView();
     $("readout").innerHTML =
       "<b>" + files[idx].name.replace(/[<>&]/g, "") + "</b><br>" +
@@ -298,6 +329,9 @@ async function save() {{
   // view is on screen; rewriting the file with its own contents is not a
   // save, it is noise.
   if (saving || !viewer || showingSaved) return;
+  // The write belongs to this panorama for its whole flight, however long
+  // ExifTool takes: `idx` after the await is not necessarily this file.
+  const target = idx;
   saving = true;
   $("save").disabled = true;
   const status = $("status");
@@ -308,20 +342,23 @@ async function save() {{
     const resp = await fetch("/api/save", {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
-      body: JSON.stringify({{ index: files[idx].index, token: TOKEN,
+      body: JSON.stringify({{ index: files[target].index, token: TOKEN,
         heading: v.heading, pitch: v.pitch, hfov: v.hfov }}),
     }});
     const body = await resp.json();
     if (!resp.ok) throw new Error(body.error || ("HTTP " + resp.status));
-    Object.assign(files[idx], body);
+    Object.assign(files[target], body);
     status.textContent = "Saved ✓";
-    if (idx + 1 < files.length) {{
-      open(idx + 1);
+    if (target + 1 < files.length) {{
+      open(target + 1);
       $("status").textContent = "Saved ✓";
     }} else {{
-      // Staying on this file: what was just written is now its saved view,
-      // so that is what Reset and the comparison must use from here.
-      openingView = viewerView();
+      // Staying on this file: what was just written is now its saved view.
+      // Taken from the server's verified read-back, not from the live
+      // camera, so Reset and the comparison point at what is on disk.
+      openingView = (body.yaw !== null && body.yaw !== undefined)
+        ? {{ yaw: body.yaw, pitch: body.pitch, hfov: body.hfov }}
+        : viewerView();
       pendingView = null;
       renderStrip();
       status.textContent = "Saved ✓ — all panoramas done";
@@ -342,11 +379,8 @@ document.addEventListener("keydown", (e) => {{
   if (e.key === "Enter") {{ e.preventDefault(); save(); }}
   else if (e.key === "Escape") {{ e.preventDefault(); resetView(); }}
   else if (e.key === "c" || e.key === "C") {{ toggleCompare(); }}
-  else if (e.key === "n" || e.key === "N") {{
-    if (idx + 1 < files.length) open(idx + 1);
-  }} else if (e.key === "p" || e.key === "P") {{
-    if (idx > 0) open(idx - 1);
-  }}
+  else if (e.key === "n" || e.key === "N") {{ navigate(idx + 1); }}
+  else if (e.key === "p" || e.key === "P") {{ navigate(idx - 1); }}
 }});
 
 fetch("/api/list").then((r) => r.json()).then((list) => {{

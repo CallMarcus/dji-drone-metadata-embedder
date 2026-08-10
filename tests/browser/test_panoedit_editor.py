@@ -226,3 +226,74 @@ def test_compare_is_off_for_files_with_no_saved_view(editor, page):
     # a.jpg carries no initial-view tags: there is nothing to compare to.
     assert page.locator("#compare").is_disabled()
     assert page.locator("#reset").is_enabled()
+
+
+@needs_exiftool
+def test_navigation_is_blocked_while_a_save_is_in_flight(
+        tmp_path, page, monkeypatch):
+    # Review finding: `save()` used the post-await `idx`, and N was live
+    # during the save, so a save that landed after navigating wrote its
+    # answer onto a different file's entry — leaving the second panorama
+    # showing the first one's name and unreachable for the session.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    _make_pano(tmp_path / "a.jpg", pose=0.0)
+    _make_pano(tmp_path / "b.jpg", pose=0.0)
+    release = threading.Event()
+
+    def slow(path, heading, pitch, hfov):
+        release.wait(10)
+        return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
+
+    monkeypatch.setattr(pe, "write_initial_view", slow)
+    httpd, url = _serve(tmp_path, page)
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+        page.click("#save")
+        page.wait_for_function(
+            "document.querySelector('#status').innerText.includes('Saving')")
+        page.keyboard.press("n")            # ignored: the save owns a.jpg
+        assert "a.jpg" in page.inner_text("#readout")
+        release.set()
+        # The save advances to b.jpg itself, and b.jpg is still b.jpg.
+        page.wait_for_function(
+            "document.querySelector('#readout').innerText.includes('b.jpg')")
+        names = page.evaluate(
+            "Array.from(document.querySelectorAll('.chip'))"
+            ".map(c => c.textContent)")
+        assert names == ["a.jpg", "b.jpg"]
+    finally:
+        release.set()
+        httpd.shutdown()
+
+
+@needs_exiftool
+def test_zooming_while_comparing_returns_control_to_the_user(
+        tmp_path, page, monkeypatch):
+    # Review finding: only mousedown/touchstart retired the comparison, so
+    # a wheel zoom left Save disabled on a view the user had visibly
+    # changed, with only a small line of text to explain it.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    pano = tmp_path / "saved.jpg"
+    _make_pano(pano, pose=0.0)
+    subprocess.run(
+        ["exiftool", "-overwrite_original", "-n",
+         "-XMP-GPano:InitialViewHeadingDegrees=40",
+         "-XMP-GPano:InitialViewPitchDegrees=0",
+         "-XMP-GPano:InitialHorizontalFOVDegrees=90", str(pano)],
+        check=True, capture_output=True)
+    httpd, url = _serve(tmp_path, page)
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+        page.keyboard.press("c")
+        page.wait_for_function("document.querySelector('#save').disabled")
+        box = page.locator("#viewer").bounding_box()
+        page.mouse.move(box["x"] + box["width"] / 2,
+                        box["y"] + box["height"] / 2)
+        page.mouse.wheel(0, -300)           # zoom: no mousedown anywhere
+        page.wait_for_function(
+            "!document.querySelector('#save').disabled")
+        assert "saved view" not in page.inner_text("#readout")
+    finally:
+        httpd.shutdown()
