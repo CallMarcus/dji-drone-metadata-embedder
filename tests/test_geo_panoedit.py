@@ -200,3 +200,46 @@ def test_slow_save_is_logged_as_a_warning(monkeypatch, tmp_path, caplog):
     record = next(r for r in caplog.records if "ExifTool wrote" in r.message)
     assert record.levelname == "WARNING"
     assert "pano.jpg" in record.getMessage()
+
+
+def test_scan_is_bounded_and_scales_with_the_folder(monkeypatch, tmp_path):
+    # A scan stalls for the same reasons a save does, but earlier: it runs
+    # before the URL is printed, and the GUI waits for that line.
+    for i in range(5):
+        (tmp_path / f"p{i}.jpg").write_bytes(b"\xff\xd8")
+    (tmp_path / "notes.txt").write_text("not a panorama")
+    expected = pe._WRITE_TIMEOUT + 5 * pe._SCAN_SECONDS_PER_FILE
+    assert pe._scan_timeout(tmp_path, recursive=False) == expected
+    # The allowance is per file, but bounded: a wedged scan still ends.
+    monkeypatch.setattr(pe, "_SCAN_TIMEOUT_CAP", 1.0)
+    assert pe._scan_timeout(tmp_path, recursive=False) == 1.0
+
+    seen: dict = {}
+
+    def fake_run(args, **kwargs):
+        seen["timeout"] = kwargs.get("timeout")
+        raise pe.subprocess.TimeoutExpired(args, kwargs.get("timeout", 0))
+
+    monkeypatch.setattr(pe.subprocess, "run", fake_run)
+    with pytest.raises(pe.PanoEditError) as exc:
+        pe.scan_panos(tmp_path)
+    assert seen["timeout"] == 1.0
+    assert "did not finish reading" in str(exc.value)
+    assert "Antivirus" in str(exc.value)
+
+
+def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path,
+                                                     caplog):
+    # The page tells the user to check the terminal, so the terminal has
+    # to have something in it.
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+    monkeypatch.setattr(
+        pe.subprocess, "run",
+        lambda args, **kw: (_ for _ in ()).throw(
+            pe.subprocess.TimeoutExpired(args, kw.get("timeout", 0))))
+    with caplog.at_level("WARNING", logger=pe.logger.name):
+        with pytest.raises(pe.PanoEditError):
+            pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    assert any("did not finish writing pano.jpg" in r.getMessage()
+               for r in caplog.records)

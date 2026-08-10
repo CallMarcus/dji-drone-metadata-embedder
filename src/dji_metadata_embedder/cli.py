@@ -1410,6 +1410,10 @@ def panoedit(
     saved view is resolution-independent, so the smaller copy costs
     nothing but detail on screen.
     """
+    # Every other command configures logging; without it panoedit's own
+    # INFO lines — including how long each save took, which the page tells
+    # the user to come here for — went nowhere (#475).
+    setup_logging(verbose=False, quiet=False)
     try:
         run_editor(
             Path(directory),

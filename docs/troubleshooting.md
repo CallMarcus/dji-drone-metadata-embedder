@@ -650,6 +650,9 @@ file lock.
 little longer. If the time runs out you get a message instead of a dead
 button, and the terminal logs how long each save took (saves over 10
 seconds are logged as warnings) — quote that number if you report it.
+Opening the folder is bounded the same way, scaled to how many panoramas
+are in it, so a stalled scan reports itself instead of hanging before the
+editor ever appears.
 
 **Solutions:**
 

@@ -14,6 +14,12 @@ from .photomap_html import (
     _PANNELLUM_VERSION,
 )
 
+# The page's own backstop for a save request that never returns. Must
+# outlast both of the server's ExifTool timeouts (panoedit._WRITE_TIMEOUT,
+# applied to the write and again to the read-back) so the server's better
+# message wins in the normal case; tests pin the relationship.
+_DEFAULT_SAVE_TIMEOUT_MS = 135000
+
 _PAGE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -423,7 +429,7 @@ def build_editor_page(
     max_width: int = 0,
     renditions: bool = True,
     hint: str = "",
-    save_timeout_ms: int = 135000,
+    save_timeout_ms: int = _DEFAULT_SAVE_TIMEOUT_MS,
 ) -> str:
     """The complete editor page with *token* embedded.
 

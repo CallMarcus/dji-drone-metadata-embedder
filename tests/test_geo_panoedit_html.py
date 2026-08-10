@@ -107,3 +107,17 @@ def test_caption_overlays_have_a_backdrop():
     for elem in ("#counter", "#note"):
         rule = html.split(elem, 1)[1].split("}", 1)[0]
         assert "background: rgba(0,0,0" in rule, elem
+
+
+def test_page_save_backstop_outlasts_the_server_timeouts():
+    # The default must not drift below what the server can spend: the
+    # page's backstop firing first would replace the server's much better
+    # message with a bare "timed out" (review finding).
+    from dji_metadata_embedder.geo.panoedit import _WRITE_TIMEOUT
+
+    from dji_metadata_embedder.geo.panoedit_html import _DEFAULT_SAVE_TIMEOUT_MS
+
+    worst_case_ms = 2 * _WRITE_TIMEOUT * 1000
+    assert _DEFAULT_SAVE_TIMEOUT_MS > worst_case_ms
+    assert f"const SAVE_TIMEOUT_MS = {_DEFAULT_SAVE_TIMEOUT_MS};" in \
+        build_editor_page("t")

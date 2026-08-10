@@ -84,6 +84,12 @@ _WRITE_TIMEOUT = 60
 # the early sign of the machine the timeout exists for.
 _SLOW_WRITE_SECONDS = 10
 
+# The folder scan's budget: unlike a save it grows with the folder, so it
+# is a per-file allowance rather than a constant, capped so that a truly
+# wedged scan still ends.
+_SCAN_SECONDS_PER_FILE = 2.0
+_SCAN_TIMEOUT_CAP = 900.0
+
 
 class PanoEditError(Exception):
     """A panoedit failure with a user-facing message."""
@@ -128,6 +134,25 @@ def compass_heading(pose: float, yaw: float) -> float:
     return (pose + yaw) % 360.0
 
 
+def _scan_timeout(directory: Path, recursive: bool) -> float:
+    """Seconds to allow the folder scan, scaled to what it has to read.
+
+    A fixed number would either strangle a large archive or leave a stalled
+    scan hanging forever — and a scan stalls for the same reasons a save
+    does (#475), except earlier: it runs before the editor prints its URL,
+    so the GUI, which waits for that line, would hang with nothing to show.
+    """
+    pattern = "**/*" if recursive else "*"
+    try:
+        jpegs = sum(
+            1 for p in directory.glob(pattern)
+            if p.suffix.lower().lstrip(".") in _PANO_EXTS
+        )
+    except OSError:
+        jpegs = 0
+    return min(_SCAN_TIMEOUT_CAP, _WRITE_TIMEOUT + jpegs * _SCAN_SECONDS_PER_FILE)
+
+
 def _run_scan(directory: Path, recursive: bool) -> list[dict]:
     args = [exiftool_exe(), "-json", "-n"]
     if recursive:
@@ -136,13 +161,21 @@ def _run_scan(directory: Path, recursive: bool) -> list[dict]:
     for ext in _PANO_EXTS:
         args += ["-ext", ext]
     args.append(str(directory))
+    timeout = _scan_timeout(directory, recursive)
     try:
         proc = subprocess.run(
             args, capture_output=True, text=True,
-            encoding="utf-8", errors="replace",
+            encoding="utf-8", errors="replace", timeout=timeout,
         )
     except FileNotFoundError:
         raise PanoEditError(_EXIFTOOL_INSTALL_HINT) from None
+    except subprocess.TimeoutExpired:
+        raise PanoEditError(
+            f"ExifTool did not finish reading {directory} within "
+            f"{timeout:.0f} seconds and was stopped. Antivirus scanning or "
+            "a slow or sleeping drive is the usual cause; a folder on a "
+            "local disk, or one with fewer panoramas in it, will open."
+        ) from None
     out = proc.stdout.strip()
     if not out:
         if proc.returncode != 0:
@@ -227,6 +260,12 @@ def write_initial_view(
     except FileNotFoundError:
         raise PanoEditError(_EXIFTOOL_INSTALL_HINT) from None
     except subprocess.TimeoutExpired:
+        # Logged as well as returned: the page tells the user to look in
+        # the terminal, so something has to be there.
+        logger.warning(
+            "ExifTool did not finish writing %s within %ss and was stopped",
+            path.name, _WRITE_TIMEOUT,
+        )
         raise PanoEditError(_slow_write_message(path)) from None
     elapsed = time.monotonic() - started
     # Logged for every save: the difference between "slow disk" and "hung"
