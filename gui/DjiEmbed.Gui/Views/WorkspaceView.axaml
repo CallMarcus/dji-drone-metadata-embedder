@@ -188,9 +188,14 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <TextBlock FontSize="11" Opacity="0.65" Margin="6,0,0,4"
-                                       IsVisible="{Binding SuggestedMode,
-                                           Converter={x:Static ObjectConverters.IsNotNull}}"
+                            <!-- Shown only when the suggestion differs from
+                                 the selection: an explicit choice is kept
+                                 and the hint is how the guess is offered
+                                 instead of imposed (#476). -->
+                            <TextBlock Name="ModeSuggestionHint"
+                                       FontSize="11" Opacity="0.65" Margin="6,0,0,4"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding ShowModeSuggestion}"
                                        Text="{Binding SuggestedMode,
                                            Converter={x:Static views:WorkspaceConverters.SuggestedModeHint}}" />
                         </StackPanel>

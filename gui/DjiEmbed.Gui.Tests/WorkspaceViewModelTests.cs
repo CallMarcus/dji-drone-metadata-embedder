@@ -115,6 +115,87 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(WorkspaceModeKind.Embed, vm.SuggestedMode!.Kind);
     }
 
+    // #476: the scan's suggestion used to overwrite SelectedMode
+    // unconditionally, so choosing 360° views and then picking the pano
+    // folder snapped straight back to Photo map — every time, since any
+    // folder with photos suggests Photo map.
+
+    [Fact]
+    public async Task A_chosen_mode_survives_a_folder_that_suggests_another()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Equal(WorkspaceModeKind.PanoEdit, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SuggestedMode!.Kind);
+        // The guess is still offered, just not imposed.
+        Assert.True(vm.ShowModeSuggestion);
+    }
+
+    [Fact]
+    public async Task A_chosen_mode_gives_way_when_the_folder_cannot_feed_it()
+    {
+        // Convert needs flight logs or videos; this folder has neither, so
+        // keeping the choice would only strand the user on a mode that
+        // cannot run here.
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
+        Assert.False(vm.ShowModeSuggestion);
+    }
+
+    [Fact]
+    public async Task Setup_always_gives_way_to_a_folder_pick()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
+    }
+
+    [Fact]
+    public async Task The_opening_mode_is_not_a_choice()
+    {
+        // Nothing was clicked, so the strip's starting entry must not
+        // outrank the suggestion — the first pick still lands where the
+        // folder points.
+        var vm = Vm("unused");
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SelectedMode.Kind);
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
+        Assert.False(vm.ShowModeSuggestion);
+    }
+
+    [Fact]
+    public async Task A_chosen_mode_that_still_fits_survives_the_next_folder()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        await vm.SetFolderAsync(MakeFolder(srt: true, videos: true));
+        Assert.Equal(WorkspaceModeKind.Verify, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+    }
+
+    [Fact]
+    public void A_chosen_file_capable_mode_survives_a_file_pick()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal(WorkspaceModeKind.Verify, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.Convert, vm.SuggestedMode!.Kind);
+    }
+
+    [Fact]
+    public void A_folder_only_mode_gives_way_to_a_file_pick()
+    {
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
+        vm.SetFile("C:/clips/DJI_0001.SRT");
+        Assert.Equal(WorkspaceModeKind.Convert, vm.SelectedMode.Kind);
+    }
+
     [Fact]
     public async Task Empty_folder_suggests_nothing_and_keeps_selection()
     {
