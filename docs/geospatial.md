@@ -549,6 +549,18 @@ with ExifTool and moves on to the next panorama. Each original is kept
 beside the file as `<name>_original`. In the desktop app this is the
 "360° views" mode.
 
+Panoramas wider than 6000 px are shown downscaled to that width. Very
+large equirectangular images (8000 px and up) fail to render on older
+graphics hardware — often erratically, one image loading and the next
+staying black — and the saved heading, pitch and field of view are
+resolution-independent, so the smaller copy costs nothing but on-screen
+detail. Your files are never modified; the downscaled copy lives in a
+temporary folder for as long as the editor runs. Raise or disable the
+ceiling with `--max-width 12000` or `--max-width 0` if your machine can
+take it. Downscaling needs Pillow (`pip install
+'dji-drone-metadata-embedder[terrain]'`); without it the editor still
+runs and serves the originals.
+
 With views saved, `photomap --pano-view-thumbs` renders each tagged
 panorama's popup thumbnail as a square crop of that opening view instead
 of the distorted 2:1 strip (panoramas without a saved view keep the

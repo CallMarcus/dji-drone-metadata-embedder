@@ -252,6 +252,16 @@ def test_html_pano_file_protocol_shows_help_instead_of_viewer():
     assert "open original" in html
 
 
+def test_html_pano_load_failure_explains_the_likely_cause():
+    # A field tester's own hosted map "locked up" opening his 12000 px
+    # panoramas on an old GPU, and Pannellum's stock message blamed the
+    # file (#471). The overlay must name the real suspect and the way out.
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    assert "panoViewer.on('error'" in html
+    assert "older graphics hardware" in html
+    assert "open original" in html
+
+
 def test_html_pano_container_reset_on_every_open():
     html = photos_to_html(PANO_POINTS, title="t", link_base="")
     # The container's content is set on each open so a stale file:// message

@@ -7,7 +7,10 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from dji_metadata_embedder import cli as cli_mod
-from dji_metadata_embedder.geo.panoedit import PanoEditError
+from dji_metadata_embedder.geo.panoedit import (
+    DEFAULT_MAX_SERVE_WIDTH,
+    PanoEditError,
+)
 
 
 def test_panoedit_forwards_options(monkeypatch, tmp_path):
@@ -23,7 +26,20 @@ def test_panoedit_forwards_options(monkeypatch, tmp_path):
     assert result.exit_code == 0, result.output
     assert calls == {
         "directory": Path(tmp_path), "recursive": True, "port": 7777,
-        "open_browser": False, "bare_url": True, "stop_on_stdin_eof": True}
+        "open_browser": False, "bare_url": True, "stop_on_stdin_eof": True,
+        "max_width": DEFAULT_MAX_SERVE_WIDTH}
+
+
+def test_panoedit_max_width_is_overridable(monkeypatch, tmp_path):
+    # The ceiling is a measured default, not a law: a machine with a
+    # capable GPU can ask for full-size serving (#471).
+    calls = {}
+    monkeypatch.setattr(cli_mod, "run_editor",
+                        lambda directory, **kw: calls.update(kw))
+    result = CliRunner().invoke(cli_mod.main, [
+        "panoedit", str(tmp_path), "--max-width", "0"])
+    assert result.exit_code == 0, result.output
+    assert calls["max_width"] == 0
 
 
 def test_panoedit_error_is_clean(monkeypatch, tmp_path):

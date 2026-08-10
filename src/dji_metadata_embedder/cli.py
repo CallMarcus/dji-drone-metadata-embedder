@@ -45,7 +45,7 @@ from .geo import (
     write_photos_kml,
 )
 from .geo.airspace import fetch as airspace_fetch
-from .geo.panoedit import PanoEditError, run_editor
+from .geo.panoedit import DEFAULT_MAX_SERVE_WIDTH, PanoEditError, run_editor
 from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
@@ -1378,6 +1378,13 @@ def serve(
     help="Stop serving when stdin closes, tying the server's lifetime to "
          "the app that started it.",
 )
+@click.option(
+    "--max-width", type=int, default=DEFAULT_MAX_SERVE_WIDTH,
+    show_default=True, metavar="PIXELS",
+    help="Show panoramas wider than this downscaled to it (0 serves every "
+         "file at full size). Older graphics hardware fails to display very "
+         "large panoramas; the files themselves are never modified.",
+)
 def panoedit(
     directory: str,
     recursive: bool,
@@ -1385,6 +1392,7 @@ def panoedit(
     no_browser: bool,
     url_only: bool,
     exit_with_stdin: bool,
+    max_width: int,
 ) -> None:
     """Edit the opening view of 360° panoramas in DIRECTORY (#440).
 
@@ -1395,6 +1403,11 @@ def panoedit(
     to the next one. Each original is kept beside the file as
     ``<name>_original``. The photomap 360° viewer and Google Photos both
     honor the saved view.
+
+    Panoramas wider than --max-width are shown downscaled (#471): very
+    large equirects fail to render on older graphics hardware, and the
+    saved view is resolution-independent, so the smaller copy costs
+    nothing but detail on screen.
     """
     try:
         run_editor(
@@ -1404,6 +1417,7 @@ def panoedit(
             open_browser=not no_browser,
             bare_url=url_only,
             stop_on_stdin_eof=exit_with_stdin,
+            max_width=max_width,
         )
     except PanoEditError as exc:
         raise click.ClickException(str(exc)) from exc

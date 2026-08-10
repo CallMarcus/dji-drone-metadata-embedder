@@ -21,27 +21,32 @@ needs_exiftool = pytest.mark.skipif(
     shutil.which("exiftool") is None, reason="ExifTool not installed")
 
 
-def _make_pano(path, pose: float) -> None:
-    im = Image.new("RGB", (256, 128), (30, 60, 200))
-    for x in range(128, 256):
-        for y in range(128):
+def _make_pano(path, pose: float, size=(256, 128), crop_tags=False) -> None:
+    w, h = size
+    im = Image.new("RGB", (w, h), (30, 60, 200))
+    for x in range(w // 2, w):
+        for y in range(h // 2):
             im.putpixel((x, y), (200, 60, 30))
     im.save(path, "JPEG")
+    tags = ["-XMP-GPano:ProjectionType=equirectangular",
+            f"-XMP-GPano:PoseHeadingDegrees={pose}"]
+    if crop_tags:
+        # The full set Pannellum needs before it will read any of it —
+        # including the pose that becomes the viewer's north offset.
+        tags += [f"-XMP-GPano:FullPanoWidthPixels={w}",
+                 f"-XMP-GPano:CroppedAreaImageWidthPixels={w}",
+                 f"-XMP-GPano:FullPanoHeightPixels={h}",
+                 f"-XMP-GPano:CroppedAreaImageHeightPixels={h}",
+                 "-XMP-GPano:CroppedAreaTopPixels=0"]
     subprocess.run(
-        ["exiftool", "-overwrite_original",
-         "-XMP-GPano:ProjectionType=equirectangular",
-         f"-XMP-GPano:PoseHeadingDegrees={pose}", str(path)],
+        ["exiftool", "-overwrite_original", *tags, str(path)],
         check=True, capture_output=True)
 
 
-@pytest.fixture
-def editor(tmp_path, page, monkeypatch):
-    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
-    _make_pano(tmp_path / "a.jpg", pose=90.0)
-    _make_pano(tmp_path / "b.jpg", pose=0.0)
-    httpd, url = pe.make_editor_server(tmp_path)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
+def _serve(tmp_path, page, **kwargs):
+    """Start an editor over *tmp_path* with unpkg assets stubbed."""
+    httpd, url = pe.make_editor_server(tmp_path, **kwargs)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
 
     assets = {u: _fetch_asset(u, sri)
               for u, sri in _ASSET_RE.findall(build_editor_page("x"))}
@@ -57,6 +62,15 @@ def editor(tmp_path, page, monkeypatch):
         return r.abort()
 
     page.route("**/*", route)
+    return httpd, url
+
+
+@pytest.fixture
+def editor(tmp_path, page, monkeypatch):
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    _make_pano(tmp_path / "a.jpg", pose=90.0)
+    _make_pano(tmp_path / "b.jpg", pose=0.0)
+    httpd, url = _serve(tmp_path, page)
     yield url, tmp_path
     httpd.shutdown()
 
@@ -108,3 +122,36 @@ def test_edit_save_advance_and_reopen(editor, page):
     shown = float(
         page.inner_text("#readout").split("Heading ")[1].split("°")[0])
     assert shown == pytest.approx(saved, abs=0.2)
+
+
+@needs_exiftool
+def test_oversized_panorama_is_served_downscaled(tmp_path, page, monkeypatch):
+    # #471: the viewer gets a smaller copy, and it must be a copy the
+    # viewer reads exactly like the original — the GPano packet decides
+    # the panorama's angular extent and its north offset, so if the
+    # re-encode dropped it, the saved view would be wrong.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    _make_pano(tmp_path / "wide.jpg", pose=90.0, size=(1200, 600),
+               crop_tags=True)
+    original = (tmp_path / "wide.jpg").read_bytes()
+    httpd, url = _serve(tmp_path, page, max_width=600)
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+
+        served = page.evaluate(
+            """() => new Promise((res, rej) => {
+                 const im = new Image();
+                 im.onload = () => res([im.naturalWidth, im.naturalHeight]);
+                 im.onerror = rej;
+                 im.src = "/img/0";
+               })""")
+        assert served == [600, 300]
+        # Pose 90 survived the re-encode as Pannellum's north offset.
+        assert page.evaluate("window.__viewer.getNorthOffset()") == 90
+        assert "shown downscaled to 600 px" in page.inner_text("#note")
+        # The editor's own math is unaffected by the rendition.
+        assert "Heading 90.0" in page.inner_text("#readout")
+    finally:
+        httpd.shutdown()
+    assert (tmp_path / "wide.jpg").read_bytes() == original

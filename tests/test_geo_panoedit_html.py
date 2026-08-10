@@ -31,6 +31,27 @@ def test_page_token_is_json_escaped():
     assert "</script><script>alert(1)" not in html
 
 
+def test_page_reports_load_failures_honestly():
+    # Pannellum blames the file for every load failure ("could not be
+    # accessed"), which sent a field tester hunting a corrupt image when
+    # his GPU was the problem (#471). The page must say what it knows.
+    html = build_editor_page("tok123", max_width=6000)
+    assert 'viewer.on("error", showPanoError)' in html
+    assert '"maxWidth": 6000' in html
+    # The overlay names the panorama's real dimensions and a next step.
+    assert 'f.width + " x " + f.height' in html
+    assert "--max-width" in html
+
+
+def test_page_carries_the_pillow_hint_only_when_it_applies():
+    with_pillow = build_editor_page("t", max_width=6000, renditions=True,
+                                    hint="install Pillow")
+    without = build_editor_page("t", max_width=6000, renditions=False,
+                                hint="install Pillow")
+    assert "install Pillow" not in with_pillow
+    assert "install Pillow" in without
+
+
 def test_caption_overlays_have_a_backdrop():
     # Field report (2026-08-09): the counter and the backup note float over
     # the panorama and were bare grey text — unreadable against bright
