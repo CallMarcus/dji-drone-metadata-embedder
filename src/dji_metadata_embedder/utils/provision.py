@@ -46,12 +46,19 @@ EXIFTOOL_SHA256 = {
     ),
 }
 
-# Tried in order. exiftool.org hosts only the current release (pinned URLs
-# 404 once the next version ships); SourceForge keeps every version.
+# Tried in order. SourceForge keeps every version and is where exiftool.org's
+# own download links point since it stopped hosting the zips itself (observed
+# 2026-08-10: even the current release 404s there — issue #481). exiftool.org
+# stays as a fallback in case it resumes hosting.
 _MIRRORS = (
-    "https://exiftool.org/{artifact}",
     "https://downloads.sourceforge.net/project/exiftool/{artifact}",
+    "https://exiftool.org/{artifact}",
 )
+
+# Attempts per mirror. The checksum pin — not the host — is what's trusted,
+# so a retry is free; it absorbs the transient TLS/connection hiccups a
+# single-host download would otherwise turn into a hard failure (#481).
+_FETCH_ATTEMPTS = 2
 
 
 class ProvisionError(RuntimeError):
@@ -89,16 +96,26 @@ def _download(url: str, dest: Path) -> None:
 
 
 def _fetch_artifact(artifact: str, dest: Path) -> None:
-    """Download ``artifact`` from the first mirror that responds."""
+    """Download ``artifact`` from the first mirror that responds.
+
+    Each mirror gets ``_FETCH_ATTEMPTS`` tries, except that an HTTP 404 is
+    deterministic (the mirror does not have the file) and moves straight to
+    the next mirror.
+    """
     errors: list[str] = []
     for mirror in _MIRRORS:
         url = mirror.format(artifact=artifact)
-        try:
-            logger.info("Downloading %s", url)
-            _download(url, dest)
-            return
-        except (URLError, HTTPError, OSError) as exc:
-            errors.append(f"{url}: {exc}")
+        for _attempt in range(_FETCH_ATTEMPTS):
+            try:
+                logger.info("Downloading %s", url)
+                _download(url, dest)
+                return
+            except HTTPError as exc:
+                errors.append(f"{url}: {exc}")
+                if exc.code == 404:
+                    break
+            except (URLError, OSError) as exc:
+                errors.append(f"{url}: {exc}")
     raise ProvisionError(
         "Could not download ExifTool from any mirror:\n  " + "\n  ".join(errors)
     )
