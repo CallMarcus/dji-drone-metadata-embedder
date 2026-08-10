@@ -94,13 +94,21 @@ function plain(s) {{ return String(s).replace(/[<>&"]/g, ""); }}
 // as "the file could not be accessed", including the decode and GPU-memory
 // failures that oversized equirects hit on older hardware (#471).
 function panoAdvice(f) {{
+  const oversize = SERVE.maxWidth && f.width > SERVE.maxWidth;
   if (f.downscaled)
     return "It is already shown downscaled to " + SERVE.maxWidth +
       " px, so the size alone should not be the problem. Reopening it, or "
       + "restarting the editor with a smaller <code>--max-width</code>, is "
       + "the next thing to try.";
-  if (SERVE.maxWidth && f.width > SERVE.maxWidth && SERVE.hint)
+  if (oversize && SERVE.hint)
     return plain(SERVE.hint);
+  if (oversize)
+    // Oversized, downscaling was meant to apply, and it did not: the
+    // rendition could not be built (the terminal says why).
+    return "It should have been shown downscaled to " + SERVE.maxWidth +
+      " px but could not be, so the full-size image was served - see the "
+      + "terminal for the reason. A panorama this large can exhaust an "
+      + "older GPU's memory even when the file itself is fine.";
   if (f.width > 4000)
     return "Panoramas this large can exhaust an older GPU's memory even "
       + "when the file itself is fine. Restart the editor with "
@@ -110,14 +118,26 @@ function panoAdvice(f) {{
     + "WebGL enabled.";
 }}
 
-function showPanoError(msg) {{
-  const f = files[idx] || {{}};
+function renderPanoError(f, msg) {{
   const size = (f.width && f.height) ? f.width + " x " + f.height + " px"
     : "size unknown";
   $("panoerr").firstElementChild.innerHTML =
     "<b>Could not display " + plain(f.name || "this panorama") + "</b> ("
     + size + ").<br>" + plain(msg) + "<br><br>" + panoAdvice(f);
   $("panoerr").style.display = "flex";
+}}
+
+function showPanoError(msg) {{
+  const failed = idx;
+  renderPanoError(files[failed] || {{}}, msg);
+  // Re-read the list before settling on the advice: `downscaled` is a
+  // prediction until the image has been requested, and by now the server
+  // knows whether the rendition was actually built. Advice from the
+  // prediction can point away from the setting that would fix it.
+  fetch("/api/list").then((r) => r.json()).then((list) => {{
+    if (list[failed]) files[failed] = list[failed];
+    if (idx === failed) renderPanoError(files[failed], msg);
+  }}).catch(() => {{}});
 }}
 
 function clearPanoError() {{

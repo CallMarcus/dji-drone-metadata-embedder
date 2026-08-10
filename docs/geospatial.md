@@ -557,9 +557,11 @@ resolution-independent, so the smaller copy costs nothing but on-screen
 detail. Your files are never modified; the downscaled copy lives in a
 temporary folder for as long as the editor runs. Raise or disable the
 ceiling with `--max-width 12000` or `--max-width 0` if your machine can
-take it. Downscaling needs Pillow (`pip install
-'dji-drone-metadata-embedder[terrain]'`); without it the editor still
-runs and serves the originals.
+take it. Downscaling needs Pillow 11 or newer (`pip install
+'dji-drone-metadata-embedder[terrain]'`) — older versions cannot copy a
+panorama's GPano tags into the smaller image, and the editor refuses a
+rendition it cannot prove is framed like the original. Without a usable
+Pillow the editor still runs and serves the originals.
 
 With views saved, `photomap --pano-view-thumbs` renders each tagged
 panorama's popup thumbnail as a square crop of that opening view instead

@@ -218,7 +218,7 @@ def write_initial_view(
 
 _PILLOW_HINT = (
     "Pillow is not installed, so oversized panoramas are served at full "
-    "size. Install it to have the editor downscale them: "
+    "size. Install it (11.0 or newer) to have the editor downscale them: "
     "pip install 'dji-drone-metadata-embedder[terrain]' "
     "(pipx: pipx inject dji-drone-metadata-embedder pillow)"
 )
@@ -243,6 +243,47 @@ def renditions_available() -> bool:
     return _pil_image() is not None
 
 
+# The APP1 segment XMP lives in, and the namespace that makes a packet a
+# panorama description.
+_XMP_APP1_HEADER = b"http://ns.adobe.com/xap/1.0/\x00"
+_GPANO_NS = b"ns.google.com/photos/1.0/panorama"
+
+
+def _xmp_packet(path: Path) -> bytes | None:
+    """The XMP packet in *path*'s APP1 segment, read from the file itself.
+
+    Not ``Image.info["xmp"]``: Pillow only exposes that for JPEG from 11.0
+    on, while the ``[terrain]`` extra allows 10.x — and on 10.x Pillow also
+    ignores an unknown ``xmp=`` save argument silently. Reading and
+    checking the bytes ourselves makes the round trip provable on every
+    version instead of on the one CI happens to pin.
+    """
+    try:
+        with open(path, "rb") as fh:
+            if fh.read(2) != b"\xff\xd8":     # not a JPEG
+                return None
+            while True:
+                marker = fh.read(2)
+                if len(marker) < 2 or marker[0] != 0xFF:
+                    return None
+                kind = marker[1]
+                if kind == 0xDA or kind == 0xD9:  # image data: no metadata past here
+                    return None
+                if 0xD0 <= kind <= 0xD8:          # standalone markers, no payload
+                    continue
+                header = fh.read(2)
+                if len(header) < 2:
+                    return None
+                length = int.from_bytes(header, "big") - 2
+                if length < 0:
+                    return None
+                payload = fh.read(length)
+                if kind == 0xE1 and payload.startswith(_XMP_APP1_HEADER):
+                    return payload[len(_XMP_APP1_HEADER):]
+    except OSError:
+        return None
+
+
 def downscale_pano(src: Path, dest: Path, max_width: int) -> Path | None:
     """Write a JPEG copy of *src* at most *max_width* wide to *dest*.
 
@@ -250,19 +291,23 @@ def downscale_pano(src: Path, dest: Path, max_width: int) -> Path | None:
     caller then serves the original, because a missing preview is a worse
     outcome than a large one. The source file is only ever read.
 
-    The XMP packet is carried across verbatim and its survival is verified:
-    Pannellum derives the panorama's angular extent from the GPano crop
-    tags as *ratios* (``CroppedAreaImageWidthPixels / FullPanoWidthPixels``
-    and friends), so the original numbers stay correct at any scale — but a
-    rendition that lost them would be framed differently from the original
-    for any cropped panorama, and the saved view would inherit that error.
+    The XMP packet is carried across verbatim and its survival is checked
+    against the written bytes: Pannellum derives the panorama's angular
+    extent from the GPano crop tags as *ratios*
+    (``CroppedAreaImageWidthPixels / FullPanoWidthPixels`` and friends), so
+    the original numbers stay correct at any scale — but a rendition that
+    lost them would be framed differently from the original for any cropped
+    panorama, and the saved view would inherit that error. Pillow before
+    11.0 cannot carry XMP through a JPEG save at all and says nothing about
+    it, so on those versions this returns ``None`` and the caller serves
+    the original: a large panorama beats a mis-framed one.
     """
     Image = _pil_image()
     if Image is None:
         return None
     try:
+        xmp = _xmp_packet(src)
         with Image.open(src) as im:
-            xmp = im.info.get("xmp")
             exif = im.info.get("exif")
             # JPEG DCT scaling: decoding straight to a smaller size skips
             # most of the work (a 12000 px source halves for free).
@@ -276,15 +321,15 @@ def downscale_pano(src: Path, dest: Path, max_width: int) -> Path | None:
             params["exif"] = exif
         if xmp:
             params["xmp"] = xmp
-        try:
-            rgb.save(dest, "JPEG", **params)
-        except TypeError:  # Pillow too old for the xmp= save parameter
-            params.pop("xmp", None)
-            rgb.save(dest, "JPEG", **params)
-        if xmp:
-            with Image.open(dest) as check:   # header read only, no decode
-                if not check.info.get("xmp"):
-                    raise ValueError("GPano metadata did not survive")
+        rgb.save(dest, "JPEG", **params)
+        # Fail closed. Pillow ignores save arguments it does not know
+        # rather than raising, so "we asked for the packet" proves nothing
+        # about the file — only reading it back does.
+        if xmp and _GPANO_NS in xmp and _GPANO_NS not in (_xmp_packet(dest) or b""):
+            raise ValueError(
+                "the GPano metadata did not survive the re-encode "
+                "(Pillow 11 or newer is needed to carry it)"
+            )
     except Exception as exc:                  # noqa: BLE001 - never fatal
         logger.warning("Could not downscale %s: %s", src.name, exc)
         dest.unlink(missing_ok=True)
@@ -302,14 +347,14 @@ _MAX_SAVE_BODY = 4096
 
 
 def _view_payload(
-    f: PanoFile, index: int, *, max_width: int = 0, renditions: bool = True
+    f: PanoFile, index: int, *, downscaled: bool = False
 ) -> dict:
     return {
         "index": index, "name": f.name, "pose": f.pose,
         "yaw": f.yaw, "pitch": f.pitch, "hfov": f.hfov,
         "hasView": f.yaw is not None,
         "width": f.width, "height": f.height,
-        "downscaled": bool(renditions and max_width and f.width > max_width),
+        "downscaled": downscaled,
     }
 
 
@@ -318,10 +363,11 @@ class _EditorServer(_MapServer):
     rendition cache for oversized panoramas (#471).
 
     Renditions are built on first request and cached in a temporary
-    directory that lives exactly as long as the server. Building is
-    serialized: two viewers racing on the same image would otherwise pay
-    for the same multi-second JPEG re-encode twice, on precisely the
-    machines that can least afford it.
+    directory that lives exactly as long as the server. Builds are
+    de-duplicated per panorama — Pannellum fetches each image twice, once
+    to read its XMP — but not serialized across panoramas: a click on the
+    next thumbnail must not wait out the previous one's re-encode on the
+    machines this exists for.
     """
 
     pano_files: list[PanoFile]
@@ -334,32 +380,61 @@ class _EditorServer(_MapServer):
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         self.pano_lock = threading.Lock()
         self._rendition_lock = threading.Lock()
+        self._building: dict[int, threading.Lock] = {}
         self._renditions: dict[int, Path | None] = {}
         self._cache: tempfile.TemporaryDirectory | None = None
+
+    def _oversized(self, index: int) -> bool:
+        return bool(self.pano_max_width
+                    and self.pano_files[index].width > self.pano_max_width)
 
     def image_path(self, index: int) -> Path:
         """Path to serve for ``/img/<index>``: a cached downscaled
         rendition when the panorama is oversized, else the original."""
         f = self.pano_files[index]
-        if not (self.pano_max_width and f.width > self.pano_max_width):
+        if not self._oversized(index):
             return f.path
         with self._rendition_lock:
-            if index not in self._renditions:
-                if self._cache is None:
-                    self._cache = tempfile.TemporaryDirectory(
-                        prefix="djiembed-panoedit-")
-                self._renditions[index] = downscale_pano(
-                    f.path, Path(self._cache.name) / f"{index}.jpg",
-                    self.pano_max_width,
+            if index in self._renditions:
+                return self._renditions[index] or f.path
+            if self._cache is None:
+                self._cache = tempfile.TemporaryDirectory(
+                    prefix="djiembed-panoedit-",
+                    # A daemon request thread can still hold a rendition
+                    # open when Ctrl+C tears the server down, and Windows
+                    # refuses to unlink an open file — a shutdown must not
+                    # end in a traceback over a temp file.
+                    ignore_cleanup_errors=True,
                 )
-            rendition = self._renditions[index]
-        return rendition or f.path
+            per_image = self._building.setdefault(index, threading.Lock())
+            cache = Path(self._cache.name)
+        # Outside the shared lock: the re-encode takes seconds, and only
+        # requests for this same panorama should wait for it.
+        with per_image:
+            if index not in self._renditions:
+                self._renditions[index] = downscale_pano(
+                    f.path, cache / f"{index}.jpg", self.pano_max_width)
+            return self._renditions[index] or f.path
+
+    def drop_rendition(self, index: int) -> None:
+        """Forget the cached rendition for *index* (its source changed)."""
+        with self._rendition_lock:
+            self._renditions.pop(index, None)
 
     def payload(self, index: int) -> dict:
-        return _view_payload(
-            self.pano_files[index], index,
-            max_width=self.pano_max_width, renditions=self.pano_renditions,
+        # What was actually served once that is known, not what was
+        # predicted: a rendition that failed to build falls back to the
+        # original, and advice based on "it is already downscaled" would
+        # then send the user away from the one setting that helps.
+        with self._rendition_lock:
+            known = index in self._renditions
+            built = self._renditions.get(index)
+        downscaled = (
+            built is not None if known
+            else self.pano_renditions and self._oversized(index)
         )
+        return _view_payload(self.pano_files[index], index,
+                             downscaled=bool(downscaled))
 
     def server_close(self) -> None:
         try:
@@ -465,6 +540,8 @@ class _EditorHandler(_RangeHandler):
             self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR,
                             {"error": str(exc)})
             return
+        # The file on disk just changed, so any rendition of it is stale.
+        self.server.drop_rendition(index)         # type: ignore[attr-defined]
         # The verified read is the new truth for /api/list and the client.
         f.pose = verified["pose"]
         f.yaw, f.pitch, f.hfov = _pano_view({

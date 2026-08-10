@@ -1379,11 +1379,12 @@ def serve(
          "the app that started it.",
 )
 @click.option(
-    "--max-width", type=int, default=DEFAULT_MAX_SERVE_WIDTH,
+    "--max-width", type=click.IntRange(min=0), default=DEFAULT_MAX_SERVE_WIDTH,
     show_default=True, metavar="PIXELS",
     help="Show panoramas wider than this downscaled to it (0 serves every "
-         "file at full size). Older graphics hardware fails to display very "
-         "large panoramas; the files themselves are never modified.",
+         "file at full size; values below 512 are raised to 512). Older "
+         "graphics hardware fails to display very large panoramas; the "
+         "files themselves are never modified.",
 )
 def panoedit(
     directory: str,

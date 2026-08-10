@@ -67,7 +67,13 @@ docs = [
     "mkdocstrings[python]>=0.24",
 ]
 terrain = [
-    "pillow>=10.0",
+    # 11.0 is the floor because of the panoedit downscale path (#471):
+    # older Pillow cannot carry an XMP packet through a JPEG save and says
+    # nothing about it, and a panorama rendition without its GPano tags
+    # would be framed differently from the original. The code still checks
+    # and falls back to serving originals, so an older Pillow injected by
+    # hand degrades rather than misleads.
+    "pillow>=11.0",
 ]
 [project.urls]
 Homepage = "https://github.com/CallMarcus/dji-drone-metadata-embedder"

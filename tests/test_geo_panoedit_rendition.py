@@ -212,3 +212,98 @@ def test_no_notice_when_nothing_is_oversized(editor):
     start, _ = editor
     httpd, _url = start(max_width=6000)
     assert pe._oversize_notice(httpd) is None
+
+
+# The XMP round trip (review finding, 2026-08-10) -------------------------
+
+
+def test_xmp_packet_is_read_from_the_file_not_from_pillow(tmp_path):
+    # Pillow only exposes info["xmp"] for JPEG from 11.0 on, while the
+    # terrain extra allows 10.x — and on 10.x Pillow also ignores an
+    # unknown xmp= save argument silently. Reading the APP1 segment
+    # ourselves is what makes the round trip provable on every version.
+    src = _pano(tmp_path / "big.jpg")
+    assert pe._xmp_packet(src) == _XMP
+    assert pe._GPANO_NS in (pe._xmp_packet(src) or b"")
+
+
+def test_xmp_packet_of_a_file_without_one_is_none(tmp_path):
+    plain = _pano(tmp_path / "plain.jpg", 40, 20, xmp=None)
+    assert pe._xmp_packet(plain) is None
+    notjpeg = tmp_path / "notes.txt"
+    notjpeg.write_bytes(b"not a jpeg at all")
+    assert pe._xmp_packet(notjpeg) is None
+    assert pe._xmp_packet(tmp_path / "missing.jpg") is None
+
+
+def test_rendition_of_a_pano_without_xmp_still_works(tmp_path):
+    # No packet to lose, nothing to fail closed about.
+    src = _pano(tmp_path / "bare.jpg", 1200, 600, xmp=None)
+    dest = tmp_path / "out.jpg"
+    assert pe.downscale_pano(src, dest, 600) == dest
+    with Image.open(dest) as im:
+        assert im.size == (600, 300)
+
+
+def test_list_reports_the_built_fact_not_the_prediction(editor, monkeypatch):
+    # A rendition that fails to build falls back to the original. Saying
+    # "already downscaled" then steers the user away from --max-width, the
+    # one setting that would help them.
+    start, folder = editor
+    monkeypatch.setattr(pe, "downscale_pano", lambda src, dest, mw: None)
+    _, url = start(max_width=600)
+    assert json.loads(_get(url + "api/list"))[0]["downscaled"] is True
+    assert _get(url + "img/0") == (folder / "big.jpg").read_bytes()
+    assert json.loads(_get(url + "api/list"))[0]["downscaled"] is False
+
+
+def test_one_slow_rendition_does_not_block_another_panorama(editor):
+    # The dedup is per panorama, not global: a click on the next thumbnail
+    # must not wait out the previous image's multi-second re-encode.
+    start, _ = editor
+    httpd, url = start(max_width=600)
+    started, release = threading.Event(), threading.Event()
+    real = pe.downscale_pano
+
+    def blocking(src, dest, mw):
+        if dest.name == "0.jpg":
+            started.set()
+            release.wait(10)
+        return real(src, dest, mw)
+
+    # Not monkeypatch: this must be undone before the fixture tears down.
+    pe.downscale_pano = blocking
+    slow = threading.Thread(target=lambda: _get(url + "img/0"), daemon=True)
+    try:
+        slow.start()
+        assert started.wait(10), "the blocking build never started"
+        # small.jpg is not oversized, so ask for the other oversized one by
+        # making this request the one that must not wait: img/1 is served
+        # directly and returns immediately even while img/0 is encoding.
+        assert _get(url + "img/1")
+    finally:
+        release.set()
+        slow.join(15)
+        pe.downscale_pano = real
+    assert httpd.pano_max_width == 600
+
+
+def test_saving_drops_the_stale_rendition(editor, monkeypatch):
+    # The rendition embeds a copy of the file's XMP; once ExifTool has
+    # rewritten the original, that copy is out of date.
+    start, _ = editor
+    monkeypatch.setattr(
+        pe, "write_initial_view",
+        lambda path, heading, pitch, hfov: {
+            "heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0})
+    httpd, url = start(max_width=600)
+    _get(url + "img/0")
+    assert 0 in httpd._renditions
+    req = urllib.request.Request(
+        url + "api/save",
+        data=json.dumps({"index": 0, "heading": 12.0, "pitch": 0.0,
+                         "hfov": 90.0, "token": httpd.pano_token}).encode(),
+        headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        assert resp.status == 200
+    assert 0 not in httpd._renditions
