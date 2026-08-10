@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import webbrowser
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -72,6 +73,18 @@ DEFAULT_MAX_SERVE_WIDTH = 6000
 _MIN_SERVE_WIDTH = 512
 
 
+# Seconds an ExifTool save may take before the editor gives up on it.
+# Generous on purpose: the work is a full JPEG rewrite plus the _original
+# backup copy, which on a spinning disk with real-time antivirus scanning
+# both files is slow but legitimate. What it must never be is unbounded
+# (#475).
+_WRITE_TIMEOUT = 60
+
+# Above this, a save that did finish is worth a warning in the log: it is
+# the early sign of the machine the timeout exists for.
+_SLOW_WRITE_SECONDS = 10
+
+
 class PanoEditError(Exception):
     """A panoedit failure with a user-facing message."""
 
@@ -91,6 +104,23 @@ class PanoFile:
     hfov: float | None
     width: int = 0
     height: int = 0
+
+
+def _slow_write_message(path: Path) -> str:
+    """What to tell the user when ExifTool ran out of time on *path*.
+
+    Deliberately does not claim the file is untouched: ExifTool renames
+    the original to ``_original`` before moving its rewritten copy into
+    place, so a run killed between those steps leaves the data safe under
+    the backup name rather than under the original one.
+    """
+    return (
+        f"ExifTool did not finish writing {path.name} within "
+        f"{_WRITE_TIMEOUT} seconds and was stopped. Antivirus scanning or "
+        "a slow or sleeping drive is the usual cause. Check the folder for "
+        f"{path.name}_original and {path.name}_exiftool_tmp before "
+        "retrying - your image is in one of them if it is not in place."
+    )
 
 
 def compass_heading(pose: float, yaw: float) -> float:
@@ -173,6 +203,12 @@ def write_initial_view(
     kept — batch editing must never be able to destroy an original. The
     read-back is the write verification: what the map will see is what the
     caller gets.
+
+    Both ExifTool runs are bounded by :data:`_WRITE_TIMEOUT`. A rewrite of
+    a 40 MB JPEG plus its backup copy can stall indefinitely behind an
+    antivirus scan or a sleeping drive, and without a timeout that stall
+    reaches the page as a request that never returns and a Save button
+    that stays dead until the app is restarted (#475).
     """
     exe = exiftool_exe()
     write_args = [
@@ -182,13 +218,23 @@ def write_initial_view(
         f"-XMP-GPano:InitialHorizontalFOVDegrees={hfov}",
         str(path),
     ]
+    started = time.monotonic()
     try:
         proc = subprocess.run(
             write_args, capture_output=True, text=True,
-            encoding="utf-8", errors="replace",
+            encoding="utf-8", errors="replace", timeout=_WRITE_TIMEOUT,
         )
     except FileNotFoundError:
         raise PanoEditError(_EXIFTOOL_INSTALL_HINT) from None
+    except subprocess.TimeoutExpired:
+        raise PanoEditError(_slow_write_message(path)) from None
+    elapsed = time.monotonic() - started
+    # Logged for every save: the difference between "slow disk" and "hung"
+    # is a number, and the next field report should be able to quote it.
+    logger.log(
+        logging.WARNING if elapsed > _SLOW_WRITE_SECONDS else logging.INFO,
+        "ExifTool wrote %s in %.1fs", path.name, elapsed,
+    )
     if proc.returncode != 0:
         stderr = proc.stderr.strip()[-300:]
         raise PanoEditError(
@@ -196,10 +242,17 @@ def write_initial_view(
             f"{stderr or 'no error output'}"
         )
     read_args = [exe, "-json", "-n", *_SCAN_TAGS[1:], str(path)]
-    proc = subprocess.run(
-        read_args, capture_output=True, text=True,
-        encoding="utf-8", errors="replace",
-    )
+    try:
+        proc = subprocess.run(
+            read_args, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=_WRITE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        raise PanoEditError(
+            f"The tags were written to {path.name}, but reading them back "
+            f"took longer than {_WRITE_TIMEOUT} seconds, so they could not "
+            "be verified. Reopen the folder to see the saved view."
+        ) from None
     try:
         entry = json.loads(proc.stdout)[0]
     except (json.JSONDecodeError, IndexError) as exc:
@@ -598,7 +651,12 @@ def make_editor_server(
     server.pano_renditions = renditions
     server.pano_page = build_editor_page(
         token, max_width=max_width, renditions=renditions,
-        hint=_PILLOW_HINT).encode("utf-8")
+        hint=_PILLOW_HINT,
+        # Outlast both server-side ExifTool timeouts (write, then the
+        # read-back) so the page's backstop never pre-empts the server's
+        # much better message.
+        save_timeout_ms=(2 * _WRITE_TIMEOUT + 15) * 1000,
+    ).encode("utf-8")
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     return server, url
 

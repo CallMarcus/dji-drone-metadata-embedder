@@ -92,6 +92,7 @@ view. C: compare with the saved one.</div>
 "use strict";
 const TOKEN = {token};
 const SERVE = {serve};
+const SAVE_TIMEOUT_MS = {save_timeout_ms};
 let files = [], idx = 0, viewer = null, saving = false;
 // The view this file opened at (its saved view, or Pannellum's defaults
 // where none is saved) and the one being composed when the comparison
@@ -338,12 +339,23 @@ async function save() {{
   status.className = "";
   status.textContent = "Saving…";
   const v = currentView();
+  const slow = setTimeout(() => {{
+    if (saving) status.textContent = "Still saving… (large file, or a "
+      + "virus scanner looking at it)";
+  }}, 4000);
   try {{
     const resp = await fetch("/api/save", {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
       body: JSON.stringify({{ index: files[target].index, token: TOKEN,
         heading: v.heading, pitch: v.pitch, hfov: v.hfov }}),
+      // The server gives up on ExifTool first and answers with a real
+      // message; this is the backstop for the request itself vanishing,
+      // so the button always comes back (#475). Undefined on browsers
+      // without AbortSignal.timeout, where the old behaviour is still
+      // better than a broken save.
+      signal: typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(SAVE_TIMEOUT_MS) : undefined,
     }});
     const body = await resp.json();
     if (!resp.ok) throw new Error(body.error || ("HTTP " + resp.status));
@@ -365,8 +377,13 @@ async function save() {{
     }}
   }} catch (e) {{
     status.className = "err";
-    status.textContent = "Save failed: " + e.message;
+    status.textContent = (e.name === "TimeoutError" || e.name === "AbortError")
+      ? "Save timed out after " + Math.round(SAVE_TIMEOUT_MS / 1000)
+        + "s. The file may be locked by another program - check the "
+        + "terminal for details, then try again."
+      : "Save failed: " + e.message;
   }} finally {{
+    clearTimeout(slow);
     saving = false;
     updateCompare();
   }}
@@ -406,6 +423,7 @@ def build_editor_page(
     max_width: int = 0,
     renditions: bool = True,
     hint: str = "",
+    save_timeout_ms: int = 135000,
 ) -> str:
     """The complete editor page with *token* embedded.
 
@@ -417,7 +435,9 @@ def build_editor_page(
     ``max_width`` is the server's downscale ceiling (0 = off) and *hint*
     the message to show when a panorama is over it but no rendition could
     be made — both only ever reach the user through the failure overlay
-    and the footer note (#471).
+    and the footer note (#471). ``save_timeout_ms`` is the page's backstop
+    for a save request that never comes back; it must outlast the server's
+    own ExifTool timeouts, which answer with a better message (#475).
     """
     serve = {
         "maxWidth": max_width,
@@ -430,4 +450,5 @@ def build_editor_page(
         pannellum_js_sri=_PANNELLUM_JS_SRI,
         token=json.dumps(token).replace("<", "\\u003c"),
         serve=json.dumps(serve).replace("<", "\\u003c"),
+        save_timeout_ms=int(save_timeout_ms),
     ))

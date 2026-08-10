@@ -31,6 +31,19 @@ def test_page_token_is_json_escaped():
     assert "</script><script>alert(1)" not in html
 
 
+def test_page_save_cannot_hang_forever():
+    # #475: with no timeout at any layer, a stalled ExifTool left the Save
+    # button disabled and unresponsive until the app was restarted.
+    html = build_editor_page("tok123", save_timeout_ms=135000)
+    assert "const SAVE_TIMEOUT_MS = 135000;" in html
+    assert "AbortSignal.timeout(SAVE_TIMEOUT_MS)" in html
+    # Old browsers without AbortSignal.timeout must still be able to save.
+    assert 'typeof AbortSignal.timeout === "function"' in html
+    # The button always comes back, with a message that is not "failed".
+    assert '"TimeoutError"' in html and "Save timed out after" in html
+    assert "Still saving…" in html
+
+
 def test_page_offers_reset_and_comparison():
     # #473: leaving a good existing view alone must not cost a rewrite,
     # and the choice to overwrite should be made against the alternative.
