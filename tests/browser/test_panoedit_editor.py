@@ -155,3 +155,74 @@ def test_oversized_panorama_is_served_downscaled(tmp_path, page, monkeypatch):
     finally:
         httpd.shutdown()
     assert (tmp_path / "wide.jpg").read_bytes() == original
+
+
+@needs_exiftool
+def test_reset_and_compare_against_the_saved_view(tmp_path, page, monkeypatch):
+    # #473: Reset snaps back to the file's opening view without a write,
+    # and Compare flips between the saved view and the one being composed.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    pano = tmp_path / "saved.jpg"
+    _make_pano(pano, pose=0.0)
+    subprocess.run(
+        ["exiftool", "-overwrite_original", "-n",
+         "-XMP-GPano:InitialViewHeadingDegrees=40",
+         "-XMP-GPano:InitialViewPitchDegrees=0",
+         "-XMP-GPano:InitialHorizontalFOVDegrees=90", str(pano)],
+        check=True, capture_output=True)
+    before = pano.read_bytes()
+    httpd, url = _serve(tmp_path, page)
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+        page.wait_for_function("window.__viewer.getYaw() !== 0")
+        saved_yaw = page.evaluate("window.__viewer.getYaw()")
+
+        def drag(dx):
+            box = page.locator("#viewer").bounding_box()
+            cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            page.mouse.move(cx, cy)
+            page.mouse.down()
+            page.mouse.move(cx + dx, cy, steps=10)
+            page.mouse.up()
+
+        drag(-160)
+        page.wait_for_function(
+            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) > 5")
+        composed = page.evaluate("window.__viewer.getYaw()")
+
+        # Compare: the saved view comes back, and saving is refused while
+        # it is on screen (that write would change nothing).
+        page.keyboard.press("c")
+        page.wait_for_function(
+            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) < 1")
+        assert page.locator("#save").is_disabled()
+        assert "saved view" in page.inner_text("#readout")
+
+        # ...and back to the composed view, with saving live again.
+        page.keyboard.press("c")
+        page.wait_for_function(
+            f"Math.abs(window.__viewer.getYaw() - {composed}) < 1")
+        assert page.locator("#save").is_enabled()
+
+        # Reset: back to the opening view, still with nothing written.
+        drag(-160)
+        page.wait_for_function(
+            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) > 5")
+        page.keyboard.press("Escape")
+        page.wait_for_function(
+            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) < 1")
+    finally:
+        httpd.shutdown()
+    assert pano.read_bytes() == before
+    assert not (tmp_path / "saved.jpg_original").exists()
+
+
+@needs_exiftool
+def test_compare_is_off_for_files_with_no_saved_view(editor, page):
+    url, _folder = editor
+    page.goto(url)
+    page.wait_for_function("window.__panoReady === true")
+    # a.jpg carries no initial-view tags: there is nothing to compare to.
+    assert page.locator("#compare").is_disabled()
+    assert page.locator("#reset").is_enabled()
