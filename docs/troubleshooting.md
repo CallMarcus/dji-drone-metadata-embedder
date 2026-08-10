@@ -264,6 +264,12 @@ MP4. The MP4 muxer cannot tag these streams, so the default embed **drops
 them** (otherwise ffmpeg fails with `Could not find tag for codec none`). The
 video, audio, and telemetry subtitle are unaffected.
 
+`embed` warns per affected file when this happens, and `check` reports the
+streams' presence as `embedded_telemetry`. Keep the original file — it remains
+the authoritative source for the embedded telemetry — or use `--container mkv`
+below. With `--overwrite` the original *is* the output, so the telemetry is
+lost for good; prefer the default separate-output mode for these models.
+
 To keep those streams byte-for-byte, embed into a Matroska container instead:
 
 ```bash

@@ -33,6 +33,7 @@ def run_ffprobe(path: Path) -> Optional[Dict]:
         "-print_format",
         "json",
         "-show_format",
+        "-show_streams",
         str(path),
     ]
     try:
@@ -67,10 +68,20 @@ def check_file(path: Path) -> Dict[str, bool]:
     altitude_present = "GPSAltitude" in exif_data or "altitude" in ff_tags
     creation_time_present = "creation_time" in ff_tags or "CreateDate" in exif_data
 
+    # DJI's djmd/dbgi data streams: per-frame telemetry embedded in the MP4
+    # itself. Reported so users know the file carries more than the sidecar
+    # SRT — and that a default (MP4) embed will not carry it over (#478).
+    embedded_telemetry = any(
+        s.get("codec_tag_string") in ("djmd", "dbgi")
+        for s in ffprobe_data.get("streams", [])
+        if s.get("codec_type") == "data"
+    )
+
     return {
         "gps": gps_present,
         "altitude": altitude_present,
         "creation_time": creation_time_present,
+        "embedded_telemetry": embedded_telemetry,
     }
 
 
@@ -140,6 +151,11 @@ def main() -> None:
                     f"{CHECK} creation_time"
                     if result["creation_time"]
                     else f"{CROSS} creation_time"
+                ),
+                (
+                    f"{CHECK} embedded_telemetry"
+                    if result["embedded_telemetry"]
+                    else f"{CROSS} embedded_telemetry"
                 ),
             ]
             logger.info("%s: %s", file, ", ".join(status_parts))
