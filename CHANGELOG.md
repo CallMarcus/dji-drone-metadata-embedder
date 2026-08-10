@@ -13,45 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Switzerland airspace coverage (#456): `-f record` and `flightmap
-  --airspace` now resolve Swiss plateau flights against BAZL's ED-269
-  UAS-geozone feed (O-BY licence, attribution confirmed in writing by
-  BAZL). The feed's `99999 m` "no effective ceiling" sentinel renders as
-  an open-ended zone, never as a literal altitude.
-
-- `dji-embed fetch-log` — opt-in decode of TXT flight records through the
-  Flight Reader API with your own key (`FLIGHTREADER_API_KEY`); writes
-  `NAME.flightreader.csv` beside each record for `flightmap --flight-log`,
-  never uploads the same record twice, and states plainly that the whole
-  log is transmitted (#390).
-- `tools/mtp-copy.ps1` — bulk-copy flight records off a DJI RC over
-  USB/MTP, plus a how-to walkthrough for finding them by hand (#390).
-
-### Changed
-
-- Photo map hover previews are now opt-in ([#345]): pins go straight to the
-  click popup, and a "Hover previews" toggle in the map's top-right corner
-  (mouse devices only, remembered by the browser) restores the thumbnail
-  preview for skimming. Previously the preview was always on, which meant
-  interacting with a pin twice to reach its details and link.
-
-[#345]: https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/345
-
-### Fixed
-
-- **gui**: Refusing macOS permission to open Terminal no longer fails in
-  silence. The command-line screen's launch button now waits for the
-  answer and, when it is refused, names the System Settings > Privacy &
-  Security > Automation switch that turns the permission back on.
-  Previously the click did nothing visible, and because macOS remembers
-  the refusal, so did every click after it (#443).
-- **gui**: The command-line screen's fallback advice, shown when the live
-  command list cannot be read, no longer tells macOS users to run a bare
-  `dji-embed` that is not on their PATH. It now names the bundled CLI by
-  its absolute path, the same rule the launch button already followed
-  (#454).
 
 ## [2.7.1] - 2026-08-08
 
