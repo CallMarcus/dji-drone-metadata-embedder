@@ -68,6 +68,37 @@ public class MapServerTests : IDisposable
         Assert.NotNull(second);
     }
 
+    // #490: MapServer redirects the child's stderr (and stdout) but only
+    // ever reads the URL line. A child that logs enough to fill the
+    // undrained pipe blocks in the kernel mid-write — in the field that
+    // froze panoedit's save chain until the app was closed. Both streams
+    // must be drained for the child's whole life.
+
+    private async Task AssertChildIsNotBlockedAsync(bool floodStderr)
+    {
+        using var server = new MapServer();
+        var done = Path.Combine(_dir, $"flood-done-{floodStderr}");
+        var cli = FakeCli.WritePipeFlood(_dir,
+            "http://127.0.0.1:54321/photomap.html", done, floodStderr);
+        var url = await server.GetUrlAsync(cli, MapFile(), CancellationToken.None);
+        Assert.NotNull(url);
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (!File.Exists(done) && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+        Assert.True(File.Exists(done),
+            "child blocked on an undrained pipe — the #490 save deadlock");
+    }
+
+    [Fact]
+    public Task A_stderr_flooding_child_is_never_blocked() =>
+        AssertChildIsNotBlockedAsync(floodStderr: true);
+
+    [Fact]
+    public Task A_stdout_flooding_child_is_never_blocked() =>
+        AssertChildIsNotBlockedAsync(floodStderr: false);
+
     [Fact]
     public async Task Unstartable_cli_yields_null()
     {

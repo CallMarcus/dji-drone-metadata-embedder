@@ -6,6 +6,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
+from http import HTTPStatus
 
 import pytest
 
@@ -103,6 +104,50 @@ def test_save_rejects_bad_token_and_input(editor):
     assert _post(url + "api/save",
                  {**ok, "token": token, "heading": "x"})[0] == 400
     assert writes == []
+
+
+def test_save_returns_503_while_another_save_holds_the_lock(editor, monkeypatch):
+    # A wedged save must surface as an honest error on the next attempt,
+    # not as a request that waits forever on the lock (#490).
+    url, httpd, writes = editor
+    monkeypatch.setattr(pe, "_SAVE_LOCK_TIMEOUT", 0.2)
+    httpd.pano_lock.acquire()
+    try:
+        status, body = _post(url + "api/save", {
+            "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
+            "token": httpd.pano_token})
+        assert status == 503
+        assert "save" in body["error"].lower()
+        assert writes == []                   # ExifTool was never reached
+    finally:
+        httpd.pano_lock.release()
+
+
+def test_error_response_is_sent_after_the_lock_is_released(editor, monkeypatch):
+    # Writing the 500 body is a blocking socket send to an unbuffered
+    # client socket; it must never happen while pano_lock is held, or a
+    # stalled client extends the save critical section (#490 review).
+    url, httpd, _ = editor
+
+    def boom(path, heading, pitch, hfov):
+        raise pe.PanoEditError("disk on fire")
+    monkeypatch.setattr(pe, "write_initial_view", boom)
+    observed = {}
+    orig = pe._EditorHandler._send_json
+
+    def spy(self, status, obj):
+        if status == HTTPStatus.INTERNAL_SERVER_ERROR:
+            free = httpd.pano_lock.acquire(blocking=False)
+            if free:
+                httpd.pano_lock.release()
+            observed["lock_free_during_error_send"] = free
+        return orig(self, status, obj)
+    monkeypatch.setattr(pe._EditorHandler, "_send_json", spy)
+    status, _body = _post(url + "api/save", {
+        "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
+        "token": httpd.pano_token})
+    assert status == 500
+    assert observed["lock_free_during_error_send"] is True
 
 
 def test_save_write_failure_is_500(editor, monkeypatch):

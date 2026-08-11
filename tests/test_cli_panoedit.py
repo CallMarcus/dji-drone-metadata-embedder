@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from dji_metadata_embedder import cli as cli_mod
@@ -11,6 +12,20 @@ from dji_metadata_embedder.geo.panoedit import (
     DEFAULT_MAX_SERVE_WIDTH,
     PanoEditError,
 )
+
+
+@pytest.fixture(autouse=True)
+def _stub_nonblocking_logging(monkeypatch):
+    """Keep the real make_logging_nonblocking away from pytest's root logger.
+
+    The command wires it for real, and under pytest that would swap out the
+    logging plugin's caplog/report handlers for a QueueHandler and leak one
+    listener thread per invocation (#490 review).
+    """
+    calls: list[bool] = []
+    monkeypatch.setattr(cli_mod, "make_logging_nonblocking",
+                        lambda *a, **kw: calls.append(True))
+    return calls
 
 
 def test_panoedit_forwards_options(monkeypatch, tmp_path):
@@ -40,6 +55,17 @@ def test_panoedit_max_width_is_overridable(monkeypatch, tmp_path):
         "panoedit", str(tmp_path), "--max-width", "0"])
     assert result.exit_code == 0, result.output
     assert calls["max_width"] == 0
+
+
+def test_panoedit_makes_logging_nonblocking(
+        _stub_nonblocking_logging, monkeypatch, tmp_path):
+    # The GUI redirects this command's stderr to a pipe it never reads; a
+    # blocking log write inside the save chain froze every later save
+    # (#490). The command must hand its logging to the queue wrapper.
+    monkeypatch.setattr(cli_mod, "run_editor", lambda directory, **kw: None)
+    result = CliRunner().invoke(cli_mod.main, ["panoedit", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert _stub_nonblocking_logging == [True]
 
 
 def test_panoedit_error_is_clean(monkeypatch, tmp_path):
