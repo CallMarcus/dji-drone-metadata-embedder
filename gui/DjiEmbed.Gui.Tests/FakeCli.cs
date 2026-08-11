@@ -100,6 +100,35 @@ internal static class FakeCli
             + EchoLinesSh(stdoutLines) + "exit 0\n");
     }
 
+    /// <summary>
+    /// A fake serve child that prints its URL line, floods one MB down the
+    /// chosen stream (far past any OS pipe buffer), touches
+    /// <paramref name="doneFile"/>, then stays alive. If the parent never
+    /// drains that stream, the flood blocks and the done-file never
+    /// appears — the #490 save deadlock in miniature.
+    /// </summary>
+    internal static string WritePipeFlood(string dir, string urlLine,
+        string doneFile, bool toStderr)
+    {
+        var redirect = toStderr ? " 1>&2" : "";
+        var chunk = new string('x', 250);
+        if (IsWindows)
+        {
+            return WriteScript(dir, "@echo off\r\n"
+                + $"echo {urlLine}\r\n"
+                + $"for /L %%i in (1,1,4000) do echo {chunk}{redirect}\r\n"
+                + $"type nul > \"{doneFile}\"\r\n"
+                + "ping -n 31 127.0.0.1 > nul\r\n");
+        }
+        return WriteScript(dir, "#!/bin/sh\n"
+            + $"echo '{urlLine}'\n"
+            + "i=0\nwhile [ $i -lt 4000 ]; do\n"
+            + $"echo '{chunk}'{redirect}\n"
+            + "i=$((i+1))\ndone\n"
+            + $": > '{doneFile}'\n"
+            + "sleep 30\n");
+    }
+
     private static string EchoLinesCmd(IEnumerable<string> lines) =>
         string.Concat(lines.Select(l =>
             "echo " + l.Replace("\"", "\"\"") + "\r\n"));

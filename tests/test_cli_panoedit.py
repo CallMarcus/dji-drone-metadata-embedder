@@ -42,6 +42,20 @@ def test_panoedit_max_width_is_overridable(monkeypatch, tmp_path):
     assert calls["max_width"] == 0
 
 
+def test_panoedit_makes_logging_nonblocking(monkeypatch, tmp_path):
+    # The GUI redirects this command's stderr to a pipe it never reads; a
+    # blocking log write inside the save chain froze every later save
+    # (#490). The command must hand its logging to the queue wrapper.
+    assert hasattr(cli_mod, "make_logging_nonblocking")
+    calls = []
+    monkeypatch.setattr(cli_mod, "make_logging_nonblocking",
+                        lambda *a, **kw: calls.append(True))
+    monkeypatch.setattr(cli_mod, "run_editor", lambda directory, **kw: None)
+    result = CliRunner().invoke(cli_mod.main, ["panoedit", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert calls == [True]
+
+
 def test_panoedit_error_is_clean(monkeypatch, tmp_path):
     def fake_run(directory, **kwargs):
         raise PanoEditError("No 360-degree panoramas found")

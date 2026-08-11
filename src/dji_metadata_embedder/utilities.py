@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -391,6 +392,41 @@ def setup_logging(
                 )
             ],
         )
+
+
+def make_logging_nonblocking(
+    target: logging.Logger | None = None,
+) -> logging.handlers.QueueListener | None:
+    """Move *target*'s handler I/O onto a sacrificial listener thread.
+
+    A long-lived server command launched by the GUI logs to a stderr pipe
+    the GUI may never read; once the pipe fills, the next log write blocks
+    the thread that made it — inside panoedit's save chain that froze every
+    later save until the app was closed (#490). After this call the calling
+    thread only ever enqueues; the listener thread does the real writes,
+    and if those wedge, only the listener wedges.
+
+    The listener thread is a daemon and is deliberately never joined at
+    exit: joining would trade the save deadlock for a shutdown hang on the
+    same wedged pipe. Returns the listener, or ``None`` when there was
+    nothing to wrap (no handlers, or already wrapped).
+    """
+    import queue
+
+    log = target if target is not None else logging.getLogger()
+    handlers = [
+        h for h in log.handlers
+        if not isinstance(h, logging.handlers.QueueHandler)
+    ]
+    if not handlers:
+        return None
+    q: queue.SimpleQueue = queue.SimpleQueue()
+    listener = logging.handlers.QueueListener(
+        q, *handlers, respect_handler_level=True
+    )
+    log.handlers = [logging.handlers.QueueHandler(q)]
+    listener.start()
+    return listener
 
 
 def get_tool_versions() -> dict[str, str]:

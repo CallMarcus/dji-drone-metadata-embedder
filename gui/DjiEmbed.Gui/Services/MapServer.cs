@@ -102,7 +102,18 @@ public sealed class MapServer : IMapServer, IDisposable
         {
             return null;
         }
+        // The child logs to stderr for its whole life, and nothing here
+        // reads it: an undrained pipe fills within a few KB, after which
+        // the child's next write blocks in the kernel. One of those writes
+        // sat inside panoedit's save chain, freezing every later save
+        // until this app exited and broke the pipe (#490). Drain and
+        // discard — the content is the CLI's terminal log, which has no
+        // reader inside the GUI.
+        _ = DrainAsync(process.StandardError);
         var url = await ReadUrlLineAsync(process, cancellationToken);
+        // Same hazard on stdout: only the URL line is ever read, so any
+        // later stdout output would hit the same full-pipe block.
+        _ = DrainAsync(process.StandardOutput);
         if (url is null)
         {
             TryKill(process);
@@ -136,6 +147,21 @@ public sealed class MapServer : IMapServer, IDisposable
             && line.StartsWith("http://127.0.0.1:", StringComparison.Ordinal)
             ? line
             : null;
+    }
+
+    /// <summary>Reads a child stream to the end, discarding, so the child
+    /// can never block on a full pipe (#490). Runs until the child exits;
+    /// any error just means the pipe is already gone.</summary>
+    private static async Task DrainAsync(StreamReader reader)
+    {
+        try
+        {
+            await reader.BaseStream.CopyToAsync(Stream.Null);
+        }
+        catch (Exception)
+        {
+            // Child exited or was killed; nothing left to drain.
+        }
     }
 
     private static void TryKill(Process process)

@@ -54,7 +54,12 @@ from .geo.record import build_records
 from .geo.record_html import write_flight_record
 from .mp4_telemetry import Mp4TelemetryError
 from .progress import NullProgress, make_progress
-from .utilities import check_dependencies, setup_logging, get_tool_versions
+from .utilities import (
+    check_dependencies,
+    make_logging_nonblocking,
+    setup_logging,
+    get_tool_versions,
+)
 
 
 # Exit codes for consistent CLI behavior
@@ -1414,6 +1419,11 @@ def panoedit(
     # INFO lines — including how long each save took, which the page tells
     # the user to come here for — went nowhere (#475).
     setup_logging(verbose=False, quiet=False)
+    # The GUI redirects this command's stderr to a pipe it may never read.
+    # A full pipe turns the next log write into a kernel-level block — one
+    # of those sat inside the save lock and froze every later save (#490).
+    # Queue the handler I/O so a request thread can never block on stderr.
+    make_logging_nonblocking()
     try:
         run_editor(
             Path(directory),

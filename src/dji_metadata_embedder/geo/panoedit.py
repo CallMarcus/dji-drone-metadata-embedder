@@ -84,6 +84,13 @@ _WRITE_TIMEOUT = 60
 # the early sign of the machine the timeout exists for.
 _SLOW_WRITE_SECONDS = 10
 
+# Ceiling on waiting for another save to release the file lock. A healthy
+# save can legitimately hold it for two ExifTool runs (2 × _WRITE_TIMEOUT),
+# so waiters must outlast that; anything longer is a wedged holder, and the
+# next save should come back as an honest error instead of queueing forever
+# (#490). The page's own fetch abort is 135 s, deliberately just above this.
+_SAVE_LOCK_TIMEOUT = 2 * _WRITE_TIMEOUT + 5
+
 # The folder scan's budget: unlike a save it grows with the folder, so it
 # is a per-file allowance rather than a constant, capped so that a truly
 # wedged scan still ends.
@@ -625,13 +632,21 @@ class _EditorHandler(_RangeHandler):
             return
         heading %= 360.0
         f = files[index]
+        lock = self.server.pano_lock              # type: ignore[attr-defined]
+        if not lock.acquire(timeout=_SAVE_LOCK_TIMEOUT):
+            self._send_json(HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Another save is still in progress. Wait for it "
+                         "to finish and try again — if this keeps "
+                         "happening, restart the editor."})
+            return
         try:
-            with self.server.pano_lock:           # type: ignore[attr-defined]
-                verified = write_initial_view(f.path, heading, pitch, hfov)
+            verified = write_initial_view(f.path, heading, pitch, hfov)
         except PanoEditError as exc:
             self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR,
                             {"error": str(exc)})
             return
+        finally:
+            lock.release()
         # The file on disk just changed, so any rendition of it is stale.
         self.server.drop_rendition(index)         # type: ignore[attr-defined]
         # The verified read is the new truth for /api/list and the client.

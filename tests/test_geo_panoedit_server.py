@@ -105,6 +105,23 @@ def test_save_rejects_bad_token_and_input(editor):
     assert writes == []
 
 
+def test_save_returns_503_while_another_save_holds_the_lock(editor, monkeypatch):
+    # A wedged save must surface as an honest error on the next attempt,
+    # not as a request that waits forever on the lock (#490).
+    url, httpd, writes = editor
+    monkeypatch.setattr(pe, "_SAVE_LOCK_TIMEOUT", 0.2)
+    httpd.pano_lock.acquire()
+    try:
+        status, body = _post(url + "api/save", {
+            "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
+            "token": httpd.pano_token})
+        assert status == 503
+        assert "save" in body["error"].lower()
+        assert writes == []                   # ExifTool was never reached
+    finally:
+        httpd.pano_lock.release()
+
+
 def test_save_write_failure_is_500(editor, monkeypatch):
     url, httpd, _ = editor
 
