@@ -88,7 +88,11 @@ _SLOW_WRITE_SECONDS = 10
 # save can legitimately hold it for two ExifTool runs (2 × _WRITE_TIMEOUT),
 # so waiters must outlast that; anything longer is a wedged holder, and the
 # next save should come back as an honest error instead of queueing forever
-# (#490). The page's own fetch abort is 135 s, deliberately just above this.
+# (#490). Note the budgets stack: a waiter that acquires late still gets
+# the full write time, so its response can land after the page's 135 s
+# fetch abort — the write is durable and the next list refresh shows it,
+# but the page will have reported a timeout. Only concurrent saves (a
+# second window on the same folder) can reach that state.
 _SAVE_LOCK_TIMEOUT = 2 * _WRITE_TIMEOUT + 5
 
 # The folder scan's budget: unlike a save it grows with the folder, so it
@@ -639,14 +643,21 @@ class _EditorHandler(_RangeHandler):
                          "to finish and try again — if this keeps "
                          "happening, restart the editor."})
             return
+        # The lock must be free before any response is written: the client
+        # socket is unbuffered and blocking, so a stalled reader would
+        # otherwise extend the save critical section (except-handlers run
+        # BEFORE finally — sending from one would send under the lock).
         try:
             verified = write_initial_view(f.path, heading, pitch, hfov)
+            error = None
         except PanoEditError as exc:
-            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR,
-                            {"error": str(exc)})
-            return
+            error = str(exc)
         finally:
             lock.release()
+        if error is not None:
+            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR,
+                            {"error": error})
+            return
         # The file on disk just changed, so any rendition of it is stale.
         self.server.drop_rendition(index)         # type: ignore[attr-defined]
         # The verified read is the new truth for /api/list and the client.

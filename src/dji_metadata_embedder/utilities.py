@@ -408,23 +408,32 @@ def make_logging_nonblocking(
 
     The listener thread is a daemon and is deliberately never joined at
     exit: joining would trade the save deadlock for a shutdown hang on the
-    same wedged pipe. Returns the listener, or ``None`` when there was
-    nothing to wrap (no handlers, or already wrapped).
+    same wedged pipe. (``logging.shutdown`` may still flush the wrapped
+    handlers at exit via ``logging._handlerList`` — acceptable, since by
+    then nothing is holding application locks.) Two known costs of the
+    stock ``QueueHandler``: records cross the queue pre-formatted with
+    ``exc_info`` stripped, so RichHandler renders plain rather than rich
+    tracebacks, and ``args`` are burned into the message string. Both are
+    cosmetic here. Returns the listener, or ``None`` when there was
+    nothing to wrap (no handlers, or already fully wrapped).
     """
     import queue
 
     log = target if target is not None else logging.getLogger()
-    handlers = [
+    queued = [
         h for h in log.handlers
-        if not isinstance(h, logging.handlers.QueueHandler)
+        if isinstance(h, logging.handlers.QueueHandler)
     ]
+    handlers = [h for h in log.handlers if h not in queued]
     if not handlers:
         return None
     q: queue.SimpleQueue = queue.SimpleQueue()
     listener = logging.handlers.QueueListener(
         q, *handlers, respect_handler_level=True
     )
-    log.handlers = [logging.handlers.QueueHandler(q)]
+    # Existing queue handlers stay wired: dropping one would orphan its
+    # listener and silently cut off every handler behind it.
+    log.handlers = [*queued, logging.handlers.QueueHandler(q)]
     listener.start()
     return listener
 

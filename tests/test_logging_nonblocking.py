@@ -91,6 +91,29 @@ def test_wrapping_twice_is_a_no_op():
         listener.stop()
 
 
+def test_rewrap_of_a_mixed_state_keeps_the_first_queue_wired():
+    # If a handler is added after the first wrap, wrapping again must not
+    # discard the first QueueHandler — that would silently orphan its
+    # listener and cut off every handler behind it (#490 review).
+    h1 = _BlockingHandler()
+    h1.unblock.set()
+    log = _private_logger("nonblocking-test-rewrap", h1)
+    listener1 = make_logging_nonblocking(log)
+    assert listener1 is not None
+    h2 = _BlockingHandler()
+    h2.unblock.set()
+    log.addHandler(h2)
+    listener2 = make_logging_nonblocking(log)
+    assert listener2 is not None
+    try:
+        log.info("both please")
+        assert _wait_for(lambda: len(h2.records) == 1)
+        assert _wait_for(lambda: len(h1.records) == 1)
+    finally:
+        listener1.stop()
+        listener2.stop()
+
+
 def test_logger_without_handlers_is_left_alone():
     log = logging.getLogger("nonblocking-test-empty")
     log.handlers = []
