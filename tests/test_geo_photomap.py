@@ -709,3 +709,72 @@ def test_redact_photo_points_none_is_identity():
 
     pts = [PhotoPoint(lat=60.170278, lon=24.952222, alt=None, name="a.jpg")]
     assert redact_photo_points(pts, "none") == pts
+
+
+# --- #472: thumbnail pixel dimensions ride into the GeoJSON properties ------
+# The popup <img> needs explicit width/height so Leaflet's pre-decode layout
+# is correct; the dimensions are parsed from the JPEG bytes at build time
+# (pure Python — Pillow is an optional extra the CLI cannot rely on).
+
+
+def _tiny_jpeg_b64(width: int, height: int) -> str:
+    import base64
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (width, height), (10, 20, 30)).save(buf, format="JPEG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def test_jpeg_dimensions_reads_a_real_jpeg():
+    import base64
+
+    from dji_metadata_embedder.geo.photomap import _jpeg_dimensions
+
+    data = base64.b64decode(_tiny_jpeg_b64(160, 90))
+    assert _jpeg_dimensions(data) == (160, 90)
+
+
+def test_jpeg_dimensions_reads_progressive_sof2():
+    import base64
+    import io
+
+    from PIL import Image
+
+    from dji_metadata_embedder.geo.photomap import _jpeg_dimensions
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 32)).save(buf, format="JPEG", progressive=True)
+    data = buf.getvalue()
+    assert _jpeg_dimensions(data) == (64, 32)
+    assert base64.b64encode(data)  # sanity: same shape the pipeline carries
+
+
+def test_jpeg_dimensions_rejects_non_jpeg_bytes():
+    from dji_metadata_embedder.geo.photomap import _jpeg_dimensions
+
+    assert _jpeg_dimensions(b"") is None
+    assert _jpeg_dimensions(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32) is None
+    assert _jpeg_dimensions(b"\xff\xd8\xff") is None  # truncated after SOI
+
+
+def test_geojson_thumbnails_carry_pixel_dimensions():
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg",
+                      thumbnail_b64=_tiny_jpeg_b64(240, 120))]
+    props = photos_to_geojson(pts, include_thumbnails=True)["features"][0][
+        "properties"]
+    assert props["tw"] == 240
+    assert props["th"] == 120
+
+
+def test_geojson_omits_dimensions_for_unparseable_thumb():
+    # A blob that is valid base64 but not a JPEG (or not decodable at all)
+    # degrades to the old behaviour: thumb present, no tw/th.
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg",
+                      thumbnail_b64="QUJD")]
+    props = photos_to_geojson(pts, include_thumbnails=True)["features"][0][
+        "properties"]
+    assert props["thumb"] == "QUJD"
+    assert "tw" not in props and "th" not in props

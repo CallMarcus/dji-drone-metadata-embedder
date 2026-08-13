@@ -7,10 +7,12 @@ GeoJSON and KML here, the clustered HTML map in :mod:`.photomap_html`.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
 import re
+import struct
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -187,6 +189,49 @@ def _clean_base64(raw: object) -> str | None:
         if _BASE64_RE.fullmatch(candidate):
             return candidate
     return None
+
+
+def _jpeg_dimensions(data: bytes) -> tuple[int, int] | None:
+    """Return ``(width, height)`` from JPEG bytes, or ``None`` when unreadable.
+
+    Walks the marker segments to the first SOF frame header (#472). Pure
+    Python on purpose: thumbnails must gain dimensions on a bare install,
+    and Pillow is an optional extra the map writers cannot import.
+    """
+    if len(data) < 4 or data[:2] != b"\xff\xd8":
+        return None
+    i = 2
+    while i + 3 < len(data):
+        if data[i] != 0xFF:
+            return None
+        marker = data[i + 1]
+        if marker == 0xFF:  # fill byte before a marker
+            i += 1
+            continue
+        if 0xD0 <= marker <= 0xD9:  # RST/SOI/EOI: standalone, no length word
+            i += 2
+            continue
+        if marker == 0xDA:  # SOS: entropy data follows, SOF never after this
+            return None
+        (length,) = struct.unpack(">H", data[i + 2 : i + 4])
+        if length < 2:
+            return None
+        # SOF0-SOF15 hold the frame size; C4/C8/CC are DHT/JPG/DAC, not frames.
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            if i + 9 > len(data):
+                return None
+            height, width = struct.unpack(">HH", data[i + 5 : i + 9])
+            return (width, height) if width and height else None
+        i += 2 + length
+    return None
+
+
+def _thumb_dimensions(thumb_b64: str) -> tuple[int, int] | None:
+    """Pixel size of a base64 thumbnail, ``None`` for anything unparseable."""
+    try:
+        return _jpeg_dimensions(base64.b64decode(thumb_b64))
+    except (ValueError, struct.error):
+        return None
 
 
 def _extract_thumbnail_b64(entry: dict) -> str | None:
@@ -421,6 +466,12 @@ def photos_to_geojson(
             props["thumb"] = p.thumbnail_b64
             if p.thumb_is_view:
                 props["vthumb"] = True
+            # Pixel size for the popup <img> (#472): declared up front so the
+            # viewer's pre-decode layout is already correct. Unparseable
+            # thumbs simply carry no dimensions.
+            dims = _thumb_dimensions(p.thumbnail_b64)
+            if dims is not None:
+                props["tw"], props["th"] = dims
         features.append(
             {
                 "type": "Feature",
