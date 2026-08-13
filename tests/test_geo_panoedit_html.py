@@ -121,3 +121,13 @@ def test_page_save_backstop_outlasts_the_server_timeouts():
     assert _DEFAULT_SAVE_TIMEOUT_MS > worst_case_ms
     assert f"const SAVE_TIMEOUT_MS = {_DEFAULT_SAVE_TIMEOUT_MS};" in \
         build_editor_page("t")
+
+
+def test_page_readout_carries_the_saved_view_values():
+    # #493: beside the live heading/pitch/hFOV, the readout shows the values
+    # saved in the file — compass heading via the same pose + yaw math as the
+    # save path — and shows nothing when the file has no saved view.
+    html = build_editor_page("tok123")
+    assert "savedLine" in html
+    assert "f.hasView" in html
+    assert "f.pose + f.yaw" in html

@@ -37,6 +37,7 @@ _PAGE = """<!DOCTYPE html>
     background: rgba(0,0,0,.65); padding: 8px 12px; border-radius: 6px;
     font-variant-numeric: tabular-nums; line-height: 1.5; }}
   #readout b {{ color: #ffd24d; }}
+  #readout .saved {{ color: #9fc7e8; }}
   #savebar {{ position: fixed; top: 12px; right: 12px; z-index: 10;
     text-align: right; }}
   #savebar button {{ font: inherit; padding: 8px 18px; border: 0;
@@ -320,11 +321,23 @@ function readoutLoop() {{
     if (showingSaved && compareArmed
         && viewsDiffer(viewerView(), openingView)) dropCompare();
     const v = currentView();
+    // The file's saved opening values beside the live ones (#493), so a
+    // view can be lined up against them deliberately. Compass heading via
+    // the same pose + yaw math as the save path; kept current by the
+    // server's read-back after each save. No saved view, no line.
+    const f = files[idx];
+    let savedLine = "";
+    if (f.hasView && f.yaw !== null && f.pitch !== null && f.hfov !== null) {{
+      savedLine = "<br><span class=\\"saved\\">Saved " +
+        norm360(f.pose + f.yaw).toFixed(1) + "° · " +
+        f.pitch.toFixed(1) + "° · " +
+        f.hfov.toFixed(1) + "°</span>";
+    }}
     $("readout").innerHTML =
       "<b>" + files[idx].name.replace(/[<>&]/g, "") + "</b><br>" +
       "Heading " + v.heading.toFixed(1) + "° · " +
       "Pitch " + v.pitch.toFixed(1) + "° · " +
-      "FOV " + v.hfov.toFixed(1) + "°" +
+      "FOV " + v.hfov.toFixed(1) + "°" + savedLine +
       // Whose numbers these are matters while comparing (#473).
       (showingSaved ? "<br>showing the saved view" : "");
   }}
