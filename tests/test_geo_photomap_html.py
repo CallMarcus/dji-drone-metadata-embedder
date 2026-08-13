@@ -519,3 +519,34 @@ def test_no_vthumb_prop_for_strip_thumbs():
                    thumbnail_b64="QUJD", is_pano=True, pano_yaw=5.0)
     geo = photos_to_geojson([p], include_thumbnails=True)
     assert "vthumb" not in geo["features"][0]["properties"]
+
+
+# --- #472: popup/tooltip images declare their pixel size ---------------------
+
+
+def test_popup_and_tooltip_imgs_declare_dimensions():
+    # Leaflet measures the popup before a data-URI image decodes; explicit
+    # width/height attributes (from the tw/th props) make that pre-decode
+    # measurement correct. Emission is guarded so dimension-less thumbs
+    # degrade to the old markup.
+    html = photos_to_html(POINTS, title="t")
+    assert "typeof p.tw === 'number' && typeof p.th === 'number'" in html
+    assert 'width="${p.tw}" height="${p.th}"' in html
+    # Both the popup and the tooltip builder go through the helper.
+    assert html.count("imgDims(p)") >= 2
+
+
+def test_popup_img_css_keeps_aspect_ratio():
+    # With width AND height attributes present, a max-width clamp alone would
+    # squash the image; height:auto keeps the declared aspect ratio.
+    html = photos_to_html(POINTS, title="t")
+    assert re.search(r"\.photo-popup img \{[^}]*height: auto", html)
+    assert re.search(r"\.photo-tooltip img \{[^}]*height: auto", html)
+
+
+def test_popup_reanchors_when_thumbnail_loads_late():
+    # Belt-and-braces for thumbs without dimensions (or cached-vs-fresh decode
+    # differences): a late image load re-runs the popup's layout pass.
+    html = photos_to_html(POINTS, title="t")
+    assert "popupopen" in html
+    assert ".update()" in html
