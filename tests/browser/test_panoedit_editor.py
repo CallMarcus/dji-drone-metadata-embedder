@@ -241,7 +241,7 @@ def test_navigation_is_blocked_while_a_save_is_in_flight(
     _make_pano(tmp_path / "b.jpg", pose=0.0)
     release = threading.Event()
 
-    def slow(path, heading, pitch, hfov):
+    def slow(path, heading, pitch, hfov, backup=True):
         release.wait(10)
         return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
 
@@ -308,7 +308,7 @@ def test_save_timeout_frees_the_button(tmp_path, page, monkeypatch):
     monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
     _make_pano(tmp_path / "a.jpg", pose=0.0)
 
-    def stalls(path, heading, pitch, hfov):
+    def stalls(path, heading, pitch, hfov, backup=True):
         time.sleep(5)
         return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
 
