@@ -131,3 +131,12 @@ def test_page_readout_carries_the_saved_view_values():
     assert "savedLine" in html
     assert "f.hasView" in html
     assert "f.pose + f.yaw" in html
+
+
+def test_page_note_tells_the_truth_about_backups():
+    # #492: with backups off, the footer must not promise a *_original
+    # copy that will never exist.
+    assert "keeps a backup" in build_editor_page("tok123")
+    no_backup = build_editor_page("tok123", backup=False)
+    assert "keeps a backup" not in no_backup
+    assert "no backup" in no_backup

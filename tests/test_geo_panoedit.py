@@ -243,3 +243,54 @@ def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path,
             pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
     assert any("did not finish writing pano.jpg" in r.getMessage()
                for r in caplog.records)
+
+
+# --- #492: backups become optional -----------------------------------------
+
+
+def test_write_initial_view_no_backup_overwrites_in_place(monkeypatch, tmp_path):
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+    verified = json.dumps([{
+        "InitialViewHeadingDegrees": 1.0,
+        "InitialViewPitchDegrees": 0.0,
+        "InitialHorizontalFOVDegrees": 90.0,
+        "PoseHeadingDegrees": 0.0,
+    }])
+    calls = _fake_exiftool(monkeypatch, verified)
+    pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0,
+                          backup=False)
+    # The flag belongs to the write; the verification read never rewrites
+    # anything, so it must not carry it.
+    assert "-overwrite_original" in calls[0]
+    assert "-overwrite_original" not in calls[1]
+
+
+def test_clean_backups_deletes_only_confirmed_edits(tmp_path):
+    # Deleted: a backup whose edited sibling still exists.
+    (tmp_path / "a.jpg").write_bytes(b"\xff\xd8new")
+    (tmp_path / "a.jpg_original").write_bytes(b"\xff\xd8old")
+    # Kept: an orphan backup is the only copy left — never touch it.
+    (tmp_path / "orphan.jpg_original").write_bytes(b"\xff\xd8only")
+    # Kept: not a JPEG backup, so not something panoedit ever wrote.
+    (tmp_path / "notes.txt").write_text("x")
+    (tmp_path / "notes.txt_original").write_text("x")
+    deleted, freed = pe.clean_backups(tmp_path)
+    assert [p.name for p in deleted] == ["a.jpg_original"]
+    assert freed == len(b"\xff\xd8old")
+    assert not (tmp_path / "a.jpg_original").exists()
+    assert (tmp_path / "a.jpg").exists()
+    assert (tmp_path / "orphan.jpg_original").exists()
+    assert (tmp_path / "notes.txt_original").exists()
+
+
+def test_clean_backups_recursive_matches_the_editor_scan(tmp_path):
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "b.JPG").write_bytes(b"\xff\xd8new")
+    (sub / "b.JPG_original").write_bytes(b"\xff\xd8old")
+    deleted, _ = pe.clean_backups(tmp_path)
+    assert deleted == []                       # non-recursive stays shallow
+    deleted, _ = pe.clean_backups(tmp_path, recursive=True)
+    assert [p.name for p in deleted] == ["b.JPG_original"]
+    assert not (sub / "b.JPG_original").exists()
