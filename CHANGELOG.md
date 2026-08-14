@@ -13,20 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **panoedit**: Make the _original backups optional (#492) (#496) (e2f559b)
-- **panoedit**: Show the saved opening values beside the live readout (#493) (#495) (52832dc)
-
-### Fixed
-
-- **panoedit**: Saves froze behind an undrained stderr pipe (#490) (#491) (c0d5649)
-- **photomap**: Declare thumbnail pixel size on popup/tooltip images (#472) (#494) (8aed8fc)
-
-### Documentation
-
-- Auto-generate changelog for v2.8.0 (#489) (7ff3aa0)
-
 ## [2.9.0] - 2026-08-14
 
 ### Added
