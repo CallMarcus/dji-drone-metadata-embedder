@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-08-14
+
 ### Added
 
 - **panoedit**: Make the _original backups optional (#492) (#496) (e2f559b)
@@ -26,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Auto-generate changelog for v2.8.0 (#489) (7ff3aa0)
+
+### Other
+
+- Prepare version 2.9.0 (#497) (8922478)
+
 
 ## [2.8.0] - 2026-08-10
 
