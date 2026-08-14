@@ -1,0 +1,207 @@
+"""ED-318 GeoJSON-profile UAS geographical-zone parser (#452).
+
+Ireland's official publication (iaa.ie) is a plain GeoJSON
+FeatureCollection in the ED-318 shape: zone fields live in ``properties``
+(restriction class under ``type``), vertical limits ride in a non-standard
+``layer`` member inside each feature's ``geometry``, and timed windows are
+``properties.limitedApplicability``. All-or-nothing like the ED-269
+parser: any malformed zone raises rather than silently thinning the set.
+
+The published filename is dated and versioned
+(``20260804_uas_zones_ireland_v1.geojson``), so the registry pins the
+stable zones *page* and the current file href is discovered at fetch time.
+
+Permission record (issue #452): the IAA's Airspace & U-space Inspector
+rejected the ArcGIS service and pointed at this published file in reply to
+our stated open-source reuse request, 2026-08-11. The page carries no
+formal licence; its "reference only, not to be used for navigation"
+wording is preserved in the feed note.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass
+from urllib.parse import urljoin
+
+from .ed269 import _utc
+from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
+
+
+@dataclass(frozen=True)
+class Ed318Feed:
+    code: str
+    page_url: str
+    feed_name: str
+    license: str
+    caveat: str
+    note: str | None = None
+
+
+_CAVEAT = (
+    "UAS geographical-zone data is informational and is not an "
+    "authorization to fly."
+)
+
+ED318_FEEDS: dict[str, Ed318Feed] = {
+    "IE": Ed318Feed(
+        code="IE",
+        page_url=(
+            "https://www.iaa.ie/general-aviation/drones/uas-geographic-zones"
+        ),
+        feed_name="Ireland UAS geographical zones (ED-318, IAA)",
+        license=(
+            "© Irish Aviation Authority (iaa.ie), official published "
+            "UAS geographical-zone dataset"
+        ),
+        caveat=_CAVEAT,
+        # The IAA page's own wording, preserved verbatim in spirit: the
+        # published file is a reference product, not a navigation source.
+        note=(
+            "IAA publication note: reference only — not to be used for "
+            "navigation."
+        ),
+    ),
+}
+
+# The current file is the only .geojson href on the zones page whose name
+# carries the uas_zones_ireland stem; the leading date and trailing
+# Sitefinity version parameter both churn between publications.
+_FEED_HREF_RE = re.compile(
+    r'href="([^"]*uas_zones_ireland[^"]*\.geojson[^"]*)"', re.IGNORECASE
+)
+
+
+def discover_feed_url(page: bytes, page_url: str) -> str:
+    """The current zones-file URL from the IAA page's HTML."""
+    match = _FEED_HREF_RE.search(page.decode("utf-8", errors="replace"))
+    if not match:
+        raise AirspaceError(
+            "could not find the UAS zones file on the IAA page "
+            f"({page_url}) — the page layout may have changed"
+        )
+    href = match.group(1).replace("&amp;", "&")
+    return urljoin(page_url, href)
+
+
+def _limit(layer: dict, side: str, unit: str, where: str) -> VerticalLimit | None:
+    value = layer.get(side)
+    if value is None:
+        return None  # "not stated" — never 0
+    ref = layer.get(f"{side}Reference")
+    if ref not in ("AGL", "AMSL"):
+        raise AirspaceError(
+            f"{where}: {side}Reference is {ref!r}, expected AGL/AMSL"
+        )
+    if not isinstance(value, (int, float)):
+        raise AirspaceError(f"{where}: {side} limit {value!r} is not a number")
+    return VerticalLimit(float(value), unit, ref)
+
+
+def _rings(
+    geometry: dict, ident: str, where: str
+) -> tuple[list[list[tuple[float, float]]], list[list[tuple[float, float]]]]:
+    gtype = geometry.get("type")
+    coords = geometry.get("coordinates") or []
+    if gtype == "Polygon":
+        polys = [coords]
+    elif gtype == "MultiPolygon":
+        polys = coords
+    else:
+        raise AirspaceError(
+            f"{where} ({ident}): geometry type {gtype!r} is not supported"
+        )
+    polygons: list[list[tuple[float, float]]] = []
+    holes: list[list[tuple[float, float]]] = []
+    for poly in polys:
+        for ring_index, ring in enumerate(poly):
+            try:
+                parsed = [(float(x), float(y)) for x, y in ring]
+            except (TypeError, ValueError) as exc:
+                raise AirspaceError(
+                    f"{where} ({ident}): malformed ring coordinates"
+                ) from exc
+            # GeoJSON ring order: 0 is an exterior, the rest are holes —
+            # kept apart so the evaluator subtracts them (#422).
+            (polygons if ring_index == 0 else holes).append(parsed)
+    return polygons, holes
+
+
+def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
+    """Every zone of an ED-318 GeoJSON document as normalized :class:`Zone`s."""
+    try:
+        data = json.loads(raw.decode("utf-8-sig"))
+    except ValueError as exc:
+        raise AirspaceError(f"{source.feed}: feed is not JSON ({exc})") from exc
+    features = data.get("features") if isinstance(data, dict) else None
+    if not isinstance(features, list):
+        raise AirspaceError(
+            f"{source.feed}: not an ED-318 document (no 'features' list)"
+        )
+    zones: list[Zone] = []
+    for i, feat in enumerate(features):
+        where = f"{source.feed}: zone {i}"
+        if not isinstance(feat, dict):
+            raise AirspaceError(f"{where}: not an object")
+        props = feat.get("properties")
+        if not isinstance(props, dict):
+            raise AirspaceError(f"{where}: missing properties")
+        ident = props.get("identifier")
+        restriction = props.get("type")
+        if not isinstance(ident, str) or not ident:
+            raise AirspaceError(f"{where}: missing identifier")
+        if not isinstance(restriction, str) or not restriction:
+            raise AirspaceError(f"{where} ({ident}): missing restriction type")
+        # One concept, one label across countries: the ED-269 feeds spell
+        # REQ_AUTHORISATION with an S, this profile with a Z. Normalized
+        # here at the provider boundary; `native` keeps the feed's spelling.
+        if restriction == "REQ_AUTHORIZATION":
+            restriction = "REQ_AUTHORISATION"
+        applicability: list[Applicability] = []
+        windows = props.get("limitedApplicability")
+        if windows is not None:
+            if not isinstance(windows, list):
+                raise AirspaceError(
+                    f"{where} ({ident}): limitedApplicability is not a list"
+                )
+            for win in windows:
+                start = win.get("startDateTime")
+                end = win.get("endDateTime")
+                applicability.append(
+                    Applicability(
+                        start=_utc(start, f"{where}: startDateTime")
+                        if start else None,
+                        end=_utc(end, f"{where}: endDateTime") if end else None,
+                        permanent=False,
+                    )
+                )
+        geometry = feat.get("geometry")
+        if not isinstance(geometry, dict):
+            raise AirspaceError(f"{where} ({ident}): missing geometry")
+        layer = geometry.get("layer")
+        lower = upper = None
+        if layer is not None:
+            if not isinstance(layer, dict):
+                raise AirspaceError(f"{where} ({ident}): layer is not an object")
+            unit = "ft" if str(layer.get("uom", "M")).upper() == "FT" else "m"
+            lower = _limit(layer, "lower", unit, f"{where} ({ident})")
+            upper = _limit(layer, "upper", unit, f"{where} ({ident})")
+        polygons, holes = _rings(geometry, ident, where)
+        if not polygons:
+            raise AirspaceError(f"{where} ({ident}): no polygon geometry")
+        zones.append(
+            Zone(
+                identifier=ident,
+                name=str(props.get("name") or ident),
+                restriction=restriction,
+                lower=lower,
+                upper=upper,
+                applicability=applicability,
+                polygons=polygons,
+                holes=holes,
+                source=source,
+                native=feat,
+            )
+        )
+    return zones

@@ -1,0 +1,185 @@
+{
+  "type": "FeatureCollection",
+  "name": "UAS_Zones_Ireland",
+  "datasetMetadata": {
+    "provider": "Irish Aviation Authority",
+    "issued": "2026-08-04T22:00:00+00:00",
+    "validFrom": "2026-08-04T22:00:00+00:00",
+    "technicalLimitation": null
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "identifier": "U901",
+        "country": "IRL",
+        "name": "Example Control Zone - Red Zone",
+        "type": "REQ_AUTHORIZATION",
+        "variant": "COMMON",
+        "restrictionConditions": null,
+        "reason": "AIR_TRAFFIC",
+        "otherReasonInfo": null,
+        "regulationExemption": null,
+        "message": "Authorization required from ATC prior to flight.",
+        "region": null,
+        "zoneAuthority": [
+          {
+            "purpose": "AUTHORIZATION",
+            "intervalBefore": null,
+            "name": "AirNav Ireland",
+            "service": "Example ATC",
+            "contactName": null,
+            "siteURL": null,
+            "email": "suaairspace@airnav.ie",
+            "phone": null
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "layer": {
+          "upper": 2500.0,
+          "upperReference": "AMSL",
+          "lower": 0.0,
+          "lowerReference": "AGL",
+          "uom": "ft"
+        },
+        "coordinates": [
+          [
+            [
+              [-8.50, 51.60],
+              [-8.40, 51.60],
+              [-8.40, 51.70],
+              [-8.50, 51.70],
+              [-8.50, 51.60]
+            ],
+            [
+              [-8.47, 51.63],
+              [-8.43, 51.63],
+              [-8.43, 51.66],
+              [-8.47, 51.66],
+              [-8.47, 51.63]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "identifier": "T901",
+        "country": "IRL",
+        "name": "Example Stadium Event",
+        "type": "PROHIBITED",
+        "variant": "COMMON",
+        "restrictionConditions": null,
+        "reason": "SENSITIVE",
+        "otherReasonInfo": null,
+        "regulationExemption": null,
+        "message": "Temporary restriction during listed events.",
+        "region": null,
+        "zoneAuthority": [],
+        "limitedApplicability": [
+          {
+            "startDateTime": "2026-08-05T11:00:00+00:00",
+            "endDateTime": "2026-08-05T22:59:00+00:00"
+          },
+          {
+            "startDateTime": "2026-08-29T11:00:00+00:00",
+            "endDateTime": "2026-08-29T22:59:00+00:00"
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "layer": {
+          "upper": 3000.0,
+          "upperReference": "AMSL",
+          "lower": 0.0,
+          "lowerReference": "AGL",
+          "uom": "ft"
+        },
+        "coordinates": [
+          [
+            [
+              [-6.24, 53.33],
+              [-6.22, 53.33],
+              [-6.22, 53.34],
+              [-6.24, 53.34],
+              [-6.24, 53.33]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "identifier": "U902",
+        "country": "IRL",
+        "name": "Example Aerodrome Green Zone",
+        "type": "CONDITIONAL",
+        "variant": "CUSTOMIZED",
+        "restrictionConditions": "PERMITTED/MAX HEIGHT=YES",
+        "reason": "AIR_TRAFFIC",
+        "otherReasonInfo": null,
+        "regulationExemption": null,
+        "message": "Flight permitted below the stated ceiling.",
+        "region": null,
+        "zoneAuthority": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "layer": {
+          "upper": 400.0,
+          "upperReference": "AGL",
+          "lower": 0.0,
+          "lowerReference": "AGL",
+          "uom": "ft"
+        },
+        "coordinates": [
+          [
+            [
+              [-8.90, 52.68],
+              [-8.88, 52.68],
+              [-8.88, 52.70],
+              [-8.90, 52.70],
+              [-8.90, 52.68]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "identifier": "U903",
+        "country": "IRL",
+        "name": "Example Zone Without Published Limits",
+        "type": "NO_RESTRICTION",
+        "variant": "COMMON",
+        "restrictionConditions": null,
+        "reason": "OTHER",
+        "otherReasonInfo": "Exemption Zone",
+        "regulationExemption": null,
+        "message": null,
+        "region": null,
+        "zoneAuthority": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [-9.05, 53.27],
+              [-9.03, 53.27],
+              [-9.03, 53.28],
+              [-9.05, 53.28],
+              [-9.05, 53.27]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
