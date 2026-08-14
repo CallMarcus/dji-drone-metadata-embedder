@@ -168,3 +168,39 @@ def test_milan_gaps_outside_the_ch_hull():
     r = resolve_jurisdiction(_track((45.46, 9.19)))
     assert r.jurisdiction is None
     assert r.gap_reason is not None and "no supported airspace data" in r.gap_reason
+
+
+# --- Ireland (#452) ---------------------------------------------------------
+# Core/hull edges Nominatim-verified 2026-08-14: the NI border's
+# southernmost reach is ~54.03 (Carlingford Lough) and its westernmost
+# ~-8.18 (Belleek), so the cores stop at 53.85 and -8.4 respectively.
+
+
+def test_a_dublin_flight_resolves_to_ie_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((53.35, -6.26), (53.36, -6.25)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "IE"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_a_sligo_flight_resolves_through_the_northwest_core():
+    r = resolve_jurisdiction(_track((54.27, -8.48)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "IE"
+
+
+def test_a_belfast_flight_gaps_instead_of_resolving_ie():
+    r = resolve_jurisdiction(_track((54.60, -5.93)))
+    assert r.jurisdiction is None
+    assert "boundary" in (r.gap_reason or "")
+
+
+def test_a_dundalk_flight_gaps_as_a_border_band():
+    # 15 km from the border: too close to choose from coordinates alone.
+    r = resolve_jurisdiction(_track((54.00, -6.40)))
+    assert r.jurisdiction is None
+    assert "boundary" in (r.gap_reason or "")
+
+
+def test_the_no_provider_message_names_ireland():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))   # Paris
+    assert r.jurisdiction is None
+    assert "Ireland" in (r.gap_reason or "")

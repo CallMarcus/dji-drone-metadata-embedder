@@ -429,9 +429,11 @@ already reports.
 
 `dji-embed flightmap FLIGHTS --airspace` overlays the official airspace zones
 for the flight area on the HTML maps — the flat map and the 3D terrain view
-(`--3d`) — FAA UAS Facility Maps in the US, ED-269 UAS geographical zones
-where a national feed is available (currently Luxembourg, Finland and
-Switzerland). Zones draw in one neutral style; clicking one shows
+(`--3d`) — FAA UAS Facility Maps in the US, and national UAS
+geographical-zone feeds where a country publishes one (currently
+Luxembourg, Finland and Switzerland via ED-269, and Ireland via the IAA's
+published ED-318 file, which the IAA labels reference-only — that caveat
+rides into the map). Zones draw in one neutral style; clicking one shows
 the published facts: restriction class, vertical limits (or "not stated"),
 applicability windows, and the feed, license and fetch time. Zones the
 flight entered get a slightly stronger outline plus the entry/exit times and

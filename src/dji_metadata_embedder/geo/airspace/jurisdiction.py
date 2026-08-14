@@ -69,6 +69,15 @@ _CORE: dict[str, list[Box]] = {
         (7.3, 47.0, 8.0, 47.3),     # Biel / Solothurn / Zofingen
         (8.0, 46.8, 8.9, 47.42),    # Lucerne / Zug / Zurich
     ],
+    # Island geometry (#452): the only land border is with Northern
+    # Ireland, whose southernmost reach is ~54.03 (Carlingford Lough) and
+    # westernmost ~-8.18 (Belleek) — every core edge Nominatim-verified IE
+    # on 2026-08-14 with >=15 km buffer. Donegal and the border counties
+    # sit beyond the cores and gap honestly as border bands.
+    "IE": [
+        (-10.5, 51.45, -5.99, 53.85),  # south + centre (Cork/Dublin/Galway)
+        (-10.2, 53.85, -8.4, 54.4),    # northwest coast (Mayo, Sligo)
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -79,10 +88,17 @@ _HULL: dict[str, list[Box]] = {
     "LU": [(5.70, 49.44, 6.60, 50.20)],
     "FI": [(19.0, 59.5, 31.6, 70.1)],
     "CH": [(5.9, 45.8, 10.5, 47.85)],
+    # Covers the whole island including Northern Ireland on purpose: an NI
+    # flight then gaps as a border band instead of "no provider", the same
+    # semantics the CH hull gives Konstanz.
+    "IE": [(-11.0, 51.3, -5.3, 55.6)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
-_MEASURE = {"US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU}
+_MEASURE = {
+    "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
+    "IE": MEASURE_EU,
+}
 
 
 @dataclass(frozen=True)
@@ -112,7 +128,8 @@ def resolve_jurisdiction(track: Track) -> Resolution:
         return Resolution(
             None,
             "no supported airspace data source for this location "
-            "(covered: the US, Luxembourg, Finland and Switzerland)",
+            "(covered: the US, Luxembourg, Finland, Switzerland and "
+            "Ireland)",
         )
     code = hulls[0]
     if not _all_inside(track, _CORE[code]):

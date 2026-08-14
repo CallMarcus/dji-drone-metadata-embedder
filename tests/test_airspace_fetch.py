@@ -181,3 +181,38 @@ def test_switzerland_fetch_applies_the_no_ceiling_sentinel(tmp_path):
     assert (tmp_path / "ed269-CH.json").exists()
     sentinel_zone = next(z for z in data.zones if z.identifier == "CH-GT9990")
     assert sentinel_zone.upper is None  # 99999 m AMSL sentinel, not a ceiling
+
+
+def test_an_irish_flight_discovers_the_dated_file_then_fetches_it(tmp_path):
+    # #452: the IAA filename is dated and versioned, so the fetch is
+    # two-step — zones page first, then the discovered file.
+    page = (
+        b'<a href="/docs/default-source/default-document-library/uas/'
+        b'20260804_uas_zones_ireland_v1.geojson?sfvrsn=1_2&amp;download=true">'
+        b'</a>'
+    )
+    fake = FakeTransport([page, (FIXTURES / "ed318-ie.json").read_bytes()])
+    lines = []
+    data = fetch_zones(_track(53.35, -6.26), tmp_path, transport=fake,
+                       announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 4
+    assert fake.urls[0].startswith(
+        "https://www.iaa.ie/general-aviation/drones/uas-geographic-zones")
+    assert "uas_zones_ireland" in fake.urls[1]
+    assert data.source is not None and "Irish Aviation Authority" in data.source.license
+    assert (tmp_path / "ed318-IE.json").exists()
+    assert any("Fetching" in ln and "iaa.ie" in ln for ln in lines)
+
+
+def test_a_cached_irish_body_skips_discovery_entirely(tmp_path):
+    page = (
+        b'<a href="/docs/x/20260804_uas_zones_ireland_v1.geojson'
+        b'?sfvrsn=1_2&amp;download=true"></a>'
+    )
+    fake = FakeTransport([page, (FIXTURES / "ed318-ie.json").read_bytes()])
+    fetch_zones(_track(53.35, -6.26), tmp_path, transport=fake)
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(53.35, -6.26), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 4

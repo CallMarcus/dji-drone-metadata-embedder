@@ -335,7 +335,7 @@
                                                   IsEnabled="{Binding !FlightOptions.ThreeD}"
                                                   Content="Airspace zones" />
                                         <TextBlock Name="FlightAirspaceNote"
-                                                   Text="Draws official airspace zones on the map — US FAA, plus ED-269 feeds where a country publishes one (currently Luxembourg and Finland). Zone data is fetched from those feeds and cached next to the map (airspace-cache/); later runs reuse the cache."
+                                                   Text="Draws official airspace zones on the map — US FAA, plus national UAS-zone feeds where a country publishes one (currently Luxembourg, Finland, Switzerland and Ireland). Zone data is fetched from those feeds and cached next to the map (airspace-cache/); later runs reuse the cache."
                                                    IsVisible="{Binding FlightOptions.ShowsAirspaceNote}"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.5" FontSize="11" />

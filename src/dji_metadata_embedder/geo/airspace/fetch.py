@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 from ..track import Track
 from .arcgis_faa import FAA_FEED, FAA_QUERY_URL, fetch_faa_pages, parse_faa, snap_bbox
 from .ed269 import ED269_FEEDS, parse_ed269
+from .ed318 import ED318_FEEDS, discover_feed_url, parse_ed318
 from .jurisdiction import resolve_jurisdiction
 from .model import AirspaceError, SourceInfo, Zone
 
@@ -116,12 +117,22 @@ def fetch_zones(
         feed_name, license_line, caveat = FAA_FEED
         url = FAA_QUERY_URL
         note = None
-    else:
+    elif code in ED269_FEEDS:
         feed = ED269_FEEDS[code]
         body_path = cache_dir / f"ed269-{code}.json"
         feed_name, license_line, caveat = feed.feed_name, feed.license, feed.caveat
         url = feed.url
         note = feed.note
+    else:
+        feed318 = ED318_FEEDS[code]
+        body_path = cache_dir / f"ed318-{code}.json"
+        feed_name = feed318.feed_name
+        license_line, caveat = feed318.license, feed318.caveat
+        # The published filename is dated and churns; the zones page is
+        # the stable, user-checkable entry point, so it is what the
+        # record cites. The current file href is discovered per fetch.
+        url = feed318.page_url
+        note = feed318.note
 
     cached = None if refresh else _read_cache(body_path)
     try:
@@ -136,8 +147,13 @@ def fetch_zones(
                 body = json.dumps(
                     {"pages": [json.loads(p) for p in pages]}
                 ).encode("utf-8")
-            else:
+            elif code in ED269_FEEDS:
                 body = _fetch_ed269(url, transport)
+            else:
+                page = _fetch_ed269(url, transport)
+                body = _fetch_ed269(
+                    discover_feed_url(page, url), transport
+                )
             fetched = _write_cache(body_path, body, url)
             from_cache = False
 
@@ -149,10 +165,12 @@ def fetch_zones(
             doc = _load_faa_doc(body)
             pages_raw = _faa_pages_from_doc(doc)
             zones = parse_faa(pages_raw, source)
-        else:
+        elif code in ED269_FEEDS:
             zones = parse_ed269(
                 body, source, no_ceiling_m=feed.no_ceiling_m
             )
+        else:
+            zones = parse_ed318(body, source)
         if from_cache:
             # Only claim the cache was usable once it has actually
             # parsed — an announce made before this point could be a lie.
@@ -172,10 +190,12 @@ def fetch_zones(
                     doc = _load_faa_doc(body)
                     pages_raw = _faa_pages_from_doc(doc)
                     zones = parse_faa(pages_raw, source)
-                else:
+                elif code in ED269_FEEDS:
                     zones = parse_ed269(
                         body, source, no_ceiling_m=feed.no_ceiling_m
                     )
+                else:
+                    zones = parse_ed318(body, source)
             except AirspaceError as exc2:
                 return AirspaceData(
                     gap_reason=f"airspace data unavailable: {exc2}"
