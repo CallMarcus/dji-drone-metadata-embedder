@@ -239,14 +239,18 @@ def scan_panos(directory: Path, recursive: bool = False) -> list[PanoFile]:
 
 
 def write_initial_view(
-    path: Path, heading: float, pitch: float, hfov: float
+    path: Path, heading: float, pitch: float, hfov: float,
+    *, backup: bool = True,
 ) -> dict:
     """Write the three initial-view tags to *path* and read them back.
 
-    ExifTool's default sidecar backup (``<name>_original``) is deliberately
-    kept — batch editing must never be able to destroy an original. The
-    read-back is the write verification: what the map will see is what the
-    caller gets.
+    ExifTool's default sidecar backup (``<name>_original``) is kept by
+    default — batch editing must never be able to destroy an original
+    silently. ``backup=False`` (#492) is the caller's explicit opt-out
+    (``-overwrite_original``): the initial-view tags are re-editable and
+    non-destructive to the image data, so a user who knows that may
+    reasonably decline the doubled disk usage. The read-back is the write
+    verification: what the map will see is what the caller gets.
 
     Both ExifTool runs are bounded by :data:`_WRITE_TIMEOUT`. A rewrite of
     a 40 MB JPEG plus its backup copy can stall indefinitely behind an
@@ -257,6 +261,7 @@ def write_initial_view(
     exe = exiftool_exe()
     write_args = [
         exe, "-n",
+        *([] if backup else ["-overwrite_original"]),
         f"-XMP-GPano:InitialViewHeadingDegrees={heading}",
         f"-XMP-GPano:InitialViewPitchDegrees={pitch}",
         f"-XMP-GPano:InitialHorizontalFOVDegrees={hfov}",
@@ -315,6 +320,38 @@ def write_initial_view(
         "hfov": _maybe_float(entry.get("InitialHorizontalFOVDegrees")),
         "pose": _maybe_float(entry.get("PoseHeadingDegrees")) or 0.0,
     }
+
+
+_BACKUP_SUFFIX = "_original"
+
+
+def clean_backups(
+    directory: Path, recursive: bool = False
+) -> tuple[list[Path], int]:
+    """Delete ``*_original`` backups whose edited sibling still exists (#492).
+
+    Returns ``(deleted paths, bytes freed)``. Deliberately narrow: only
+    JPEG backups (the only kind panoedit writes), and only when the edited
+    file is still there beside them — an orphan backup is the last copy of
+    that image and is never touched. ``recursive`` mirrors the editor's
+    own scan scope.
+    """
+    pattern = f"**/*{_BACKUP_SUFFIX}" if recursive else f"*{_BACKUP_SUFFIX}"
+    deleted: list[Path] = []
+    freed = 0
+    for p in sorted(directory.glob(pattern)):
+        if not p.is_file():
+            continue
+        sibling = p.with_name(p.name[: -len(_BACKUP_SUFFIX)])
+        if sibling.suffix.lower() not in (".jpg", ".jpeg"):
+            continue
+        if not sibling.is_file():
+            continue
+        size = p.stat().st_size
+        p.unlink()
+        deleted.append(p)
+        freed += size
+    return deleted, freed
 
 
 # Renditions -----------------------------------------------------------
@@ -478,6 +515,7 @@ class _EditorServer(_MapServer):
     pano_page: bytes
     pano_max_width: int = 0
     pano_renditions: bool = True
+    pano_backup: bool = True
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
@@ -648,7 +686,10 @@ class _EditorHandler(_RangeHandler):
         # otherwise extend the save critical section (except-handlers run
         # BEFORE finally — sending from one would send under the lock).
         try:
-            verified = write_initial_view(f.path, heading, pitch, hfov)
+            verified = write_initial_view(
+                f.path, heading, pitch, hfov,
+                backup=self.server.pano_backup,   # type: ignore[attr-defined]
+            )
             error = None
         except PanoEditError as exc:
             error = str(exc)
@@ -689,6 +730,7 @@ def make_editor_server(
     recursive: bool = False,
     port: int = 0,
     max_width: int = DEFAULT_MAX_SERVE_WIDTH,
+    backup: bool = True,
 ) -> tuple[_EditorServer, str]:
     """Scan *directory* and return a ready (server, url) pair.
 
@@ -714,9 +756,10 @@ def make_editor_server(
     server.pano_token = token
     server.pano_max_width = max_width
     server.pano_renditions = renditions
+    server.pano_backup = backup
     server.pano_page = build_editor_page(
         token, max_width=max_width, renditions=renditions,
-        hint=_PILLOW_HINT,
+        hint=_PILLOW_HINT, backup=backup,
         # Outlast both server-side ExifTool timeouts (write, then the
         # read-back) so the page's backstop never pre-empts the server's
         # much better message.
@@ -753,10 +796,12 @@ def run_editor(
     bare_url: bool = False,
     stop_on_stdin_eof: bool = False,
     max_width: int = DEFAULT_MAX_SERVE_WIDTH,
+    backup: bool = True,
 ) -> None:
     """Serve the editor until Ctrl+C (same contract as ``serve_directory``)."""
     server, url = make_editor_server(
-        directory, recursive=recursive, port=port, max_width=max_width)
+        directory, recursive=recursive, port=port, max_width=max_width,
+        backup=backup)
     with server:
         if bare_url:
             click.echo(url)

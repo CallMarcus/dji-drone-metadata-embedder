@@ -294,7 +294,7 @@ def test_saving_drops_the_stale_rendition(editor, monkeypatch):
     start, _ = editor
     monkeypatch.setattr(
         pe, "write_initial_view",
-        lambda path, heading, pitch, hfov: {
+        lambda path, heading, pitch, hfov, backup=True: {
             "heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0})
     httpd, url = start(max_width=600)
     _get(url + "img/0")

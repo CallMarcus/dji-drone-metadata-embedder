@@ -45,7 +45,12 @@ from .geo import (
     write_photos_kml,
 )
 from .geo.airspace import fetch as airspace_fetch
-from .geo.panoedit import DEFAULT_MAX_SERVE_WIDTH, PanoEditError, run_editor
+from .geo.panoedit import (
+    DEFAULT_MAX_SERVE_WIDTH,
+    PanoEditError,
+    clean_backups,
+    run_editor,
+)
 from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
@@ -1391,6 +1396,19 @@ def serve(
          "graphics hardware fails to display very large panoramas; the "
          "files themselves are never modified.",
 )
+@click.option(
+    "--no-backup", is_flag=True,
+    help="Write views straight into the files instead of keeping a "
+         "<name>_original copy beside each edited panorama. The tags are "
+         "re-editable and never touch the image data, but without backups "
+         "a save that goes wrong cannot be undone.",
+)
+@click.option(
+    "--clean-backups", "clean", is_flag=True,
+    help="Delete the <name>_original copies left by earlier edits — only "
+         "where the edited file still exists beside them — then exit "
+         "without opening the editor. Honours -r/--recursive.",
+)
 def panoedit(
     directory: str,
     recursive: bool,
@@ -1399,6 +1417,8 @@ def panoedit(
     url_only: bool,
     exit_with_stdin: bool,
     max_width: int,
+    no_backup: bool,
+    clean: bool,
 ) -> None:
     """Edit the opening view of 360° panoramas in DIRECTORY (#440).
 
@@ -1407,8 +1427,11 @@ def panoedit(
     GPano initial-view tags (InitialViewHeadingDegrees / Pitch /
     InitialHorizontalFOVDegrees) into the file via ExifTool and advances
     to the next one. Each original is kept beside the file as
-    ``<name>_original``. The photomap 360° viewer and Google Photos both
-    honor the saved view.
+    ``<name>_original`` unless --no-backup is given; --clean-backups
+    deletes the copies once the edits are confirmed (#492). The photomap
+    360° viewer and Google Photos both honor the saved view. Map output
+    never references the ``_original`` files, so they never need
+    uploading anywhere.
 
     Panoramas wider than --max-width are shown downscaled (#471): very
     large equirects fail to render on older graphics hardware, and the
@@ -1419,6 +1442,17 @@ def panoedit(
     # INFO lines — including how long each save took, which the page tells
     # the user to come here for — went nowhere (#475).
     setup_logging(verbose=False, quiet=False)
+    if clean:
+        deleted, freed = clean_backups(Path(directory), recursive=recursive)
+        if deleted:
+            click.echo(
+                f"Removed {len(deleted)} backup "
+                f"cop{'ies' if len(deleted) != 1 else 'y'} "
+                f"({freed / 1_000_000:.1f} MB freed)."
+            )
+        else:
+            click.echo("No backup copies to remove.")
+        return
     # The GUI redirects this command's stderr to a pipe it may never read.
     # A full pipe turns the next log write into a kernel-level block — one
     # of those sat inside the save lock and froze every later save (#490).
@@ -1433,6 +1467,7 @@ def panoedit(
             bare_url=url_only,
             stop_on_stdin_eof=exit_with_stdin,
             max_width=max_width,
+            backup=not no_backup,
         )
     except PanoEditError as exc:
         raise click.ClickException(str(exc)) from exc

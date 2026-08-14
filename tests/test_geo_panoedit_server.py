@@ -22,7 +22,7 @@ def editor(monkeypatch, tmp_path):
     monkeypatch.setattr(pe, "scan_panos", lambda d, recursive=False: files)
     writes: list[tuple] = []
 
-    def fake_write(path, heading, pitch, hfov):
+    def fake_write(path, heading, pitch, hfov, backup=True):
         writes.append((path, heading, pitch, hfov))
         return {"heading": heading, "pitch": pitch, "hfov": hfov,
                 "pose": 90.0}
@@ -129,7 +129,7 @@ def test_error_response_is_sent_after_the_lock_is_released(editor, monkeypatch):
     # stalled client extends the save critical section (#490 review).
     url, httpd, _ = editor
 
-    def boom(path, heading, pitch, hfov):
+    def boom(path, heading, pitch, hfov, backup=True):
         raise pe.PanoEditError("disk on fire")
     monkeypatch.setattr(pe, "write_initial_view", boom)
     observed = {}
@@ -153,10 +153,35 @@ def test_error_response_is_sent_after_the_lock_is_released(editor, monkeypatch):
 def test_save_write_failure_is_500(editor, monkeypatch):
     url, httpd, _ = editor
 
-    def boom(path, heading, pitch, hfov):
+    def boom(path, heading, pitch, hfov, backup=True):
         raise pe.PanoEditError("disk on fire")
     monkeypatch.setattr(pe, "write_initial_view", boom)
     status, body = _post(url + "api/save", {
         "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
         "token": httpd.pano_token})
     assert status == 500 and "disk on fire" in body["error"]
+
+
+def test_save_without_backup_reaches_the_writer(monkeypatch, tmp_path):
+    # #492: the server carries the backup choice to every write.
+    img = tmp_path / "a.jpg"
+    img.write_bytes(b"\xff\xd8" + b"J" * 500)
+    files = [pe.PanoFile(path=img, name="a.jpg", pose=0.0,
+                         yaw=None, pitch=None, hfov=None)]
+    monkeypatch.setattr(pe, "scan_panos", lambda d, recursive=False: files)
+    seen = {}
+
+    def fake_write(path, heading, pitch, hfov, backup=True):
+        seen["backup"] = backup
+        return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
+    monkeypatch.setattr(pe, "write_initial_view", fake_write)
+    httpd, url = pe.make_editor_server(tmp_path, backup=False)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        status, _ = _post(url + "api/save", {
+            "index": 0, "heading": 10.0, "pitch": 0.0, "hfov": 90.0,
+            "token": httpd.pano_token})
+    finally:
+        httpd.shutdown()
+    assert status == 200
+    assert seen["backup"] is False

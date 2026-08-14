@@ -89,8 +89,7 @@ _PAGE = """<!DOCTYPE html>
   <div id="status"></div>
 </div>
 <div id="counter"></div>
-<div id="note">Saving keeps a backup of each original beside it
-(<code>*_original</code>). N/P: next/previous. Esc: back to the opening
+<div id="note">{backup_note} N/P: next/previous. Esc: back to the opening
 view. C: compare with the saved one.</div>
 <div id="strip"></div>
 <script src="https://unpkg.com/pannellum@{pannellum}/build/pannellum.js"
@@ -443,6 +442,7 @@ def build_editor_page(
     renditions: bool = True,
     hint: str = "",
     save_timeout_ms: int = _DEFAULT_SAVE_TIMEOUT_MS,
+    backup: bool = True,
 ) -> str:
     """The complete editor page with *token* embedded.
 
@@ -457,6 +457,8 @@ def build_editor_page(
     and the footer note (#471). ``save_timeout_ms`` is the page's backstop
     for a save request that never comes back; it must outlast the server's
     own ExifTool timeouts, which answer with a better message (#475).
+    ``backup`` mirrors the server's write mode (#492) so the footer never
+    promises a ``*_original`` copy that will not exist.
     """
     serve = {
         "maxWidth": max_width,
@@ -470,4 +472,10 @@ def build_editor_page(
         token=json.dumps(token).replace("<", "\\u003c"),
         serve=json.dumps(serve).replace("<", "\\u003c"),
         save_timeout_ms=int(save_timeout_ms),
+        backup_note=(
+            "Saving keeps a backup of each original beside it "
+            "(<code>*_original</code>)." if backup else
+            "Saving writes each view straight into the file - "
+            "no backup copies are kept."
+        ),
     ))

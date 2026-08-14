@@ -549,6 +549,17 @@ with ExifTool and moves on to the next panorama. Each original is kept
 beside the file as `<name>_original`. In the desktop app this is the
 "360° views" mode.
 
+The backups exist so a batch edit can never destroy an original, but the
+view tags themselves are re-editable and never touch the image data, so
+you may reasonably decide you don't need them — they do double the
+folder's size. `--no-backup` writes views straight into the files, and
+`dji-embed panoedit /path/to/panoramas --clean-backups` deletes the
+`_original` copies from earlier sessions once you're happy with the
+edits (only ever where the edited file still exists beside the backup;
+add `-r` to include subfolders). Either way the maps never reference
+the `_original` files, so if you publish a generated map there is no
+need to upload them.
+
 Two keys matter when a panorama already has a view you like: **Esc**
 resets the viewer to the view the file opened at, so you can look around
 and then move on with `N` without rewriting anything, and **C** flips

@@ -241,7 +241,7 @@ def test_navigation_is_blocked_while_a_save_is_in_flight(
     _make_pano(tmp_path / "b.jpg", pose=0.0)
     release = threading.Event()
 
-    def slow(path, heading, pitch, hfov):
+    def slow(path, heading, pitch, hfov, backup=True):
         release.wait(10)
         return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
 
@@ -308,7 +308,7 @@ def test_save_timeout_frees_the_button(tmp_path, page, monkeypatch):
     monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
     _make_pano(tmp_path / "a.jpg", pose=0.0)
 
-    def stalls(path, heading, pitch, hfov):
+    def stalls(path, heading, pitch, hfov, backup=True):
         time.sleep(5)
         return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
 
@@ -327,3 +327,26 @@ def test_save_timeout_frees_the_button(tmp_path, page, monkeypatch):
         assert page.locator("#save").is_enabled()
     finally:
         httpd.shutdown()
+
+
+@needs_exiftool
+def test_no_backup_save_leaves_no_original_copy(tmp_path, page, monkeypatch):
+    # #492: with backups declined, a save writes in place — no *_original —
+    # and the footer note stops promising one.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    _make_pano(tmp_path / "a.jpg", pose=0.0)
+    httpd, url = _serve(tmp_path, page, backup=False)
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+        assert "no backup" in page.inner_text("#note")
+        page.keyboard.press("Enter")
+        page.wait_for_function(
+            "document.getElementById('status').textContent.includes('Saved')")
+    finally:
+        httpd.shutdown()
+    assert not (tmp_path / "a.jpg_original").exists()
+    out = subprocess.run(
+        ["exiftool", "-n", "-XMP-GPano:InitialViewHeadingDegrees",
+         str(tmp_path / "a.jpg")], capture_output=True, text=True, check=True)
+    assert "Initial View Heading" in out.stdout   # the write still landed
