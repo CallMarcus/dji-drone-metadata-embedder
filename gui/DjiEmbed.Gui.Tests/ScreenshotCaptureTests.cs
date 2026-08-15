@@ -489,7 +489,13 @@ public class ScreenshotCaptureTests
         verify.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
         CaptureMode(verify, Png("mode-verify"));
 
+        var pano = NewVm();
+        pano.SelectedFolder = @"C:\Users\demo\Photos\panoramas";
+        pano.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        CaptureMode(pano, Png("mode-360-views"));
+
         var setup = NewVm();
+        setup.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Setup);
         setup.Step = FlowStep.Done;
         setup.AllGood = true;
         setup.SetupItems.Add(new SetupItem(
