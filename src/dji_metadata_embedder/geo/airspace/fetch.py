@@ -17,6 +17,12 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from ..track import Track
+from .aixm51 import (
+    AIXM_FEEDS,
+    discover_feed_url as discover_aixm_url,
+    extract_xml,
+    parse_aixm51,
+)
 from .arcgis_faa import FAA_FEED, FAA_QUERY_URL, fetch_faa_pages, parse_faa, snap_bbox
 from .ed269 import ED269_FEEDS, parse_ed269
 from .ed318 import ED318_FEEDS, discover_feed_url, parse_ed318
@@ -87,7 +93,7 @@ def _faa_pages_from_doc(doc: dict) -> list[bytes]:
     return [json.dumps(p).encode("utf-8") for p in pages]
 
 
-def _fetch_ed269(url: str, transport) -> bytes:
+def _fetch_url(url: str, transport) -> bytes:
     req = Request(url, headers={"User-Agent": "dji-embed"})
     try:
         with transport(req, timeout=_TIMEOUT_S) as resp:
@@ -123,7 +129,7 @@ def fetch_zones(
         feed_name, license_line, caveat = feed.feed_name, feed.license, feed.caveat
         url = feed.url
         note = feed.note
-    else:
+    elif code in ED318_FEEDS:
         feed318 = ED318_FEEDS[code]
         body_path = cache_dir / f"ed318-{code}.json"
         feed_name = feed318.feed_name
@@ -133,6 +139,16 @@ def fetch_zones(
         # record cites. The current file href is discovered per fetch.
         url = feed318.page_url
         note = feed318.note
+    else:
+        feed_aixm = AIXM_FEEDS[code]
+        body_path = cache_dir / f"aixm-{code}.xml"
+        feed_name = feed_aixm.feed_name
+        license_line, caveat = feed_aixm.license, feed_aixm.caveat
+        # Same dated-filename pattern as ED-318, with a zip around the
+        # XML; the cache holds the extracted, sha-verified XML so cached
+        # and fresh bodies parse identically.
+        url = feed_aixm.page_url
+        note = feed_aixm.note
 
     cached = None if refresh else _read_cache(body_path)
     try:
@@ -148,12 +164,16 @@ def fetch_zones(
                     {"pages": [json.loads(p) for p in pages]}
                 ).encode("utf-8")
             elif code in ED269_FEEDS:
-                body = _fetch_ed269(url, transport)
+                body = _fetch_url(url, transport)
+            elif code in ED318_FEEDS:
+                page = _fetch_url(url, transport)
+                body = _fetch_url(discover_feed_url(page, url), transport)
             else:
-                page = _fetch_ed269(url, transport)
-                body = _fetch_ed269(
-                    discover_feed_url(page, url), transport
+                page = _fetch_url(url, transport)
+                zip_url = discover_aixm_url(
+                    page, url, today=datetime.now(timezone.utc).date()
                 )
+                body = extract_xml(_fetch_url(zip_url, transport))
             fetched = _write_cache(body_path, body, url)
             from_cache = False
 
@@ -169,8 +189,10 @@ def fetch_zones(
             zones = parse_ed269(
                 body, source, no_ceiling_m=feed.no_ceiling_m
             )
-        else:
+        elif code in ED318_FEEDS:
             zones = parse_ed318(body, source)
+        else:
+            zones = parse_aixm51(body, source)
         if from_cache:
             # Only claim the cache was usable once it has actually
             # parsed — an announce made before this point could be a lie.
@@ -194,8 +216,10 @@ def fetch_zones(
                     zones = parse_ed269(
                         body, source, no_ceiling_m=feed.no_ceiling_m
                     )
-                else:
+                elif code in ED318_FEEDS:
                     zones = parse_ed318(body, source)
+                else:
+                    zones = parse_aixm51(body, source)
             except AirspaceError as exc2:
                 return AirspaceData(
                     gap_reason=f"airspace data unavailable: {exc2}"
