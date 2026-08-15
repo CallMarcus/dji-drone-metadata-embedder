@@ -34,7 +34,7 @@ takeoff-referenced height, which is aircraft-reported. The
 surface-referenced height is the exception — it needs a fetch from
 Mapterhorn's terrain tiles (see "The `[terrain]` extra" below).
 
-Four feeds are used:
+Five feeds are used:
 
 - **US flights** query the FAA's UAS Facility Map (keyless ArcGIS). The
   bounding box sent to the endpoint is padded and snapped outward to a
@@ -49,6 +49,10 @@ Four feeds are used:
   (AIXM 5.1, refreshed each 28-day AIRAC cycle), again with no location
   sent. Activation hours are not in the dataset and temporary
   restrictions live in NOTAMs; the record says so rather than guessing.
+- **Denmark** flights fetch Trafikstyrelsen's whole drone-zone dataset
+  (the file behind droneregler.dk), once more with no location sent.
+  NOTAM-driven temporary restrictions are not part of that dataset
+  either; the record says so.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -63,10 +67,11 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
-United States, Luxembourg, Finland, Switzerland, Ireland, or the UK.
+United States, Luxembourg, Finland, Switzerland, Ireland, the UK, or
+Denmark.
 Everywhere else — including Sweden — the record states the gap instead of
 guessing: *"no supported
 airspace data source for this location."* A flight near a jurisdiction

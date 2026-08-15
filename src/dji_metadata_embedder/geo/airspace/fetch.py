@@ -24,6 +24,11 @@ from .aixm51 import (
     parse_aixm51,
 )
 from .arcgis_faa import FAA_FEED, FAA_QUERY_URL, fetch_faa_pages, parse_faa, snap_bbox
+from .dronezoner import (
+    DRONEZONER_FEEDS,
+    discover_feed_url as discover_dronezoner_url,
+    parse_dronezoner,
+)
 from .ed269 import ED269_FEEDS, parse_ed269
 from .ed318 import ED318_FEEDS, discover_feed_url, parse_ed318
 from .jurisdiction import resolve_jurisdiction
@@ -139,6 +144,16 @@ def fetch_zones(
         # record cites. The current file href is discovered per fetch.
         url = feed318.page_url
         note = feed318.note
+    elif code in DRONEZONER_FEEDS:
+        feed_dz = DRONEZONER_FEEDS[code]
+        body_path = cache_dir / f"dronezoner-{code}.json"
+        feed_name = feed_dz.feed_name
+        license_line, caveat = feed_dz.license, feed_dz.caveat
+        # Same churning-link pattern as ED-318: the droneregler.dk page
+        # is the stable entry point the record cites; the current ArcGIS
+        # item href is discovered per fetch.
+        url = feed_dz.page_url
+        note = feed_dz.note
     else:
         feed_aixm = AIXM_FEEDS[code]
         body_path = cache_dir / f"aixm-{code}.xml"
@@ -168,6 +183,11 @@ def fetch_zones(
             elif code in ED318_FEEDS:
                 page = _fetch_url(url, transport)
                 body = _fetch_url(discover_feed_url(page, url), transport)
+            elif code in DRONEZONER_FEEDS:
+                page = _fetch_url(url, transport)
+                body = _fetch_url(
+                    discover_dronezoner_url(page, url), transport
+                )
             else:
                 page = _fetch_url(url, transport)
                 zip_url = discover_aixm_url(
@@ -191,6 +211,8 @@ def fetch_zones(
             )
         elif code in ED318_FEEDS:
             zones = parse_ed318(body, source)
+        elif code in DRONEZONER_FEEDS:
+            zones = parse_dronezoner(body, source)
         else:
             zones = parse_aixm51(body, source)
         if from_cache:
@@ -218,6 +240,8 @@ def fetch_zones(
                     )
                 elif code in ED318_FEEDS:
                     zones = parse_ed318(body, source)
+                elif code in DRONEZONER_FEEDS:
+                    zones = parse_dronezoner(body, source)
                 else:
                     zones = parse_aixm51(body, source)
             except AirspaceError as exc2:
