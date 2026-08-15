@@ -249,7 +249,7 @@ def test_a_belfast_flight_now_resolves_to_gb():
     assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
 
 
-def test_dublin_still_resolves_to_ie_despite_the_gb_hull_overlap():
+def test_dublin_still_resolves_to_ie():
     r = resolve_jurisdiction(_track((53.35, -6.26)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "IE"
 

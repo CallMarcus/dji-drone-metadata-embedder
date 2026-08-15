@@ -146,7 +146,8 @@ def extract_xml(zip_bytes: bytes) -> bytes:
         sha_names = [n for n in names if n.endswith(".sha256")]
         if len(sha_names) != 1:
             raise AirspaceError(
-                "no SHA-256 sidecar in the dataset archive"
+                "expected one SHA-256 sidecar in the dataset archive, "
+                f"found {len(sha_names)}"
             )
         sidecar = archive.read(sha_names[0]).decode("ascii", "replace")
         expected = sidecar.split()[0].lower() if sidecar.split() else ""
@@ -176,6 +177,12 @@ _CIRCLE_POINTS = 128
 # arc endpoints sit up to ~77 m from the neighbouring published vertices
 # (data imprecision); a gap beyond this is a broken ring.
 _JUNCTION_M = 160.0
+
+# Implied GML Ring closure is honest only at coastline resolution: the
+# live file's largest real closure remainder (EGD012's coast-to-corner
+# gap) is ~967 m. Beyond this cap a "closure" is a truncated ring, and
+# rendering it silently would bridge the tear — gap instead.
+_CLOSURE_M = 5000.0
 
 # Bounds the simple-ring search over arc directions (2^8 assemblies);
 # the live file's worst zone has 5 arcs.
@@ -408,10 +415,16 @@ def _assemble(
         pts.extend(run)
     if len(pts) < 3:
         raise AirspaceError(f"{where}: ring has too few points")
-    if _dist_m(pts[0], pts[-1]) <= _JUNCTION_M:
+    gap = _dist_m(pts[0], pts[-1])
+    if gap <= _JUNCTION_M:
         pts[-1] = pts[0]
-    else:
+    elif gap <= _CLOSURE_M:
         pts.append(pts[0])  # GML Ring closure may be implied
+    else:
+        raise AirspaceError(
+            f"{where}: ring closure gap is {gap:.0f} m — the ring looks "
+            "truncated"
+        )
     return pts
 
 
@@ -525,6 +538,12 @@ def _native(
 
 def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
     """Every airspace of an AIXM 5.1 message as normalized :class:`Zone`s."""
+    # The scan below is byte-wise; a UTF-16/32 body would slip past it.
+    # The dataset is UTF-8, so any BOM or NUL in the prologue is refused.
+    if raw[:1] in (b"\xff", b"\xfe") or b"\x00" in raw[:4096]:
+        raise AirspaceError(
+            f"{source.feed}: refusing non-UTF-8 XML encoding"
+        )
     # The dataset never declares a DTD; refusing them up front closes
     # the stdlib parser's entity-expansion/XXE surface without a
     # defusedxml dependency (whose core defence is exactly this).

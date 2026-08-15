@@ -7,6 +7,7 @@ the current AND next cycle are both listed, so discovery is date-aware.
 import hashlib
 import io
 import math
+import re
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -117,10 +118,10 @@ def _dist_m(a: tuple[float, float], b: tuple[float, float]) -> float:
 def test_parses_the_fixture_and_maps_uk_type_codes():
     zones = parse_aixm51(_gb(), SRC)
     assert [z.identifier for z in zones] == [
-        "EGTEST1", "EGD901", "EGP901", "EGD902", "EGD903",
+        "EGTEST1", "EGD901", "EGP901", "EGD902", "EGD903", "EGD904",
     ]
     assert [z.restriction for z in zones] == [
-        "RESTRICTED", "DANGER", "PROHIBITED", "DANGER", "DANGER",
+        "RESTRICTED", "DANGER", "PROHIBITED", "DANGER", "DANGER", "DANGER",
     ]
     # FRZ/RPZ is the most drone-meaningful bit of the dataset — it rides
     # in the display name; zones without a localType stay untouched.
@@ -275,6 +276,60 @@ def test_a_dtd_is_refused_before_parsing():
     evil = b'<?xml version="1.0"?><!DOCTYPE r [<!ENTITY a "b">]><r/>'
     with pytest.raises(AirspaceError, match="DTD"):
         parse_aixm51(evil, SRC)
+
+
+def test_the_direction_search_flips_a_wrong_shorter_sweep():
+    # EGD904's arc must bulge south (the longer sweep); the shorter
+    # sweep would rise through the zone's shallow top edge and
+    # self-intersect, so the search has to flip it.
+    zones = parse_aixm51(_gb(), SRC)
+    flip = next(z for z in zones if z.identifier == "EGD904")
+    ring = flip.polygons[0]
+    assert any(lat < 52.99 for _, lat in ring)      # southern bulge chosen
+    assert all(lat < 53.0145 for _, lat in ring)    # never above the top edge
+
+
+def test_multiple_time_slices_invalidate_the_document():
+    text = _gb().decode("utf-8")
+    a2_match = re.search(
+        r'<aixm:Airspace gml:id="a2">.*?</aixm:Airspace>', text, re.S
+    )
+    assert a2_match is not None
+    a2 = a2_match.group(0)
+    ts_match = re.search(r"<aixm:timeSlice>.*?</aixm:timeSlice>", a2, re.S)
+    assert ts_match is not None
+    ts = ts_match.group(0)
+    broken = text.replace(a2, a2.replace(ts, ts + ts))
+    with pytest.raises(AirspaceError, match="one time slice"):
+        parse_aixm51(broken.encode("utf-8"), SRC)
+
+
+def test_a_modest_closure_gap_is_an_implied_closure_not_an_error():
+    # Drop zone a3's explicit closing vertex: the ~2.2 km remainder is
+    # within the closure cap, so the ring closes by appending the start.
+    no_close = _mutated(
+        '<gml:pointProperty><aixm:Point gml:id="a3p5">'
+        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>',
+        "",
+    )
+    zone = parse_aixm51(no_close, SRC)[2]
+    assert zone.polygons[0][0] == zone.polygons[0][-1]
+
+
+def test_a_truncated_ring_is_an_error_not_a_silent_bridge():
+    torn = _mutated(
+        '<gml:pointProperty><aixm:Point gml:id="a3p5">'
+        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>',
+        "",
+    ).replace(b">51.48 -0.5<", b">51.9 -0.5<")
+    with pytest.raises(AirspaceError, match="truncated"):
+        parse_aixm51(torn, SRC)
+
+
+def test_a_utf16_document_cannot_slip_past_the_dtd_guard():
+    evil = '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY a "b">]><r/>'
+    with pytest.raises(AirspaceError, match="encoding"):
+        parse_aixm51(evil.encode("utf-16"), SRC)
 
 
 def test_a_zero_extent_export_noop_segment_is_dropped():

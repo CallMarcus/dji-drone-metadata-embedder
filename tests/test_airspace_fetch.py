@@ -246,7 +246,7 @@ def test_a_uk_flight_discovers_the_cycle_zip_and_caches_the_xml(tmp_path):
     lines = []
     data = fetch_zones(_track(51.50, -0.12), tmp_path, transport=fake,
                        announce=lines.append)
-    assert data.gap_reason is None and len(data.zones) == 5
+    assert data.gap_reason is None and len(data.zones) == 6
     assert fake.urls[0].startswith("https://nats-uk.ead-it.com/")
     assert fake.urls[1].endswith("_XML.zip")
     assert data.source is not None and "NATS" in data.source.license
@@ -263,7 +263,7 @@ def test_a_cached_uk_body_skips_discovery_and_the_network(tmp_path):
     def no_network(req, timeout=None):
         raise AssertionError("cached run must not touch the network")
     data = fetch_zones(_track(51.50, -0.12), tmp_path, transport=no_network)
-    assert data.from_cache and len(data.zones) == 5
+    assert data.from_cache and len(data.zones) == 6
 
 
 def _gb_zip_bad_sha() -> bytes:

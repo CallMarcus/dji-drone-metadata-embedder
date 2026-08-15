@@ -272,6 +272,63 @@
     </aixm:Airspace>
   </message:hasMember>
   <message:hasMember>
+    <aixm:Airspace gml:id="a6">
+      <gml:identifier codeSpace="urn:uuid:">66666666-6666-6666-6666-666666666666</gml:identifier>
+      <aixm:timeSlice>
+        <aixm:AirspaceTimeSlice gml:id="a6ts">
+          <aixm:type>D</aixm:type>
+          <aixm:designator>EGD904</aixm:designator>
+          <aixm:name>TEST ARC FLIP</aixm:name>
+          <aixm:geometryComponent>
+            <aixm:AirspaceGeometryComponent gml:id="a6gc">
+              <aixm:theAirspaceVolume>
+                <aixm:AirspaceVolume gml:id="a6v">
+                  <aixm:upperLimit uom="FT">3000</aixm:upperLimit>
+                  <aixm:upperLimitReference>MSL</aixm:upperLimitReference>
+                  <aixm:lowerLimit uom="FT">0</aixm:lowerLimit>
+                  <aixm:lowerLimitReference>SFC</aixm:lowerLimitReference>
+                  <aixm:horizontalProjection>
+                    <aixm:Surface srsName="urn:ogc:def:crs:EPSG::4326" gml:id="a6s">
+                      <gml:patches>
+                        <gml:PolygonPatch>
+                          <gml:exterior>
+                            <gml:Ring>
+                              <gml:curveMember>
+                                <gml:Curve gml:id="a6c">
+                                  <gml:segments>
+                                    <gml:GeodesicString interpolation="geodesic">
+                                      <gml:pointProperty><aixm:Point gml:id="a6p1"><gml:pos>53.014 -2.0195349</gml:pos></aixm:Point></gml:pointProperty>
+                                      <gml:pointProperty><aixm:Point gml:id="a6p2"><gml:pos>53.0117516 -2.0195349</gml:pos></aixm:Point></gml:pointProperty>
+                                    </gml:GeodesicString>
+                                    <gml:ArcByCenterPoint interpolation="circularArcCenterPointWithRadius" numArc="1">
+                                      <gml:pointProperty><aixm:Point gml:id="a6p3"><gml:pos>53.0 -2.0</gml:pos></aixm:Point></gml:pointProperty>
+                                      <gml:radius uom="[nmi_i]">1</gml:radius>
+                                      <gml:startAngle uom="deg">315</gml:startAngle>
+                                      <gml:endAngle uom="deg">45</gml:endAngle>
+                                    </gml:ArcByCenterPoint>
+                                    <gml:GeodesicString interpolation="geodesic">
+                                      <gml:pointProperty><aixm:Point gml:id="a6p4"><gml:pos>53.0117516 -1.9804651</gml:pos></aixm:Point></gml:pointProperty>
+                                      <gml:pointProperty><aixm:Point gml:id="a6p5"><gml:pos>53.014 -1.9804651</gml:pos></aixm:Point></gml:pointProperty>
+                                      <gml:pointProperty><aixm:Point gml:id="a6p6"><gml:pos>53.014 -2.0195349</gml:pos></aixm:Point></gml:pointProperty>
+                                    </gml:GeodesicString>
+                                  </gml:segments>
+                                </gml:Curve>
+                              </gml:curveMember>
+                            </gml:Ring>
+                          </gml:exterior>
+                        </gml:PolygonPatch>
+                      </gml:patches>
+                    </aixm:Surface>
+                  </aixm:horizontalProjection>
+                </aixm:AirspaceVolume>
+              </aixm:theAirspaceVolume>
+            </aixm:AirspaceGeometryComponent>
+          </aixm:geometryComponent>
+        </aixm:AirspaceTimeSlice>
+      </aixm:timeSlice>
+    </aixm:Airspace>
+  </message:hasMember>
+  <message:hasMember>
     <aixm:GeoBorder gml:id="g1">
       <gml:identifier codeSpace="urn:uuid:">99999999-9999-9999-9999-999999999999</gml:identifier>
       <aixm:timeSlice>
