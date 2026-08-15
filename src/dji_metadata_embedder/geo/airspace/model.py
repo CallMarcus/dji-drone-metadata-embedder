@@ -27,10 +27,12 @@ class VerticalLimit:
     "not stated" — never 0 (live ED-269 zones omit limits)."""
 
     value: float
-    unit: str        # "m" | "ft", as published
-    reference: str   # "AGL" | "AMSL"
+    unit: str        # "m" | "ft" | "FL", as published
+    reference: str   # "AGL" | "AMSL" | "STD"
 
     def label(self) -> str:
+        if self.unit == "FL":
+            return f"FL {self.value:g}"
         return f"{self.value:g} {self.unit} {self.reference}"
 
 
