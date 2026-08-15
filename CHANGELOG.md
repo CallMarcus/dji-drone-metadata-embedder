@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **geo**: Ireland UAS geographical zones via the IAA's published ED-318 file (#452) (#500) (6a92e5f)
+- **geo**: UK UAS flight restrictions via the NATS AIS AIXM 5.1 dataset (#499) (#501) (3a75ac2)
+
 ## [2.9.0] - 2026-08-14
 
 ### Added
