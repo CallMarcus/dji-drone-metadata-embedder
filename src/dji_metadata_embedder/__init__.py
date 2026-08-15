@@ -1,6 +1,6 @@
 """DJI Drone Metadata Embedder."""
 
-__version__ = "2.9.0"
+__version__ = "2.10.0"
 
 # Import check to ensure files were moved correctly
 try:
