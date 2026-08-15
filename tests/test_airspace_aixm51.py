@@ -184,9 +184,14 @@ def test_circles_and_arcs_densify_at_the_published_radius():
 def test_a_border_reference_is_spliced_forward_and_reversed():
     zones = parse_aixm51(_gb(), SRC)
     mid = (0.005, 52.01)                         # the coast's middle vertex
+    # The GeoBorder polyline has a fourth tail vertex past the ring's far
+    # neighbouring endpoint; a ring must trim to its own stretch, not
+    # splice the whole coastline.
+    tail = (-0.01, 52.03)
     for z in (zones[3], zones[4]):
         assert any(_dist_m(p, mid) < 1 for p in z.polygons[0])
         assert z.polygons[0][0] == z.polygons[0][-1]
+        assert all(_dist_m(p, tail) > 500 for p in z.polygons[0])
 
 
 def _mutated(old: str, new: str) -> bytes:

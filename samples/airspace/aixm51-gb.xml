@@ -285,6 +285,7 @@
                   <gml:pointProperty><aixm:Point gml:id="g1p1"><gml:pos>52.0 0.0</gml:pos></aixm:Point></gml:pointProperty>
                   <gml:pointProperty><aixm:Point gml:id="g1p2"><gml:pos>52.01 0.005</gml:pos></aixm:Point></gml:pointProperty>
                   <gml:pointProperty><aixm:Point gml:id="g1p3"><gml:pos>52.02 0.0</gml:pos></aixm:Point></gml:pointProperty>
+                  <gml:pointProperty><aixm:Point gml:id="g1p4"><gml:pos>52.03 -0.01</gml:pos></aixm:Point></gml:pointProperty>
                 </gml:GeodesicString>
               </gml:segments>
             </aixm:Curve>

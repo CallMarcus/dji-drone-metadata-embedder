@@ -4,7 +4,10 @@ The authoritative product is an AIXM 5.1 BasicMessage: one
 ``aixm:Airspace`` per zone (single time slice, single volume), geometry
 as GML curve segments — geodesic/line point runs, arcs and circles by
 centre point, plus xlink references to in-document ``aixm:GeoBorder``
-curves for coast/river-following boundaries. Arcs and circles are
+curves for coast/river-following boundaries. A GeoBorder curve is the
+full coastline polyline; a ring's reference to it is trimmed to the
+sub-path between its neighbouring segments' endpoints, not spliced
+whole. Arcs and circles are
 densified here, deliberately: the sibling KML product ships pre-densified
 with visual gaps between abutting volumes, the exact flaw a consistent
 in-house densification avoids.
@@ -309,7 +312,17 @@ def _ring_pieces(
             if seg.tag in (
                 f"{_GML}GeodesicString", f"{_GML}LineStringSegment"
             ):
-                pieces.append(("fixed", _point_run(seg, where)))
+                points = _point_run(seg, where)
+                if len(set(points)) <= 1:
+                    # A zero-length "closing" segment: some real zones
+                    # (e.g. EGD012) end their ring with a curve whose
+                    # points all repeat the ring's own start coordinate
+                    # instead of an actual closing edge. It contributes
+                    # no geometry, so it is dropped rather than forced
+                    # through the junction check — the ring's own
+                    # closure step (which never errors) finishes it off.
+                    continue
+                pieces.append(("fixed", points))
             elif seg.tag == f"{_GML}CircleByCenterPoint":
                 pieces.append(("fixed", _circle(seg, where)))
             elif seg.tag == f"{_GML}ArcByCenterPoint":
@@ -333,6 +346,17 @@ def _leading_point(piece: _Piece, where: str) -> LatLon:
     return payload[0]
 
 
+def _trailing_point(piece: _Piece, where: str) -> LatLon:
+    kind, payload = piece
+    if kind == "arc":
+        assert isinstance(payload, ElementTree.Element)
+        centre, r = _centre_radius(payload, where)
+        # An arc's end point is the same for both sweep directions.
+        return _destination(centre, _angle(payload, "endAngle", where), r)
+    assert isinstance(payload, list)
+    return payload[-1]
+
+
 def _assemble(
     pieces: list[_Piece], arc_dirs: list[bool], where: str
 ) -> list[LatLon]:
@@ -345,16 +369,32 @@ def _assemble(
             arc_i += 1
         elif kind == "border":
             assert isinstance(payload, list)
-            run = list(payload)
-            # Splice orientation is continuity-driven: a border's two
-            # orientations have different endpoints (unlike an arc's).
-            if pts:
-                if _dist_m(run[-1], pts[-1]) < _dist_m(run[0], pts[-1]):
-                    run.reverse()
+            border = payload
+            if len(pieces) == 1:
+                # A border-only ring: keep the whole polyline as-is.
+                run = list(border)
             else:
-                nxt = _leading_point(pieces[(i + 1) % len(pieces)], where)
-                if _dist_m(run[0], nxt) < _dist_m(run[-1], nxt):
-                    run.reverse()
+                # A GeoBorder curve is the full coastline/river polyline;
+                # a ring only follows the stretch BETWEEN its neighbouring
+                # segments' endpoints, not the whole thing.
+                prev_pt = _trailing_point(
+                    pieces[(i - 1) % len(pieces)], where
+                )
+                next_pt = _leading_point(
+                    pieces[(i + 1) % len(pieces)], where
+                )
+                start_idx = min(
+                    range(len(border)),
+                    key=lambda j: _dist_m(border[j], prev_pt),
+                )
+                end_idx = min(
+                    range(len(border)),
+                    key=lambda j: _dist_m(border[j], next_pt),
+                )
+                if start_idx <= end_idx:
+                    run = list(border[start_idx : end_idx + 1])
+                else:
+                    run = list(reversed(border[end_idx : start_idx + 1]))
         else:
             assert isinstance(payload, list)
             run = list(payload)
