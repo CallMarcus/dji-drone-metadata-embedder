@@ -275,3 +275,24 @@ def test_a_dtd_is_refused_before_parsing():
     evil = b'<?xml version="1.0"?><!DOCTYPE r [<!ENTITY a "b">]><r/>'
     with pytest.raises(AirspaceError, match="DTD"):
         parse_aixm51(evil, SRC)
+
+
+def test_a_zero_extent_export_noop_segment_is_dropped():
+    # EGD012 in the live file ends with a GeodesicString whose two
+    # points both duplicate the ring's start — a NATS export no-op.
+    # It must not trip the junction check or distort the ring.
+    anchor = (
+        '<gml:pointProperty><aixm:Point gml:id="a3p5">'
+        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>'
+    )
+    degenerate = anchor + (
+        '</gml:GeodesicString>'
+        '<gml:GeodesicString interpolation="geodesic">'
+        '<gml:pointProperty><aixm:Point gml:id="a3d1">'
+        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>'
+        '<gml:pointProperty><aixm:Point gml:id="a3d2">'
+        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>'
+    )
+    zones = parse_aixm51(_mutated(anchor, degenerate), SRC)
+    baseline = parse_aixm51(_gb(), SRC)
+    assert zones[2].polygons == baseline[2].polygons
