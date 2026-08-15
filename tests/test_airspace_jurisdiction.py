@@ -282,3 +282,74 @@ def test_calais_gaps_instead_of_resolving_gb():
 def test_the_no_provider_message_names_the_uk():
     r = resolve_jurisdiction(_track((48.85, 2.35)))   # Paris
     assert "the UK" in (r.gap_reason or "")
+
+
+# --- Denmark (Trafikstyrelsen Dronezoner) ---
+
+
+def test_a_copenhagen_flight_resolves_to_dk_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((55.68, 12.57), (55.66, 12.6)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "DK"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_kastrup_airport_resolves_to_dk():
+    # Amager sits 2 km from the core's Øresund edge; the Swedish coast
+    # is >=13 km further east (Nominatim-verified 2026-08-15).
+    r = resolve_jurisdiction(_track((55.62, 12.65)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "DK"
+
+
+def test_aarhus_and_odense_resolve_to_dk():
+    for lat, lon in ((56.16, 10.21), (55.40, 10.39)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "DK"
+
+
+def test_the_danish_islands_resolve_to_dk():
+    # Bornholm (Rønne), Læsø, Skagen at Jutland's tip.
+    for lat, lon in ((55.10, 14.70), (57.26, 11.00), (57.72, 10.58)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "DK"
+
+
+def test_sonderborg_gaps_as_a_border_band():
+    # Danish, but <10 km from the German border: inside the hull,
+    # outside every core.
+    r = resolve_jurisdiction(_track((54.91, 9.79)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_helsingor_gaps_as_a_border_band():
+    # The strait to Helsingborg is ~4.5 km wide; coordinates alone
+    # cannot pick a side confidently.
+    r = resolve_jurisdiction(_track((56.03, 12.61)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_helsingborg_sweden_gaps_instead_of_resolving_dk():
+    # Inside the DK hull on purpose (CH-Konstanz semantics) but never
+    # inside a core.
+    r = resolve_jurisdiction(_track((56.05, 12.69)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_malmo_is_an_honest_no_provider_gap():
+    r = resolve_jurisdiction(_track((55.60, 13.00)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "no supported airspace data" in r.gap_reason
+
+
+def test_flensburg_germany_gaps_instead_of_resolving_dk():
+    r = resolve_jurisdiction(_track((54.79, 9.43)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_the_no_provider_message_names_denmark():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.gap_reason is not None and "Denmark" in r.gap_reason
+

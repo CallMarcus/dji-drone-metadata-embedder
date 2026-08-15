@@ -287,3 +287,51 @@ def test_a_uk_sha_mismatch_is_a_stated_gap(tmp_path):
     data = fetch_zones(_track(51.50, -0.12), tmp_path,
                        transport=FakeTransport([GB_PAGE, _gb_zip_bad_sha()]))
     assert data.gap_reason is not None and "SHA-256" in data.gap_reason
+
+
+DK_PAGE = (
+    b'<a href="https://trafikstyrelsen.maps.arcgis.com/sharing/rest/'
+    b'content/items/f049a65ae2f34bd1b747895d555dac71/data">GeoJson</a>'
+)
+
+
+def test_a_danish_flight_discovers_the_geojson_and_caches_it(tmp_path):
+    fake = FakeTransport(
+        [DK_PAGE, (FIXTURES / "dronezoner-dk.json").read_bytes()]
+    )
+    lines = []
+    data = fetch_zones(_track(55.68, 12.57), tmp_path, transport=fake,
+                       announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 7
+    assert fake.urls[0].startswith("https://www.en.droneregler.dk/")
+    assert fake.urls[1].endswith(
+        "items/f049a65ae2f34bd1b747895d555dac71/data"
+    )
+    assert data.source is not None
+    assert "kildeangivelse" in data.source.license
+    assert (tmp_path / "dronezoner-DK.json").exists()
+    assert any("Fetching" in ln and "www.en.droneregler.dk" in ln
+               for ln in lines)
+
+
+def test_a_cached_danish_body_skips_discovery_and_the_network(tmp_path):
+    fetch_zones(
+        _track(55.68, 12.57), tmp_path,
+        transport=FakeTransport(
+            [DK_PAGE, (FIXTURES / "dronezoner-dk.json").read_bytes()]
+        ),
+    )
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(55.68, 12.57), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 7
+
+
+def test_a_redesigned_danish_page_is_a_stated_gap(tmp_path):
+    data = fetch_zones(_track(55.68, 12.57), tmp_path,
+                       transport=FakeTransport([b"<html>redesigned</html>"]))
+    assert not data.zones
+    assert data.gap_reason is not None
+    assert "droneregler.dk" in data.gap_reason
+

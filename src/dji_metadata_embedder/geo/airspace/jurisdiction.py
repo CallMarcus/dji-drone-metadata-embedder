@@ -111,6 +111,25 @@ _CORE: dict[str, list[Box]] = {
         (-1.85, 59.75, -0.65, 60.9),   # Shetland
         (-6.55, 54.42, -5.43, 55.25),  # Northern Ireland (Belfast, Coleraine)
     ],
+    # Sea margins on three sides, one land border (Germany, ~54.8-54.95N
+    # across Jutland). Every edge point Nominatim-verified 2026-08-15:
+    # Kastrup and the Zealand core's Øresund edge both resolve DK (the
+    # Swedish coast starts by 12.90 → >=13 km margin), Rønne/Skagen/Læsø
+    # DK inside their cores, Helsingborg/Flensburg/Puttgarden foreign and
+    # inside the hull only. Deliberate gaps, each an honest border band:
+    # the German border strip south of 55.1 (Sønderborg, Ærø), Helsingør
+    # (the 4.5 km strait), Gedser, Anholt-to-Sweden seas.
+    "DK": [
+        (8.0, 55.1, 10.9, 57.73),      # Jutland (Skagen in; Sweden >=35 km E)
+        (9.6, 55.0, 10.85, 55.1),      # south Funen (Svendborg)
+        (11.05, 54.95, 12.68, 55.9),   # Zealand incl. Copenhagen/Kastrup
+        (11.3, 55.9, 12.4, 56.1),      # N Zealand, cut back from the strait
+        (11.9, 54.85, 12.56, 54.97),   # Møn (German coast >=40 km)
+        (11.0, 54.63, 12.3, 54.95),    # Lolland-Falster (Fehmarn >=11 km)
+        (14.67, 54.98, 15.17, 55.32),  # Bornholm (Sweden >=60 km)
+        (10.85, 57.1, 11.25, 57.35),   # Læsø
+        (11.38, 56.6, 11.78, 56.78),   # Anholt
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -136,12 +155,20 @@ _HULL: dict[str, list[Box]] = {
         (-8.0, 55.55, -5.9, 61.0),     # Hebridean seas
         (-8.2, 54.0, -5.35, 55.4),     # Northern Ireland
     ],
+    # Flensburg, Helsingborg and Fehmarn's north tip sit inside the hull
+    # deliberately (the CH-Konstanz semantics: a border band, not "no
+    # provider"); Malmö stays outside entirely.
+    "DK": [
+        (7.5, 54.68, 11.0, 57.9),      # Jutland + Funen
+        (11.0, 54.5, 12.78, 57.4),     # Zealand / Lolland-Falster / Øresund
+        (14.6, 54.9, 15.35, 55.38),    # Bornholm
+    ],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
     "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
-    "IE": MEASURE_EU, "GB": MEASURE_UK,
+    "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU,
 }
 
 
@@ -173,7 +200,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland and the UK)",
+            "Ireland, the UK and Denmark)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

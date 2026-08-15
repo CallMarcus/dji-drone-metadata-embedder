@@ -1,0 +1,431 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              12.5,
+              55.6,
+              0
+            ],
+            [
+              12.56,
+              55.6,
+              0
+            ],
+            [
+              12.56,
+              55.64,
+              0
+            ],
+            [
+              12.5,
+              55.64,
+              0
+            ],
+            [
+              12.5,
+              55.6,
+              0
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 1,
+        "typeId": "Civil Lufthavn",
+        "title": "Testlufthavn",
+        "Farve": "1",
+        "Bufferzone": "5 km",
+        "Type": "2",
+        "Lovkrav": 5,
+        "Enhed": "1",
+        "Elevation_fod": 17,
+        "Elevation_meter": 5.1816,
+        "ICAO": "EKTS",
+        "Version": "1"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.53,
+          55.62,
+          0
+        ]
+      },
+      "properties": {
+        "OBJECTID": 101,
+        "typeId": "Civil Lufthavn",
+        "title": "Testlufthavn",
+        "Farve": "1",
+        "Bufferzone": "5 km",
+        "Type": "2",
+        "Lovkrav": 5,
+        "Enhed": "1",
+        "Elevation_fod": 17,
+        "Elevation_meter": 5.1816,
+        "ICAO": "EKTS",
+        "Version": "1"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                12.3,
+                55.7
+              ],
+              [
+                12.34,
+                55.7
+              ],
+              [
+                12.34,
+                55.73
+              ],
+              [
+                12.3,
+                55.73
+              ],
+              [
+                12.3,
+                55.7
+              ]
+            ],
+            [
+              [
+                12.31,
+                55.71
+              ],
+              [
+                12.32,
+                55.71
+              ],
+              [
+                12.32,
+                55.72
+              ],
+              [
+                12.31,
+                55.72
+              ],
+              [
+                12.31,
+                55.71
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                12.36,
+                55.7
+              ],
+              [
+                12.38,
+                55.7
+              ],
+              [
+                12.38,
+                55.72
+              ],
+              [
+                12.36,
+                55.72
+              ],
+              [
+                12.36,
+                55.7
+              ]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 2,
+        "typeId": "Militær",
+        "title": "Kasernen Test",
+        "Farve": "4",
+        "Bufferzone": "150 m",
+        "Type": "10",
+        "Lovkrav": 150,
+        "Enhed": "1000",
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Aktiv": "JA",
+        "zoneKategori": "Permanent",
+        "datoTidSTART": null,
+        "datoTidSLUT": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.2,
+          55.5
+        ]
+      },
+      "properties": {
+        "OBJECTID": 3,
+        "typeId": "Politi",
+        "title": "Politistation Test",
+        "Farve": "4",
+        "Bufferzone": "150",
+        "Lovkrav": 150,
+        "Enhed": "1000",
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Aktiv": "JA",
+        "zoneKategori": "Permanent"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.1,
+          55.45
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4,
+        "typeId": "Modelflyveplads",
+        "title": "Modelflyveplads Test",
+        "Farve": "5",
+        "Bufferzone": "2 km",
+        "Lovkrav": null,
+        "Enhed": null,
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.0,
+          55.4
+        ]
+      },
+      "properties": {
+        "OBJECTID": 7,
+        "typeId": "Privat flyveplads 3km",
+        "title": "Testflyveplads Privat",
+        "Farve": "5",
+        "Bufferzone": "3 km",
+        "Lovkrav": 3,
+        "Enhed": "1",
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              12.4,
+              55.3
+            ],
+            [
+              12.44,
+              55.3
+            ],
+            [
+              12.44,
+              55.33
+            ],
+            [
+              12.4,
+              55.33
+            ],
+            [
+              12.4,
+              55.3
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 5,
+        "typeId": "Sikringskritisk område",
+        "title": "Gammelt event",
+        "Farve": "4",
+        "Bufferzone": null,
+        "Lovkrav": null,
+        "Enhed": null,
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Aktiv": "NEJ",
+        "zoneKategori": "Midlertidig",
+        "datoTidSTART": "Wed, 10 Jun 2026 05:00:00 GMT",
+        "datoTidSLUT": "Sun, 14 Jun 2026 10:00:00 GMT"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              12.6,
+              55.3
+            ],
+            [
+              12.64,
+              55.3
+            ],
+            [
+              12.64,
+              55.33
+            ],
+            [
+              12.6,
+              55.33
+            ],
+            [
+              12.6,
+              55.3
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 6,
+        "typeId": "Sikringskritisk område",
+        "title": "Sikringskritisk område - Testevent",
+        "Farve": "4",
+        "Bufferzone": null,
+        "Lovkrav": null,
+        "Enhed": null,
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Aktiv": "JA",
+        "zoneKategori": "Midlertidig",
+        "datoTidSTART": "Mon, 07 Sep 2026 06:00:00 GMT",
+        "datoTidSLUT": "Fri, 11 Sep 2026 18:00:00 GMT"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              12.58,
+              55.7
+            ],
+            [
+              12.6,
+              55.7
+            ],
+            [
+              12.6,
+              55.72
+            ],
+            [
+              12.58,
+              55.72
+            ],
+            [
+              12.58,
+              55.7
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 8,
+        "typeId": "Restvæsen",
+        "title": "Landsret Test",
+        "Farve": "4",
+        "Bufferzone": null,
+        "Lovkrav": null,
+        "Enhed": null,
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Aktiv": "JA",
+        "zoneKategori": "Permanent"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.59,
+          55.71
+        ]
+      },
+      "properties": {
+        "OBJECTID": 108,
+        "typeId": "Retsvæsen",
+        "title": "Landsret Test",
+        "Farve": "4",
+        "Bufferzone": null,
+        "Lovkrav": null,
+        "Enhed": null,
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Aktiv": "JA",
+        "zoneKategori": "Permanent"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.5,
+          55.3
+        ]
+      },
+      "properties": {
+        "OBJECTID": 9,
+        "typeId": "Modelflyveplads",
+        "title": "Klub nr: 999 - Test Modelflyveklub",
+        "Farve": "5",
+        "Bufferzone": null,
+        "Lovkrav": null,
+        "Enhed": null,
+        "Elevation_fod": null,
+        "Elevation_meter": null,
+        "ICAO": null,
+        "Kommentar": "Pladsen er godkendt til flyvning med stormodel"
+      }
+    }
+  ]
+}
