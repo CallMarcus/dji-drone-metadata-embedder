@@ -431,11 +431,14 @@ already reports.
 for the flight area on the HTML maps — the flat map and the 3D terrain view
 (`--3d`) — FAA UAS Facility Maps in the US, and national UAS
 geographical-zone feeds where a country publishes one (currently
-Luxembourg, Finland and Switzerland via ED-269, and Ireland via the IAA's
+Luxembourg, Finland and Switzerland via ED-269, Ireland via the IAA's
 published ED-318 file, which the IAA labels reference-only — that caveat
-rides into the map). Zones draw in one neutral style; clicking one shows
-the published facts: restriction class, vertical limits (or "not stated"),
-applicability windows, and the feed, license and fetch time. Zones the
+rides into the map — and the UK via the NATS AIS AIXM 5.1 dataset, whose
+activation hours and temporary restrictions live in the AIP and NOTAMs,
+not in the file; that caveat rides along too). Zones draw in one neutral
+style; clicking one shows the published facts: restriction class, vertical
+limits (or "not stated"), applicability windows, and the feed, license and
+fetch time. Zones the
 flight entered get a slightly stronger outline plus the entry/exit times and
 maximum heights in the popup. The map states facts and makes no
 determination.

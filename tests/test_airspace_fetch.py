@@ -1,5 +1,7 @@
 """Fetch orchestration tests (#413): consent lines, cache, honest gaps."""
+import hashlib
 import io
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -216,3 +218,72 @@ def test_a_cached_irish_body_skips_discovery_entirely(tmp_path):
         raise AssertionError("cached run must not touch the network")
     data = fetch_zones(_track(53.35, -6.26), tmp_path, transport=no_network)
     assert data.from_cache and len(data.zones) == 4
+
+
+def _gb_zip() -> bytes:
+    xml = (FIXTURES / "aixm51-gb.xml").read_bytes()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("EG_UAS_FR_DS_AREA1_FULL_20260806.xml", xml)
+        zf.writestr(
+            "EG_UAS_FR_DS_AREA1_FULL_20260806.sha256",
+            hashlib.sha256(xml).hexdigest()
+            + " *EG_UAS_FR_DS_AREA1_FULL_20260806.xml",
+        )
+    return buf.getvalue()
+
+
+GB_PAGE = (
+    b'<a href="/x/UAS_AREA_1/EG_UAS_FR_DS_AREA1_FULL_20200101_XML.zip">'
+    b"</a>"
+)
+
+
+def test_a_uk_flight_discovers_the_cycle_zip_and_caches_the_xml(tmp_path):
+    # #499: three-step — datasets page, then the dated zip, then the
+    # XML is extracted (sha-verified) and cached as plain XML.
+    fake = FakeTransport([GB_PAGE, _gb_zip()])
+    lines = []
+    data = fetch_zones(_track(51.50, -0.12), tmp_path, transport=fake,
+                       announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 6
+    assert fake.urls[0].startswith("https://nats-uk.ead-it.com/")
+    assert fake.urls[1].endswith("_XML.zip")
+    assert data.source is not None and "NATS" in data.source.license
+    assert (tmp_path / "aixm-GB.xml").exists()
+    assert (tmp_path / "aixm-GB.xml").read_bytes().startswith(b"<?xml")
+    assert any("Fetching" in ln and "nats-uk.ead-it.com" in ln
+               for ln in lines)
+
+
+def test_a_cached_uk_body_skips_discovery_and_the_network(tmp_path):
+    fetch_zones(_track(51.50, -0.12), tmp_path,
+                transport=FakeTransport([GB_PAGE, _gb_zip()]))
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(51.50, -0.12), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 6
+
+
+def _gb_zip_bad_sha() -> bytes:
+    # The naive byte-replace-in-the-finished-zip trick corrupts the
+    # member's CRC-32 (BadZipFile, not a clean SHA mismatch) because
+    # zipfile validates CRC on read. Build the bad zip explicitly
+    # instead, mirroring `_zip(..., sha=...)` from
+    # tests/test_airspace_aixm51.py.
+    xml = (FIXTURES / "aixm51-gb.xml").read_bytes()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("EG_UAS_FR_DS_AREA1_FULL_20260806.xml", xml)
+        zf.writestr(
+            "EG_UAS_FR_DS_AREA1_FULL_20260806.sha256",
+            "0" * 64 + " *EG_UAS_FR_DS_AREA1_FULL_20260806.xml",
+        )
+    return buf.getvalue()
+
+
+def test_a_uk_sha_mismatch_is_a_stated_gap(tmp_path):
+    data = fetch_zones(_track(51.50, -0.12), tmp_path,
+                       transport=FakeTransport([GB_PAGE, _gb_zip_bad_sha()]))
+    assert data.gap_reason is not None and "SHA-256" in data.gap_reason

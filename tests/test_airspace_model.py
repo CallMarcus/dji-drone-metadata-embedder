@@ -11,3 +11,10 @@ def test_vertical_limit_labels_value_unit_and_reference():
 def test_vertical_limit_drops_trailing_zeros():
     assert VerticalLimit(45.72, "m", "AMSL").label() == "45.72 m AMSL"
     assert VerticalLimit(100.0, "ft", "AGL").label() == "100 ft AGL"
+
+
+def test_flight_level_limits_render_as_fl_numbers():
+    # UK danger areas publish flight levels (pressure datum STD); the
+    # label is the aviation form, not "100 FL STD".
+    fl = VerticalLimit(100.0, "FL", "STD")
+    assert fl.label() == "FL 100"

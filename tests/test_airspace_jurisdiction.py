@@ -187,12 +187,6 @@ def test_a_sligo_flight_resolves_through_the_northwest_core():
     assert r.jurisdiction is not None and r.jurisdiction.code == "IE"
 
 
-def test_a_belfast_flight_gaps_instead_of_resolving_ie():
-    r = resolve_jurisdiction(_track((54.60, -5.93)))
-    assert r.jurisdiction is None
-    assert "boundary" in (r.gap_reason or "")
-
-
 def test_a_dundalk_flight_gaps_as_a_border_band():
     # 15 km from the border: too close to choose from coordinates alone.
     r = resolve_jurisdiction(_track((54.00, -6.40)))
@@ -204,3 +198,87 @@ def test_the_no_provider_message_names_ireland():
     r = resolve_jurisdiction(_track((48.85, 2.35)))   # Paris
     assert r.jurisdiction is None
     assert "Ireland" in (r.gap_reason or "")
+
+
+# --- United Kingdom (#499) --------------------------------------------------
+# Cores break hull ties: NI sits in both the GB and IE hulls, and
+# resolves through the GB NI core. Edges Nominatim/arithmetic-verified
+# at implementation time.
+
+
+def test_a_london_flight_resolves_to_gb_with_the_uk_measure():
+    r = resolve_jurisdiction(_track((51.50, -0.12), (51.51, -0.11)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+    assert "assimilated" in r.jurisdiction.measure_note
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_cardiff_resolves_to_gb():
+    r = resolve_jurisdiction(_track((51.48, -3.18)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+
+
+def test_manchester_resolves_to_gb():
+    r = resolve_jurisdiction(_track((53.48, -2.24)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+
+
+def test_edinburgh_resolves_to_gb():
+    r = resolve_jurisdiction(_track((55.95, -3.19)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+
+
+def test_dover_and_margate_resolve_through_the_kent_core():
+    for lat, lon in ((51.13, 1.31), (51.39, 1.38)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+
+
+def test_the_scottish_islands_resolve_to_gb():
+    # Kirkwall and Wick RPZs are in the dataset; Orkney, Shetland and
+    # the Hebrides get cores, not border-band gaps.
+    for lat, lon in ((58.98, -2.96), (60.15, -1.15), (58.21, -6.39)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+
+
+def test_a_belfast_flight_now_resolves_to_gb():
+    # The whole point of #499's NI coverage: Belfast sits in both the
+    # GB and IE hulls and only the GB cores contain it.
+    r = resolve_jurisdiction(_track((54.60, -5.93)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "GB"
+
+
+def test_dublin_still_resolves_to_ie():
+    r = resolve_jurisdiction(_track((53.35, -6.26)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "IE"
+
+
+def test_derry_gaps_as_a_border_band():
+    # ~3 km from the IE border: outside the NI core by design.
+    r = resolve_jurisdiction(_track((54.997, -7.32)))
+    assert r.jurisdiction is None
+    assert "boundary" in (r.gap_reason or "")
+
+
+def test_the_isle_of_man_gaps_instead_of_claiming_coverage():
+    # Its own AIP; the dataset has no Ronaldsway FRZ. Hull yes, core no.
+    r = resolve_jurisdiction(_track((54.15, -4.48)))
+    assert r.jurisdiction is None
+    assert "boundary" in (r.gap_reason or "")
+
+
+def test_jersey_is_an_honest_no_provider_gap():
+    r = resolve_jurisdiction(_track((49.21, -2.13)))
+    assert r.jurisdiction is None
+    assert "no supported airspace data" in (r.gap_reason or "")
+
+
+def test_calais_gaps_instead_of_resolving_gb():
+    r = resolve_jurisdiction(_track((50.96, 1.85)))
+    assert r.jurisdiction is None
+
+
+def test_the_no_provider_message_names_the_uk():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))   # Paris
+    assert "the UK" in (r.gap_reason or "")

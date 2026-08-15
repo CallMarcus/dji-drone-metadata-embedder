@@ -402,3 +402,40 @@ def test_an_offset_with_unknown_times_stays_unknown():
                   local_offset=timedelta(hours=2))
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
     assert "unknown" in cover
+
+
+# UK danger areas (#499) publish flight levels: a pressure datum, not a
+# height above anything. The record must show them in aviation form and
+# never invent a comparison against telemetry altitudes.
+def test_fl_banded_limits_render_in_aviation_form():
+    # A UK danger area banded FL 50 - FL 100 must not print "50-100 FL STD".
+    fl_band = Zone(
+        identifier="UK-D001", name="Danger area", restriction="PROHIBITED",
+        lower=VerticalLimit(50, "FL", "STD"), upper=VerticalLimit(100, "FL", "STD"),
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=fl_band, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2),
+        )], source=SRC))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "FL 50–100" in html
+
+
+def test_an_entered_fl_zone_states_the_pressure_datum_gap():
+    fl_ceiling = Zone(
+        identifier="UK-D002", name="Danger area ceiling",
+        restriction="PROHIBITED",
+        lower=None, upper=VerticalLimit(100, "FL", "STD"),
+        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+    )
+    rec = _record(airspace=AirspaceReport(
+        findings=[ZoneFinding(
+            zone=fl_ceiling, entered=True,
+            entry_utc=datetime(2026, 7, 30, 12, 1),
+            exit_utc=datetime(2026, 7, 30, 12, 2),
+        )], source=SRC))
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "flight level" in html and "pressure datum" in html
