@@ -36,8 +36,10 @@ def _upper_numeric(
     limit: VerticalLimit | None,
 ) -> tuple[float | None, str | None]:
     """Published ceiling in metres + datum for the 3D volumes (#424);
-    (None, None) when not stated — the 3D map renders those flat."""
-    if limit is None:
+    (None, None) when not stated — the 3D map renders those flat. A
+    flight level is a pressure datum, not a map height: FL ceilings
+    render flat too rather than faking a conversion."""
+    if limit is None or limit.unit == "FL":
         return None, None
     metres = limit.value * M_PER_FT if limit.unit == "ft" else limit.value
     return metres, limit.reference

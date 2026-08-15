@@ -104,10 +104,13 @@ def _zone_row(f: ZoneFinding) -> str:
     # "from X"; the FAA's universal 0-ft floor stays out of the way (#422).
     if z.upper is not None and z.lower is not None and z.lower.value > 0:
         if (z.lower.unit, z.lower.reference) == (z.upper.unit, z.upper.reference):
-            limit = (
-                f"{z.lower.value:g}–{z.upper.value:g} "
-                f"{z.upper.unit} {z.upper.reference}"
-            )
+            if z.upper.unit == "FL":
+                limit = f"FL {z.lower.value:g}–{z.upper.value:g}"
+            else:
+                limit = (
+                    f"{z.lower.value:g}–{z.upper.value:g} "
+                    f"{z.upper.unit} {z.upper.reference}"
+                )
         else:
             limit = f"{z.lower.label()} – {z.upper.label()}"
     elif z.upper is not None:
@@ -143,6 +146,11 @@ def _zone_row(f: ZoneFinding) -> str:
                 )
             else:
                 compare = "limit stated in AMSL; no absolute altitude recorded"
+        elif stated.reference == "STD":
+            compare = (
+                "limit stated as a flight level (pressure datum); not "
+                "comparable with telemetry altitudes"
+            )
         else:
             compare = "limit datum not recognized"
     return (

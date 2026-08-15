@@ -176,3 +176,12 @@ def test_zone_dicts_carry_numeric_ceilings_for_the_3d_map():
     assert by_id["M"]["upper_ref"] == "AMSL"
     assert by_id["NONE"]["upper_m"] is None
     assert by_id["NONE"]["upper_ref"] is None
+
+
+def test_a_flight_level_ceiling_renders_flat_in_3d_not_100_metres():
+    # FL is a pressure datum: converting it to a map height would be
+    # false precision, and the ft-else-metres branch would draw a
+    # 100 m-tall volume for FL 100.
+    from dji_metadata_embedder.geo.airspace.overlay import _upper_numeric
+    from dji_metadata_embedder.geo.airspace.model import VerticalLimit
+    assert _upper_numeric(VerticalLimit(100.0, "FL", "STD")) == (None, None)
