@@ -6,6 +6,7 @@ the current AND next cycle are both listed, so discovery is date-aware.
 """
 import hashlib
 import io
+import math
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -17,6 +18,7 @@ from dji_metadata_embedder.geo.airspace.aixm51 import (
     AIXM_FEEDS,
     discover_feed_url,
     extract_xml,
+    parse_aixm51,
 )
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
@@ -98,3 +100,173 @@ def test_gb_feed_registry_states_source_rights_and_honesty_note():
     assert "not for resale" in feed.license
     note = feed.note or ""
     assert "Activation hours" in note and "Temporary restrictions" in note
+
+
+def _gb() -> bytes:
+    return (FIXTURES / "aixm51-gb.xml").read_bytes()
+
+
+def _dist_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    # (lon, lat) points, small separations
+    return math.hypot(
+        (a[1] - b[1]) * 111_320,
+        (a[0] - b[0]) * 111_320 * math.cos(math.radians(a[1])),
+    )
+
+
+def test_parses_the_fixture_and_maps_uk_type_codes():
+    zones = parse_aixm51(_gb(), SRC)
+    assert [z.identifier for z in zones] == [
+        "EGTEST1", "EGD901", "EGP901", "EGD902", "EGD903",
+    ]
+    assert [z.restriction for z in zones] == [
+        "RESTRICTED", "DANGER", "PROHIBITED", "DANGER", "DANGER",
+    ]
+    # FRZ/RPZ is the most drone-meaningful bit of the dataset — it rides
+    # in the display name; zones without a localType stay untouched.
+    assert zones[0].name == "TESTFIELD RWY 09 (RPZ)"
+    assert zones[1].name == "TEST DANGER"
+
+
+def test_vertical_limits_map_sfc_msl_std_and_units():
+    zones = parse_aixm51(_gb(), SRC)
+    rpz = zones[0]
+    assert rpz.lower is not None and rpz.lower.label() == "0 ft AGL"
+    assert rpz.upper is not None and rpz.upper.label() == "2000 ft AGL"
+    prohib = zones[2]
+    assert prohib.upper is not None and prohib.upper.label() == "2000 ft AMSL"
+    rev = zones[4]
+    assert rev.upper is not None and rev.upper.label() == "FL 100"
+
+
+def test_fl999_upper_is_the_unlimited_sentinel_never_a_number():
+    danger = parse_aixm51(_gb(), SRC)[1]
+    assert danger.upper is None                # renders "not stated"
+    assert danger.lower is not None and danger.lower.label() == "FL 50"
+
+
+def test_activation_rides_in_native_and_never_becomes_applicability():
+    # An Applicability entry's presence means machine-evaluable
+    # time-bounding to the evaluator; NOTAM activation prose is not that.
+    zones = parse_aixm51(_gb(), SRC)
+    assert all(z.applicability == [] for z in zones)
+    act = zones[0].native["activation"]
+    assert act == [{"status": "AVBL_FOR_ACTIVATION",
+                    "notes": ["Mon-Sat SR to SS."]}]
+    assert zones[0].native["type"] == "R"
+    assert zones[0].native["localType"] == "RPZ"
+
+
+def test_coordinates_come_out_lon_lat_and_rings_close():
+    zones = parse_aixm51(_gb(), SRC)
+    square = zones[2].polygons[0]
+    assert square[0] == (-0.5, 51.5)            # file says "51.5 -0.5"
+    assert square[0] == square[-1]
+    for z in zones:
+        assert z.polygons[0][0] == z.polygons[0][-1]
+        assert not z.holes
+
+
+def test_circles_and_arcs_densify_at_the_published_radius():
+    zones = parse_aixm51(_gb(), SRC)
+    circle = zones[1].polygons[0]
+    assert len(circle) == 129                    # 128 points + closure
+    centre = (-1.5, 51.2)
+    for p in circle:
+        assert abs(_dist_m(p, centre) - 2 * 1852) < 5
+    arc_ring = zones[0].polygons[0]
+    assert len(arc_ring) > 30                    # ~32 arc points + corners
+    arc_centre = (-1.0, 51.0)
+    on_arc = [p for p in arc_ring if abs(_dist_m(p, arc_centre) - 1852) < 5]
+    assert len(on_arc) >= 30
+
+
+def test_a_border_reference_is_spliced_forward_and_reversed():
+    zones = parse_aixm51(_gb(), SRC)
+    mid = (0.005, 52.01)                         # the coast's middle vertex
+    for z in (zones[3], zones[4]):
+        assert any(_dist_m(p, mid) < 1 for p in z.polygons[0])
+        assert z.polygons[0][0] == z.polygons[0][-1]
+
+
+def _mutated(old: str, new: str) -> bytes:
+    text = _gb().decode("utf-8")
+    assert old in text, f"fixture no longer contains {old!r}"
+    return text.replace(old, new).encode("utf-8")
+
+
+def test_an_unknown_airspace_type_invalidates_the_document():
+    with pytest.raises(AirspaceError, match="EGD901.*not P/R/D"):
+        parse_aixm51(_mutated(">D</aixm:type>", ">Q</aixm:type>"), SRC)
+
+
+def test_an_unknown_radius_unit_raises():
+    with pytest.raises(AirspaceError, match="radius unit"):
+        parse_aixm51(_mutated('uom="[nmi_i]">2<', 'uom="KM">2<'), SRC)
+
+
+def test_an_unknown_vertical_reference_raises():
+    with pytest.raises(AirspaceError, match="SFC/MSL/STD"):
+        parse_aixm51(
+            _mutated(">MSL</aixm:upperLimitReference>",
+                     ">W84</aixm:upperLimitReference>"),
+            SRC,
+        )
+
+
+def test_fl_without_std_raises():
+    with pytest.raises(AirspaceError, match="pairs"):
+        parse_aixm51(
+            _mutated('<aixm:lowerLimit uom="FL">50</aixm:lowerLimit>',
+                     '<aixm:lowerLimit uom="FT">50</aixm:lowerLimit>'),
+            SRC,
+        )
+
+
+def test_an_unresolvable_border_reference_raises():
+    with pytest.raises(AirspaceError, match="GeoBorder"):
+        parse_aixm51(
+            _mutated('href="urn:uuid:99999999-9999-9999-9999-999999999999"',
+                     'href="urn:uuid:00000000-0000-0000-0000-000000000000"'),
+            SRC,
+        )
+
+
+def test_a_discontinuous_ring_raises():
+    # Move the straight segment's start ~3 km off the arc's end: junction
+    # tolerance is 160 m.
+    with pytest.raises(AirspaceError, match="EGTEST1"):
+        parse_aixm51(
+            _mutated("50.9999970 -0.9735822", "50.9700000 -0.9735822"), SRC
+        )
+
+
+def test_an_unsupported_segment_type_raises():
+    broken = _mutated(
+        "<gml:LineStringSegment>", "<gml:CubicSpline>"
+    ).replace(b"</gml:LineStringSegment>", b"</gml:CubicSpline>")
+    with pytest.raises(AirspaceError, match="CubicSpline"):
+        parse_aixm51(broken, SRC)
+
+
+def test_a_document_without_airspaces_raises():
+    empty = (
+        b'<?xml version="1.0"?><message:AIXMBasicMessage '
+        b'xmlns:message="http://www.aixm.aero/schema/5.1/message"/>'
+    )
+    with pytest.raises(AirspaceError, match="no airspace"):
+        parse_aixm51(empty, SRC)
+
+
+def test_non_xml_raises():
+    with pytest.raises(AirspaceError, match="not XML"):
+        parse_aixm51(b"{}", SRC)
+
+
+def test_a_dtd_is_refused_before_parsing():
+    # The dataset never declares one; refusing DTDs up front closes the
+    # stdlib parser's entity-expansion surface (defusedxml's own core
+    # defence, without the dependency).
+    evil = b'<?xml version="1.0"?><!DOCTYPE r [<!ENTITY a "b">]><r/>'
+    with pytest.raises(AirspaceError, match="DTD"):
+        parse_aixm51(evil, SRC)
