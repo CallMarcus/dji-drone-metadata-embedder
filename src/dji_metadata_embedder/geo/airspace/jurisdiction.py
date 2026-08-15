@@ -5,6 +5,9 @@ Never a user setting: one flight, one jurisdiction, chosen from the data
 jurisdiction: a track entirely inside a hull AND its core resolves; inside
 a hull but outside the core sits too close to a land border to decide from
 coordinates alone and gaps honestly; anywhere else is the no-provider gap.
+When a track sits inside more than one hull (#499: the GB and IE hulls
+overlap over Northern Ireland), cores break the tie — exactly one
+jurisdiction's core must contain the track, or it gaps as a border band.
 The boxes are deliberately coarse v1 constants — the failure mode they
 must exclude is borrowing another jurisdiction's framing, not coverage.
 """
@@ -29,6 +32,13 @@ MEASURE_EU = (
     "of the surface of the earth, with obstacle exceptions that telemetry "
     "cannot evaluate. This record states measurements and their datums; "
     "it makes no determination."
+)
+MEASURE_UK = (
+    "Where this flight took place, assimilated Regulation (EU) 2019/947 "
+    "(UK law, UAS.OPEN.010(2)) requires staying within 120 m of the "
+    "closest point of the surface of the earth, with obstacle exceptions "
+    "that telemetry cannot evaluate. This record states measurements and "
+    "their datums; it makes no determination."
 )
 
 _CORE: dict[str, list[Box]] = {
@@ -78,6 +88,29 @@ _CORE: dict[str, list[Box]] = {
         (-10.5, 51.45, -5.99, 53.85),  # south + centre (Cork/Dublin/Galway)
         (-10.2, 53.85, -8.4, 54.4),    # northwest coast (Mayo, Sligo)
     ],
+    # An island needs sea margins, not land-border margins (#499): the
+    # only land border is the IE/NI one, handled by the NI core edges
+    # mirroring the IE cores from the other side (border extremes:
+    # Carlingford ~54.03, Belleek ~-8.18). Verified 2026-08-15: Nominatim
+    # confirms (54.42,-6.5), (54.45,-6.55) and (55.2,-6.5) as UK, right at
+    # the core's south/west edges; Kent's SE corner clears Cap Gris-Nez by
+    # ~12 km, the GB hull's south edge clears Alderney by ~14.5 km, and the
+    # Hebrides core's south edge clears Malin Head/Inishtrahull by
+    # ~30/~30 km — all >=10 km.
+    # Deliberate gaps, each an honest border band: Isle of Man, Scilly,
+    # Kintyre, the IE border counties from the NI side.
+    "GB": [
+        (-5.75, 49.93, -2.2, 53.4),    # SW England + Wales (Lizard 49.95 in)
+        (-2.2, 50.45, 0.9, 51.6),      # southern England incl. London
+        (0.9, 50.88, 1.42, 51.45),     # Kent; Cap Gris-Nez stays >=10 km off
+        (-0.2, 51.6, 1.77, 53.3),      # East Anglia (Lowestoft 1.76 in)
+        (-3.65, 53.4, -0.2, 55.3),     # N England (IoM stays >=40 km west)
+        (-5.0, 55.3, -1.5, 58.7),      # Scotland mainland (Kintyre gaps)
+        (-7.6, 55.7, -4.95, 58.55),    # Hebrides; Malin Head >=30 km south
+        (-3.5, 58.85, -2.3, 59.45),    # Orkney
+        (-1.85, 59.75, -0.65, 60.9),   # Shetland
+        (-6.55, 54.42, -5.43, 55.25),  # Northern Ireland (Belfast, Coleraine)
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -92,12 +125,23 @@ _HULL: dict[str, list[Box]] = {
     # flight then gaps as a border band instead of "no provider", the same
     # semantics the CH hull gives Konstanz.
     "IE": [(-11.0, 51.3, -5.3, 55.6)],
+    # Covers Great Britain, its islands and Northern Ireland; the Isle
+    # of Man sits inside deliberately with no core (its own AIP, no
+    # Ronaldsway FRZ in the dataset) and the Channel Islands stay
+    # outside entirely (zero zones in the dataset). The NI box overlaps
+    # the IE hull on purpose: cores break the tie (#499).
+    "GB": [
+        (-5.9, 49.85, 1.9, 61.0),      # Great Britain + Northern Isles
+        (-6.6, 49.75, -5.9, 50.3),     # Scilly approaches
+        (-8.0, 55.55, -5.9, 61.0),     # Hebridean seas
+        (-8.2, 54.0, -5.35, 55.4),     # Northern Ireland
+    ],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
     "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
-    "IE": MEASURE_EU,
+    "IE": MEASURE_EU, "GB": MEASURE_UK,
 }
 
 
@@ -124,19 +168,19 @@ def resolve_jurisdiction(track: Track) -> Resolution:
     if not track.points:
         return Resolution(None, "the track has no GPS points")
     hulls = [code for code, boxes in _HULL.items() if _all_inside(track, boxes)]
-    if len(hulls) != 1:
+    if not hulls:
         return Resolution(
             None,
             "no supported airspace data source for this location "
-            "(covered: the US, Luxembourg, Finland, Switzerland and "
-            "Ireland)",
+            "(covered: the US, Luxembourg, Finland, Switzerland, "
+            "Ireland and the UK)",
         )
-    code = hulls[0]
-    if not _all_inside(track, _CORE[code]):
+    cores = [code for code in hulls if _all_inside(track, _CORE[code])]
+    if len(cores) != 1:
         return Resolution(
             None,
             "the flight sits too close to a jurisdiction boundary to "
             "choose an airspace source from coordinates alone; airspace "
             "lookup skipped",
         )
-    return Resolution(Jurisdiction(code, _MEASURE[code]), None)
+    return Resolution(Jurisdiction(cores[0], _MEASURE[cores[0]]), None)
