@@ -117,6 +117,19 @@ def test_html_renders_single_type_folders():
     assert "pb-play" in mixed_to_html([], TRACKS, title="t")
 
 
+def test_html_substitutions_are_complete():
+    # A leftover placeholder is a JS SyntaxError that kills the whole page
+    # while every substring assertion above stays green.
+    for html in (
+        mixed_to_html(POINTS, TRACKS, title="t"),
+        mixed_to_html(POINTS, TRACKS, title="t", link_base=""),
+        mixed_to_html(POINTS, [], title="t"),
+        mixed_to_html([], TRACKS, title="t"),
+    ):
+        assert not re.search(r"__[A-Z_]+__", html)
+        assert html.count("const esc =") == 1
+
+
 def test_write_mixed_html(tmp_path):
     from dji_metadata_embedder.geo.map_html import write_mixed_html
     out = write_mixed_html(POINTS, TRACKS, tmp_path / "map.html", "t")

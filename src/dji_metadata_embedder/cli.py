@@ -1480,6 +1480,13 @@ def map_cmd(
                 replaced = apply_view_thumbnails(points, src)
             except PanorenderUnavailable:
                 replaced = 0
+                if not quiet:
+                    click.echo(
+                        "Note: opening-view thumbnails need Pillow (the "
+                        "[terrain] extra); panoramas keep their full-strip "
+                        "thumbnails",
+                        err=True,
+                    )
             if replaced and not quiet:
                 click.echo(
                     f"Rendered {replaced} opening-view thumbnail"
@@ -1511,6 +1518,13 @@ def map_cmd(
                 )
             click.echo("Mapped " + " and ".join(parts))
         out = Path(output) if output else src / "map.html"
+        if serve_map and out.resolve().parent != src.resolve():
+            click.echo(
+                "Note: --serve serves the map's own folder; with -o outside "
+                "the scanned folder, photo links and the 360° viewer may "
+                "not resolve",
+                err=True,
+            )
         try:
             write_mixed_html(
                 points, tracks, out, src.resolve().name,

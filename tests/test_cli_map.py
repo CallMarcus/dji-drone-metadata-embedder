@@ -136,6 +136,30 @@ def test_map_serve_conflicts_with_jsonl(monkeypatch, tmp_path):
     assert "--serve" in res.output
 
 
+def test_map_serve_output_elsewhere_warns(monkeypatch, tmp_path):
+    _mock_scans(monkeypatch)
+    served = {}
+
+    def fake_serve(directory, filename, quiet=False, log_requests=False):
+        served["directory"] = Path(directory)
+        served["filename"] = filename
+
+    monkeypatch.setattr(cli_mod, "serve_directory", fake_serve)
+    scanned = tmp_path / "scanned"
+    scanned.mkdir()
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    out = other / "m.html"
+    res = CliRunner().invoke(
+        main, ["map", str(scanned), "-o", str(out), "--serve"])
+    assert res.exit_code == 0, res.output
+    assert served["directory"] == other
+    assert (
+        "Note: --serve serves the map's own folder; with -o outside the "
+        "scanned folder, photo links and the 360° viewer may not resolve"
+    ) in res.output
+
+
 def test_map_verbose_lists_skipped(monkeypatch, tmp_path):
     _mock_scans(monkeypatch, photo_skipped=["no_gps.jpg"],
                 srt_skipped=["cam.srt"])
@@ -169,3 +193,4 @@ def test_map_pano_thumbs_degrade_without_pillow(monkeypatch, tmp_path):
     res = CliRunner().invoke(main, ["map", str(tmp_path)])
     assert res.exit_code == 0, res.output          # degradation, not an error
     assert (tmp_path / "map.html").exists()
+    assert "Note: opening-view thumbnails need Pillow" in res.output
