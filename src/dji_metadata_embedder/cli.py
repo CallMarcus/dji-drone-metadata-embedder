@@ -39,6 +39,7 @@ from .geo import (
     write_flights_html,
     write_flights_3d_html,
     write_flights_kml,
+    write_mixed_html,
     write_photos_geojson,
     parse_popup_fields,
     write_photos_html,
@@ -1368,6 +1369,166 @@ def serve(
         bare_url=url_only,
         stop_on_stdin_eof=exit_with_stdin,
     )
+
+
+@main.command(name="map")
+@click.argument("directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "-o", "--output", type=click.Path(dir_okay=False),
+    help="Output HTML file (default: map.html inside the folder)",
+)
+@click.option(
+    "--redact",
+    type=click.Choice(["none", "fuzz"], case_sensitive=False),
+    default="none",
+    show_default=True,
+    help="GPS redaction: fuzz coarsens every photo and flight to ~100 m "
+    "before writing. Original files still carry exact GPS.",
+)
+@click.option(
+    "--serve", "serve_map", is_flag=True,
+    help="After writing the map, serve its folder at a private local address "
+         "(http://127.0.0.1, this computer only) and open the browser. "
+         "Links each pin to its original photo and enables the 360° viewer, "
+         "which browsers block on maps opened straight from disk.",
+)
+@_progress_option
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
+def map_cmd(
+    directory: str,
+    output: str | None,
+    redact: str,
+    serve_map: bool,
+    progress_mode: str | None,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """One map of everything in a folder: photos, panoramas, and flights.
+
+    The simple mode (#322): scans DIRECTORY and all its subfolders for
+    geotagged photos (JPG/JPEG/DNG, read with ExifTool) and DJI .SRT
+    flight logs, and writes one HTML map — clustered photo and 360°
+    panorama pins plus a coloured track per flight, each type and flight
+    toggleable, with playback built in. Recordings split at the 4 GB
+    limit are chained back into single flights. Deliberately few options:
+    use photomap or flightmap for control over formats, popups, links,
+    or basemaps.
+    """
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+        if serve_map:
+            raise click.UsageError(
+                "--serve cannot be combined with --progress jsonl (serving "
+                "blocks; open the written HTML yourself instead)"
+            )
+    setup_logging(verbose, quiet)
+    src = Path(directory)
+    # --serve implies linked originals, exactly like photomap: the links are
+    # what the 360° viewer opens, and they resolve because the map's own
+    # folder is what gets served.
+    link_base = "" if serve_map else None
+    with _jsonl_terminal(progress, "map"):
+        # A photo-less tree skips ExifTool entirely, so a tracks-only
+        # archive maps on a machine without it.
+        if folder_has_photos(src):
+            try:
+                points, photo_skipped = scan_photos(src, recursive=True)
+            except PhotomapError as e:
+                raise click.ClickException(str(e))
+        else:
+            points, photo_skipped = [], []
+        if redact.lower() == "fuzz":
+            points = redact_photo_points(points, "fuzz")
+        tracks, srt_skipped = scan_flights(
+            src,
+            recursive=True,
+            redact=redact.lower(),
+            on_file=progress.advance if progress.active else None,
+        )
+        if not points and not tracks:
+            found = len(photo_skipped) + len(srt_skipped)
+            if found:
+                raise click.ClickException(
+                    f"Nothing to map in {src}: {found} file"
+                    f"{'s' if found != 1 else ''} found, none with GPS data"
+                )
+            raise click.ClickException(
+                f"Nothing to map in {src}: no photos (JPG/JPEG/DNG) and "
+                "no .SRT flight logs found"
+            )
+        for name in photo_skipped:
+            progress.warning("No GPS data", item=name)
+            if verbose:
+                click.echo(f"Skipped (no GPS): {name}", err=True)
+        for name in srt_skipped:
+            progress.warning("No GPS telemetry", item=name)
+            if verbose:
+                click.echo(f"Skipped (no GPS telemetry): {name}", err=True)
+        # Opening-view thumbnails render automatically when Pillow is present
+        # (photomap's opt-in --pano-view-thumbs is this mode's default); a
+        # bare install keeps the 2:1 strips — presentation-only degradation,
+        # never an error. Imported here, not at module load, for the same
+        # reason as photomap's: a base install must keep working.
+        if any(p.is_pano and p.pano_yaw is not None for p in points):
+            from .geo.panorender import (
+                PanorenderUnavailable,
+                apply_view_thumbnails,
+            )
+            try:
+                replaced = apply_view_thumbnails(points, src)
+            except PanorenderUnavailable:
+                replaced = 0
+            if replaced and not quiet:
+                click.echo(
+                    f"Rendered {replaced} opening-view thumbnail"
+                    f"{'s' if replaced != 1 else ''}"
+                )
+        if serve_map and redact.lower() == "fuzz":
+            click.echo(
+                "Note: --redact fuzz coarsens the map coordinates, but the "
+                "linked original photos still carry exact GPS in their EXIF",
+                err=True,
+            )
+        if not quiet:
+            parts = []
+            if points:
+                more = (
+                    f" ({len(photo_skipped)} without GPS)"
+                    if photo_skipped else ""
+                )
+                parts.append(
+                    f"{len(points)} photo{'s' if len(points) != 1 else ''}{more}"
+                )
+            if tracks:
+                more = (
+                    f" ({len(srt_skipped)} without telemetry)"
+                    if srt_skipped else ""
+                )
+                parts.append(
+                    f"{len(tracks)} flight{'s' if len(tracks) != 1 else ''}{more}"
+                )
+            click.echo("Mapped " + " and ".join(parts))
+        out = Path(output) if output else src / "map.html"
+        try:
+            write_mixed_html(
+                points, tracks, out, src.resolve().name,
+                link_base=link_base, redact=redact.lower(),
+            )
+        except OSError as e:
+            raise click.ClickException(f"Could not write {out}: {e}")
+        progress.result(
+            ok=True,
+            outputs=[str(out.resolve())],
+            summary={
+                "photos": len(points),
+                "flights": len(tracks),
+                "skipped": len(photo_skipped) + len(srt_skipped),
+            },
+        )
+    if serve_map:
+        serve_directory(out.parent, out.name, quiet=quiet, log_requests=verbose)
 
 
 @main.command()
