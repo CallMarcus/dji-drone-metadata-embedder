@@ -38,6 +38,9 @@ it's a handful of copy-paste commands. For a guided tour see
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
+- **Map a whole mixed folder in one go** — `dji-embed map` puts photo pins,
+  360° panorama pins, and every flight's track on a single HTML map, no
+  options to learn.
 - **Choose each panorama's opening view** — `dji-embed panoedit` is a
   drag-and-save editor for the GPano initial-view tags, honored by the photo
   map and Google Photos; `photomap --pano-view-thumbs` turns the saved views
@@ -230,6 +233,7 @@ maps there's also `dji-embed photomap <folder> --serve`.
 |---|---|
 | See all my flights on one map | `dji-embed flightmap /path/to/footage` |
 | See my photos on a map | `dji-embed photomap /path/to/photos` |
+| Map a mixed folder (photos + flights) | `dji-embed map /path/to/folder` |
 | Map one flight in detail | `dji-embed convert html DJI_0001.SRT` |
 | Make videos searchable by location | `dji-embed embed /path/to/footage` |
 | Get a GPX track for Google Earth | `dji-embed convert gpx DJI_0001.SRT` |
@@ -296,6 +300,7 @@ Commands:
   validate   Validate SRT/MP4 pairs and report drift
   convert    Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
   flightmap  Map every flight in a folder of SRT logs on one combined map
+  map        One map of everything in a folder: photos, panoramas, and flights
   photomap   Map GPS-tagged still photos to an HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
   doctor     Show system information and verify dependencies
@@ -536,6 +541,25 @@ Notes:
   [docs/geospatial.md](docs/geospatial.md#3d-terrain-view); note that
   `--redact fuzz` withholds the footprint and the crossfade, because
   coarsened coordinates cannot honestly say which ground was filmed.
+
+### `dji-embed map` - One Map Of Everything
+
+The simple mode: point it at a mixed folder and get a single HTML map of
+the geotagged photos, 360° panoramas, and DJI flight tracks inside. It
+always scans subfolders, chains recordings split at the 4 GB limit back
+into single flights, and needs no decisions — photos require ExifTool,
+flight tracks don't.
+
+```bash
+dji-embed map /path/to/folder                 # -> folder/map.html
+dji-embed map /path/to/folder --serve         # local server + 360° viewer
+dji-embed map /path/to/folder --redact fuzz   # coarsen all GPS to ~100 m
+```
+
+Photos cluster and toggle exactly like `photomap`; flights draw and play
+back exactly like `flightmap`. Reach for those two commands when you need
+KML/GeoJSON output, popup control, linked originals, basemap styles, or
+the 3D map.
 
 ### `dji-embed photomap` - Map Still Photos
 

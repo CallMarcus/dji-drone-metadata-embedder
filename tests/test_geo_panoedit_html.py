@@ -2,17 +2,17 @@
 from __future__ import annotations
 
 from dji_metadata_embedder.geo.panoedit_html import build_editor_page
-from dji_metadata_embedder.geo.photomap_html import (
-    _PANNELLUM_CSS_SRI,
-    _PANNELLUM_JS_SRI,
-    _PANNELLUM_VERSION,
+from dji_metadata_embedder.geo.photomap_js import (
+    PANNELLUM_CSS_SRI,
+    PANNELLUM_JS_SRI,
+    PANNELLUM_VERSION,
 )
 
 
 def test_page_pins_pannellum_with_sri():
     html = build_editor_page("tok123")
-    assert f"pannellum@{_PANNELLUM_VERSION}" in html
-    assert _PANNELLUM_CSS_SRI in html and _PANNELLUM_JS_SRI in html
+    assert f"pannellum@{PANNELLUM_VERSION}" in html
+    assert PANNELLUM_CSS_SRI in html and PANNELLUM_JS_SRI in html
 
 
 def test_page_embeds_token_and_hooks():

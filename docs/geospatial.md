@@ -664,6 +664,38 @@ contains the exact coordinates — the fuzz only applies to the map.
 dji-embed photomap /path/to/photos --redact fuzz
 ```
 
+## Combined map (`map`)
+
+```bash
+dji-embed map ./mixed-folder                  # -> mixed-folder/map.html
+dji-embed map ./mixed-folder --serve          # local server + 360° viewer
+dji-embed map ./mixed-folder --redact fuzz    # ~100 m coarsened photos and tracks
+```
+
+The simple mode (#322): point `map` at a folder that mixes photos,
+panoramas, and DJI `.SRT` flight logs, and get one HTML map of all of it —
+no format choice, no popup tuning, no basemap style. It always scans
+subfolders; photos cluster and toggle exactly as in `photomap`, flights
+draw and play back exactly as in `flightmap`, and recordings split at the
+4 GB limit are chained back into single flights the same way. A tree with
+no photos never touches ExifTool, so a tracks-only archive maps on a
+machine that doesn't have it installed.
+
+Panoramas that already have a saved opening view (see [Setting the opening
+view](#setting-the-opening-view)) render their popup thumbnail as a square
+crop automatically — `photomap`'s opt-in `--pano-view-thumbs` is `map`'s
+default.
+
+Reach for `photomap` or `flightmap` instead when you need KML/GeoJSON
+output, `--popup-fields`, `--link-originals`/`--link-base`, `--tile-style`,
+`--tz-offset`, or the 3D terrain view — `map` deliberately doesn't expose
+them.
+
+`--redact fuzz` coarsens every photo and flight to ~100 m before the map is
+written, the same as `photomap` and `flightmap`. Combined with `--serve`,
+the tool warns once that the linked original photos still carry exact GPS
+in their EXIF — share those deliberately too.
+
 ## Privacy
 
 All three geo formats honour `--redact`:

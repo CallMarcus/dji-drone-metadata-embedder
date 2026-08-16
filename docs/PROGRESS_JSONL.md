@@ -1,7 +1,7 @@
 # `--progress jsonl` — machine-readable progress events
 
-`photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`, `validate`,
-`verify-sun`, and `fetch-log` accept `--progress jsonl`. In
+`map`, `photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`,
+`validate`, `verify-sun`, and `fetch-log` accept `--progress jsonl`. In
 this mode a command writes **one JSON object per line to stdout** and nothing
 else — human/informational output is suppressed, and warnings and log
 messages go to stderr. A non-zero exit code always means the run failed;
@@ -60,6 +60,21 @@ interleaved with the `progress` events. Attribute them by their `item`
 field, never by arrival order.
 
 ## Per-command notes
+
+### `map`
+- One `progress` event per `.SRT` file scanned, exactly like `flightmap` —
+  the photo scan is a single batch ExifTool call and emits none; `start`
+  carries no `total` (the file count is discovered during the scan — take
+  `total` from the first `progress` event).
+- One `warning` per photo without GPS (`message` is `"No GPS data"`, the
+  file name is in `item`) and one per SRT without GPS telemetry (`message`
+  is `"No GPS telemetry"`, the file name is in `item`), both emitted after
+  their respective scans complete.
+- `summary`: `{"photos": N, "flights": N, "skipped": N}` — `skipped` is the
+  combined count of GPS-less photos and telemetry-less SRTs.
+- `--serve` cannot be combined with `--progress jsonl` (serving blocks
+  forever; frontends open the written HTML themselves), same rule as
+  `photomap`.
 
 ### `flightmap`
 - One `progress` event per `.SRT` file scanned; `start` carries no `total`

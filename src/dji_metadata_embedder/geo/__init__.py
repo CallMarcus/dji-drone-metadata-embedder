@@ -22,6 +22,7 @@ from .footprint import FOV_TABLE, Footprint, build_footprints, lens_for
 from .geojson import convert_to_geojson, track_to_geojson
 from .html_viewer import convert_to_html, track_to_html
 from .kml import convert_to_kml, track_to_kml
+from .map_html import write_mixed_html
 from .photomap import (
     PhotomapError,
     PhotoPoint,
@@ -86,5 +87,6 @@ __all__ = [
     "write_flights_html",
     "flights_to_3d_html",
     "write_flights_3d_html",
+    "write_mixed_html",
     "serve_directory",
 ]
