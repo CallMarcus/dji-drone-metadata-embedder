@@ -1,17 +1,17 @@
 """Editor page for panoedit (#440): Pannellum viewer + live GPano readout
 + save/auto-advance. Served by :mod:`.panoedit`; no build step, hand-rolled
 JS like the other geo HTML modules. The Pannellum pin/SRI is imported from
-photomap_html so the two viewers can never drift apart."""
+photomap_js so the two viewers can never drift apart."""
 
 from __future__ import annotations
 
 import json
 
 from .provenance import stamp
-from .photomap_html import (
-    _PANNELLUM_CSS_SRI,
-    _PANNELLUM_JS_SRI,
-    _PANNELLUM_VERSION,
+from .photomap_js import (
+    PANNELLUM_CSS_SRI,
+    PANNELLUM_JS_SRI,
+    PANNELLUM_VERSION,
 )
 
 # The page's own backstop for a save request that never returns. Must
@@ -466,9 +466,9 @@ def build_editor_page(
         "hint": "" if renditions else hint,
     }
     return stamp(_PAGE.format(
-        pannellum=_PANNELLUM_VERSION,
-        pannellum_css_sri=_PANNELLUM_CSS_SRI,
-        pannellum_js_sri=_PANNELLUM_JS_SRI,
+        pannellum=PANNELLUM_VERSION,
+        pannellum_css_sri=PANNELLUM_CSS_SRI,
+        pannellum_js_sri=PANNELLUM_JS_SRI,
         token=json.dumps(token).replace("<", "\\u003c"),
         serve=json.dumps(serve).replace("<", "\\u003c"),
         save_timeout_ms=int(save_timeout_ms),
