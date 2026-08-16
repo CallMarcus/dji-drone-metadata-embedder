@@ -8,6 +8,7 @@ GeoJSON and KML here, the clustered HTML map in :mod:`.photomap_html`.
 from __future__ import annotations
 
 import base64
+import io
 import json
 import logging
 import os
@@ -76,11 +77,21 @@ _PHOTO_EXTS = ("jpg", "jpeg", "dng")
 # writers may embed it in CDATA/data URIs without further escaping.
 _BASE64_RE = re.compile(r"[A-Za-z0-9+/=\s]+")
 
-# Cap on the PreviewImage fallback so a DNG-heavy archive doesn't blow the
-# ~15-40 KB/photo embed budget (raw previews can be multi-MB). ~225 KB decoded.
-# UNVERIFIED against a real DJI DNG: the JSON shape is assumed identical to
-# ThumbnailImage ("base64:...") — the tag differs, the encoding does not.
-_MAX_PREVIEW_B64_CHARS = 300_000
+# Cap on a raw PreviewImage embed (~450 KB decoded). A real Air 3S preview is
+# ~396 KB binary → ~527k base64 chars (#509), so the cap must clear that; the
+# JSON shape ("base64:..." like ThumbnailImage) is verified against FC9113.
+# Pillow-equipped installs never get near it — oversized previews are
+# downscaled into the normal ~15-40 KB/photo embed budget instead.
+_MAX_PREVIEW_B64_CHARS = 600_000
+
+# Previews at or below this embed as-is even with Pillow present: they are
+# already thumbnail-scale and a re-encode would only cost quality.
+_PREVIEW_DOWNSCALE_MIN_CHARS = 60_000
+
+# Downscale target: popups render at 260 CSS px, so 640 px covers 2x-DPI
+# displays with margin while keeping the re-encoded JPEG in budget.
+_PREVIEW_MAX_EDGE_PX = 640
+_PREVIEW_JPEG_QUALITY = 80
 
 
 @dataclass
@@ -234,17 +245,60 @@ def _thumb_dimensions(thumb_b64: str) -> tuple[int, int] | None:
         return None
 
 
-def _extract_thumbnail_b64(entry: dict) -> str | None:
-    """Pick a preview blob: the small EXIF thumbnail, else a size-capped PreviewImage.
+def _pil_image():
+    """Pillow's ``Image`` module, or ``None`` when Pillow is absent.
 
-    The EXIF thumbnail is always preferred (small, present on JPGs). PreviewImage
-    is the DNG fallback, taken only when it stays under ``_MAX_PREVIEW_B64_CHARS``.
+    Imported lazily, like :mod:`.panoedit`: Pillow ships in the ``[terrain]``
+    extra (and every packaged build), and a bare install must still map DNGs —
+    just with raw rather than downscaled previews.
+    """
+    try:
+        from PIL import Image  # type: ignore[import-untyped]
+    except ImportError:
+        return None
+    return Image
+
+
+def _downscale_preview(preview_b64: str) -> str | None:
+    """Re-encode a large preview to ``_PREVIEW_MAX_EDGE_PX``, ``None`` on failure.
+
+    Failure (no Pillow, undecodable bytes) is not an error: the caller falls
+    back to embedding the raw preview under ``_MAX_PREVIEW_B64_CHARS``.
+    """
+    Image = _pil_image()
+    if Image is None:
+        return None
+    try:
+        with Image.open(io.BytesIO(base64.b64decode(preview_b64))) as im:
+            rgb = im.convert("RGB")
+        rgb.thumbnail((_PREVIEW_MAX_EDGE_PX, _PREVIEW_MAX_EDGE_PX), Image.LANCZOS)
+        buf = io.BytesIO()
+        rgb.save(buf, format="JPEG", quality=_PREVIEW_JPEG_QUALITY)
+    except (OSError, ValueError):
+        return None
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _extract_thumbnail_b64(entry: dict) -> str | None:
+    """Pick a preview blob: the small EXIF thumbnail, else the PreviewImage.
+
+    The EXIF thumbnail is always preferred (small, present on JPGs).
+    PreviewImage is the DNG fallback (#509): small ones embed as-is, large
+    ones are downscaled into the embed budget when Pillow is available, and
+    otherwise embed raw as long as they fit ``_MAX_PREVIEW_B64_CHARS``.
     """
     thumb = _clean_base64(entry.get("ThumbnailImage"))
     if thumb is not None:
         return thumb
     preview = _clean_base64(entry.get("PreviewImage"))
-    if preview is not None and len(preview) <= _MAX_PREVIEW_B64_CHARS:
+    if preview is None:
+        return None
+    if len(preview) <= _PREVIEW_DOWNSCALE_MIN_CHARS:
+        return preview
+    scaled = _downscale_preview(preview)
+    if scaled is not None:
+        return scaled
+    if len(preview) <= _MAX_PREVIEW_B64_CHARS:
         return preview
     return None
 

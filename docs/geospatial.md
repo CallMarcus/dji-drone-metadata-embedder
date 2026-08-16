@@ -481,8 +481,11 @@ one pass (`dji-embed doctor` checks it's installed); the HTML map clusters
 nearby shots into an expandable marker, and clicking a pin shows the EXIF
 thumbnail, filename, timestamp, altitude, and camera settings — plus an
 attribution line when the photo carries `Artist`/`Copyright` metadata (see
-below). Photos with no GPS are skipped and counted in a summary; `-v` lists
-them.
+below). DNGs carry no EXIF thumbnail, so their embedded preview is used
+instead — downscaled to thumbnail size when Pillow is available (the
+`[terrain]` extra; included in the packaged builds), embedded as-is
+otherwise. Photos with no GPS are skipped and counted in a summary; `-v`
+lists them.
 
 With `--link-originals`, a popup's thumbnail and filename become a
 click-through to the full-resolution original (JPGs open inline, DNGs

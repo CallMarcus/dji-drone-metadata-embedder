@@ -1,9 +1,13 @@
+import base64
+import io
 import json as jsonlib
+import os
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from dji_metadata_embedder.geo.photomap import (
     PhotoPoint,
@@ -141,6 +145,57 @@ def test_oversized_preview_is_dropped_to_protect_budget():
         "PreviewImage": "base64:" + big,
     }])
     assert points[0].thumbnail_b64 is None
+
+
+def _noise_jpeg_b64(width: int, height: int) -> str:
+    """A real JPEG big enough to overflow the preview cap (noise defeats compression)."""
+    im = Image.frombytes("RGB", (width, height), os.urandom(width * height * 3))
+    buf = io.BytesIO()
+    im.save(buf, format="JPEG", quality=95)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def test_oversized_preview_is_downscaled_when_pillow_available():
+    # Real Air 3S DNG previews (~527k b64 chars, #509) must still yield a popup
+    # image: with Pillow present they are downscaled into the embed budget.
+    from dji_metadata_embedder.geo import photomap as pm
+
+    big = _noise_jpeg_b64(2400, 1200)
+    assert len(big) > pm._MAX_PREVIEW_B64_CHARS
+    points, _ = points_from_exiftool_json([{
+        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+        "PreviewImage": "base64:" + big,
+    }])
+    thumb = points[0].thumbnail_b64
+    assert thumb is not None and len(thumb) < len(big)
+    dims = pm._thumb_dimensions(thumb)
+    assert dims is not None and max(dims) <= pm._PREVIEW_MAX_EDGE_PX
+    assert dims[0] / dims[1] == pytest.approx(2.0, abs=0.02)  # aspect preserved
+
+
+def test_oversized_preview_embeds_raw_when_pillow_missing(monkeypatch):
+    # Plain pip installs have no Pillow: a real-world-sized preview embeds
+    # as-is under the raised cap rather than silently vanishing.
+    from dji_metadata_embedder.geo import photomap as pm
+
+    monkeypatch.setattr(pm, "_pil_image", lambda: None)
+    big = "A" * 400_000  # over the old 300k cap, under the raised one
+    points, _ = points_from_exiftool_json([{
+        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+        "PreviewImage": "base64:" + big,
+    }])
+    assert points[0].thumbnail_b64 == big
+
+
+def test_undecodable_oversized_preview_falls_back_to_raw_embed():
+    # Valid base64 that is not a decodable image: the downscale fails, and the
+    # raw bytes still embed as long as they fit the cap.
+    big = "A" * 400_000
+    points, _ = points_from_exiftool_json([{
+        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
+        "PreviewImage": "base64:" + big,
+    }])
+    assert points[0].thumbnail_b64 == big
 
 
 def test_scan_photos_requests_preview_tag(monkeypatch, tmp_path):
