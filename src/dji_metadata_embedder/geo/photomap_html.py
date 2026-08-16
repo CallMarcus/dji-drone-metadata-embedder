@@ -23,6 +23,7 @@ from .photomap_js import (
     CLUSTER_DEFAULT_CSS_SRI,
     CLUSTER_JS_SRI,
     CLUSTER_VERSION,
+    HOVER_CONTROL_JS,
     PANO_HEAD,
     PANO_JS,
     PANO_OVERLAY,
@@ -162,6 +163,8 @@ if (photoMarkers.length && panoMarkers.length) {
       panoCluster
   }, { collapsed: false }).addTo(map);
 }
+__HOVER_CONTROL__
+
 if (photoLatLngs.length > 1) {
   map.fitBounds(L.latLngBounds(photoLatLngs).pad(0.1), { maxZoom: 17 });
 } else if (photoLatLngs.length === 1) {
@@ -222,6 +225,7 @@ def photos_to_html(
         pano_scripts=PANO_SCRIPT if pano_enabled else "",
         app_js=(
             _APP_JS.replace("__PHOTO_LAYER__", PHOTO_LAYER_JS)
+            .replace("__HOVER_CONTROL__", HOVER_CONTROL_JS)
             + (PANO_JS if pano_enabled else "")
         ).replace("__TILE_LAYER__", tile_layer_js(tile_style)),
     ))

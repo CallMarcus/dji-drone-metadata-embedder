@@ -11,7 +11,12 @@ embedded by string substitution.
 ``photoFeatures`` (the GeoJSON ``Point`` features to render). It defines
 ``photoCluster``/``panoCluster``/``photoMarkers``/``panoMarkers``/
 ``photoLatLngs`` for the embedding template's layer control and bounds
-logic. :data:`PANO_JS` is appended by templates only when panoramas are
+logic. :data:`HOVER_CONTROL_JS` is the mouse-only hover-previews control; it
+reads ``TOUCH``, ``allMarkers``, and the hover-pref helpers that
+:data:`PHOTO_LAYER_JS` defines, so it must be emitted after
+:data:`PHOTO_LAYER_JS`, and templates must emit it after their own type
+layer control so the two top-right controls keep their original stacking
+order. :data:`PANO_JS` is appended by templates only when panoramas are
 linked, so ``pannellum`` and the overlay elements are guaranteed to exist
 whenever a ``pano-open`` anchor does.
 """
@@ -224,7 +229,7 @@ function buildPopup(f) {
   let html = '<div class="photo-popup">';
   if (p.link && p.pano) {
     // GPano panorama: the thumbnail/name click opens the embedded 360 viewer
-    // (see _PANO_JS); a plain "open original" link is appended below. The
+    // (see PANO_JS); a plain "open original" link is appended below. The
     // pano's initial view (#309) and credit (#310) ride along as data-
     // attributes for openPano. yaw/pitch/hfov are numbers straight from the
     // embedded JSON, never strings.
@@ -309,8 +314,13 @@ map.on('popupopen', e => {
   if (img && !img.complete) {
     img.addEventListener('load', () => e.popup.update(), { once: true });
   }
-});
-if (!TOUCH) {
+});"""
+
+# Mouse-only hover-previews control (issue #345). Reads TOUCH, allMarkers, and
+# the hover-pref helpers defined by PHOTO_LAYER_JS, so it must be emitted
+# after PHOTO_LAYER_JS — and after a template's own type layer control, so
+# the two top-right controls keep their original stacking order.
+HOVER_CONTROL_JS = """if (!TOUCH) {
   const HoverControl = L.Control.extend({
     onAdd() {
       const div = L.DomUtil.create(
