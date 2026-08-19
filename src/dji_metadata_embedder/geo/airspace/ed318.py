@@ -1,21 +1,29 @@
 """ED-318 GeoJSON-profile UAS geographical-zone parser (#452).
 
-Ireland's official publication (iaa.ie) is a plain GeoJSON
-FeatureCollection in the ED-318 shape: zone fields live in ``properties``
-(restriction class under ``type``), vertical limits ride in a non-standard
-``layer`` member inside each feature's ``geometry``, and timed windows are
-``properties.limitedApplicability``. All-or-nothing like the ED-269
-parser: any malformed zone raises rather than silently thinning the set.
+Ireland's (iaa.ie) and Sweden's (LFV dronechart) official publications are
+plain GeoJSON FeatureCollections in the ED-318 shape: zone fields live in
+``properties`` (restriction class under ``type``), vertical limits ride in
+a non-standard ``layer`` member inside each feature's ``geometry``, and
+timed windows are ``properties.limitedApplicability``. All-or-nothing like
+the ED-269 parser: any malformed zone raises rather than silently thinning
+the set.
 
-The published filename is dated and versioned
-(``20260804_uas_zones_ireland_v1.geojson``), so the registry pins the
-stable zones *page* and the current file href is discovered at fetch time.
+Ireland's published filename is dated and versioned
+(``20260804_uas_zones_ireland_v1.geojson``), so its registry entry pins the
+stable zones *page* and the current href is discovered at fetch time;
+Sweden's file URL is itself the stable address and is pinned directly.
 
 Permission record (issue #452): the IAA's Airspace & U-space Inspector
 rejected the ArcGIS service and pointed at this published file in reply to
 our stated open-source reuse request, 2026-08-11. The page carries no
 formal licence; its "reference only, not to be used for navigation"
 wording is preserved in the feed note.
+
+Sweden's permission record (issue #510): LFV Operations UTM confirmed in
+writing on 2026-08-19 that the ED-318 file is free to download and use —
+cite LFV as source, no logos, do not modify the zone content. The file
+URL is the stable published address (until LFV system changes expected
+around 2027/2028), so the registry pins it directly with no discovery.
 """
 
 from __future__ import annotations
@@ -25,6 +33,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urljoin
 
+from .dronezoner import _circle_ring
 from .ed269 import _utc
 from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
 
@@ -37,6 +46,9 @@ class Ed318Feed:
     license: str
     caveat: str
     note: str | None = None
+    # A stable direct file URL; when set, fetch skips page discovery and
+    # the record cites this URL (it IS the published address).
+    file_url: str | None = None
 
 
 _CAVEAT = (
@@ -61,6 +73,23 @@ ED318_FEEDS: dict[str, Ed318Feed] = {
         note=(
             "IAA publication note: reference only — not to be used for "
             "navigation."
+        ),
+    ),
+    "SE": Ed318Feed(
+        code="SE",
+        page_url="https://dronechart.lfv.se/",
+        file_url="https://dronechart.lfv.se/data/uas_zones_ED318.json",
+        feed_name="Sweden UAS geographical zones (ED-318, LFV)",
+        license=(
+            "© LFV — free to download and use, cite LFV as source "
+            "(confirmed in writing by LFV Operations UTM, 2026-08-19)"
+        ),
+        caveat=_CAVEAT,
+        note=(
+            "Published by LFV with Transportstyrelsen as data provider. "
+            "Some zones apply only during scheduled hours within their "
+            "validity window; the schedule is in the zone's published "
+            "data and is not evaluated here."
         ),
     ),
 }
@@ -99,6 +128,38 @@ def _limit(layer: dict, side: str, unit: str, where: str) -> VerticalLimit | Non
     return VerticalLimit(float(value), unit, ref)
 
 
+def _zone_name(props: dict, ident: str, where: str) -> str:
+    """The zone's display name; multilingual lists pick the English text.
+
+    The Swedish file publishes ``name`` as a list of ``{text, lang}``
+    entries (en-GB + se-SE); Ireland publishes a plain string. The
+    original list rides untouched in ``native``."""
+    raw = props.get("name")
+    if raw is None or isinstance(raw, str):
+        return str(raw or ident)
+    if isinstance(raw, list):
+        texts = [
+            entry["text"].strip()
+            for entry in raw
+            if isinstance(entry, dict)
+            and isinstance(entry.get("text"), str)
+            and entry["text"].strip()
+        ]
+        english = [
+            entry["text"].strip()
+            for entry in raw
+            if isinstance(entry, dict)
+            and entry.get("lang") == "en-GB"
+            and isinstance(entry.get("text"), str)
+            and entry["text"].strip()
+        ]
+        if english:
+            return english[0]
+        if texts:
+            return texts[0]
+    raise AirspaceError(f"{where} ({ident}): unusable name {raw!r}")
+
+
 def _rings(
     geometry: dict, ident: str, where: str
 ) -> tuple[list[list[tuple[float, float]]], list[list[tuple[float, float]]]]:
@@ -126,6 +187,37 @@ def _rings(
             # kept apart so the evaluator subtracts them (#422).
             (polygons if ring_index == 0 else holes).append(parsed)
     return polygons, holes
+
+
+def _point_circle(
+    geometry: dict, ident: str, where: str
+) -> list[tuple[float, float]]:
+    """A Point zone's densified ring from its ED-318 Circle extent.
+
+    The profile publishes point zones as centre + ``extent`` of
+    ``{"subType": "Circle", "radius": <metres>}`` (the live Swedish file's
+    ESU247 radius is 1852.0 — exactly one nautical mile). Anything else is
+    a shape this parser has never seen live and fails loudly."""
+    extent = geometry.get("extent")
+    if not isinstance(extent, dict) or extent.get("subType") != "Circle":
+        raise AirspaceError(
+            f"{where} ({ident}): Point geometry without a Circle extent "
+            "is not supported"
+        )
+    radius = extent.get("radius")
+    if not isinstance(radius, (int, float)) or radius <= 0:
+        raise AirspaceError(
+            f"{where} ({ident}): Circle radius {radius!r} is not a "
+            "positive number of metres"
+        )
+    coords = geometry.get("coordinates") or []
+    try:
+        lon, lat = float(coords[0]), float(coords[1])
+    except (TypeError, ValueError, IndexError) as exc:
+        raise AirspaceError(
+            f"{where} ({ident}): malformed Point coordinates {coords!r}"
+        ) from exc
+    return _circle_ring(lon, lat, float(radius))
 
 
 def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
@@ -187,13 +279,17 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
             unit = "ft" if str(layer.get("uom", "M")).upper() == "FT" else "m"
             lower = _limit(layer, "lower", unit, f"{where} ({ident})")
             upper = _limit(layer, "upper", unit, f"{where} ({ident})")
-        polygons, holes = _rings(geometry, ident, where)
+        if geometry.get("type") == "Point":
+            polygons = [_point_circle(geometry, ident, where)]
+            holes: list[list[tuple[float, float]]] = []
+        else:
+            polygons, holes = _rings(geometry, ident, where)
         if not polygons:
             raise AirspaceError(f"{where} ({ident}): no polygon geometry")
         zones.append(
             Zone(
                 identifier=ident,
-                name=str(props.get("name") or ident),
+                name=_zone_name(props, ident, where),
                 restriction=restriction,
                 lower=lower,
                 upper=upper,

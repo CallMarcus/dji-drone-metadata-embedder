@@ -80,9 +80,11 @@ def test_a_gap_jurisdiction_still_yields_the_logbook_half(tmp_path, monkeypatch)
     def no_network(req, timeout=None):
         raise AssertionError("a gap flight must not touch the network")
 
-    pts = [TrackPoint(lat=59.33, lon=18.07, alt=50, timestamp="c",
+    # Oslo: deliberately outside every hull (Sweden's starts at 10.9E), so
+    # this stays a no-provider gap now that Swedish flights resolve (#510).
+    pts = [TrackPoint(lat=59.91, lon=10.75, alt=50, timestamp="c",
                       utc=datetime(2026, 7, 30, 12, 0), rel_alt=20)]
-    rec = build_records([Track(name="SWE", points=pts)], cache_dir=tmp_path,
+    rec = build_records([Track(name="NOR", points=pts)], cache_dir=tmp_path,
                         transport=no_network)[0]
     assert rec.airspace.gap_reason is not None
     assert rec.measure_note is None  # no borrowed framing

@@ -130,6 +130,36 @@ _CORE: dict[str, list[Box]] = {
         (10.85, 57.1, 11.25, 57.35),   # Læsø
         (11.38, 56.6, 11.78, 56.78),   # Anholt
     ],
+    # Long land borders with Norway (west) and Finland (the Torne/Muonio
+    # valley, northeast), plus the Öresund narrows against Denmark. All
+    # 26 edge probes Nominatim-verified 2026-08-19: Swedish markers
+    # (Malmö, Vinga, Grisslehamn, Halmstad, Kalix coast, Kiruna, Fårö…)
+    # resolve SE inside the cores, foreign markers (Saltholm/Læsø/Anholt
+    # DK, Halden NO, Eckerö and Valsörarna FI) sit outside them. Probes
+    # at 12.75–12.9E (61.0–61.7N), near the Trysil-area bulge on the
+    # Norwegian side of the border, resolve SE — confirming Norway's
+    # easternmost reach there sits west of 12.9E, so the inland 13.4
+    # west edge keeps >=27 km of margin. Deliberate gaps, each
+    # an honest border band: the Öresund shore north of Malmö (Ven,
+    # Landskrona, Helsingborg, Kullen/Bjäre), Strömstad and the
+    # Norway-border strip, the Torne valley (Haparanda, Karesuando),
+    # and the outer Stockholm archipelago beyond the Åland margin.
+    # The mountain municipalities (Sälen, Åre) sit west of the hull
+    # entirely, so they get the no-provider message, not the band one.
+    "SE": [
+        (12.95, 55.33, 16.05, 56.45),  # Skåne + Blekinge (Saltholm DK >=10 km W)
+        (12.0, 56.45, 12.95, 57.15),   # Halland coast (Anholt DK >=21 km W)
+        (11.55, 57.15, 12.3, 58.55),   # west coast, Gothenburg (Læsø DK >=19 km W)
+        (16.3, 56.15, 17.2, 57.4),     # Öland
+        (17.9, 56.85, 19.4, 58.0),     # Gotland incl. Fårö
+        (12.3, 56.35, 19.2, 58.9),     # Götaland interior + east coast
+        (13.4, 58.9, 19.3, 59.7),      # south Svealand (Stockholm, Karlstad)
+        (13.4, 59.7, 18.9, 61.5),      # north Svealand (Märket FI >=13 km E)
+        (14.5, 61.5, 20.6, 63.6),      # lower Norrland (Kvarken FI >=23 km E)
+        (17.5, 63.6, 23.2, 65.95),     # upper Norrland coast (Umeå, Luleå, Boden)
+        (18.9, 65.95, 22.4, 67.5),     # Jokkmokk/Gällivare (Torne border >=40 km E)
+        (19.6, 67.5, 21.6, 68.0),      # Kiruna
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -163,12 +193,21 @@ _HULL: dict[str, list[Box]] = {
         (11.0, 54.5, 12.78, 57.4),     # Zealand / Lolland-Falster / Øresund
         (14.6, 54.9, 15.35, 55.38),    # Bornholm
     ],
+    # Læsø, Bornholm and the Copenhagen shore sit inside the south hull
+    # deliberately and resolve DK via its cores (#499 tie-break); Halden,
+    # Åland and the Tornio strip sit inside as honest border bands
+    # (Konstanz semantics). Oslo stays outside entirely (west of 10.9).
+    "SE": [
+        (10.9, 55.05, 19.7, 61.0),     # Götaland + Svealand + approaches
+        (13.4, 61.0, 24.3, 66.4),      # Norrland + the Bothnian sea
+        (16.3, 66.4, 24.2, 69.3),      # Lapland up to Treriksröset
+    ],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
     "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
-    "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU,
+    "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU, "SE": MEASURE_EU,
 }
 
 
@@ -200,7 +239,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK and Denmark)",
+            "Ireland, the UK, Denmark and Sweden)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

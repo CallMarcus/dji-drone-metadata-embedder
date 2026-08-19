@@ -80,6 +80,10 @@ def zones_to_overlay_json(
             line = f"Airspace: {data.source.feed}, fetched {data.source.fetched}"
             if line not in notes:
                 notes.append(line)
+            if data.source.note:
+                note_line = f"Airspace note: {data.source.note}"
+                if note_line not in notes:
+                    notes.append(note_line)
         report = evaluate(track, data.zones)
         for zone in data.zones:
             key = (zone.source.feed, zone.identifier)

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from dji_metadata_embedder.geo.airspace.ed269 import ED269_FEEDS, parse_ed269
+from dji_metadata_embedder.geo.airspace.ed318 import ED318_FEEDS, parse_ed318
 from dji_metadata_embedder.geo.airspace.fetch import AirspaceData
 from dji_metadata_embedder.geo.airspace.model import SourceInfo, VerticalLimit, Zone
 from dji_metadata_embedder.geo.airspace.overlay import zones_to_overlay_json
@@ -116,6 +117,33 @@ def test_notes_provenance_line_once_and_gap_lines():
     provenance = [n for n in out["notes"] if source.feed in n]
     assert provenance == [f"Airspace: {source.feed}, fetched {source.fetched}"]
     assert any(n.startswith("Airspace, B:") for n in out["notes"])
+
+
+def test_source_note_reaches_the_map_notes_once():
+    # #510 I3: the schedule/reference-only disclosures that ride in
+    # SourceInfo.note must reach the overlay, not just the record.
+    feed = ED318_FEEDS["SE"]
+    source = SourceInfo(
+        feed=feed.feed_name, url=feed.file_url, fetched="2026-08-19T10:00:00Z",
+        license=feed.license, caveat=feed.caveat, note=feed.note,
+    )
+    zones = parse_ed318((SAMPLES / "ed318-se.json").read_bytes(), source)
+    data = [
+        AirspaceData(zones=zones, source=source),
+        AirspaceData(zones=list(zones), source=source),  # second track, same feed
+    ]
+    out = zones_to_overlay_json([_track_far("A"), _track_far("B")], data)
+    note_lines = [n for n in out["notes"] if n == f"Airspace note: {source.note}"]
+    assert note_lines == [f"Airspace note: {source.note}"]
+
+
+def test_source_without_note_adds_no_note_line():
+    zones, source = _lu_zones()
+    assert source.note is None
+    out = zones_to_overlay_json(
+        [_track_far()], [AirspaceData(zones=zones, source=source)]
+    )
+    assert not any(n.startswith("Airspace note:") for n in out["notes"])
 
 
 def test_all_gapped_is_not_covered_but_notes_survive():

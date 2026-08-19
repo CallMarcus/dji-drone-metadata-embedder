@@ -1,0 +1,140 @@
+{
+    "type": "FeatureCollection",
+    "metadata": {
+        "provider": [{"lang": "en-GB", "text": "Transportstyrelsen"}],
+        "issued": "2026-08-13T00:00:00Z",
+        "validFrom": "2026-08-13T00:00:00Z"
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [16.00, 59.00], [16.10, 59.00], [16.10, 59.05],
+                    [16.00, 59.05], [16.00, 59.00]
+                ]],
+                "layer": {
+                    "upper": 150, "upperReference": "AGL",
+                    "lower": 0, "lowerReference": "AGL", "uom": "m"
+                }
+            },
+            "properties": {
+                "identifier": "ESU901",
+                "country": "SWE",
+                "name": [
+                    {"text": "Example test range", "lang": "en-GB"},
+                    {"text": "Exempel testområde", "lang": "se-SE"}
+                ],
+                "variant": "COMMON",
+                "reason": ["OTHER"],
+                "type": "REQ_AUTHORIZATION",
+                "restrictionConditions": "AUTHORIZED",
+                "otherReasonInfo": [
+                    {"lang": "en-GB", "text": "Test site"},
+                    {"lang": "se-SE", "text": "Testanläggning"}
+                ],
+                "regulationExemption": "NO",
+                "message": [{"lang": "en-GB", "text": "Example only."}],
+                "limitedApplicability": [
+                    {
+                        "startDateTime": "2026-01-01T00:00Z",
+                        "endDateTime": "2027-12-31T23:59Z"
+                    }
+                ],
+                "zoneAuthority": [
+                    {
+                        "name": [
+                            {"text": "Swedish Transport Agency", "lang": "en-GB"},
+                            {"text": "Transportstyrelsen", "lang": "se-SE"}
+                        ]
+                    }
+                ],
+                "extendedProperties": {"text": "SE: Example extended note"}
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [15.50, 58.50],
+                "layer": {
+                    "upper": 150, "upperReference": "AGL",
+                    "lower": 0, "lowerReference": "AGL", "uom": "m"
+                },
+                "extent": {"subType": "Circle", "radius": 500.0}
+            },
+            "properties": {
+                "identifier": "ESU902",
+                "country": "SWE",
+                "name": [
+                    {"text": "Example power plant", "lang": "en-GB"},
+                    {"text": "Exempel kraftverk", "lang": "se-SE"}
+                ],
+                "variant": "COMMON",
+                "reason": ["SENSITIVE"],
+                "type": "REQ_AUTHORIZATION",
+                "restrictionConditions": "AUTHORIZED",
+                "otherReasonInfo": [{"lang": "en-GB", "text": "Security"}],
+                "regulationExemption": "NO",
+                "message": [{"lang": "en-GB", "text": "Example only."}],
+                "limitedApplicability": [
+                    {"startDateTime": "2025-10-27T00:00Z"}
+                ],
+                "zoneAuthority": [
+                    {
+                        "name": [
+                            {"text": "Swedish Transport Agency", "lang": "en-GB"},
+                            {"text": "Transportstyrelsen", "lang": "se-SE"}
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [14.90, 58.90],
+                "layer": {
+                    "upper": 1500, "upperReference": "AMSL",
+                    "lower": 0, "lowerReference": "AGL", "uom": "ft"
+                },
+                "extent": {"subType": "Circle", "radius": 1852.0}
+            },
+            "properties": {
+                "identifier": "ESU903",
+                "country": "SWE",
+                "name": [
+                    {"text": "Example heliport", "lang": "en-GB"},
+                    {"text": "Exempel helikopterflygplats", "lang": "se-SE"}
+                ],
+                "variant": "COMMON",
+                "reason": ["AIR_TRAFFIC"],
+                "type": "CONDITIONAL",
+                "restrictionConditions": "AUTHORIZED",
+                "otherReasonInfo": [{"lang": "en-GB", "text": "UAS operations"}],
+                "regulationExemption": "NO",
+                "message": [{"lang": "en-GB", "text": "Example only."}],
+                "limitedApplicability": [
+                    {
+                        "startDateTime": "2026-01-01T00:00Z",
+                        "endDateTime": "2027-08-31T23:59Z",
+                        "schedule": [
+                            {"day": ["MON"], "startTime": "06:00Z", "endTime": "21:00Z"},
+                            {"day": ["TUE"], "startTime": "06:00Z", "endTime": "21:00Z"}
+                        ]
+                    }
+                ],
+                "zoneAuthority": [
+                    {
+                        "name": [
+                            {"text": "Swedish Transport Agency", "lang": "en-GB"},
+                            {"text": "Transportstyrelsen", "lang": "se-SE"}
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
