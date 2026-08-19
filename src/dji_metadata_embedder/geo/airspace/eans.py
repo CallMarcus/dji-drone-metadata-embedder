@@ -15,7 +15,9 @@ skipped by contract rather than parsed: any feature flagged ``hidden``
 ("Outside Estonia"), a world-spanning PROHIBITED mask with Estonia as
 its hole — rendering it would paint the entire planet as an Estonian
 prohibition. Everything else malformed still raises; all-or-nothing
-like the other providers.
+like the other providers. The skip is disclosed in the feed note (see
+``EANS_FEEDS["EE"].note``) so the omission is visible to the user
+rather than silent.
 
 Permission record (issue #511): EANS's UTM development manager confirmed
 in writing on 2026-08-19 that the file is public data intended for use
@@ -63,7 +65,10 @@ EANS_FEEDS: dict[str, EansFeed] = {
             "The file reflects the airspace rules at the time of "
             "download, not necessarily at the time of the flight (EANS). "
             "NOTAM-area activation hours appear as text in the zone's "
-            "published message and are not evaluated here."
+            "published message and are not evaluated here. Two "
+            "presentation-layer features published in the file — a "
+            "hidden above-120 m shade and an \"Outside Estonia\" "
+            "world-covering mask — are omitted from the zones shown."
         ),
     ),
 }
@@ -149,11 +154,12 @@ def parse_eans(raw: bytes, source: SourceInfo) -> list[Zone]:
                 raise AirspaceError(
                     f"{where} ({ident}): properties.geometry is not an object"
                 )
-            unit = (
-                "ft"
-                if str(volume.get("uomDimensions", "M")).upper() == "FT"
-                else "m"
-            )
+            uom = str(volume.get("uomDimensions", "M")).upper()
+            if uom not in ("M", "FT"):
+                raise AirspaceError(
+                    f"{where} ({ident}): uomDimensions {uom!r} is not M or FT"
+                )
+            unit = "ft" if uom == "FT" else "m"
             lower = _limit(volume, "lower", unit, f"{where} ({ident})")
             upper = _limit(volume, "upper", unit, f"{where} ({ident})")
         applicability: list[Applicability] = []

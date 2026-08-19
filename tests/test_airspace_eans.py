@@ -112,6 +112,13 @@ def test_bom_is_tolerated():
     assert len(parse_eans(with_bom, SRC)) == 3
 
 
+def test_unknown_dimension_unit_raises():
+    broken = json.loads(_ee().decode("utf-8"))
+    broken["features"][0]["properties"]["geometry"]["uomDimensions"] = "SM"
+    with pytest.raises(AirspaceError, match="uomDimensions"):
+        parse_eans(json.dumps(broken).encode(), SRC)
+
+
 def test_ee_feed_registry_states_the_eans_terms():
     feed = EANS_FEEDS["EE"]
     assert feed.url == "https://utm.eans.ee/avm/utm/uas.geojson"
@@ -119,3 +126,4 @@ def test_ee_feed_registry_states_the_eans_terms():
     assert "2026-08-19" in feed.license
     assert "time of download" in (feed.note or "")
     assert "not evaluated" in (feed.note or "")
+    assert "omitted" in (feed.note or "")
