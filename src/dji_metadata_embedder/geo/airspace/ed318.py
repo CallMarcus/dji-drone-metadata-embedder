@@ -1,14 +1,14 @@
 """ED-318 GeoJSON-profile UAS geographical-zone parser (#452).
 
-Ireland's official publication (iaa.ie) is a plain GeoJSON
-FeatureCollection in the ED-318 shape: zone fields live in ``properties``
-(restriction class under ``type``), vertical limits ride in a non-standard
-``layer`` member inside each feature's ``geometry``, and timed windows are
-``properties.limitedApplicability``. All-or-nothing like the ED-269
-parser: any malformed zone raises rather than silently thinning the set.
+Ireland's (iaa.ie) and Sweden's (LFV dronechart) official publications are
+plain GeoJSON FeatureCollections in the ED-318 shape: zone fields live in
+``properties`` (restriction class under ``type``), vertical limits ride in
+a non-standard ``layer`` member inside each feature's ``geometry``, and
+timed windows are ``properties.limitedApplicability``. All-or-nothing like
+the ED-269 parser: any malformed zone raises rather than silently thinning
+the set.
 
-The published filename is dated and versioned
-(``20260804_uas_zones_ireland_v1.geojson``), so the registry pins the
+The published filenames are dated and versioned, so the registry pins the
 stable zones *page* and the current file href is discovered at fetch time.
 
 Permission record (issue #452): the IAA's Airspace & U-space Inspector
@@ -97,6 +97,38 @@ def _limit(layer: dict, side: str, unit: str, where: str) -> VerticalLimit | Non
     if not isinstance(value, (int, float)):
         raise AirspaceError(f"{where}: {side} limit {value!r} is not a number")
     return VerticalLimit(float(value), unit, ref)
+
+
+def _zone_name(props: dict, ident: str, where: str) -> str:
+    """The zone's display name; multilingual lists pick the English text.
+
+    The Swedish file publishes ``name`` as a list of ``{text, lang}``
+    entries (en-GB + se-SE); Ireland publishes a plain string. The
+    original list rides untouched in ``native``."""
+    raw = props.get("name")
+    if raw is None or isinstance(raw, str):
+        return str(raw or ident)
+    if isinstance(raw, list):
+        texts = [
+            entry["text"].strip()
+            for entry in raw
+            if isinstance(entry, dict)
+            and isinstance(entry.get("text"), str)
+            and entry["text"].strip()
+        ]
+        english = [
+            entry["text"].strip()
+            for entry in raw
+            if isinstance(entry, dict)
+            and entry.get("lang") == "en-GB"
+            and isinstance(entry.get("text"), str)
+            and entry["text"].strip()
+        ]
+        if english:
+            return english[0]
+        if texts:
+            return texts[0]
+    raise AirspaceError(f"{where} ({ident}): unusable name {raw!r}")
 
 
 def _rings(
@@ -193,7 +225,7 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
         zones.append(
             Zone(
                 identifier=ident,
-                name=str(props.get("name") or ident),
+                name=_zone_name(props, ident, where),
                 restriction=restriction,
                 lower=lower,
                 upper=upper,

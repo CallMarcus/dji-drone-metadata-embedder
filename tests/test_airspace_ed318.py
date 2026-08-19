@@ -133,3 +133,56 @@ def test_discover_feed_url_finds_the_dated_file_on_the_page():
 def test_discover_feed_url_raises_when_the_page_changed_shape():
     with pytest.raises(AirspaceError, match="zones file"):
         discover_feed_url(b"<html>redesigned</html>", "https://www.iaa.ie/")
+
+
+def _se() -> bytes:
+    return (FIXTURES / "ed318-se.json").read_bytes()
+
+
+# --- Sweden (#510): the LFV file exercises ED-318 shapes Ireland's
+# --- publication does not — multilingual names, Point+Circle extents,
+# --- schedule-carrying windows, minute-precision timestamps.
+
+
+def _se_polygon_only() -> bytes:
+    """Fixture with only the Polygon feature (ESU901) for Task 1 tests."""
+    doc = json.loads(_se().decode("utf-8"))
+    doc["features"] = [doc["features"][0]]  # Keep only ESU901 (Polygon)
+    return json.dumps(doc).encode()
+
+
+def test_multilingual_name_picks_english_and_keeps_swedish_in_native():
+    zones = parse_ed318(_se_polygon_only(), SRC)
+    assert zones[0].name == "Example test range"
+    native_name = zones[0].native["properties"]["name"]
+    assert {"text": "Exempel testområde", "lang": "se-SE"} in native_name
+
+
+def test_multilingual_name_falls_back_to_first_entry_without_english():
+    doc = json.loads(_se_polygon_only().decode("utf-8"))
+    doc["features"][0]["properties"]["name"] = [
+        {"text": "Bara svenska", "lang": "se-SE"}
+    ]
+    zones = parse_ed318(json.dumps(doc).encode(), SRC)
+    assert zones[0].name == "Bara svenska"
+
+
+def test_name_list_without_usable_text_raises():
+    doc = json.loads(_se_polygon_only().decode("utf-8"))
+    doc["features"][0]["properties"]["name"] = [{"lang": "en-GB"}]
+    with pytest.raises(AirspaceError, match="ESU901.*name"):
+        parse_ed318(json.dumps(doc).encode(), SRC)
+
+
+def test_minute_precision_windows_parse():
+    zones = parse_ed318(_se_polygon_only(), SRC)
+    win = zones[0].applicability[0]
+    assert win.start == datetime(2026, 1, 1, 0, 0)
+    assert win.end == datetime(2027, 12, 31, 23, 59)
+
+
+def test_start_only_window_is_open_ended():
+    zones = parse_ed318(_se(), SRC)
+    win = zones[1].applicability[0]
+    assert win.start == datetime(2025, 10, 27, 0, 0)
+    assert win.end is None and win.permanent is False
