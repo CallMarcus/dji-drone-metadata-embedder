@@ -142,9 +142,10 @@ _CORE: dict[str, list[Box]] = {
     # west edge keeps >=27 km of margin. Deliberate gaps, each
     # an honest border band: the Öresund shore north of Malmö (Ven,
     # Landskrona, Helsingborg, Kullen/Bjäre), Strömstad and the
-    # Norway-border strip, the mountain municipalities (Sälen, Åre),
-    # the Torne valley (Haparanda, Karesuando), and the outer Stockholm
-    # archipelago beyond the Åland margin.
+    # Norway-border strip, the Torne valley (Haparanda, Karesuando),
+    # and the outer Stockholm archipelago beyond the Åland margin.
+    # The mountain municipalities (Sälen, Åre) sit west of the hull
+    # entirely, so they get the no-provider message, not the band one.
     "SE": [
         (12.95, 55.33, 16.05, 56.45),  # Skåne + Blekinge (Saltholm DK >=10 km W)
         (12.0, 56.45, 12.95, 57.15),   # Halland coast (Anholt DK >=21 km W)
