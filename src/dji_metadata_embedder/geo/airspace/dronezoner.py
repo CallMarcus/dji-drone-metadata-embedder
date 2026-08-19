@@ -211,8 +211,10 @@ def _applicability(props: dict, where: str) -> list[Applicability]:
             raise AirspaceError(
                 f"{where}: unparseable {label} {raw!r}"
             ) from exc
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+        # Naive UTC, like ed269._utc: Track.utc is naive, and the
+        # evaluator's window comparison must never mix awareness (#520).
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
         return parsed
 
     return [
