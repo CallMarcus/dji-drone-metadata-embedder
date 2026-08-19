@@ -29,6 +29,7 @@ from .dronezoner import (
     discover_feed_url as discover_dronezoner_url,
     parse_dronezoner,
 )
+from .eans import EANS_FEEDS, parse_eans
 from .ed269 import ED269_FEEDS, parse_ed269
 from .ed318 import ED318_FEEDS, discover_feed_url, parse_ed318
 from .jurisdiction import resolve_jurisdiction
@@ -155,6 +156,15 @@ def fetch_zones(
         # item href is discovered per fetch.
         url = feed_dz.page_url
         note = feed_dz.note
+    elif code in EANS_FEEDS:
+        feed_ee = EANS_FEEDS[code]
+        body_path = cache_dir / f"eans-{code}.json"
+        feed_name = feed_ee.feed_name
+        license_line, caveat = feed_ee.license, feed_ee.caveat
+        # The UTM system's file URL is the stable published address —
+        # fetched and cited directly, like Sweden's ED-318 file.
+        url = feed_ee.url
+        note = feed_ee.note
     else:
         feed_aixm = AIXM_FEEDS[code]
         body_path = cache_dir / f"aixm-{code}.xml"
@@ -192,6 +202,8 @@ def fetch_zones(
                 body = _fetch_url(
                     discover_dronezoner_url(page, url), transport
                 )
+            elif code in EANS_FEEDS:
+                body = _fetch_url(url, transport)
             else:
                 page = _fetch_url(url, transport)
                 zip_url = discover_aixm_url(
@@ -217,6 +229,8 @@ def fetch_zones(
             zones = parse_ed318(body, source)
         elif code in DRONEZONER_FEEDS:
             zones = parse_dronezoner(body, source)
+        elif code in EANS_FEEDS:
+            zones = parse_eans(body, source)
         else:
             zones = parse_aixm51(body, source)
         if from_cache:
@@ -246,6 +260,8 @@ def fetch_zones(
                     zones = parse_ed318(body, source)
                 elif code in DRONEZONER_FEEDS:
                     zones = parse_dronezoner(body, source)
+                elif code in EANS_FEEDS:
+                    zones = parse_eans(body, source)
                 else:
                     zones = parse_aixm51(body, source)
             except AirspaceError as exc2:
