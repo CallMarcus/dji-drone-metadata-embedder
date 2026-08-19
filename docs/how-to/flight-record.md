@@ -41,10 +41,12 @@ Five feeds are used:
   0.1° grid before it goes on the wire, so the endpoint learns no more
   about where you flew than a map-tile fetch already would.
 - **Luxembourg, Finland and Switzerland** flights fetch the country's
-  whole ED-269 geographical-zone document, and **Ireland** the IAA's
-  published ED-318 file — the feeds have no query parameter for a
-  location at all, so nothing about the flight is sent; the entire
-  country's zones come back regardless of where the flight was.
+  whole ED-269 geographical-zone document, and **Ireland** and
+  **Sweden** their published ED-318 files — the IAA's file for
+  Ireland, LFV's dronechart file for Sweden — the feeds have no query
+  parameter for a location at all, so nothing about the flight is
+  sent; the entire country's zones come back regardless of where the
+  flight was.
 - **UK** flights fetch NATS AIS's whole UAS flight-restrictions dataset
   (AIXM 5.1, refreshed each 28-day AIRAC cycle), again with no location
   sent. Activation hours are not in the dataset and temporary
@@ -67,20 +69,18 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
-United States, Luxembourg, Finland, Switzerland, Ireland, the UK, or
-Denmark.
-Everywhere else — including Sweden — the record states the gap instead of
-guessing: *"no supported
-airspace data source for this location."* A flight near a jurisdiction
-boundary gaps the same way, deliberately, rather than borrowing a
-neighbouring country's rules from coordinates alone. The logbook half of
-the record (times, distances, heights) is unaffected — a gapped airspace
-section never blocks the rest. Northern Ireland resolves to the UK
-dataset; flights close to the Irish land border still gap deliberately,
-from both sides.
+United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
+Denmark, or Sweden. Everywhere else the record states the gap instead
+of guessing: *"no supported airspace data source for this location."*
+A flight near a jurisdiction boundary gaps the same way, deliberately,
+rather than borrowing a neighbouring country's rules from coordinates
+alone. The logbook half of the record (times, distances, heights) is
+unaffected — a gapped airspace section never blocks the rest. Northern
+Ireland resolves to the UK dataset; flights close to the Irish land
+border still gap deliberately, from both sides.
 
 Widening coverage means adding and verifying another feed; it will grow,
 but a wrong jurisdiction guessed from coordinates would be worse than no

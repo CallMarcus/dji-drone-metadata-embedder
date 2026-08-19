@@ -8,8 +8,10 @@ timed windows are ``properties.limitedApplicability``. All-or-nothing like
 the ED-269 parser: any malformed zone raises rather than silently thinning
 the set.
 
-The published filenames are dated and versioned, so the registry pins the
-stable zones *page* and the current file href is discovered at fetch time.
+Ireland's published filename is dated and versioned
+(``20260804_uas_zones_ireland_v1.geojson``), so its registry entry pins the
+stable zones *page* and the current href is discovered at fetch time;
+Sweden's file URL is itself the stable address and is pinned directly.
 
 Permission record (issue #452): the IAA's Airspace & U-space Inspector
 rejected the ArcGIS service and pointed at this published file in reply to

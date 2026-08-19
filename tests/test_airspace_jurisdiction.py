@@ -409,3 +409,19 @@ def test_oslo_stays_outside_the_se_hull_entirely():
     assert r.jurisdiction is None
     assert r.gap_reason is not None and "Sweden" in r.gap_reason
 
+
+def test_svappavaara_resolves_se_closing_the_67_2_to_67_5_hole():
+    # #510 M2: core 11 used to stop at 67.2N, leaving a band up to core
+    # 12's 67.5N start unreachable even though it's Swedish interior.
+    # Nominatim-verified 2026-08-19 at (67.35, 20.50).
+    r = resolve_jurisdiction(_track((67.35, 20.50)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+
+
+def test_transtrand_resolves_se_now_the_hull_reaches_the_whole_core():
+    # #510 M3: core 8 topped out at 61.5N but the Norrland hull box
+    # stopped at 14.0E, leaving 13.4-14.0E x 61.0-61.5N inside the core
+    # but outside every hull. Transtrand area, west Dalarna.
+    r = resolve_jurisdiction(_track((61.2, 13.7)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+

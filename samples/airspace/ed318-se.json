@@ -41,7 +41,16 @@
                         "startDateTime": "2026-01-01T00:00Z",
                         "endDateTime": "2027-12-31T23:59Z"
                     }
-                ]
+                ],
+                "zoneAuthority": [
+                    {
+                        "name": [
+                            {"text": "Swedish Transport Agency", "lang": "en-GB"},
+                            {"text": "Transportstyrelsen", "lang": "se-SE"}
+                        ]
+                    }
+                ],
+                "extendedProperties": {"text": "SE: Example extended note"}
             }
         },
         {
@@ -71,6 +80,14 @@
                 "message": [{"lang": "en-GB", "text": "Example only."}],
                 "limitedApplicability": [
                     {"startDateTime": "2025-10-27T00:00Z"}
+                ],
+                "zoneAuthority": [
+                    {
+                        "name": [
+                            {"text": "Swedish Transport Agency", "lang": "en-GB"},
+                            {"text": "Transportstyrelsen", "lang": "se-SE"}
+                        ]
+                    }
                 ]
             }
         },
@@ -106,6 +123,14 @@
                         "schedule": [
                             {"day": ["MON"], "startTime": "06:00Z", "endTime": "21:00Z"},
                             {"day": ["TUE"], "startTime": "06:00Z", "endTime": "21:00Z"}
+                        ]
+                    }
+                ],
+                "zoneAuthority": [
+                    {
+                        "name": [
+                            {"text": "Swedish Transport Agency", "lang": "en-GB"},
+                            {"text": "Transportstyrelsen", "lang": "se-SE"}
                         ]
                     }
                 ]

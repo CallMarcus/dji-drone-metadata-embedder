@@ -135,9 +135,11 @@ _CORE: dict[str, list[Box]] = {
     # 26 edge probes Nominatim-verified 2026-08-19: Swedish markers
     # (Malmö, Vinga, Grisslehamn, Halmstad, Kalix coast, Kiruna, Fårö…)
     # resolve SE inside the cores, foreign markers (Saltholm/Læsø/Anholt
-    # DK, Halden NO, Eckerö and Valsörarna FI) sit outside them. The
-    # Norwegian Trysil-area bulge probes SE at 12.75–12.9E (61.0–61.7N),
-    # so the inland 13.4 west edge keeps >=27 km. Deliberate gaps, each
+    # DK, Halden NO, Eckerö and Valsörarna FI) sit outside them. Probes
+    # at 12.75–12.9E (61.0–61.7N), near the Trysil-area bulge on the
+    # Norwegian side of the border, resolve SE — confirming Norway's
+    # easternmost reach there sits west of 12.9E, so the inland 13.4
+    # west edge keeps >=27 km of margin. Deliberate gaps, each
     # an honest border band: the Öresund shore north of Malmö (Ven,
     # Landskrona, Helsingborg, Kullen/Bjäre), Strömstad and the
     # Norway-border strip, the mountain municipalities (Sälen, Åre),
@@ -154,7 +156,7 @@ _CORE: dict[str, list[Box]] = {
         (13.4, 59.7, 18.9, 61.5),      # north Svealand (Märket FI >=13 km E)
         (14.5, 61.5, 20.6, 63.6),      # lower Norrland (Kvarken FI >=23 km E)
         (17.5, 63.6, 23.2, 65.95),     # upper Norrland coast (Umeå, Luleå, Boden)
-        (18.9, 65.95, 22.4, 67.2),     # Jokkmokk/Gällivare (Torne border >=40 km E)
+        (18.9, 65.95, 22.4, 67.5),     # Jokkmokk/Gällivare (Torne border >=40 km E)
         (19.6, 67.5, 21.6, 68.0),      # Kiruna
     ],
 }
@@ -196,7 +198,7 @@ _HULL: dict[str, list[Box]] = {
     # (Konstanz semantics). Oslo stays outside entirely (west of 10.9).
     "SE": [
         (10.9, 55.05, 19.7, 61.0),     # Götaland + Svealand + approaches
-        (14.0, 61.0, 24.3, 66.4),      # Norrland + the Bothnian sea
+        (13.4, 61.0, 24.3, 66.4),      # Norrland + the Bothnian sea
         (16.3, 66.4, 24.2, 69.3),      # Lapland up to Treriksröset
     ],
 }
