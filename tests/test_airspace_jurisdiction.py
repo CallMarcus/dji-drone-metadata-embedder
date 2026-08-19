@@ -27,10 +27,10 @@ def test_a_helsinki_flight_resolves_to_fi():
     assert r.jurisdiction is not None and r.jurisdiction.code == "FI"
 
 
-def test_a_swedish_flight_is_an_honest_gap():
-    r = resolve_jurisdiction(_track((59.33, 18.07)))  # Stockholm
-    assert r.jurisdiction is None
-    assert r.gap_reason is not None and "no supported airspace data" in r.gap_reason
+def test_a_stockholm_flight_resolves_to_se_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((59.33, 18.07)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+    assert "2019/947" in r.jurisdiction.measure_note
 
 
 def test_a_border_band_flight_gaps_instead_of_guessing():
@@ -337,12 +337,6 @@ def test_helsingborg_sweden_gaps_instead_of_resolving_dk():
     assert r.gap_reason is not None and "boundary" in r.gap_reason
 
 
-def test_malmo_is_an_honest_no_provider_gap():
-    r = resolve_jurisdiction(_track((55.60, 13.00)))
-    assert r.jurisdiction is None
-    assert r.gap_reason is not None and "no supported airspace data" in r.gap_reason
-
-
 def test_flensburg_germany_gaps_instead_of_resolving_dk():
     r = resolve_jurisdiction(_track((54.79, 9.43)))
     assert r.jurisdiction is None
@@ -352,4 +346,66 @@ def test_flensburg_germany_gaps_instead_of_resolving_dk():
 def test_the_no_provider_message_names_denmark():
     r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert r.gap_reason is not None and "Denmark" in r.gap_reason
+
+
+# --- Sweden (LFV Dronezoner via ED-318) ---
+
+
+def test_gothenburg_resolves_to_se():
+    r = resolve_jurisdiction(_track((57.71, 11.97)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+
+
+def test_malmo_resolves_to_se_despite_the_oresund():
+    # Malmö sits ~13 km from Danish Saltholm; the core's 12.95 west edge
+    # keeps it in while the Öresund shore north of it gaps.
+    r = resolve_jurisdiction(_track((55.61, 13.00)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+
+
+def test_visby_gotland_resolves_to_se():
+    r = resolve_jurisdiction(_track((57.64, 18.30)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+
+
+def test_kiruna_resolves_to_se():
+    r = resolve_jurisdiction(_track((67.86, 20.22)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+
+
+def test_umea_and_lulea_resolve_through_the_norrland_coast_core():
+    r = resolve_jurisdiction(_track((63.83, 20.26), (65.58, 22.15)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
+
+
+def test_helsingborg_gaps_as_an_oresund_border_band():
+    # 4.5 km strait to Helsingør: inside the hull, outside every core —
+    # the mirror of Helsingør's cut on the Danish side.
+    r = resolve_jurisdiction(_track((56.05, 12.70)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_halden_norway_gaps_instead_of_resolving_se():
+    r = resolve_jurisdiction(_track((59.12, 11.39)))
+    assert r.jurisdiction is None
+
+
+def test_eckero_aland_still_gaps():
+    # Åland: inside the FI and SE hulls, inside neither's cores.
+    r = resolve_jurisdiction(_track((60.22, 19.55)))
+    assert r.jurisdiction is None
+
+
+def test_copenhagen_still_resolves_dk_with_the_se_hull_overlapping():
+    # Kastrup sits inside the new SE south hull; the DK core breaks the
+    # tie (#499 semantics).
+    r = resolve_jurisdiction(_track((55.63, 12.65)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "DK"
+
+
+def test_oslo_stays_outside_the_se_hull_entirely():
+    r = resolve_jurisdiction(_track((59.91, 10.75)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Sweden" in r.gap_reason
 

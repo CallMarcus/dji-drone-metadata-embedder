@@ -75,11 +75,13 @@ def test_a_us_flight_routes_to_the_faa_provider(tmp_path):
     assert "arcgis" in fake.urls[0]
 
 
-def test_a_swedish_flight_is_a_stated_gap_without_network(tmp_path):
+def test_an_oslo_flight_is_a_stated_gap_without_network(tmp_path):
+    # #510: Sweden now has a provider, so this no-provider-gap example
+    # moves to Oslo (outside every hull, including the new SE one).
     def no_network(req, timeout=None):
         raise AssertionError("gap must not touch the network")
 
-    data = fetch_zones(_track(59.33, 18.07), tmp_path, transport=no_network)
+    data = fetch_zones(_track(59.91, 10.75), tmp_path, transport=no_network)
     assert data.gap_reason is not None and not data.zones
 
 
@@ -334,4 +336,33 @@ def test_a_redesigned_danish_page_is_a_stated_gap(tmp_path):
     assert not data.zones
     assert data.gap_reason is not None
     assert "droneregler.dk" in data.gap_reason
+
+
+def test_a_swedish_flight_fetches_the_lfv_file_directly(tmp_path):
+    # #510: LFV's URL is the stable published address — one fetch, no
+    # page discovery, and the record cites the file URL itself.
+    fake = FakeTransport([(FIXTURES / "ed318-se.json").read_bytes()])
+    lines = []
+    data = fetch_zones(_track(59.33, 18.07), tmp_path, transport=fake,
+                       announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 3
+    assert fake.urls == [
+        "https://dronechart.lfv.se/data/uas_zones_ED318.json"
+    ]
+    assert data.source is not None and "cite LFV as source" in data.source.license
+    assert data.source.url.endswith("uas_zones_ED318.json")
+    assert (tmp_path / "ed318-SE.json").exists()
+    assert any("Fetching" in ln and "dronechart.lfv.se" in ln for ln in lines)
+    circle = next(z for z in data.zones if z.identifier == "ESU902")
+    assert len(circle.polygons[0]) >= 32
+
+
+def test_a_cached_swedish_body_never_touches_the_network(tmp_path):
+    fake = FakeTransport([(FIXTURES / "ed318-se.json").read_bytes()])
+    fetch_zones(_track(59.33, 18.07), tmp_path, transport=fake)
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(59.33, 18.07), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 3
 
