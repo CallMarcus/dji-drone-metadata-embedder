@@ -139,10 +139,11 @@ def fetch_zones(
         body_path = cache_dir / f"ed318-{code}.json"
         feed_name = feed318.feed_name
         license_line, caveat = feed318.license, feed318.caveat
-        # The published filename is dated and churns; the zones page is
-        # the stable, user-checkable entry point, so it is what the
-        # record cites. The current file href is discovered per fetch.
-        url = feed318.page_url
+        # IE's published filename is dated and churns, so its registry
+        # pins the stable zones page and the current href is discovered
+        # per fetch. SE's file URL is itself the stable published
+        # address (LFV, 2026-08-19), fetched and cited directly.
+        url = feed318.file_url or feed318.page_url
         note = feed318.note
     elif code in DRONEZONER_FEEDS:
         feed_dz = DRONEZONER_FEEDS[code]
@@ -181,8 +182,11 @@ def fetch_zones(
             elif code in ED269_FEEDS:
                 body = _fetch_url(url, transport)
             elif code in ED318_FEEDS:
-                page = _fetch_url(url, transport)
-                body = _fetch_url(discover_feed_url(page, url), transport)
+                if feed318.file_url:
+                    body = _fetch_url(url, transport)
+                else:
+                    page = _fetch_url(url, transport)
+                    body = _fetch_url(discover_feed_url(page, url), transport)
             elif code in DRONEZONER_FEEDS:
                 page = _fetch_url(url, transport)
                 body = _fetch_url(

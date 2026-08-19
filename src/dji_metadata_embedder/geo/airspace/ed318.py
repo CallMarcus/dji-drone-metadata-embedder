@@ -16,6 +16,12 @@ rejected the ArcGIS service and pointed at this published file in reply to
 our stated open-source reuse request, 2026-08-11. The page carries no
 formal licence; its "reference only, not to be used for navigation"
 wording is preserved in the feed note.
+
+Sweden's permission record (issue #510): LFV Operations UTM confirmed in
+writing on 2026-08-19 that the ED-318 file is free to download and use —
+cite LFV as source, no logos, do not modify the zone content. The file
+URL is the stable published address (until LFV system changes expected
+around 2027/2028), so the registry pins it directly with no discovery.
 """
 
 from __future__ import annotations
@@ -38,6 +44,9 @@ class Ed318Feed:
     license: str
     caveat: str
     note: str | None = None
+    # A stable direct file URL; when set, fetch skips page discovery and
+    # the record cites this URL (it IS the published address).
+    file_url: str | None = None
 
 
 _CAVEAT = (
@@ -62,6 +71,23 @@ ED318_FEEDS: dict[str, Ed318Feed] = {
         note=(
             "IAA publication note: reference only — not to be used for "
             "navigation."
+        ),
+    ),
+    "SE": Ed318Feed(
+        code="SE",
+        page_url="https://dronechart.lfv.se/",
+        file_url="https://dronechart.lfv.se/data/uas_zones_ED318.json",
+        feed_name="Sweden UAS geographical zones (ED-318, LFV)",
+        license=(
+            "© LFV — free to download and use, cite LFV as source "
+            "(confirmed in writing by LFV Operations UTM, 2026-08-19)"
+        ),
+        caveat=_CAVEAT,
+        note=(
+            "Published by LFV with Transportstyrelsen as data provider. "
+            "Some zones apply only during scheduled hours within their "
+            "validity window; the schedule is in the zone's published "
+            "data and is not evaluated here."
         ),
     ),
 }

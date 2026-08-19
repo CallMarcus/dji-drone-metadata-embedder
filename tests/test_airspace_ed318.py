@@ -232,3 +232,15 @@ def test_non_positive_circle_radius_raises():
     doc["features"][1]["geometry"]["extent"]["radius"] = 0
     with pytest.raises(AirspaceError, match="ESU902.*radius"):
         parse_ed318(json.dumps(doc).encode(), SRC)
+
+
+def test_se_feed_registry_states_the_lfv_terms():
+    feed = ED318_FEEDS["SE"]
+    assert feed.file_url == (
+        "https://dronechart.lfv.se/data/uas_zones_ED318.json"
+    )
+    assert "cite LFV as source" in feed.license
+    assert "2026-08-19" in feed.license
+    assert "schedule" in (feed.note or "")
+    # Ireland keeps the discovery path: no direct URL.
+    assert ED318_FEEDS["IE"].file_url is None
