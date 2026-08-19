@@ -366,3 +366,29 @@ def test_a_cached_swedish_body_never_touches_the_network(tmp_path):
     data = fetch_zones(_track(59.33, 18.07), tmp_path, transport=no_network)
     assert data.from_cache and len(data.zones) == 3
 
+
+def test_an_estonian_flight_fetches_the_eans_file_directly(tmp_path):
+    # #511: EANS's URL is stable — one fetch, no discovery, the record
+    # cites the file URL itself.
+    fake = FakeTransport([(FIXTURES / "eans-ee.json").read_bytes()])
+    lines = []
+    data = fetch_zones(_track(59.44, 24.75), tmp_path, transport=fake,
+                       announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 3
+    assert fake.urls == ["https://utm.eans.ee/avm/utm/uas.geojson"]
+    assert data.source is not None
+    assert "Estonian Air Navigation Services" in data.source.license
+    assert "time of download" in (data.source.note or "")
+    assert (tmp_path / "eans-EE.json").exists()
+    assert any("Fetching" in ln and "utm.eans.ee" in ln for ln in lines)
+
+
+def test_a_cached_estonian_body_never_touches_the_network(tmp_path):
+    fake = FakeTransport([(FIXTURES / "eans-ee.json").read_bytes()])
+    fetch_zones(_track(59.44, 24.75), tmp_path, transport=fake)
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(59.44, 24.75), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 3
+

@@ -27,9 +27,17 @@ verified on issue #413 (2026-07-29). Public data, no privacy concern.
   LFV's condition that the zone content not be modified — a trimmed extract
   of the live file would have breached that, so this fixture pastes no live
   LFV zone data at all. Don't "fix" it by swapping in real zones.
+- `eans-ee.json` — **synthetic**, not a trimmed copy. Invented zones in the
+  real EANS `uas.geojson` shape (issue #511, 2026-08-19), covering both
+  viewer-furniture masks the parser must skip — a `hidden` feature and the
+  world-spanning `EERZout` "Outside Estonia" prohibition — so the fixture
+  pins the skip contract instead of just the happy path. Attribution:
+  "Estonian Air Navigation Services", public data confirmed in writing by
+  EANS UTM development.
 
 The manual E2E step before merge re-fetches each live endpoint and confirms
-these shapes still match; `ed318-se.json` is synthetic, so there is nothing
-to byte-match — but the LFV endpoint is still re-fetched and the fixture's
-shape confirmed against it (it is the one fixture with no tie to the live
-file, which makes it the most prone to drifting from reality unnoticed).
+these shapes still match; `ed318-se.json` and `eans-ee.json` are synthetic,
+so there is nothing to byte-match for them — but their live endpoints are
+still re-fetched and each fixture's shape confirmed against it (these are
+the fixtures with no tie to a live file, which makes them the most prone to
+drifting from reality unnoticed).

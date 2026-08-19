@@ -160,6 +160,28 @@ _CORE: dict[str, list[Box]] = {
         (18.9, 65.95, 22.4, 67.5),     # Jokkmokk/Gällivare (Torne border >=40 km E)
         (19.6, 67.5, 21.6, 68.0),      # Kiruna
     ],
+    # Land borders with Latvia (south) and Russia (east: the Narva river
+    # and the lakes), sea north and west. All 20 edge probes
+    # Nominatim-verified 2026-08-19: Tallinn/Kunda/Haapsalu/Pärnu/Tartu/
+    # Kohtla-Järve/Kuressaare/Sõrve/Kärdla and the interiors resolve EE
+    # inside the cores; Ivangorod RU, Valka LV and Cape Kolka LV sit
+    # outside them. The cores are inset rectangles, not a hand-traced
+    # border, so the gaps are wider than the border bands that motivate
+    # them: alongside the true border bands (Valga, whose Latvian twin
+    # Valka is 1.2 km away; Narva and the river strip; Setomaa; the
+    # Peipus shore; the southern border strip), the coastal salients
+    # that reach past the rectangles (the Kõpu peninsula with Ristna,
+    # Vilsandi, the Lahemaa headlands) and the southern interior
+    # (Otepää, Võru) gap too, even though no border sits nearby.
+    # Recovering the salients is tracked in #521.
+    "EE": [
+        (23.4, 58.75, 26.6, 59.6),    # N + NW mainland (Tallinn, Haapsalu)
+        (23.5, 58.2, 25.6, 58.85),    # SW mainland (Pärnu; LV border >=12 km)
+        (25.6, 58.2, 26.9, 59.3),     # centre-east (Tartu; edge at the Peipus shore, mid-lake border beyond)
+        (26.6, 59.1, 27.75, 59.47),   # NE (Kohtla-Järve; Narva river >=17 km)
+        (21.9, 57.9, 23.45, 58.65),   # Saaremaa + Muhu (Kolka LV >=17 km S)
+        (22.35, 58.68, 23.1, 59.1),   # Hiiumaa
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -202,12 +224,18 @@ _HULL: dict[str, list[Box]] = {
         (13.4, 61.0, 24.3, 66.4),      # Norrland + the Bothnian sea
         (16.3, 66.4, 24.2, 69.3),      # Lapland up to Treriksröset
     ],
+    # Valka, Ivangorod and the Latvian coast strip sit inside the hull
+    # deliberately (border-band semantics); Riga and Helsinki stay
+    # outside. Overlaps the FI hull over the Gulf of Finland on purpose:
+    # cores break the tie (#499).
+    "EE": [(21.5, 57.45, 28.45, 59.9)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
     "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
     "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU, "SE": MEASURE_EU,
+    "EE": MEASURE_EU,
 }
 
 
@@ -239,7 +267,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark and Sweden)",
+            "Ireland, the UK, Denmark, Sweden and Estonia)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

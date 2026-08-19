@@ -425,3 +425,66 @@ def test_transtrand_resolves_se_now_the_hull_reaches_the_whole_core():
     r = resolve_jurisdiction(_track((61.2, 13.7)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
 
+
+
+def test_a_tallinn_flight_resolves_to_ee_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((59.44, 24.75)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_tartu_resolves_to_ee():
+    r = resolve_jurisdiction(_track((58.38, 26.72)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_parnu_resolves_to_ee():
+    r = resolve_jurisdiction(_track((58.39, 24.50)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_kuressaare_and_sorve_resolve_through_the_saaremaa_core():
+    r = resolve_jurisdiction(_track((58.25, 22.48), (57.92, 22.04)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_kardla_hiiumaa_resolves_to_ee():
+    r = resolve_jurisdiction(_track((59.00, 22.75)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_valga_gaps_as_a_border_band():
+    # Its Latvian twin Valka is 1.2 km away — no coordinate box can
+    # honestly split the twin towns.
+    r = resolve_jurisdiction(_track((57.78, 26.03)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_narva_gaps_as_a_border_band():
+    r = resolve_jurisdiction(_track((59.38, 28.20)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_valka_latvia_gaps_inside_the_hull_only():
+    r = resolve_jurisdiction(_track((57.77, 26.02)))
+    assert r.jurisdiction is None
+
+
+def test_riga_stays_outside_the_ee_hull_entirely():
+    r = resolve_jurisdiction(_track((56.95, 24.10)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Estonia" in r.gap_reason
+
+
+def test_helsinki_still_resolves_fi_with_the_ee_hull_nearby():
+    r = resolve_jurisdiction(_track((60.25, 24.95)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "FI"
+
+
+def test_the_gulf_coast_overlap_band_resolves_ee_via_its_core():
+    # Kunda (59.50, 26.50) sits inside BOTH the FI hull (lat >= 59.5) and
+    # the EE hull; only the EE core contains it (#499 tie-break).
+    r = resolve_jurisdiction(_track((59.50, 26.50)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"

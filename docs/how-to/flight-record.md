@@ -34,7 +34,7 @@ takeoff-referenced height, which is aircraft-reported. The
 surface-referenced height is the exception — it needs a fetch from
 Mapterhorn's terrain tiles (see "The `[terrain]` extra" below).
 
-Five feeds are used:
+Six feeds are used:
 
 - **US flights** query the FAA's UAS Facility Map (keyless ArcGIS). The
   bounding box sent to the endpoint is padded and snapped outward to a
@@ -55,6 +55,13 @@ Five feeds are used:
   (the file behind droneregler.dk), once more with no location sent.
   NOTAM-driven temporary restrictions are not part of that dataset
   either; the record says so.
+- **Estonia** flights fetch EANS's whole UAS geographical-zone file
+  (attributed to Estonian Air Navigation Services, confirmed in writing
+  as public data), again with no location sent. The file reflects the
+  rules at the time of download rather than the time of the flight, and
+  NOTAM activation hours live only as text in the zone's published
+  message, not a machine-readable field; the record says so on both
+  counts.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -69,12 +76,13 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
 United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
-Denmark, or Sweden. Everywhere else the record states the gap instead
-of guessing: *"no supported airspace data source for this location."*
+Denmark, Sweden, or Estonia. Everywhere else the record states the gap
+instead of guessing: *"no supported airspace data source for this
+location."*
 A flight near a jurisdiction boundary gaps the same way, deliberately,
 rather than borrowing a neighbouring country's rules from coordinates
 alone. The logbook half of the record (times, distances, heights) is

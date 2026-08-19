@@ -1,0 +1,207 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [25.00, 58.80], [25.10, 58.80], [25.10, 58.85],
+                    [25.00, 58.85], [25.00, 58.80]
+                ]]
+            },
+            "properties": {
+                "identifier": "EE901",
+                "country": "EST",
+                "name": "Example aerodrome zone",
+                "type": "COMMON",
+                "restriction": "REQ_AUTHORISATION",
+                "restrictionConditions": "",
+                "reason": "Air traffic",
+                "message": "You must have a permission from the example authority.",
+                "extendedProperties": {},
+                "geometry": {
+                    "uomDimensions": "M",
+                    "lowerLimit": 0,
+                    "lowerVerticalReference": "AGL",
+                    "upperLimit": 120,
+                    "upperVerticalReference": "AGL"
+                },
+                "applicability": [{"permanent": "YES", "schedule": []}],
+                "zoneAuthority": [{"name": "EANS", "contactName": "EANS", "siteURL": "https://example.invalid/zone", "email": "", "purpose": "AUTHORIZATION"}],
+                "metaData": {"creationDateTime": "2024-04-08T07:32:17.571Z", "updateDateTime": "2026-08-07T07:12:14.948Z", "author": "Lennuliiklusteeninduse AS"},
+                "airspacetype": "other",
+                "airspaceclass": "EEGZ901",
+                "lower": "SFC",
+                "lowerMeters": 0,
+                "upper": "120 M AGL",
+                "upperMeters": 120,
+                "hidden": false
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [26.00, 58.50], [26.20, 58.50], [26.20, 58.60],
+                        [26.00, 58.60], [26.00, 58.50]
+                    ],
+                    [
+                        [26.08, 58.54], [26.12, 58.54], [26.12, 58.56],
+                        [26.08, 58.56], [26.08, 58.54]
+                    ]
+                ]
+            },
+            "properties": {
+                "identifier": "EE902",
+                "country": "EST",
+                "name": "Example bird sanctuary",
+                "type": "COMMON",
+                "restriction": "NO_RESTRICTION",
+                "restrictionConditions": "",
+                "reason": "Nature",
+                "message": "Please avoid disturbing nesting birds.",
+                "extendedProperties": {},
+                "geometry": {
+                    "uomDimensions": "FT",
+                    "lowerLimit": 0,
+                    "lowerVerticalReference": "AGL",
+                    "upperLimit": 6000,
+                    "upperVerticalReference": "AGL"
+                },
+                "applicability": [{"permanent": "NO", "startDateTime": "2026-04-01T00:00:00.000Z", "endDateTime": "2026-11-30T00:00:00.000Z", "schedule": []}],
+                "zoneAuthority": [{"name": "EANS", "contactName": "EANS", "siteURL": "", "email": "", "purpose": "AUTHORIZATION"}],
+                "metaData": {"creationDateTime": "2024-04-08T07:32:17.571Z", "updateDateTime": "2026-08-07T07:12:14.948Z", "author": "Lennuliiklusteeninduse AS"},
+                "airspacetype": "other",
+                "airspaceclass": "EER901FAUNA",
+                "lower": "SFC",
+                "lowerMeters": 0,
+                "upper": "6000 FT AGL",
+                "upperMeters": 1800,
+                "hidden": false
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [24.40, 58.30], [24.50, 58.30], [24.50, 58.35],
+                    [24.40, 58.35], [24.40, 58.30]
+                ]]
+            },
+            "properties": {
+                "identifier": "A990126",
+                "country": "EST",
+                "name": "A9901/26",
+                "type": "COMMON",
+                "restriction": "NO_RESTRICTION",
+                "restrictionConditions": "",
+                "reason": "Air traffic",
+                "message": "DANGER AREA EXAMPLE ACTIVATED. [Schedule: 18-19 0500-1659]",
+                "extendedProperties": {},
+                "geometry": {
+                    "uomDimensions": "FT",
+                    "lowerLimit": 0,
+                    "lowerVerticalReference": "AGL",
+                    "upperLimit": 2200,
+                    "upperVerticalReference": "AGL"
+                },
+                "applicability": [{"permanent": "NO", "startDateTime": "2026-08-18T05:00:00.000Z", "endDateTime": "2026-08-20T13:59:00.000Z", "schedule": []}],
+                "zoneAuthority": [{"name": "EANS", "contactName": "EANS", "siteURL": "", "email": "", "purpose": "AUTHORIZATION"}],
+                "metaData": {"creationDateTime": "2026-08-17T10:00:00.000Z", "updateDateTime": "2026-08-17T10:00:00.000Z", "author": "Lennuliiklusteeninduse AS"},
+                "airspacetype": "other",
+                "airspaceclass": "A9901/26",
+                "lower": "SFC",
+                "lowerMeters": 0,
+                "upper": "2200 FT AGL",
+                "upperMeters": 671,
+                "hidden": false
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [21.0, 57.0], [29.0, 57.0], [29.0, 60.0],
+                    [21.0, 60.0], [21.0, 57.0]
+                ]]
+            },
+            "properties": {
+                "identifier": "EEGZS9",
+                "country": "EST",
+                "name": "",
+                "type": "COMMON",
+                "restriction": "PROHIBITED",
+                "restrictionConditions": "",
+                "reason": "Other",
+                "message": "",
+                "extendedProperties": {},
+                "geometry": {
+                    "uomDimensions": "M",
+                    "lowerLimit": 121,
+                    "lowerVerticalReference": "AGL",
+                    "upperLimit": 9999,
+                    "upperVerticalReference": "AGL"
+                },
+                "applicability": [{"permanent": "YES", "schedule": []}],
+                "zoneAuthority": [{"name": "EANS", "contactName": "EANS", "siteURL": "", "email": "", "purpose": "AUTHORIZATION"}],
+                "metaData": {"creationDateTime": "2024-04-08T07:32:17.571Z", "updateDateTime": "2026-08-07T07:12:14.948Z", "author": "Lennuliiklusteeninduse AS"},
+                "airspacetype": "other",
+                "airspaceclass": "",
+                "lower": "121 M AGL",
+                "lowerMeters": 121,
+                "upper": "UNL",
+                "upperMeters": 9999,
+                "hidden": true
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [-180.0, -90.0], [180.0, -90.0], [180.0, 90.0],
+                        [-180.0, 90.0], [-180.0, -90.0]
+                    ],
+                    [
+                        [22.0, 57.5], [28.0, 57.5], [28.0, 59.7],
+                        [22.0, 59.7], [22.0, 57.5]
+                    ]
+                ]
+            },
+            "properties": {
+                "identifier": "EERZout",
+                "country": "EST",
+                "name": "Outside Estonia",
+                "type": "COMMON",
+                "restriction": "PROHIBITED",
+                "restrictionConditions": "",
+                "reason": "Foreign territory",
+                "message": "",
+                "extendedProperties": {},
+                "geometry": {
+                    "uomDimensions": "M",
+                    "lowerLimit": 0,
+                    "lowerVerticalReference": "AGL",
+                    "upperLimit": 5000,
+                    "upperVerticalReference": "AGL"
+                },
+                "applicability": [{"permanent": "YES", "schedule": []}],
+                "zoneAuthority": [{"name": "EANS", "contactName": "EANS", "siteURL": "", "email": "", "purpose": "AUTHORIZATION"}],
+                "metaData": {"creationDateTime": "2024-04-08T07:32:17.571Z", "updateDateTime": "2026-08-07T07:12:14.948Z", "author": "Lennuliiklusteeninduse AS"},
+                "airspacetype": "other",
+                "airspaceclass": "Outside Estonia",
+                "lower": "SFC",
+                "lowerMeters": 0,
+                "upper": "5000 M AGL",
+                "upperMeters": 5000,
+                "hidden": false
+            }
+        }
+    ]
+}
