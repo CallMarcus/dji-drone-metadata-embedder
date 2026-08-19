@@ -25,6 +25,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urljoin
 
+from .dronezoner import _circle_ring
 from .ed269 import _utc
 from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
 
@@ -160,6 +161,37 @@ def _rings(
     return polygons, holes
 
 
+def _point_circle(
+    geometry: dict, ident: str, where: str
+) -> list[tuple[float, float]]:
+    """A Point zone's densified ring from its ED-318 Circle extent.
+
+    The profile publishes point zones as centre + ``extent`` of
+    ``{"subType": "Circle", "radius": <metres>}`` (the live Swedish file's
+    ESU247 radius is 1852.0 — exactly one nautical mile). Anything else is
+    a shape this parser has never seen live and fails loudly."""
+    extent = geometry.get("extent")
+    if not isinstance(extent, dict) or extent.get("subType") != "Circle":
+        raise AirspaceError(
+            f"{where} ({ident}): Point geometry without a Circle extent "
+            "is not supported"
+        )
+    radius = extent.get("radius")
+    if not isinstance(radius, (int, float)) or radius <= 0:
+        raise AirspaceError(
+            f"{where} ({ident}): Circle radius {radius!r} is not a "
+            "positive number of metres"
+        )
+    coords = geometry.get("coordinates") or []
+    try:
+        lon, lat = float(coords[0]), float(coords[1])
+    except (TypeError, ValueError, IndexError) as exc:
+        raise AirspaceError(
+            f"{where} ({ident}): malformed Point coordinates {coords!r}"
+        ) from exc
+    return _circle_ring(lon, lat, float(radius))
+
+
 def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
     """Every zone of an ED-318 GeoJSON document as normalized :class:`Zone`s."""
     try:
@@ -219,7 +251,11 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
             unit = "ft" if str(layer.get("uom", "M")).upper() == "FT" else "m"
             lower = _limit(layer, "lower", unit, f"{where} ({ident})")
             upper = _limit(layer, "upper", unit, f"{where} ({ident})")
-        polygons, holes = _rings(geometry, ident, where)
+        if geometry.get("type") == "Point":
+            polygons = [_point_circle(geometry, ident, where)]
+            holes = []
+        else:
+            polygons, holes = _rings(geometry, ident, where)
         if not polygons:
             raise AirspaceError(f"{where} ({ident}): no polygon geometry")
         zones.append(

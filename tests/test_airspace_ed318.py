@@ -144,22 +144,15 @@ def _se() -> bytes:
 # --- schedule-carrying windows, minute-precision timestamps.
 
 
-def _se_polygon_only() -> bytes:
-    """Fixture with only the Polygon feature (ESU901) for Task 1 tests."""
-    doc = json.loads(_se().decode("utf-8"))
-    doc["features"] = [doc["features"][0]]  # Keep only ESU901 (Polygon)
-    return json.dumps(doc).encode()
-
-
 def test_multilingual_name_picks_english_and_keeps_swedish_in_native():
-    zones = parse_ed318(_se_polygon_only(), SRC)
+    zones = parse_ed318(_se(), SRC)
     assert zones[0].name == "Example test range"
     native_name = zones[0].native["properties"]["name"]
     assert {"text": "Exempel testområde", "lang": "se-SE"} in native_name
 
 
 def test_multilingual_name_falls_back_to_first_entry_without_english():
-    doc = json.loads(_se_polygon_only().decode("utf-8"))
+    doc = json.loads(_se().decode("utf-8"))
     doc["features"][0]["properties"]["name"] = [
         {"text": "Bara svenska", "lang": "se-SE"}
     ]
@@ -168,14 +161,14 @@ def test_multilingual_name_falls_back_to_first_entry_without_english():
 
 
 def test_name_list_without_usable_text_raises():
-    doc = json.loads(_se_polygon_only().decode("utf-8"))
+    doc = json.loads(_se().decode("utf-8"))
     doc["features"][0]["properties"]["name"] = [{"lang": "en-GB"}]
     with pytest.raises(AirspaceError, match="ESU901.*name"):
         parse_ed318(json.dumps(doc).encode(), SRC)
 
 
 def test_minute_precision_windows_parse():
-    zones = parse_ed318(_se_polygon_only(), SRC)
+    zones = parse_ed318(_se(), SRC)
     win = zones[0].applicability[0]
     assert win.start == datetime(2026, 1, 1, 0, 0)
     assert win.end == datetime(2027, 12, 31, 23, 59)
@@ -186,3 +179,56 @@ def test_start_only_window_is_open_ended():
     win = zones[1].applicability[0]
     assert win.start == datetime(2025, 10, 27, 0, 0)
     assert win.end is None and win.permanent is False
+
+
+def test_point_circle_zones_become_densified_rings():
+    zones = parse_ed318(_se(), SRC)
+    assert [z.identifier for z in zones] == ["ESU901", "ESU902", "ESU903"]
+    circle = zones[1]
+    ring = circle.polygons[0]
+    assert len(ring) >= 32 and ring[0] == ring[-1]
+    # Every ring point sits ~500 m from the published centre.
+    import math
+    for lon, lat in ring[:8]:
+        dy = (lat - 58.50) * 111_320.0
+        dx = (lon - 15.50) * 111_320.0 * math.cos(math.radians(58.50))
+        assert 450.0 < math.hypot(dx, dy) < 550.0
+    assert circle.holes == []
+    assert circle.native["geometry"]["extent"]["radius"] == 500.0
+
+
+def test_mixed_datum_feet_circle_keeps_per_side_references():
+    heliport = parse_ed318(_se(), SRC)[2]
+    assert heliport.lower is not None and heliport.lower.label() == "0 ft AGL"
+    assert heliport.upper is not None and heliport.upper.label() == "1500 ft AMSL"
+
+
+def test_schedule_rides_in_native_and_outer_bounds_drive_the_window():
+    heliport = parse_ed318(_se(), SRC)[2]
+    assert len(heliport.applicability) == 1
+    win = heliport.applicability[0]
+    assert win.start == datetime(2026, 1, 1, 0, 0)
+    assert win.end == datetime(2027, 8, 31, 23, 59)
+    native_window = heliport.native["properties"]["limitedApplicability"][0]
+    assert native_window["schedule"][0]["day"] == ["MON"]
+
+
+def test_point_without_circle_extent_raises():
+    doc = json.loads(_se().decode("utf-8"))
+    del doc["features"][1]["geometry"]["extent"]
+    with pytest.raises(AirspaceError, match="ESU902.*Circle"):
+        parse_ed318(json.dumps(doc).encode(), SRC)
+
+
+def test_non_circle_extent_subtype_raises():
+    doc = json.loads(_se().decode("utf-8"))
+    doc["features"][1]["geometry"]["extent"]["subType"] = "Ellipse"
+    with pytest.raises(AirspaceError, match="ESU902.*Circle"):
+        parse_ed318(json.dumps(doc).encode(), SRC)
+
+
+def test_non_positive_circle_radius_raises():
+    doc = json.loads(_se().decode("utf-8"))
+    doc["features"][1]["geometry"]["extent"]["radius"] = 0
+    with pytest.raises(AirspaceError, match="ESU902.*radius"):
+        parse_ed318(json.dumps(doc).encode(), SRC)
