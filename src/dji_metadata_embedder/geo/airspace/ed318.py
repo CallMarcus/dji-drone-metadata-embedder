@@ -253,7 +253,7 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
             upper = _limit(layer, "upper", unit, f"{where} ({ident})")
         if geometry.get("type") == "Point":
             polygons = [_point_circle(geometry, ident, where)]
-            holes = []
+            holes: list[list[tuple[float, float]]] = []
         else:
             polygons, holes = _rings(geometry, ident, where)
         if not polygons:
