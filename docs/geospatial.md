@@ -437,9 +437,13 @@ rides into the map — the UK via the NATS AIS AIXM 5.1 dataset, whose
 activation hours and temporary restrictions live in the AIP and NOTAMs,
 not in the file — that caveat rides along too — Denmark via
 Trafikstyrelsen's drone-zone dataset, which likewise leaves NOTAM-driven
-temporaries to the AIP, and Sweden via LFV's ED-318 file, where a few
+temporaries to the AIP, Sweden via LFV's ED-318 file, where a few
 zones apply only during scheduled hours within their published windows —
-the schedule stays in the zone's published data and is not evaluated).
+the schedule stays in the zone's published data and is not evaluated,
+and Estonia via EANS's published zones file, which reflects the rules
+at the time of download rather than the time of the flight — that
+caveat rides along, and NOTAM activation hours stay as text in the
+zone's published message).
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
