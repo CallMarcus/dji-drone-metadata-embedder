@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -137,8 +137,10 @@ class TestParsing:
         assert len(z.applicability) == 1
         win = z.applicability[0]
         assert not win.permanent
-        assert win.start == datetime(2026, 9, 7, 6, 0, tzinfo=timezone.utc)
-        assert win.end == datetime(2026, 9, 11, 18, 0, tzinfo=timezone.utc)
+        # Naive UTC, matching ed269._utc and Track.utc (#520): tz-aware
+        # windows crashed the evaluator on any timestamped flight.
+        assert win.start == datetime(2026, 9, 7, 6, 0)
+        assert win.end == datetime(2026, 9, 11, 18, 0)
 
     def test_permanent_zones_have_no_applicability_entries(self):
         assert zone(fixture_zones(), "DK-2").applicability == []
@@ -210,3 +212,31 @@ class TestAllOrNothing:
         )
         with pytest.raises(AirspaceError, match="OBJECTID"):
             parse_dronezoner(body, SOURCE)
+
+
+class TestEvaluateIntegration:
+    def test_windowed_zone_evaluates_against_a_timestamped_track(self):
+        # #520 regression: zone windows must be naive UTC like every other
+        # provider's (ed269._utc semantics) — Track.utc is naive, and a
+        # tz-aware window made evaluate() die with a TypeError instead of
+        # an AirspaceError on any normal timestamped Danish flight.
+        from dji_metadata_embedder.geo.airspace.evaluate import evaluate
+        from dji_metadata_embedder.geo.track import Track, TrackPoint
+
+        z = zone(fixture_zones(), "DK-6")
+        lon, lat = z.polygons[0][0]
+        pts = [TrackPoint(lat=lat, lon=lon, alt=50, timestamp="c",
+                          utc=datetime(2026, 9, 8, 12, 0), rel_alt=20)]
+        report = evaluate(Track(name="dk", points=pts), [z])
+        assert z not in report.not_applicable
+
+    def test_windowed_zone_outside_its_window_is_not_applicable(self):
+        from dji_metadata_embedder.geo.airspace.evaluate import evaluate
+        from dji_metadata_embedder.geo.track import Track, TrackPoint
+
+        z = zone(fixture_zones(), "DK-6")
+        lon, lat = z.polygons[0][0]
+        pts = [TrackPoint(lat=lat, lon=lon, alt=50, timestamp="c",
+                          utc=datetime(2026, 10, 1, 12, 0), rel_alt=20)]
+        report = evaluate(Track(name="dk", points=pts), [z])
+        assert z in report.not_applicable
