@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **geo**: Denmark UAS drone zones via Trafikstyrelsen's Dronezoner dataset (#508) (9d08e49)
+- **geo**: Estonia UAS geographical zones via EANS's uas.geojson (#511) (#522) (9413bdc)
+- **geo**: Sweden UAS geographical zones via LFV's ED-318 file (#510) (#517) (d86095b)
+- `dji-embed map` — combined photos/panos/flights map (#322) (#513) (414263d)
+
+### Fixed
+
+- **geo**: Denmark zone windows become naive UTC so evaluate never mixes awareness (#520) (#523) (cabad92)
+- **geo**: Downscale or embed real DJI DNG previews instead of dropping them (#509) (#512) (c35a8c2)
+- **geo**: Never cache an airspace body that didn't parse (#518) (#525) (b098714)
+- **geo**: Recover the Kõpu/Ristna and Lahemaa salients into the EE cores (#521) (#526) (369faa2)
+
+### Testing
+
+- **gui**: Capture the 360° views mode default, and Setup actually selected (#506) (bd93828)
+
+### Maintenance
+
+- **types**: Drop types-click 7.1.8 and match click 8's resolve_command signature (#519) (#524) (356ac58)
+
 ## [2.10.0] - 2026-08-15
 
 ### Added
