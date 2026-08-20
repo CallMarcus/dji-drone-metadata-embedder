@@ -40,7 +40,6 @@ dev = [
     "black==26.5.1",
     "ruff==0.15.20",
     "mypy==2.1.0",
-    "types-click==7.1.8",
     "jsonschema==4.26.0",
     "pillow==12.3.0",
 ]

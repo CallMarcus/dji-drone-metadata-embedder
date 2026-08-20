@@ -165,7 +165,7 @@ class DragDropGroup(click.Group):
 
     def resolve_command(
         self, ctx: click.Context, args: list[str]
-    ) -> tuple[str, click.Command, list[str]]:
+    ) -> tuple[str | None, click.Command | None, list[str]]:
         try:
             return super().resolve_command(ctx, args)
         except click.UsageError:
