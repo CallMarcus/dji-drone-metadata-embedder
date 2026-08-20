@@ -392,3 +392,43 @@ def test_a_cached_estonian_body_never_touches_the_network(tmp_path):
     data = fetch_zones(_track(59.44, 24.75), tmp_path, transport=no_network)
     assert data.from_cache and len(data.zones) == 3
 
+
+
+def test_a_200_error_page_never_reaches_the_cache(tmp_path):
+    # #518: a provider maintenance page served with HTTP 200 must not be
+    # written as the feed body — the next run should refetch, not be
+    # stuck parsing poison until --airspace-refresh.
+    fake = FakeTransport([b"<html>Down for maintenance</html>"])
+    data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
+    assert data.gap_reason is not None
+    assert not (tmp_path / "ed269-LU.json").exists()
+    assert not (tmp_path / "ed269-LU.json.meta.json").exists()
+
+    fake2 = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    healed = fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake2)
+    assert healed.gap_reason is None and len(healed.zones) == 2
+    assert fake2.urls
+
+
+def test_an_unparseable_cached_body_names_the_refresh_flag(tmp_path):
+    # #518: caches poisoned before the write-after-parse fix (or corrupted
+    # on disk) still fail — but the gap must tell the user the way out.
+    fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
+    fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
+    (tmp_path / "ed269-LU.json").write_bytes(b"<html>Down</html>")
+
+    def no_network(req, timeout=None):
+        raise AssertionError("a corrupted cache hit must not force a live fetch")
+
+    data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=no_network)
+    assert data.gap_reason is not None
+    assert "--airspace-refresh" in data.gap_reason
+
+
+def test_a_fresh_fetch_failure_does_not_name_the_refresh_flag(tmp_path):
+    # Refreshing cannot help when the live feed itself is bad — the hint
+    # belongs to cached-body failures only.
+    fake = FakeTransport([b"<html>Down for maintenance</html>"])
+    data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
+    assert data.gap_reason is not None
+    assert "--airspace-refresh" not in data.gap_reason

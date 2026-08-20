@@ -69,14 +69,12 @@ def _read_cache(body_path: Path) -> tuple[bytes, str] | None:
         return None
 
 
-def _write_cache(body_path: Path, body: bytes, url: str) -> str:
+def _write_cache(body_path: Path, body: bytes, url: str, fetched: str) -> None:
     body_path.parent.mkdir(parents=True, exist_ok=True)
-    fetched = _now_iso()
     body_path.write_bytes(body)
     body_path.with_name(body_path.name + ".meta.json").write_text(
         json.dumps({"url": url, "fetched": fetched}), encoding="utf-8"
     )
-    return fetched
 
 
 def _load_faa_doc(body: bytes) -> dict:
@@ -176,6 +174,20 @@ def fetch_zones(
         url = feed_aixm.page_url
         note = feed_aixm.note
 
+    def parse_body(body: bytes, source: SourceInfo) -> list[Zone]:
+        if code == "US":
+            doc = _load_faa_doc(body)
+            return parse_faa(_faa_pages_from_doc(doc), source)
+        if code in ED269_FEEDS:
+            return parse_ed269(body, source, no_ceiling_m=feed.no_ceiling_m)
+        if code in ED318_FEEDS:
+            return parse_ed318(body, source)
+        if code in DRONEZONER_FEEDS:
+            return parse_dronezoner(body, source)
+        if code in EANS_FEEDS:
+            return parse_eans(body, source)
+        return parse_aixm51(body, source)
+
     cached = None if refresh else _read_cache(body_path)
     try:
         if cached is not None:
@@ -210,35 +222,25 @@ def fetch_zones(
                     page, url, today=datetime.now(timezone.utc).date()
                 )
                 body = extract_xml(_fetch_url(zip_url, transport))
-            fetched = _write_cache(body_path, body, url)
+            fetched = _now_iso()
             from_cache = False
 
         source = SourceInfo(
             feed=feed_name, url=url, fetched=fetched,
             license=license_line, caveat=caveat, note=note,
         )
-        if code == "US":
-            doc = _load_faa_doc(body)
-            pages_raw = _faa_pages_from_doc(doc)
-            zones = parse_faa(pages_raw, source)
-        elif code in ED269_FEEDS:
-            zones = parse_ed269(
-                body, source, no_ceiling_m=feed.no_ceiling_m
-            )
-        elif code in ED318_FEEDS:
-            zones = parse_ed318(body, source)
-        elif code in DRONEZONER_FEEDS:
-            zones = parse_dronezoner(body, source)
-        elif code in EANS_FEEDS:
-            zones = parse_eans(body, source)
-        else:
-            zones = parse_aixm51(body, source)
+        zones = parse_body(body, source)
         if from_cache:
             # Only claim the cache was usable once it has actually
             # parsed — an announce made before this point could be a lie.
             announce(
                 f"Using cached {feed_name} from {fetched} ({body_path})"
             )
+        else:
+            # Cache only what parsed (#518): a maintenance page served
+            # with HTTP 200 must never become the body every later run
+            # trusts.
+            _write_cache(body_path, body, url, fetched)
     except AirspaceError as exc:
         stale = _read_cache(body_path) if refresh else None
         if stale is not None:
@@ -248,22 +250,7 @@ def fetch_zones(
                 license=license_line, caveat=caveat, note=note,
             )
             try:
-                if code == "US":
-                    doc = _load_faa_doc(body)
-                    pages_raw = _faa_pages_from_doc(doc)
-                    zones = parse_faa(pages_raw, source)
-                elif code in ED269_FEEDS:
-                    zones = parse_ed269(
-                        body, source, no_ceiling_m=feed.no_ceiling_m
-                    )
-                elif code in ED318_FEEDS:
-                    zones = parse_ed318(body, source)
-                elif code in DRONEZONER_FEEDS:
-                    zones = parse_dronezoner(body, source)
-                elif code in EANS_FEEDS:
-                    zones = parse_eans(body, source)
-                else:
-                    zones = parse_aixm51(body, source)
+                zones = parse_body(body, source)
             except AirspaceError as exc2:
                 return AirspaceData(
                     gap_reason=f"airspace data unavailable: {exc2}"
@@ -275,5 +262,15 @@ def fetch_zones(
                 f"from {fetched}"
             )
             return AirspaceData(zones=zones, source=source, from_cache=True)
-        return AirspaceData(gap_reason=f"airspace data unavailable: {exc}")
+        reason = f"airspace data unavailable: {exc}"
+        if cached is not None:
+            # The body that failed came from the cache (poisoned before
+            # the write-after-parse fix, or corrupted on disk) — the live
+            # feed may be fine, so name the way out (#518). A fresh-fetch
+            # failure never gets this hint: refreshing cannot help there.
+            reason += (
+                f" — the cached copy at {body_path} may be bad; rerun "
+                "with --airspace-refresh to refetch"
+            )
+        return AirspaceData(gap_reason=reason)
     return AirspaceData(zones=zones, source=source, from_cache=from_cache)
