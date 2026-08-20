@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-08-20
+
 ### Added
 
 - **geo**: Denmark UAS drone zones via Trafikstyrelsen's Dronezoner dataset (#508) (9d08e49)
@@ -34,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Maintenance
 
 - **types**: Drop types-click 7.1.8 and match click 8's resolve_command signature (#519) (#524) (356ac58)
+
+### Other
+
+- Prepare version 2.11.0 (#527) (77180b6)
+
 
 ## [2.10.0] - 2026-08-15
 
