@@ -453,6 +453,27 @@ def test_kardla_hiiumaa_resolves_to_ee():
     assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
 
 
+def test_kopu_and_ristna_resolve_through_the_hiiumaa_core():
+    # #521: the Kõpu peninsula sits ~90 km from the nearest foreign
+    # territory — a gap there was an inset-rectangle artefact, not a
+    # border band.
+    r = resolve_jurisdiction(_track((58.916, 22.200), (58.939, 22.057)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_kasmu_lahemaa_resolves_to_ee():
+    # #521: Käsmu missed the N-core top by ~390 m.
+    r = resolve_jurisdiction(_track((59.6035, 25.928)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_hanko_still_resolves_fi_above_the_raised_ee_core():
+    # The FI core floor is 59.8; the raised EE core top (59.65) must
+    # not capture Finland's south coast.
+    r = resolve_jurisdiction(_track((59.823, 22.97)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "FI"
+
+
 def test_valga_gaps_as_a_border_band():
     # Its Latvian twin Valka is 1.2 km away — no coordinate box can
     # honestly split the twin towns.
