@@ -120,9 +120,11 @@ extending the desktop app. Design specs are local-only working notes since
 [`docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md` (permalink)](https://github.com/CallMarcus/dji-drone-metadata-embedder/blob/e51ab2a/docs/superpowers/specs/2026-07-18-gui-full-workspace-design.md). It amends the
 original 2026-07-14 design: a single window, split into a source/mode/action
 column on the left and a preview pane on the right, replaces the three
-task-flow pages. The mode strip tops out at six modes (Embed, Flight map,
-Photo map, Convert, Verify, Setup); M1 wires up four (Flight map, Photo map,
-Embed, Setup), with Convert and Verify joining in M4. Options stay curated,
+task-flow pages. The spec's mode strip topped out at six modes (Embed,
+Flight map, Photo map, Convert, Verify, Setup); M1 wired up four (Flight
+map, Photo map, Embed, Setup), with Convert and Verify joining in M4, and
+a seventh mode — 360° views, fronting the `panoedit` opening-view
+editor — was added after the 2.0 arc (#440). Options stay curated,
 not exhaustive: they arrive in M3+, one *Advanced* expander per mode for the
 long tail, exotic flags remain CLI-only. As of M4a, the SOURCE door also
 accepts a single telemetry file (`.SRT`/`.MP4`/`.MOV`), not just a folder,

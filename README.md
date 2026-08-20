@@ -34,7 +34,10 @@ it's a handful of copy-paste commands. For a guided tour see
   telemetry lines up.
 - **Flight records** — `dji-embed flightmap -f record` writes a printable
   logbook with airspace facts (FAA / ED-269) and honestly-labelled heights,
-  and `--airspace` overlays the same zones on the interactive maps — as translucent ceiling-height volumes in the 3D view.
+  and `--airspace` overlays the same zones on the interactive maps — as
+  translucent ceiling-height volumes in the 3D view. Covered so far: the
+  US, UK, Ireland, Switzerland, Luxembourg, Denmark, Sweden, Finland and
+  Estonia; everywhere else the record states the gap honestly.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
@@ -234,6 +237,7 @@ maps there's also `dji-embed photomap <folder> --serve`.
 | See all my flights on one map | `dji-embed flightmap /path/to/footage` |
 | See my photos on a map | `dji-embed photomap /path/to/photos` |
 | Map a mixed folder (photos + flights) | `dji-embed map /path/to/folder` |
+| See official drone zones along my flights | `dji-embed flightmap /path/to/footage --airspace` |
 | Map one flight in detail | `dji-embed convert html DJI_0001.SRT` |
 | Make videos searchable by location | `dji-embed embed /path/to/footage` |
 | Get a GPX track for Google Earth | `dji-embed convert gpx DJI_0001.SRT` |

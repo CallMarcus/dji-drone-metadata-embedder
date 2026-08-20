@@ -25,7 +25,15 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
 - **Map your footage** — `photomap` pins every GPS-tagged photo (JPG/JPEG/
   DNG) on an interactive HTML map with thumbnails; 360° panoramas get their
   own orange pins and an in-page viewer. `flightmap` draws every flight in
-  a folder of `.SRT` logs on one map.
+  a folder of `.SRT` logs on one map. `map` combines both: photos,
+  panoramas and flight tracks on a single map, subfolders included.
+- **Airspace awareness** — `flightmap --airspace` overlays official drone
+  zones (FAA UAS Facility Maps in the US, the national feeds in Europe)
+  on the flat or 3D flight map; `flightmap -f record` writes a printable
+  flight record listing the zones each flight crossed. Covered so far:
+  US, UK, Ireland, Switzerland, Luxembourg, Denmark, Sweden, Finland,
+  Estonia. The map states facts about published zones; it never rules on
+  whether a flight was legal.
 - **Convert telemetry** — SRT to GPX, CSV, GeoJSON, KML, CoT, or an HTML
   map, for use in other apps (Google Earth, GIS tools, video editors).
 - **Privacy controls** — `--redact fuzz` coarsens locations to ~100 m;
@@ -35,10 +43,13 @@ Two ways to use it — same engine:
 
 1. **Desktop app** ("DJI Metadata Embedder", Windows and macOS): install, open, drop a folder,
    pick a mode (*Flight map*, *Photo map*, *Embed telemetry*,
-   *Convert telemetry*, *Verify footage*, *Setup*), and press the action
-   button; finished maps render right in the app's preview pane, with an
-   *Open in browser* pop-out. The Flight map mode has a *3D terrain map*
-   toggle for a MapLibre terrain view (`flightmap-3d.html`). No terminal.
+   *Convert telemetry*, *Verify footage*, *360° views*, *Setup*), and
+   press the action button; finished maps render right in the app's
+   preview pane, with an *Open in browser* pop-out. The Flight map mode
+   has a *3D terrain map* toggle for a MapLibre terrain view
+   (`flightmap-3d.html`) and an *Airspace* toggle for the official-zones
+   overlay. The *360° views* mode opens a local editor for setting each
+   panorama's opening view. No terminal.
    The workspace also accepts a
    single telemetry file (`.SRT`/`.MP4`/`.MOV`) as the source, and
    *Convert telemetry* turns it (or a folder) into GPX, CSV, GeoJSON, KML,
@@ -74,12 +85,15 @@ upgrade the same Python that owns the `dji-embed` command).
 
 ```
 dji-embed embed <folder>        Embed SRT telemetry into the MP4s (pairs by filename)
+dji-embed map <folder>          One HTML map of everything: photos, panoramas, flights
 dji-embed photomap <folder>     HTML map of GPS-tagged photos (-r = subfolders too)
-dji-embed flightmap <folder>    HTML map of all flights from the .SRT logs
+dji-embed flightmap <folder>    HTML map of all flights (--airspace, --3d, -f record)
 dji-embed convert <fmt> <file>  SRT → gpx | csv | geojson | kml | cot | html
 dji-embed check <folder>        What metadata do these files already carry?
 dji-embed validate <folder>     Are SRT and MP4 in sync? (drift report)
 dji-embed serve <folder>        Serve an existing map locally (enables the 360° viewer)
+dji-embed panoedit <folder>     Local editor: set each 360° panorama's opening view
+dji-embed fetch-log <file.TXT>  Decrypt DJI TXT flight records via Flight Reader (opt-in)
 dji-embed doctor                Diagnostics: versions, FFmpeg/ExifTool present?
 dji-embed verify-sun <file>     Sun position over a clip (shadow plausibility)
 ```
@@ -89,8 +103,19 @@ Every command accepts `--help` for its options.
 ## Recipes the user will most likely ask about
 
 - **"Map everything in this folder, including subfolders":**
-  `dji-embed photomap D:\Photos -r` → writes `photomap.html` into the
-  folder; open it in a browser. Videos' flights: `dji-embed flightmap D:\Footage`.
+  `dji-embed map D:\Drone` → one `map.html` with photos, panoramas and
+  flight tracks together (subfolders always included; add `--serve` for
+  the 360° viewer). For just photos with more options:
+  `dji-embed photomap D:\Photos -r`; just flights:
+  `dji-embed flightmap D:\Footage`.
+- **"Show official drone zones around my flights":**
+  `dji-embed flightmap D:\Footage --airspace` — overlays published zones
+  on the map (works with `--3d` too); `-f record` writes a printable
+  flight record including the zones crossed. Covered: US, UK, Ireland,
+  Switzerland, Luxembourg, Denmark, Sweden, Finland, Estonia; flights
+  elsewhere simply get no overlay. Zone data is fetched from the
+  official feeds and cached beside the map (`--airspace-refresh` forces
+  a refetch). Needs exact positions, so it refuses `--redact fuzz`.
 - **"My 360° panoramas won't open / black viewer":** browsers block the 360°
   viewer on maps opened straight from disk (`file://`). Rebuild with
   `dji-embed photomap <folder> --serve`, or serve an existing map with
@@ -130,6 +155,12 @@ Every command accepts `--help` for its options.
   for **any** GPS-tagged photos, not just DJI's.
 - The desktop app is a front end over the same CLI: anything the app does,
   the `dji-embed` command can do with more options.
+- Nothing is ever uploaded, with one opt-in exception: `fetch-log` sends
+  encrypted DJI `.TXT` flight records (never footage) to flightreader.com
+  for decoding, using the user's own Flight Reader API key, after an
+  explicit consent prompt. The decoded CSV feeds
+  `flightmap --flight-log`, which upgrades the 3D map's estimated camera
+  footprints to measured gimbal data.
 - Photo-map pins open their popup on click/tap; thumbnail previews on hover
   are **off by default** — a "Hover previews" toggle in the map's top-right
   corner (mouse devices only; the browser remembers the choice) turns them
@@ -146,4 +177,4 @@ Every command accepts `--help` for its options.
    <https://github.com/CallMarcus/dji-drone-metadata-embedder/issues>
 
 *This document ships with the project and is updated alongside it; it
-describes v2.0+ behavior.*
+describes v2.11+ behavior.*
