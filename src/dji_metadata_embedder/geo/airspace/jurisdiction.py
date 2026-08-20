@@ -165,22 +165,23 @@ _CORE: dict[str, list[Box]] = {
     # Nominatim-verified 2026-08-19: Tallinn/Kunda/Haapsalu/Pärnu/Tartu/
     # Kohtla-Järve/Kuressaare/Sõrve/Kärdla and the interiors resolve EE
     # inside the cores; Ivangorod RU, Valka LV and Cape Kolka LV sit
-    # outside them. The cores are inset rectangles, not a hand-traced
-    # border, so the gaps are wider than the border bands that motivate
-    # them: alongside the true border bands (Valga, whose Latvian twin
-    # Valka is 1.2 km away; Narva and the river strip; Setomaa; the
-    # Peipus shore; the southern border strip), the coastal salients
-    # that reach past the rectangles (the Kõpu peninsula with Ristna,
-    # Vilsandi, the Lahemaa headlands) and the southern interior
-    # (Otepää, Võru) gap too, even though no border sits nearby.
-    # Recovering the salients is tracked in #521.
+    # outside them. The Kõpu peninsula (Ristna) and the Lahemaa
+    # headlands (Käsmu) recovered via #521, probes 2026-08-20; the N
+    # core top stays 0.15° under the FI core floor (Hanko 59.82).
+    # The cores are inset rectangles, not a hand-traced border, so the
+    # gaps are wider than the border bands that motivate them: alongside
+    # the true border bands (Valga, whose Latvian twin Valka is 1.2 km
+    # away; Narva and the river strip; Setomaa; the Peipus shore; the
+    # southern border strip), Vilsandi (west of the Saaremaa core) and
+    # the southern interior (Otepää, Võru) gap too, even though no
+    # border sits nearby.
     "EE": [
-        (23.4, 58.75, 26.6, 59.6),    # N + NW mainland (Tallinn, Haapsalu)
+        (23.4, 58.75, 26.6, 59.65),   # N + NW mainland (Tallinn; Käsmu in, Purekkari cape 59.66 gaps)
         (23.5, 58.2, 25.6, 58.85),    # SW mainland (Pärnu; LV border >=12 km)
         (25.6, 58.2, 26.9, 59.3),     # centre-east (Tartu; edge at the Peipus shore, mid-lake border beyond)
         (26.6, 59.1, 27.75, 59.47),   # NE (Kohtla-Järve; Narva river >=17 km)
         (21.9, 57.9, 23.45, 58.65),   # Saaremaa + Muhu (Kolka LV >=17 km S)
-        (22.35, 58.68, 23.1, 59.1),   # Hiiumaa
+        (22.0, 58.68, 23.1, 59.1),    # Hiiumaa incl. Kõpu/Ristna
     ],
 }
 _HULL: dict[str, list[Box]] = {
