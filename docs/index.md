@@ -1,6 +1,6 @@
 # DJI Drone Metadata Embedder
 
-Welcome to the documentation for **DJI Drone Metadata Embedder**. This project embeds telemetry from DJI drone SRT files into videos, maps flights and GPS-tagged photos as interactive HTML maps, and converts telemetry to other formats — all locally on your machine, via a desktop app (Windows and macOS) or the `dji-embed` command line.
+Welcome to the documentation for **DJI Drone Metadata Embedder**. This project embeds telemetry from DJI drone SRT files into videos, maps flights and GPS-tagged photos as interactive HTML maps, overlays official airspace zones and writes printable flight records, and converts telemetry to other formats — all locally on your machine, via a desktop app (Windows and macOS) or the `dji-embed` command line.
 
 Use the guides in this site to embed GPS data in your footage, map where you've flown, redact sensitive information and generate GPX tracks.
 

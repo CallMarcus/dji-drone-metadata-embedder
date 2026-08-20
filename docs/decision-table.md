@@ -17,6 +17,9 @@ This guide helps you choose the right command and approach for your specific use
 | **Map a whole folder of flights** | `dji-embed flightmap` | You want every flight's track on one combined map |
 | **Map your still photos** | `dji-embed photomap` | You shot geotagged photos and want them on a map |
 | **Map a mixed folder of photos and videos** | `dji-embed map` | You want photos, panoramas, and flight tracks together on one map |
+| **See official drone zones along your flights** | `dji-embed flightmap --airspace` | Overlays published airspace zones on the flight map — nine countries covered, see [Flight records](how-to/flight-record.md) |
+| **A printable flight record / logbook** | `dji-embed flightmap -f record` | One page per flight with airspace facts and honestly-labelled heights |
+| **Set a 360° panorama's opening view** | `dji-embed panoedit` | Drag-and-save editor for the view a panorama opens with (also the app's *360° views* mode) |
 | **No terminal at all** | drag the folder onto `dji-embed.exe` | Maps the folder's flight logs and photos, then opens the result in your browser (same as `dji-embed <folder>`) |
 
 ---

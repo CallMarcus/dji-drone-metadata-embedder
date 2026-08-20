@@ -23,6 +23,11 @@ folder onto `dji-embed.exe`**:
 dji-embed /path/to/footage    # -> flightmap.html (and photomap.html) open in the browser
 ```
 
+For one combined map instead — photos, panoramas and flight tracks
+together — use `dji-embed map <folder>`; airspace overlays, flight
+records and the panorama tools are covered in
+[Maps & Panoramas](geospatial.md).
+
 ## 3D terrain view
 
 `dji-embed flightmap <folder> --3d` writes a second map, `flightmap-3d.html`,
@@ -82,7 +87,8 @@ For detailed how-to guides such as creating Windows bundles or redacting locatio
 
 ## Scripting and frontends
 
-`photomap`, `flightmap`, `embed`, `check`, and `doctor` accept `--progress jsonl`,
+`map`, `photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`,
+`validate`, `verify-sun`, and `fetch-log` accept `--progress jsonl`,
 which switches stdout to machine-readable progress events (one JSON object
 per line) for scripts and GUI frontends. The event contract is documented
 in [Progress Events (JSONL)](PROGRESS_JSONL.md).

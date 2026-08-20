@@ -26,7 +26,7 @@ and drag the app to Applications. FFmpeg and ExifTool come from Homebrew
 (`brew install ffmpeg exiftool`) — the Setup screen confirms the app
 found them. Full details in [Installation](installation.md#macos).
 
-## The six modes
+## The seven modes
 
 Drop a folder (or a single `.SRT`/`.MP4` file) into **Source** and the
 likely mode is picked for you. The **Mode** strip offers:
@@ -48,6 +48,10 @@ likely mode is picked for you. The **Mode** strip offers:
   tools.
 - **Verify** — checks embedded metadata, video/log pairing drift, or
   cross-checks the recorded time and place against the sun's position.
+- **360° views** — opens the panorama opening-view editor
+  (`dji-embed panoedit`) on the folder: drag each 360° panorama to the
+  view it should open with, and Save writes the GPano tags the photo
+  map and Google Photos honour.
 - **Setup** — confirms FFmpeg and ExifTool are ready, and can install
   what's missing.
 
