@@ -648,11 +648,32 @@ file lock.
 
 **What happens now:** ExifTool is given 60 seconds per save, the page a
 little longer. If the time runs out you get a message instead of a dead
-button, and the terminal logs how long each save took (saves over 10
-seconds are logged as warnings) — quote that number if you report it.
-Opening the folder is bounded the same way, scaled to how many panoramas
-are in it, so a stalled scan reports itself instead of hanging before the
-editor ever appears.
+button — it names how long the save actually ran and which ExifTool
+version ran it, so a screenshot of it is already a useful report. The
+terminal logs how long every save took (saves over 10 seconds are logged
+as warnings) — quote that number if you report it. Opening the folder is
+bounded the same way, scaled to how many panoramas are in it, so a
+stalled scan reports itself instead of hanging before the editor ever
+appears.
+
+**Finding the numbers in the desktop app:** the app keeps everything its
+helpers print — including the per-save timing lines — in a small log at
+`%APPDATA%\DjiEmbed\helper.log` (on macOS
+`~/Library/Application Support/DjiEmbed/helper.log`). You can also run the
+same editor from a terminal, where the timing lines appear live:
+
+```bash
+dji-embed panoedit "C:\path\to\panoramas"
+```
+
+**Narrowing down the cause:** each of these isolates one suspect —
+
+- One save with the folder copied to a **different physical drive**: fast
+  there means the original drive is the problem.
+- One save with the folder **excluded from real-time antivirus
+  scanning**: fast now means the scanner was the problem.
+- Fast from the terminal but not the app would point back at the app —
+  report that, it is not expected.
 
 **Solutions:**
 

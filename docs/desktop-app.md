@@ -83,3 +83,11 @@ telemetry. The app stores exactly two things locally in
 (`~/Library/Application Support/DjiEmbed/state.json` on macOS): your
 recent folders and the window size/position. Delete that file to reset
 both.
+
+Beside it, `helper.log` keeps what the app's map and editor helpers
+printed — the same lines the command line shows in its terminal, such as
+how long each 360° view save took. It is capped at about half a megabyte
+(one older rotation is kept as `helper.log.1`), never leaves your
+machine, and exists so a problem report can quote real numbers — see
+[Troubleshooting](troubleshooting.md#saving-a-360-view-hangs-and-the-save-button-stops-responding).
+Delete it freely.

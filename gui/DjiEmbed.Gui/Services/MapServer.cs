@@ -21,8 +21,36 @@ public sealed class MapServer : IMapServer, IDisposable
 {
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(10);
 
+    // Keeps the log useful without letting it grow forever: at the cap the
+    // live file rotates to "<name>.1" (overwriting the previous rotation),
+    // so disk usage is bounded at about twice the cap.
+    private const long LogCapBytes = 512 * 1024;
+
     private readonly Dictionary<string, (Process Process, string BaseUrl)> _running =
         new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly string? _logPath;
+    private readonly object _logLock = new();
+    private StreamWriter? _logWriter;
+    private bool _logBroken;
+
+    public MapServer() : this(DefaultLogPath)
+    {
+    }
+
+    /// <summary>Test seam: an explicit log location, or null to discard
+    /// the helpers' output like the pre-#531 behaviour.</summary>
+    public MapServer(string? logPath)
+    {
+        _logPath = logPath;
+    }
+
+    /// <summary>Where the helpers' terminal output lands (#531): the one
+    /// place a field report can recover per-save timing lines from a GUI
+    /// session. Lives beside <see cref="GuiState.DefaultPath"/>.</summary>
+    public static string DefaultLogPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "DjiEmbed", "helper.log");
 
     /// <summary>
     /// URL serving <paramref name="htmlPath"/>, starting (or reusing) its
@@ -106,14 +134,20 @@ public sealed class MapServer : IMapServer, IDisposable
         // reads it: an undrained pipe fills within a few KB, after which
         // the child's next write blocks in the kernel. One of those writes
         // sat inside panoedit's save chain, freezing every later save
-        // until this app exited and broke the pipe (#490). Drain and
-        // discard — the content is the CLI's terminal log, which has no
-        // reader inside the GUI.
-        _ = DrainAsync(process.StandardError);
+        // until this app exited and broke the pipe (#490). Drain always;
+        // since #531 the drained lines also go to the helper log — that
+        // discarded "terminal log" turned out to be exactly the evidence
+        // a field report needs (per-save ExifTool timings). Logging is
+        // best-effort only: a broken log falls back to discarding, never
+        // to an undrained pipe.
+        var label = args[0];
+        AppendLog(label, "started: " + psi.FileName + " "
+            + string.Join(' ', args));
+        _ = DrainAsync(process.StandardError, label);
         var url = await ReadUrlLineAsync(process, cancellationToken);
         // Same hazard on stdout: only the URL line is ever read, so any
         // later stdout output would hit the same full-pipe block.
-        _ = DrainAsync(process.StandardOutput);
+        _ = DrainAsync(process.StandardOutput, label);
         if (url is null)
         {
             TryKill(process);
@@ -149,18 +183,69 @@ public sealed class MapServer : IMapServer, IDisposable
             : null;
     }
 
-    /// <summary>Reads a child stream to the end, discarding, so the child
-    /// can never block on a full pipe (#490). Runs until the child exits;
-    /// any error just means the pipe is already gone.</summary>
-    private static async Task DrainAsync(StreamReader reader)
+    /// <summary>Reads a child stream to the end, so the child can never
+    /// block on a full pipe (#490), appending each line to the helper log
+    /// (#531). Runs until the child exits; any error just means the pipe
+    /// is already gone.</summary>
+    private async Task DrainAsync(StreamReader reader, string label)
     {
         try
         {
-            await reader.BaseStream.CopyToAsync(Stream.Null);
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                AppendLog(label, line);
+            }
         }
         catch (Exception)
         {
             // Child exited or was killed; nothing left to drain.
+        }
+    }
+
+    /// <summary>Appends one timestamped line to the helper log, opening
+    /// (and rotating) it on first use. Any failure permanently downgrades
+    /// to discarding: the log must never be able to reintroduce the
+    /// blocked-pipe stall it exists to diagnose (#490, #531).</summary>
+    private void AppendLog(string label, string line)
+    {
+        if (_logPath is null || _logBroken)
+        {
+            return;
+        }
+        lock (_logLock)
+        {
+            try
+            {
+                if (_logWriter is null
+                    || _logWriter.BaseStream.Length > LogCapBytes)
+                {
+                    _logWriter?.Dispose();
+                    _logWriter = null;
+                    if (Path.GetDirectoryName(_logPath) is { Length: > 0 } dir)
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+                    var existing = new FileInfo(_logPath);
+                    if (existing.Exists && existing.Length > LogCapBytes)
+                    {
+                        File.Move(_logPath, _logPath + ".1", overwrite: true);
+                    }
+                    // FileShare.Read so "read the log" support advice works
+                    // while the app is running.
+                    _logWriter = new StreamWriter(new FileStream(
+                        _logPath, FileMode.Append, FileAccess.Write,
+                        FileShare.Read))
+                    { AutoFlush = true };
+                }
+                _logWriter.WriteLine(
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{label}] {line}");
+            }
+            catch (Exception)
+            {
+                _logBroken = true;
+                _logWriter?.Dispose();
+                _logWriter = null;
+            }
         }
     }
 
@@ -184,5 +269,10 @@ public sealed class MapServer : IMapServer, IDisposable
             process.Dispose();
         }
         _running.Clear();
+        lock (_logLock)
+        {
+            _logWriter?.Dispose();
+            _logWriter = null;
+        }
     }
 }
