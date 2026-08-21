@@ -78,21 +78,23 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     /// <summary>
     /// True exactly while <c>--airspace</c> is in the emitted argv, so the
     /// network-disclosure note never claims a fetch for a run that makes
-    /// none (#427, tightened by the #431 review). A real property so it is
+    /// none (#427, tightened by the #431 review). 3D stopped mattering when
+    /// the builder let the pair through (#530). A real property so it is
     /// assertable headless.
     /// </summary>
     public bool ShowsAirspaceNote =>
-        Airspace && !ThreeD && SelectedPrivacy.Value != MapPrivacy.Fuzz;
+        Airspace && SelectedPrivacy.Value != MapPrivacy.Fuzz;
 
     /// <summary>
     /// True when the airspace checkbox is ticked but the builder keeps
     /// <c>--airspace</c> out of the argv because Fuzz privacy is on (the
     /// CLI rejects the pair — zones checked against coarsened coordinates
-    /// would mislead). Quiet under 3D, where the 3D note already names the
-    /// suppression (#427). A real property so it is assertable headless.
+    /// would mislead). Flat or 3D alike, now that Fuzz is the only
+    /// suppression left (#427, #530). A real property so it is assertable
+    /// headless.
     /// </summary>
     public bool ShowsAirspaceFuzzNote =>
-        Airspace && !ThreeD && SelectedPrivacy.Value == MapPrivacy.Fuzz;
+        Airspace && SelectedPrivacy.Value == MapPrivacy.Fuzz;
 
     /// <summary>
     /// True exactly while "Export all" will write the flight record — which
@@ -116,8 +118,6 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     partial void OnThreeDChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowsFuzzCaveat));
-        OnPropertyChanged(nameof(ShowsAirspaceNote));
-        OnPropertyChanged(nameof(ShowsAirspaceFuzzNote));
         OnPropertyChanged(nameof(ShowsRecordNetworkNote));
         OnPropertyChanged(nameof(ShowsRecordSkipNote));
     }

@@ -105,10 +105,10 @@ public class FlightMapOptionsViewModelTests
 
     // #427: the airspace overlay is suppressed under fuzz (the CLI rejects
     // the pair), so a note must say so exactly while the checkbox is ticked
-    // but the flag stays out of the argv. Under 3D the 3D note already
-    // names the suppression, so this one stays quiet there.
+    // but the flag stays out of the argv — flat or 3D alike, since #530
+    // made Fuzz the only suppression left.
     [Fact]
-    public void Airspace_fuzz_note_needs_airspace_and_fuzz_on_the_flat_map()
+    public void Airspace_fuzz_note_needs_airspace_and_fuzz()
     {
         var vm = new FlightMapOptionsViewModel();
         Assert.False(vm.ShowsAirspaceFuzzNote);   // defaults: nothing on
@@ -121,11 +121,11 @@ public class FlightMapOptionsViewModelTests
         Assert.True(vm.ShowsAirspaceFuzzNote);    // airspace + Fuzz
 
         vm.ThreeD = true;
-        Assert.False(vm.ShowsAirspaceFuzzNote);   // the 3D note covers it
+        Assert.True(vm.ShowsAirspaceFuzzNote);    // 3D changes nothing (#530)
     }
 
     [Fact]
-    public void Airspace_fuzz_note_notifies_on_each_of_its_three_inputs()
+    public void Airspace_fuzz_note_notifies_on_each_of_its_two_inputs()
     {
         var vm = new FlightMapOptionsViewModel();
         var raised = 0;
@@ -140,13 +140,13 @@ public class FlightMapOptionsViewModelTests
         vm.Airspace = true;
         vm.SelectedPrivacy = vm.PrivacyOptions.Single(
             p => p.Value == MapPrivacy.Fuzz);
-        vm.ThreeD = true;
-        Assert.Equal(3, raised);
+        vm.ThreeD = true;   // no longer an input (#530)
+        Assert.Equal(2, raised);
     }
 
     // #431 review: the network note must mirror the argv exactly — visible
     // only while --airspace is actually emitted, so it never claims a fetch
-    // for a run that makes none (ticked + 3D, ticked + Fuzz).
+    // for a run that makes none (ticked + Fuzz; 3D emits since #530).
     [Fact]
     public void Airspace_network_note_shows_exactly_while_the_flag_is_emitted()
     {
@@ -157,7 +157,7 @@ public class FlightMapOptionsViewModelTests
         Assert.True(vm.ShowsAirspaceNote);        // ticked, Keep, flat map
 
         vm.ThreeD = true;
-        Assert.False(vm.ShowsAirspaceNote);       // suppressed under 3D
+        Assert.True(vm.ShowsAirspaceNote);        // still emitted in 3D (#530)
 
         vm.ThreeD = false;
         vm.SelectedPrivacy = vm.PrivacyOptions.Single(
@@ -166,7 +166,7 @@ public class FlightMapOptionsViewModelTests
     }
 
     [Fact]
-    public void Airspace_network_note_notifies_on_each_of_its_three_inputs()
+    public void Airspace_network_note_notifies_on_each_of_its_two_inputs()
     {
         var vm = new FlightMapOptionsViewModel();
         var raised = 0;
@@ -181,8 +181,8 @@ public class FlightMapOptionsViewModelTests
         vm.Airspace = true;
         vm.SelectedPrivacy = vm.PrivacyOptions.Single(
             p => p.Value == MapPrivacy.Fuzz);
-        vm.ThreeD = true;
-        Assert.Equal(3, raised);
+        vm.ThreeD = true;   // no longer an input (#530)
+        Assert.Equal(2, raised);
     }
 
     // #431 review: the flight record itself fetches airspace and terrain

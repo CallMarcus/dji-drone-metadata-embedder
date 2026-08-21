@@ -137,11 +137,12 @@ public class CommandBuilderTests
             CommandBuilder.FlightMap("/x", opts));
     }
 
-    // #427: --airspace overlays official zone data on the flat map. The CLI
-    // rejects it with --3d (a 3D zone overlay is #424) and with --redact
-    // fuzz (zones checked against coarsened coordinates would mislead), so
-    // the builder suppresses it in both cases — every argv stays legal by
-    // construction, same as the --format all suppression.
+    // #427: --airspace overlays official zone data on the map, flat or --3d
+    // (#424 made the 3D pairing legal; the GUI caught up in #530). The CLI
+    // still rejects it with --redact fuzz (zones checked against coarsened
+    // coordinates would mislead), so the builder suppresses it there —
+    // every argv stays legal by construction, same as the --format all
+    // suppression.
     [Fact]
     public void Airspace_adds_the_flag()
     {
@@ -163,14 +164,14 @@ public class CommandBuilderTests
     }
 
     [Fact]
-    public void Airspace_with_three_d_is_suppressed()
+    public void Airspace_with_three_d_keeps_the_flag()
     {
         var opts = FlightMapOptions.Defaults with
         {
             Airspace = true,
             ThreeD = true,
         };
-        Assert.Equal(["flightmap", "/x", "-r", "--3d"],
+        Assert.Equal(["flightmap", "/x", "-r", "--3d", "--airspace"],
             CommandBuilder.FlightMap("/x", opts));
     }
 
@@ -186,6 +187,7 @@ public class CommandBuilderTests
             CommandBuilder.FlightMap("/x", opts));
     }
 
+    // Fuzz is the suppression that survives #530: it wins even in 3D.
     [Fact]
     public void Airspace_with_three_d_and_fuzz_keeps_only_their_flags()
     {

@@ -275,7 +275,7 @@
                                                        VerticalAlignment="Center" />
                                         </DockPanel>
                                         <TextBlock Name="FlightThreeDNote"
-                                                   Text="Map style, airspace zones and KML/GeoJSON export don't apply to the 3D map."
+                                                   Text="Map style and KML/GeoJSON export don't apply to the 3D map. Airspace zones do — published ceilings become translucent volumes."
                                                    IsVisible="{Binding FlightOptions.ThreeD}"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.5" FontSize="11" />
@@ -325,14 +325,13 @@
                                     </StackPanel>
 
                                     <StackPanel Spacing="4">
-                                        <!-- Two affordances for one "flag suppressed" state, on
-                                             purpose: 3D greys the checkbox (a toggle right above
-                                             it), while Fuzz keeps it enabled and explains in a
-                                             note — greying on a combo set elsewhere in the panel
-                                             would be action at a distance. -->
+                                        <!-- Fuzz suppresses the flag but keeps the checkbox
+                                             enabled and explains in a note — greying on a combo
+                                             set elsewhere in the panel would be action at a
+                                             distance. (3D used to grey it too, until #424 made
+                                             the pair legal — #530.) -->
                                         <CheckBox Name="FlightAirspaceCheck"
                                                   IsChecked="{Binding FlightOptions.Airspace}"
-                                                  IsEnabled="{Binding !FlightOptions.ThreeD}"
                                                   Content="Airspace zones" />
                                         <TextBlock Name="FlightAirspaceNote"
                                                    Text="Draws official airspace zones on the map — US FAA, plus national UAS-zone feeds where a country publishes one (currently Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden and Estonia). Zone data is fetched from those feeds and cached next to the map (airspace-cache/); later runs reuse the cache."
