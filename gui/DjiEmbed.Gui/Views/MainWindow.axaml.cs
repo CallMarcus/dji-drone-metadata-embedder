@@ -23,6 +23,10 @@ public partial class MainWindow : Window
     public MainWindow(GuiStateStore? store)
     {
         InitializeComponent();
+        // Release builds carry their stamped version in the title so any
+        // screenshot names the build it came from (#532); dev builds keep
+        // the bare name.
+        Title = AppVersion.WindowTitle;
         _store = store;
         if (store?.State.Window is { } b
             && GuiState.RestorableOn(b, ScreenRects()))

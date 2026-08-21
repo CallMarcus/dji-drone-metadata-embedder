@@ -76,17 +76,23 @@ public sealed class MapServer : IMapServer, IDisposable
     }
 
     public Task<string?> GetEditorUrlAsync(
-        string cliPath, string folder, CancellationToken cancellationToken)
+        string cliPath, string folder, bool fullResolution,
+        CancellationToken cancellationToken)
     {
         var dir = Path.GetFullPath(folder);
         // The key prefix keeps a served map folder and an edited pano
-        // folder from colliding in the reuse table; the editor's URL is
-        // its base URL (the child prints "http://127.0.0.1:PORT/").
+        // folder from colliding in the reuse table — and carries the
+        // resolution mode, so toggling it launches a fresh child instead
+        // of reusing one serving the other size (#532). The editor's URL
+        // is its base URL (the child prints "http://127.0.0.1:PORT/").
+        string[] args = fullResolution
+            ? ["panoedit", dir, "--max-width", "0", "--no-browser",
+               "--url-only", "--exit-with-stdin"]
+            : ["panoedit", dir, "--no-browser", "--url-only",
+               "--exit-with-stdin"];
         return LaunchAsync(
-            cliPath, "panoedit:" + dir,
-            ["panoedit", dir, "--no-browser", "--url-only",
-             "--exit-with-stdin"],
-            cancellationToken);
+            cliPath, "panoedit:" + (fullResolution ? "full:" : "") + dir,
+            args, cancellationToken);
     }
 
     /// <summary>One child per <paramref name="key"/>: reuses a live one,

@@ -350,3 +350,58 @@ def test_no_backup_save_leaves_no_original_copy(tmp_path, page, monkeypatch):
         ["exiftool", "-n", "-XMP-GPano:InitialViewHeadingDegrees",
          str(tmp_path / "a.jpg")], capture_output=True, text=True, check=True)
     assert "Initial View Heading" in out.stdout   # the write still landed
+
+
+@needs_exiftool
+def test_wheel_zoom_moves_half_a_pannellum_step(editor, page):
+    # #532: Pannellum's own wheel handler moved ~5 degrees of FOV per
+    # notch, which a field tester found landed twice as far as intended.
+    # The page's capture-phase handler replaces it with exact 2.5-degree
+    # steps.
+    url, _ = editor
+    page.goto(url)
+    page.wait_for_function("window.__panoReady === true")
+    before = page.evaluate("window.__viewer.getHfov()")
+    box = page.locator("#viewer").bounding_box()
+    page.mouse.move(box["x"] + box["width"] / 2,
+                    box["y"] + box["height"] / 2)
+    page.mouse.wheel(0, 120)            # one notch out
+    page.wait_for_function(
+        f"Math.abs(window.__viewer.getHfov() - {before + 2.5}) < 0.01")
+    page.mouse.wheel(0, -120)           # one notch back in
+    page.wait_for_function(
+        f"Math.abs(window.__viewer.getHfov() - {before}) < 0.01")
+
+
+@needs_exiftool
+def test_strip_arrows_page_through_many_panoramas(tmp_path, page, monkeypatch):
+    # #532: with hundreds of panoramas only a couple of chips fit, and the
+    # bare scrollbar was the only way through. The flanking arrows page the
+    # strip, and the active chip keeps itself scrolled into sight.
+    monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
+    for i in range(40):
+        _make_pano(tmp_path / f"Goose Lake Rd_{i:04d}.jpg", pose=0.0)
+    httpd, url = _serve(tmp_path, page)
+    try:
+        page.goto(url)
+        page.wait_for_function("window.__panoReady === true")
+        strip = page.locator("#strip")
+        assert page.locator(".chip").count() == 40
+        start = strip.evaluate("el => el.scrollLeft")
+        page.locator("#stripfwd").click()
+        page.wait_for_function(
+            f"document.getElementById('strip').scrollLeft > {start}")
+        page.locator("#stripback").click()
+        page.wait_for_function(
+            f"document.getElementById('strip').scrollLeft <= {start}")
+        # Jumping to the last file drags its chip into the viewport.
+        page.evaluate("navigate(39)")
+        page.wait_for_function("window.__panoReady === true")
+        page.wait_for_function(
+            "() => { const s = document.getElementById('strip');"
+            " const c = document.querySelector('.chip.active');"
+            " const sr = s.getBoundingClientRect();"
+            " const cr = c.getBoundingClientRect();"
+            " return cr.left >= sr.left && cr.right <= sr.right; }")
+    finally:
+        httpd.shutdown()

@@ -52,7 +52,11 @@ likely mode is picked for you. The **Mode** strip offers:
 - **360° views** — opens the panorama opening-view editor
   (`dji-embed panoedit`) on the folder: drag each 360° panorama to the
   view it should open with, and Save writes the GPano tags the photo
-  map and Google Photos honour.
+  map and Google Photos honour. By default oversized panoramas are
+  shown downscaled so older graphics cards can display them (the files
+  and the saved view are identical either way); an **Edit at full
+  resolution** option turns that off for machines with a capable
+  graphics card.
 - **Setup** — confirms FFmpeg and ExifTool are ready, and can install
   what's missing.
 

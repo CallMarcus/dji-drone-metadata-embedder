@@ -122,12 +122,16 @@ def test_html_hover_previews_are_off_by_default():
     # popup's details and link. Markers now bind only the click popup at
     # creation; the tooltip binding lives solely in the opt-in toggle path.
     html = photos_to_html(POINTS, title="t")
-    # The dot keeps `unbindTooltip(` from matching as a substring.
-    assert html.count(".bindTooltip(") == 1
+    # Exactly two binding sites, both behind the opt-in: the toggle path,
+    # and the popupclose rebind of the one marker popupopen unbound (#532)
+    # — which is guarded by the toggle's own state flag. The dot keeps
+    # `unbindTooltip(` from matching as a substring.
+    assert html.count(".bindTooltip(") == 2
     match = re.search(
         r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
     assert match, "setHoverPreviews function not found"
     assert ".bindTooltip(" in match.group(1)
+    assert "if (!hoverPreviewsOn" in html   # the rebind's guard
 
 
 def test_html_hover_toggle_binds_and_unbinds():
@@ -139,7 +143,10 @@ def test_html_hover_toggle_binds_and_unbinds():
     assert match
     body = match.group(1)
     assert "bindTooltip(" in body
-    assert "sticky: true" in body
+    # The options moved into a shared const (#532) so the popupclose
+    # rebind can never drift from the toggle's binding.
+    assert "TOOLTIP_OPTS" in body
+    assert "sticky: true" in html
     assert "unbindTooltip(" in body
 
 
@@ -260,6 +267,29 @@ def test_html_pano_load_failure_explains_the_likely_cause():
     assert "panoViewer.on('error'" in html
     assert "older graphics hardware" in html
     assert "open original" in html
+    # #532: a field tester read the old wording as a raisable product limit
+    # ("raise it to 9000") — the text must blame the graphics card and say
+    # the map itself imposes nothing.
+    assert "Your graphics card could not display" in html
+    assert "no size limit of its own" in html
+
+
+def test_html_suppresses_the_hover_tooltip_under_the_popup():
+    # #532: with hover previews on, the sticky tooltip lingered under the
+    # click popup (it only closes on mouseout, and the pointer is still on
+    # the pin). The popup handlers unbind it for the popup's lifetime; a
+    # close alone would be undone by the next mousemove.
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    assert "src.unbindTooltip()" in html
+    assert "map.on('popupclose'" in html
+
+
+def test_html_pano_thumbnail_title_announces_the_viewer_shortcut():
+    # #532: the popup thumbnail has opened the 360° viewer for a long time,
+    # but nothing said so — a field tester went the long way round via the
+    # filename link.
+    html = photos_to_html(PANO_POINTS, title="t", link_base="")
+    assert "click to open the 360° viewer" in html
 
 
 def test_html_pano_container_reset_on_every_open():

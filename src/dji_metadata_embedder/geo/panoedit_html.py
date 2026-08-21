@@ -51,9 +51,13 @@ _PAGE = """<!DOCTYPE html>
   #status.err {{ color: #ff7b6b; }}
   #strip {{ position: fixed; left: 0; right: 0; bottom: 0; height: 96px;
     background: #1b1b1b; display: flex; align-items: center; gap: 6px;
-    overflow-x: auto; padding: 0 12px; box-sizing: border-box; }}
+    overflow-x: auto; padding: 0 48px; box-sizing: border-box;
+    scroll-behavior: smooth; }}
+  /* Long filenames meant only a couple of chips fit (#532): cap and
+     ellipsize — the full name is the chip's title and the readout. */
   .chip {{ flex: 0 0 auto; padding: 6px 10px; border-radius: 5px;
-    background: #2a2a2a; cursor: pointer; white-space: nowrap; }}
+    background: #2a2a2a; cursor: pointer; white-space: nowrap;
+    max-width: 17ch; overflow: hidden; text-overflow: ellipsis; }}
   .chip.active {{ outline: 2px solid #2a81cb; }}
   .chip .dot {{ display: inline-block; width: 8px; height: 8px;
     border-radius: 50%; background: #666; margin-right: 6px; }}
@@ -73,6 +77,14 @@ _PAGE = """<!DOCTYPE html>
   #panoerr > div {{ max-width: 36em; line-height: 1.6; text-align: center; }}
   #panoerr b {{ color: #ff7b6b; }}
   #panoerr code {{ color: #ffd24d; }}
+  /* Big flanking arrows for the film strip — a field tester found the
+     bare scrollbar too fiddly with 200+ panoramas (#532). */
+  .stripnav {{ position: fixed; bottom: 0; height: 96px; width: 40px;
+    z-index: 11; border: 0; background: #262626; color: #ddd;
+    font-size: 26px; cursor: pointer; }}
+  .stripnav:hover {{ background: #333; }}
+  #stripback {{ left: 0; }}
+  #stripfwd {{ right: 0; }}
 </style>
 </head>
 <body>
@@ -92,6 +104,12 @@ _PAGE = """<!DOCTYPE html>
 <div id="note">{backup_note} N/P: next/previous. Esc: back to the opening
 view. C: compare with the saved one.</div>
 <div id="strip"></div>
+<button id="stripback" class="stripnav" type="button"
+  title="Scroll the file strip back" aria-label="Scroll the file strip back"
+  >&#8249;</button>
+<button id="stripfwd" class="stripnav" type="button"
+  title="Scroll the file strip forward"
+  aria-label="Scroll the file strip forward">&#8250;</button>
 <script src="https://unpkg.com/pannellum@{pannellum}/build/pannellum.js"
         integrity="{pannellum_js_sri}" crossorigin=""></script>
 <script>
@@ -258,17 +276,25 @@ function dropCompare() {{
 function renderStrip() {{
   const strip = $("strip");
   strip.textContent = "";
+  let active = null;
   files.forEach((f, i) => {{
     const chip = document.createElement("div");
     chip.className = "chip" + (i === idx ? " active" : "")
       + (f.hasView ? " hasview" : "");
+    // Chips ellipsize long names (#532); the title carries the full one.
+    chip.title = f.name;
     const dot = document.createElement("span");
     dot.className = "dot";
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(f.name));
     chip.addEventListener("click", () => navigate(i));
     strip.appendChild(chip);
+    if (i === idx) active = chip;
   }});
+  // Keep the current file in sight: with hundreds of panoramas and
+  // save/auto-advance, the strip otherwise scrolls away from where the
+  // work is (#532). block: "nearest" so the page itself never jumps.
+  if (active) active.scrollIntoView({{ inline: "center", block: "nearest" }});
   $("counter").textContent = (idx + 1) + " / " + files.length;
 }}
 
@@ -410,6 +436,26 @@ async function save() {{
 $("save").addEventListener("click", save);
 $("reset").addEventListener("click", resetView);
 $("compare").addEventListener("click", toggleCompare);
+// A page-width jump per press: coarse on purpose, the chips themselves are
+// the fine control (#532).
+$("stripback").addEventListener("click", () => {{
+  $("strip").scrollLeft -= $("strip").clientWidth * 0.8;
+}});
+$("stripfwd").addEventListener("click", () => {{
+  $("strip").scrollLeft += $("strip").clientWidth * 0.8;
+}});
+// Half of Pannellum's ~5° per wheel notch, which a field tester found
+// landed twice as far as intended (#532). Capture phase with the event
+// stopped, so this replaces Pannellum's own wheel handler rather than
+// stacking on it; instant (no ease) so repeated notches stay predictable.
+const WHEEL_HFOV_STEP = 2.5;
+$("viewer").addEventListener("wheel", (e) => {{
+  e.preventDefault();
+  e.stopPropagation();
+  if (!viewer || !e.deltaY) return;
+  viewer.setHfov(viewer.getHfov() + (e.deltaY > 0 ? 1 : -1) * WHEEL_HFOV_STEP,
+    false);
+}}, {{ capture: true, passive: false }});
 document.addEventListener("keydown", (e) => {{
   if (e.key === "Enter") {{ e.preventDefault(); save(); }}
   else if (e.key === "Escape") {{ e.preventDefault(); resetView(); }}

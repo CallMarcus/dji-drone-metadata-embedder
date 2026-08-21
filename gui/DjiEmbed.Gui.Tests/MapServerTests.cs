@@ -135,6 +135,27 @@ public class MapServerTests : IDisposable
             cli, MapFile(), CancellationToken.None));
     }
 
+    // #532: the full-resolution option must reach the editor child's argv
+    // as --max-width 0, and only when asked for.
+    [Fact]
+    public async Task Editor_full_resolution_reaches_the_child_argv()
+    {
+        using var server = new MapServer(LogPath());
+        var argsFile = Path.Combine(_dir, "editor-args");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile,
+            ["http://127.0.0.1:54321/"]);
+        Assert.NotNull(await server.GetEditorUrlAsync(
+            cli, _dir, fullResolution: true, CancellationToken.None));
+        var argv = string.Join(' ', File.ReadAllLines(argsFile));
+        Assert.Contains("--max-width 0", argv);
+
+        File.Delete(argsFile);
+        Assert.NotNull(await server.GetEditorUrlAsync(
+            cli, _dir, fullResolution: false, CancellationToken.None));
+        Assert.DoesNotContain("--max-width",
+            string.Join(' ', File.ReadAllLines(argsFile)));
+    }
+
     // #531: the drained helper output used to be discarded — which threw
     // away exactly the per-save timing lines a field report needs. It now
     // lands in a timestamped helper log.

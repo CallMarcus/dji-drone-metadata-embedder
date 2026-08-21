@@ -926,10 +926,19 @@
                         <StackPanel>
                             <TextBlock Classes="zone" Text="OPTIONS" />
                             <suki:GlassCard Padding="14">
-                                <TextBlock Name="PanoEditHint"
-                                           TextWrapping="Wrap" Opacity="0.7"
-                                           FontSize="12"
-                                           Text="Pick the folder with your 360° panoramas. Drag each one to its best opening view, then Save — the view is written into the photo itself (a backup is kept beside it) and the photo map opens it that way." />
+                                <StackPanel Spacing="10">
+                                    <TextBlock Name="PanoEditHint"
+                                               TextWrapping="Wrap" Opacity="0.7"
+                                               FontSize="12"
+                                               Text="Pick the folder with your 360° panoramas. Drag each one to its best opening view, then Save — the view is written into the photo itself (a backup is kept beside it) and the photo map opens it that way." />
+                                    <CheckBox Name="PanoFullResolutionCheck"
+                                              IsChecked="{Binding PanoOptions.FullResolution}"
+                                              Content="Edit at full resolution" />
+                                    <TextBlock Name="PanoFullResolutionNote"
+                                               TextWrapping="Wrap" Opacity="0.5"
+                                               FontSize="11"
+                                               Text="By default, panoramas wider than 6000 px are shown downscaled so older graphics cards can display them — the saved view is identical either way, and the files are never modified. Full resolution needs a graphics card with enough memory for the whole image." />
+                                </StackPanel>
                             </suki:GlassCard>
                         </StackPanel>
                     </Border>

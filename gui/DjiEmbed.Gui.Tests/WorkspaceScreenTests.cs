@@ -1622,6 +1622,35 @@ public class WorkspaceScreenTests
         Assert.False(advanced.IsExpanded);
     }
 
+    // #532: the 360° views panel's one option — full-resolution serving —
+    // binds through to the CLI strip as --max-width 0.
+    [AvaloniaFact]
+    public void Pano_edit_full_resolution_checkbox_drives_the_strip()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var panel = window.GetVisualDescendants().OfType<Border>()
+            .Single(b => b.Name == "PanoEditOptionsPanel");
+        Assert.True(panel.IsEffectivelyVisible);
+        var check = window.GetVisualDescendants().OfType<CheckBox>()
+            .Single(c => c.Name == "PanoFullResolutionCheck");
+        Assert.False(check.IsChecked);
+        Assert.DoesNotContain("--max-width", vm.CommandPreview);
+
+        check.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.PanoOptions.FullResolution);
+        Assert.Contains("--max-width 0", vm.CommandPreview);
+
+        check.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.DoesNotContain("--max-width", vm.CommandPreview);
+    }
+
     [AvaloniaFact]
     public void Non_convert_mode_hides_the_convert_options_panel()
     {

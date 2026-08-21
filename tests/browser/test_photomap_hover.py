@@ -53,6 +53,33 @@ def test_choice_is_remembered_across_reload(serve_map, page):
     expect(page.locator("#hover-toggle")).not_to_be_checked()
 
 
+def test_tooltip_never_lingers_under_the_click_popup(serve_map, page):
+    # #532, reproduced on a field tester's hosted map: with hover previews
+    # on, clicking a pin opened the popup but the sticky tooltip stayed
+    # visible beneath it until the pointer moved. The popup must have the
+    # stage to itself — and the tooltip must come back afterwards.
+    serve_map(HTML)
+    page.check("#hover-toggle")
+    pin = page.locator(PIN).first
+    pin.hover()
+    expect(page.locator(TOOLTIP)).to_have_count(1)
+
+    pin.click()
+    expect(page.locator(".leaflet-popup")).to_be_visible()
+    expect(page.locator(TOOLTIP)).to_have_count(0)
+    # The pointer is still on the pin: a close without the unbind would
+    # reopen the tooltip on the next mousemove.
+    box = pin.bounding_box()
+    page.mouse.move(box["x"] + 2, box["y"] + 2)
+    page.wait_for_timeout(200)
+    expect(page.locator(TOOLTIP)).to_have_count(0)
+
+    page.locator(".leaflet-popup-close-button").click()
+    page.mouse.move(10, 10)             # leave and re-enter the pin
+    pin.hover()
+    expect(page.locator(TOOLTIP)).to_have_count(1)
+
+
 def test_touch_devices_get_no_toggle_at_all(serve_map, browser, playwright):
     # #295 parity: touch never had hover tooltips and must not gain a dead
     # toggle. A mobile descriptor flips the (hover/pointer) media queries
