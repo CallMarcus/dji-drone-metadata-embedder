@@ -140,3 +140,26 @@ def test_page_note_tells_the_truth_about_backups():
     no_backup = build_editor_page("tok123", backup=False)
     assert "keeps a backup" not in no_backup
     assert "no backup" in no_backup
+
+
+def test_page_film_strip_is_navigable_at_scale():
+    # #532: a field tester with 200+ long-named panoramas could see only a
+    # couple of chips and found the bare scrollbar too fiddly. Chips
+    # ellipsize (full name in the title), the active chip keeps itself in
+    # sight, and big flanking arrows page the strip.
+    html = build_editor_page("tok123")
+    assert "text-overflow: ellipsis" in html
+    assert "chip.title = f.name" in html
+    assert "active.scrollIntoView" in html
+    assert 'id="stripback"' in html and 'id="stripfwd"' in html
+    assert "Scroll the file strip" in html
+
+
+def test_page_wheel_zoom_replaces_pannellums_step():
+    # #532: Pannellum's ~5° per notch landed twice as far as intended.
+    # The page's own capture-phase handler halves it — and must stop the
+    # event, or Pannellum's handler would stack on top.
+    html = build_editor_page("tok123")
+    assert "const WHEEL_HFOV_STEP = 2.5;" in html
+    assert "e.stopPropagation();" in html
+    assert "capture: true" in html

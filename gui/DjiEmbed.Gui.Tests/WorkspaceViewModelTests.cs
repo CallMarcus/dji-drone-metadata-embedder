@@ -2173,7 +2173,26 @@ public class WorkspaceViewModelTests : IDisposable
         vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal([folder], fake.EditorRequests);
+        Assert.Equal([false], fake.EditorFullResolutions);
         Assert.Equal("http://127.0.0.1:9/", vm.PreviewUrl);
+        Assert.Equal(FlowStep.Done, vm.Step);
+    }
+
+    // #532: the full-resolution opt-out of the serve-width downscale must
+    // reach the editor child, not just the preview strip.
+    [Fact]
+    public async Task Pano_edit_full_resolution_reaches_the_editor_launch()
+    {
+        var cli = Path.Combine(_dir, "dji-embed-fake");
+        File.WriteAllText(cli, "");
+        var folder = MakeFolder(photos: true);
+        var fake = new FakeMapServer("http://127.0.0.1:9/");
+        var vm = Vm(cli, mapServer: fake, previewAvailable: static () => true);
+        await vm.SetFolderAsync(folder);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        vm.PanoOptions.FullResolution = true;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal([true], fake.EditorFullResolutions);
         Assert.Equal(FlowStep.Done, vm.Step);
     }
 
@@ -2200,6 +2219,18 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal("dji-embed panoedit <folder>", vm.CommandPreview);
     }
 
+    [Fact]
+    public void Pano_edit_full_resolution_shows_in_the_preview()
+    {
+        var vm = Vm(null);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        vm.PanoOptions.FullResolution = true;
+        Assert.Equal("dji-embed panoedit <folder> --max-width 0",
+            vm.CommandPreview);
+        vm.PanoOptions.FullResolution = false;
+        Assert.Equal("dji-embed panoedit <folder>", vm.CommandPreview);
+    }
+
     private sealed class ThrowingMapServer : IMapServer
     {
         public Task<string?> GetUrlAsync(
@@ -2207,7 +2238,8 @@ public class WorkspaceViewModelTests : IDisposable
             throw new InvalidOperationException("server exploded");
 
         public Task<string?> GetEditorUrlAsync(
-            string cliPath, string folder, CancellationToken cancellationToken) =>
+            string cliPath, string folder, bool fullResolution,
+            CancellationToken cancellationToken) =>
             throw new InvalidOperationException("server exploded");
     }
 
@@ -2218,7 +2250,8 @@ public class WorkspaceViewModelTests : IDisposable
             throw new OperationCanceledException();
 
         public Task<string?> GetEditorUrlAsync(
-            string cliPath, string folder, CancellationToken cancellationToken) =>
+            string cliPath, string folder, bool fullResolution,
+            CancellationToken cancellationToken) =>
             throw new OperationCanceledException();
     }
 

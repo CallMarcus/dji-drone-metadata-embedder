@@ -13,6 +13,8 @@ internal sealed class FakeMapServer(string? url) : IMapServer
 
     public List<string> EditorRequests { get; } = [];
 
+    public List<bool> EditorFullResolutions { get; } = [];
+
     public Task<string?> GetUrlAsync(
         string cliPath, string htmlPath, CancellationToken cancellationToken)
     {
@@ -21,9 +23,11 @@ internal sealed class FakeMapServer(string? url) : IMapServer
     }
 
     public Task<string?> GetEditorUrlAsync(
-        string cliPath, string folder, CancellationToken cancellationToken)
+        string cliPath, string folder, bool fullResolution,
+        CancellationToken cancellationToken)
     {
         EditorRequests.Add(folder);
+        EditorFullResolutions.Add(fullResolution);
         return Task.FromResult(url);
     }
 }

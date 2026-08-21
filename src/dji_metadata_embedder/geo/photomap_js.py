@@ -138,11 +138,15 @@ function openPano(a) {
   // and the file is fine — say so, and point at the link that still works.
   panoViewer.on('error', msg => {
     if (panoViewer) { panoViewer.destroy(); panoViewer = null; }
+    // Blame the right thing: a field tester read the old wording as a
+    // product limit and asked for it to be "raised" (#532). It is the
+    // graphics card running out of memory, not a size the map enforces.
     panoContainer.innerHTML = '<div class="pano-blocked">' +
-      esc(msg) + '<br><br>Very large panoramas (8000\\u00a0px and wider) ' +
-      'can exceed what older graphics hardware can display, even when the ' +
-      'file itself is fine. The "open original" link in the popup shows ' +
-      'the image itself.</div>';
+      esc(msg) + '<br><br>Your graphics card could not display this ' +
+      'panorama - typical for images 8000\\u00a0px and wider on older ' +
+      'graphics hardware, even when the file itself is fine. The map ' +
+      'has no size limit of its own. The "open original" link in the ' +
+      'popup shows the image itself.</div>';
   });
 }
 function closePano() {
@@ -218,8 +222,12 @@ function buildPopup(f) {
   if (p.thumb) {
     // Honest thumbnails (#441): a square opening-view crop and the full
     // 2:1 strip look nothing alike — the title says which one this is.
-    const kind = p.vthumb ? 'Opening view of the panorama'
+    // When the thumbnail is a link into the 360° viewer, the title also
+    // says so: a field tester went the long way round via the filename
+    // because nothing announced the shortcut (#532).
+    let kind = p.vthumb ? 'Opening view of the panorama'
       : (p.pano ? 'Full 360° panorama' : '');
+    if (kind && p.link) kind += ' - click to open the 360° viewer';
     inner += `<img src="data:image/jpeg;base64,${esc(p.thumb)}" alt=""` +
       imgDims(p) + (kind ? ` title="${kind}"` : '') + `>`;
   }
@@ -282,10 +290,13 @@ const writeHoverPref = on => {
   try { localStorage.setItem(HOVER_KEY, on ? '1' : '0'); } catch (e) {}
 };
 const allMarkers = [];
+let hoverPreviewsOn = false;
+const TOOLTIP_OPTS = { sticky: true, direction: 'top' };
 function setHoverPreviews(on) {
+  hoverPreviewsOn = on;
   for (const [marker, f] of allMarkers) {
     if (on) {
-      marker.bindTooltip(() => buildTooltip(f), { sticky: true, direction: 'top' });
+      marker.bindTooltip(() => buildTooltip(f), TOOLTIP_OPTS);
     } else {
       marker.unbindTooltip();
     }
@@ -314,6 +325,23 @@ map.on('popupopen', e => {
   if (img && !img.complete) {
     img.addEventListener('load', () => e.popup.update(), { once: true });
   }
+  // #532: with hover previews on, the sticky tooltip lingered under the
+  // click popup (it only closes on mouseout, and the pointer is still on
+  // the pin). Unbinding, not just closing — a closed-but-bound sticky
+  // tooltip reopens on the very next mousemove.
+  const src = e.popup._source;
+  if (src && src.getTooltip && src.getTooltip()) {
+    src.closeTooltip();
+    src.unbindTooltip();
+  }
+});
+map.on('popupclose', e => {
+  const src = e.popup && e.popup._source;
+  // Rebind exactly the marker popupopen unbound: with previews on, every
+  // other marker still has its tooltip.
+  if (!hoverPreviewsOn || !src || !src.getTooltip || src.getTooltip()) return;
+  const entry = allMarkers.find(pair => pair[0] === src);
+  if (entry) src.bindTooltip(() => buildTooltip(entry[1]), TOOLTIP_OPTS);
 });"""
 
 # Mouse-only hover-previews control (issue #345). Reads TOUCH, allMarkers, and

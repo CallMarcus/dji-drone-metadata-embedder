@@ -59,6 +59,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             OnPropertyChanged(nameof(CommandPreview));
             OnPropertyChanged(nameof(ActionVerb));
         };
+        PanoOptions.PropertyChanged += (_, _) =>
+            OnPropertyChanged(nameof(CommandPreview));
         Warnings.CollectionChanged += (_, _) =>
             OnPropertyChanged(nameof(ShowDoneWarnings));
         VerifyCards.CollectionChanged += (_, _) =>
@@ -102,6 +104,11 @@ public partial class WorkspaceViewModel : FlowViewModel
     /// the run and the CLI strip; any change re-raises <see cref="CommandPreview"/>
     /// and the sub-action-shaped <see cref="ActionVerb"/>.</summary>
     public VerifyOptionsViewModel VerifyOptions { get; } = new();
+
+    /// <summary>Curated option state for the 360° views mode (#532). Feeds
+    /// both the editor launch and the CLI strip; any change re-raises
+    /// <see cref="CommandPreview"/>.</summary>
+    public PanoEditOptionsViewModel PanoOptions { get; } = new();
 
     public IReadOnlyList<WorkspaceMode> Modes => WorkspaceMode.All;
 
@@ -388,7 +395,7 @@ public partial class WorkspaceViewModel : FlowViewModel
                         SelectedFile ?? SelectedFolder ?? "<source>",
                         VerifyOptions.ToOptions()),
                 WorkspaceModeKind.PanoEdit =>
-                    CommandBuilder.PanoEdit(folder!),
+                    CommandBuilder.PanoEdit(folder!, PanoOptions.FullResolution),
                 _ => CommandBuilder.Build(SelectedMode.Kind, folder),
             };
             return CommandLine.Format("dji-embed", argv);
@@ -824,7 +831,8 @@ public partial class WorkspaceViewModel : FlowViewModel
             await ExecuteFlowAsync(async () =>
             {
                 var url = await _mapServer.GetEditorUrlAsync(
-                    CliPath!, panoFolder, FlowToken);
+                    CliPath!, panoFolder, PanoOptions.FullResolution,
+                    FlowToken);
                 if (url is null)
                 {
                     Fail("The 360° view editor could not be started — "

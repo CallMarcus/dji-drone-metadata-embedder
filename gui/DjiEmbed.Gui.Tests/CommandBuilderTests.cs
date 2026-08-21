@@ -43,6 +43,17 @@ public class CommandBuilderTests
         Assert.Equal(expected, CommandBuilder.Build(WorkspaceModeKind.PanoEdit, "/x"));
     }
 
+    // #532: the one 360° views option — full resolution maps to
+    // --max-width 0 (serve-width downscale off), omitted at its default.
+    [Fact]
+    public void Pano_edit_full_resolution_adds_max_width_zero()
+    {
+        Assert.Equal(["panoedit", "/x", "--max-width", "0"],
+            CommandBuilder.PanoEdit("/x", fullResolution: true));
+        Assert.Equal(["panoedit", "/x"],
+            CommandBuilder.PanoEdit("/x", fullResolution: false));
+    }
+
     [Fact]
     public void No_mode_ever_includes_the_progress_flag()
     {

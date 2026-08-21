@@ -354,7 +354,14 @@ public static class CommandBuilder
     /// <c>panoedit &lt;folder&gt;</c>; MapServer appends
     /// <c>--no-browser --url-only --exit-with-stdin</c> at launch, the
     /// same split the serve child uses.</summary>
-    public static string[] PanoEdit(string folder) => ["panoedit", folder];
+    /// <summary>The 360° views argv (#440). <paramref name="fullResolution"/>
+    /// maps to <c>--max-width 0</c>: serve panoramas at full size instead of
+    /// the CLI's default downscale of oversized ones, which is calibrated
+    /// for old low-memory graphics cards (#471, #532).</summary>
+    public static string[] PanoEdit(string folder, bool fullResolution = false)
+        => fullResolution
+            ? ["panoedit", folder, "--max-width", "0"]
+            : ["panoedit", folder];
 
     /// <summary>
     /// The <c>--popup-fields</c> value, or <c>null</c> to omit the flag.
