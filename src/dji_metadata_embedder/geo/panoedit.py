@@ -29,7 +29,7 @@ from pathlib import Path
 
 import click
 
-from ..utils.exiftool import exiftool_exe
+from ..utils.exiftool import exiftool_exe, exiftool_version
 from .photomap import _maybe_float, _pano_view
 from .serve import _MapServer, _RangeHandler, _shutdown_on_stdin_eof
 
@@ -123,20 +123,43 @@ class PanoFile:
     height: int = 0
 
 
-def _slow_write_message(path: Path) -> str:
+_version_cache: list[str | None] = []
+
+
+def _cached_exiftool_version() -> str | None:
+    """``exiftool -ver`` once per process; the binary can't change under us.
+
+    Cached so the timeout error path (where it is read) adds at most one
+    short subprocess ever — and that one only starts a process, which the
+    reads-fast/writes-stall machines this exists for handle fine (#531).
+    """
+    if not _version_cache:
+        _version_cache.append(exiftool_version())
+    return _version_cache[0]
+
+
+def _slow_write_message(path: Path, elapsed: float) -> str:
     """What to tell the user when ExifTool ran out of time on *path*.
 
     Deliberately does not claim the file is untouched: ExifTool renames
     the original to ``_original`` before moving its rewritten copy into
     place, so a run killed between those steps leaves the data safe under
     the backup name rather than under the original one.
+
+    Field reports arrive as screenshots of this text, so it carries the
+    numbers a triage needs: the measured elapsed time (kill lag past the
+    budget is itself a symptom of a wedged disk) and the ExifTool version
+    (#531).
     """
+    ver = _cached_exiftool_version()
+    tool = f"ExifTool {ver}" if ver else "ExifTool"
     return (
-        f"ExifTool did not finish writing {path.name} within "
-        f"{_WRITE_TIMEOUT} seconds and was stopped. Antivirus scanning or "
-        "a slow or sleeping drive is the usual cause. Check the folder for "
-        f"{path.name}_original and {path.name}_exiftool_tmp before "
-        "retrying - your image is in one of them if it is not in place."
+        f"{tool} did not finish writing {path.name} within "
+        f"{_WRITE_TIMEOUT} seconds and was stopped after {elapsed:.1f} s. "
+        "Antivirus scanning or a slow or sleeping drive is the usual "
+        f"cause. Check the folder for {path.name}_original and "
+        f"{path.name}_exiftool_tmp before retrying - your image is in one "
+        "of them if it is not in place."
     )
 
 
@@ -276,13 +299,14 @@ def write_initial_view(
     except FileNotFoundError:
         raise PanoEditError(_EXIFTOOL_INSTALL_HINT) from None
     except subprocess.TimeoutExpired:
+        elapsed = time.monotonic() - started
         # Logged as well as returned: the page tells the user to look in
         # the terminal, so something has to be there.
         logger.warning(
-            "ExifTool did not finish writing %s within %ss and was stopped",
-            path.name, _WRITE_TIMEOUT,
+            "ExifTool did not finish writing %s within %ss and was "
+            "stopped after %.1fs", path.name, _WRITE_TIMEOUT, elapsed,
         )
-        raise PanoEditError(_slow_write_message(path)) from None
+        raise PanoEditError(_slow_write_message(path, elapsed)) from None
     elapsed = time.monotonic() - started
     # Logged for every save: the difference between "slow disk" and "hung"
     # is a number, and the next field report should be able to quote it.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -162,6 +163,45 @@ def test_write_timeout_is_an_actionable_error(monkeypatch, tmp_path):
     # file — it must say where to look for the image.
     assert "pano.jpg_original" in message
     assert "pano.jpg_exiftool_tmp" in message
+
+
+def test_write_timeout_message_carries_the_triage_numbers(monkeypatch,
+                                                          tmp_path):
+    # #531: field reports arrive as screenshots of the error text, so the
+    # text itself must carry the measured elapsed time and the ExifTool
+    # version — the numbers a triage would otherwise have to ask for.
+    target = tmp_path / "pano.jpg"
+    target.write_bytes(b"\xff\xd8fake")
+
+    def hang(args, **kwargs):
+        raise pe.subprocess.TimeoutExpired(args, kwargs.get("timeout", 0))
+
+    monkeypatch.setattr(pe.subprocess, "run", hang)
+    monkeypatch.setattr(pe, "_version_cache", ["13.36"])
+    clock = iter([0.0, 61.2])
+    monkeypatch.setattr(pe.time, "monotonic", lambda: next(clock))
+    with pytest.raises(pe.PanoEditError) as exc:
+        pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    message = str(exc.value)
+    assert "ExifTool 13.36" in message
+    assert "stopped after 61.2 s" in message
+
+
+def test_exiftool_version_is_cached_and_optional(monkeypatch):
+    # One subprocess ever; a missing ExifTool degrades to the bare name.
+    calls: list[int] = []
+
+    def fake_version():
+        calls.append(1)
+        return None
+
+    monkeypatch.setattr(pe, "exiftool_version", fake_version)
+    monkeypatch.setattr(pe, "_version_cache", [])
+    assert pe._cached_exiftool_version() is None
+    assert pe._cached_exiftool_version() is None
+    assert len(calls) == 1
+    assert pe._slow_write_message(Path("p.jpg"), 62.0).startswith(
+        "ExifTool did not finish")
 
 
 def test_readback_timeout_says_the_write_happened(monkeypatch, tmp_path):
