@@ -636,7 +636,8 @@ public class WorkspaceScreenTests
 
     // #366: the 3D toggle binds to the options VM, surfaces --3d in the
     // strip, and greys the two controls whose flags the builder suppresses
-    // (Map style: CLI-ignored; export all: CLI UsageError). Choices made
+    // (Map style: CLI-ignored; export all: CLI UsageError). Airspace stays
+    // enabled — the pair has been legal since #424 (#530). Choices made
     // before entering 3D must come back when it is unchecked.
     [AvaloniaFact]
     public void Three_d_toggle_binds_and_greys_the_flat_map_options()
@@ -663,7 +664,7 @@ public class WorkspaceScreenTests
 
         var airspace = window.GetVisualDescendants().OfType<CheckBox>()
             .Single(c => c.Name == "FlightAirspaceCheck");
-        Assert.False(airspace.IsEnabled);
+        Assert.True(airspace.IsEnabled);
 
         var advanced = window.GetVisualDescendants().OfType<Expander>()
             .Single(e => e.Name == "FlightAdvanced");
@@ -686,8 +687,8 @@ public class WorkspaceScreenTests
     // #431 review: every airspace note must mirror the emitted argv — the
     // network disclosure only while --airspace is actually in the command,
     // the fuzz note exactly while the checkbox is ticked but Fuzz keeps the
-    // flag out, and both quiet under 3D where the 3D note names the
-    // suppression.
+    // flag out. 3D no longer suppresses the flag (#530), so both notes
+    // carry straight through it.
     [AvaloniaFact]
     public void Flight_map_airspace_notes_mirror_the_emitted_argv()
     {
@@ -721,8 +722,17 @@ public class WorkspaceScreenTests
         vm.FlightOptions.ThreeD = true;
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
-        Assert.False(check.IsEnabled);
+        Assert.True(check.IsEnabled);
         Assert.False(note.IsVisible);
+        Assert.True(fuzzNote.IsEffectivelyVisible);
+
+        vm.FlightOptions.SelectedPrivacy = vm.FlightOptions.PrivacyOptions
+            .Single(p => p.Value == MapPrivacy.Keep);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Assert.Contains("--airspace", vm.CommandPreview);
+        Assert.Contains("--3d", vm.CommandPreview);
+        Assert.True(note.IsEffectivelyVisible);
         Assert.False(fuzzNote.IsVisible);
     }
 
