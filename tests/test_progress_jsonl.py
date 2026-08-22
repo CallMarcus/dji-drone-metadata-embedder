@@ -802,16 +802,88 @@ def test_fetch_log_jsonl_one_failure_ends_in_error(monkeypatch, tmp_path):
     assert events[-1]["event"] == "error"
 
 
-def test_doctor_jsonl_never_runs_the_online_update_check(monkeypatch):
-    # Consent for going online is interactive-only; a machine consumer of
-    # the event stream must never trigger the network path.
+def test_doctor_jsonl_never_goes_online_without_the_explicit_flag(
+        monkeypatch, tmp_path):
+    # A machine consumer of the event stream must never trigger the
+    # network path as a side effect, and must never be prompted. It is
+    # told the remembered choice so it can put doctor's one-time question
+    # to the user itself (#319).
     _patch_doctor_env(monkeypatch)
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+    monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
+    from dji_metadata_embedder import __version__
     from dji_metadata_embedder.utils import update_check
 
     def _boom(*a, **k):
-        raise AssertionError("update check must not run under --progress jsonl")
+        raise AssertionError("network touched without an explicit flag")
 
-    monkeypatch.setattr(update_check, "update_report", _boom)
+    monkeypatch.setattr(update_check, "urlopen", _boom)
+    monkeypatch.setattr(
+        "builtins.input", lambda *a: (_ for _ in ()).throw(AssertionError("prompted"))
+    )
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl"])
+    assert res.exit_code == 0, res.output
+    summary = _events(res.stdout)[-1]["summary"]
+    assert summary["update_check"] == {
+        "consent": None, "hard_disabled": False, "current": __version__,
+        "releases_url": update_check.RELEASES_URL,
+    }
+    assert update_check.load_consent() is None
+
+
+def test_doctor_jsonl_online_flag_is_the_consent_and_reports_the_check(
+        monkeypatch, tmp_path):
+    # #319: the GUI reuses doctor's check by passing the explicit flag —
+    # the flag IS the consent (persisted like the interactive path) and
+    # the result comes back structured: current, latest, newer, hint.
+    _patch_doctor_env(monkeypatch)
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+    monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
+    from dji_metadata_embedder import __version__
+    from dji_metadata_embedder.utils import update_check
+
+    monkeypatch.setattr(update_check, "latest_pypi_version", lambda **k: "99.0.0")
     res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl", "--online"])
     assert res.exit_code == 0, res.output
-    assert _events(res.stdout)[-1]["event"] == "result"
+    uc = _events(res.stdout)[-1]["summary"]["update_check"]
+    assert uc["consent"] is True and uc["hard_disabled"] is False
+    assert uc["current"] == __version__ and uc["latest"] == "99.0.0"
+    assert uc["newer"] is True and "hint" in uc
+    assert uc["releases_url"] == update_check.RELEASES_URL
+    assert update_check.load_consent() is True
+
+    # --offline persists the refusal and never touches the network.
+    monkeypatch.setattr(update_check, "latest_pypi_version",
+                        lambda **k: (_ for _ in ()).throw(AssertionError("net")))
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl", "--offline"])
+    uc = _events(res.stdout)[-1]["summary"]["update_check"]
+    assert uc["consent"] is False and "latest" not in uc
+    assert update_check.load_consent() is False
+
+
+def test_doctor_jsonl_online_flag_degrades_silently_and_obeys_the_kill_switch(
+        monkeypatch, tmp_path):
+    _patch_doctor_env(monkeypatch)
+    monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
+    monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
+    from dji_metadata_embedder.utils import update_check
+
+    # Offline / PyPI down: latest is null, newer is null, no hint, no error.
+    monkeypatch.setattr(update_check, "latest_pypi_version", lambda **k: None)
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl", "--online"])
+    uc = _events(res.stdout)[-1]["summary"]["update_check"]
+    assert uc["latest"] is None and uc["newer"] is None and "hint" not in uc
+
+    # DJIEMBED_NO_UPDATE_CHECK=1 blocks the network AND the persisting.
+    def _boom(**k):
+        raise AssertionError("network touched despite kill switch")
+    monkeypatch.setattr(update_check, "latest_pypi_version", _boom)
+    (tmp_path / "dji-embed").mkdir(exist_ok=True)
+    update_check.consent_path().unlink(missing_ok=True)
+    res = CliRunner().invoke(
+        main, ["doctor", "--progress", "jsonl", "--online"],
+        env={"DJIEMBED_NO_UPDATE_CHECK": "1"},
+    )
+    uc = _events(res.stdout)[-1]["summary"]["update_check"]
+    assert uc["hard_disabled"] is True and "latest" not in uc
+    assert update_check.load_consent() is None

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DjiEmbed.Gui.Services;
 
@@ -26,6 +27,11 @@ public partial class MainViewModel : ViewModelBase
             OpenCliDiscovery, CliLocator.Find, stateStore: store);
         CurrentPage = _workspace;
     }
+
+    /// <summary>The launch update note (#319): started by the app shell
+    /// once the window exists, never by construction — tests build this
+    /// view model freely and must not spawn the CLI as a side effect.</summary>
+    public Task StartUpdateCheckAsync() => _workspace.CheckForUpdatesAsync();
 
     private void OpenCliDiscovery() => CurrentPage =
         new CliDiscoveryViewModel(CliLocator.Find(),

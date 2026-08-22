@@ -599,6 +599,122 @@ public partial class WorkspaceViewModel : FlowViewModel
     [RelayCommand]
     private void OpenCliDiscovery() => _openCliDiscovery();
 
+    // ----- launch update note (#319) ------------------------------------
+    //
+    // Doctor's opt-in online check, reused: the app never has a consent of
+    // its own. At most once per UpdateCheck.MinInterval it runs a plain
+    // (offline) doctor to read the remembered choice; unknown → doctor's
+    // one-time question appears in the footer, and the answer goes back as
+    // `doctor --online` / `--offline` (the flag persists it, CLI and app
+    // agree from then on); yes → `doctor --online` and, if PyPI knows a
+    // newer version, a one-line note linking to the release page. Nothing
+    // is downloaded, nothing blocks, and every failure is silence.
+
+    /// <summary>Doctor's one-time question, shown only while the remembered
+    /// choice is unknown and this launch was due to ask.</summary>
+    [ObservableProperty]
+    public partial bool ShowUpdateQuestion { get; set; }
+
+    /// <summary>"Version X.Y.Z is available", or null when there is nothing
+    /// to say (current, offline, declined, not due).</summary>
+    [ObservableProperty]
+    public partial string? UpdateNote { get; set; }
+
+    private string _releasesUrl =
+        "https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest";
+
+    /// <summary>The launch-time entry point; fire-and-forget from the app
+    /// shell, awaited by tests. <paramref name="now"/> is injectable so the
+    /// once-a-day gate is assertable.</summary>
+    internal async Task CheckForUpdatesAsync(DateTimeOffset? now = null)
+    {
+        var at = now ?? DateTimeOffset.UtcNow;
+        if (!UpdateCheck.IsDue(_stateStore.State.LastUpdateCheck, at))
+        {
+            return;
+        }
+        var status = await DoctorUpdateStatusAsync(online: null);
+        if (status is null)
+        {
+            return;
+        }
+        if (status.HardDisabled)
+        {
+            // DJIEMBED_NO_UPDATE_CHECK=1: settled for today, no question.
+            _stateStore.MarkUpdateCheck(at);
+            return;
+        }
+        switch (status.Consent)
+        {
+            case null:
+                ShowUpdateQuestion = true;
+                break;
+            case false:
+                _stateStore.MarkUpdateCheck(at);
+                break;
+            case true:
+                await RunOnlineCheckAsync(at);
+                break;
+        }
+    }
+
+    [RelayCommand]
+    private async Task AllowUpdateChecks()
+    {
+        ShowUpdateQuestion = false;
+        await RunOnlineCheckAsync(DateTimeOffset.UtcNow);
+    }
+
+    [RelayCommand]
+    private async Task DeclineUpdateChecks()
+    {
+        ShowUpdateQuestion = false;
+        await DoctorUpdateStatusAsync(online: false);
+        _stateStore.MarkUpdateCheck(DateTimeOffset.UtcNow);
+    }
+
+    [RelayCommand]
+    private void OpenReleasePage() => UrlLauncher(_releasesUrl);
+
+    private async Task RunOnlineCheckAsync(DateTimeOffset at)
+    {
+        var status = await DoctorUpdateStatusAsync(online: true);
+        _stateStore.MarkUpdateCheck(at);
+        if (status is { Newer: true, Latest: { } latest })
+        {
+            _releasesUrl = status.ReleasesUrl ?? _releasesUrl;
+            UpdateNote = $"Version {latest} is available";
+        }
+    }
+
+    /// <summary>One doctor run outside the flow's busy state: the UI keeps
+    /// working while it spawns. A missing CLI, a crash, or an older CLI
+    /// without the block all come back null — the note simply stays off.</summary>
+    private async Task<UpdateStatus?> DoctorUpdateStatusAsync(bool? online)
+    {
+        CliPath ??= _cliResolver?.Invoke();
+        if (CliPath is not { } cli)
+        {
+            return null;
+        }
+        string[] args = online switch
+        {
+            true => ["doctor", "--online"],
+            false => ["doctor", "--offline"],
+            null => ["doctor"],
+        };
+        try
+        {
+            var result = await Runner.RunAsync(cli, args);
+            return UpdateCheck.Parse(result.Terminal?.Summary);
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception
+            or InvalidOperationException or IOException)
+        {
+            return null;
+        }
+    }
+
     [RelayCommand]
     private void ShowInFolder()
     {

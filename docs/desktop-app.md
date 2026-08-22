@@ -82,11 +82,29 @@ instead — nothing is lost.
 ## Privacy and stored state
 
 Everything runs on your computer; nothing is uploaded, and there is no
-telemetry. The app stores exactly two things locally in
+telemetry. The app stores exactly three things locally in
 `%APPDATA%\DjiEmbed\state.json` on Windows
 (`~/Library/Application Support/DjiEmbed/state.json` on macOS): your
-recent folders and the window size/position. Delete that file to reset
-both.
+recent folders, the window size/position, and when it last looked for a
+newer version (below). Delete that file to reset all three.
+
+### Looking for new versions
+
+The one thing the app may do online is ask whether a newer version
+exists, and only if you said yes. The first time it is due, a quiet
+question appears at the bottom of the left column: *Look for new versions
+when the app starts?* That is the same question `dji-embed doctor` asks
+once in a terminal, and the answer is shared: Yes in the app is
+`dji-embed doctor --online`, No is `dji-embed doctor --offline`, and
+either command changes your mind later (there is no settings screen). With
+a yes, at most once a day the app makes one request to pypi.org (the same
+index `pip` uses) for the latest version number, nothing else; nothing
+about you or your files is sent. If a newer version exists, one line
+appears in the same spot, *Version X.Y.Z is available*, with a link to the
+release page. The app never downloads or installs anything itself. No
+network, or pypi.org unreachable, means no line at all, never an error.
+Setting `DJIEMBED_NO_UPDATE_CHECK=1` in the environment switches the
+whole thing off regardless of the stored answer.
 
 Beside it, `helper.log` keeps what the app's map and editor helpers
 printed — the same lines the command line shows in its terminal, such as

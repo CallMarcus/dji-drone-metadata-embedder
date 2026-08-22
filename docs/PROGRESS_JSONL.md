@@ -126,8 +126,19 @@ field, never by arrival order.
   appear only when it is present and its version is readable.
 - Missing dependencies are a report, not a crash: `"ok": false` with exit
   code 0 (same reading rule as `embed`).
-- The opt-in online update check **never** runs under `--progress jsonl`;
-  consent for going online stays interactive-only.
+- `summary.update_check` (#319): `{"consent": true|false|null,
+  "hard_disabled": bool, "current": "<this version>", "releases_url":
+  "<GitHub releases page>"}`. Nobody is prompted, and a plain run never
+  goes online: `consent` is only the remembered `doctor --online/--offline`
+  choice (null = never answered). Passing the explicit `--online` flag is
+  the consent — it is persisted exactly as on the interactive path and the
+  check runs, adding `"latest": "<PyPI version>"|null`, `"newer":
+  bool|null` (null when offline/PyPI unreachable — never an error) and,
+  when newer, `"hint"` (the environment-aware upgrade command).
+  `--offline` persists the refusal. `DJIEMBED_NO_UPDATE_CHECK=1` blocks
+  both the network and the persisting. This is how the desktop app offers
+  the one-time question and the launch note without a second consent
+  store.
 
 ### `convert`
 - Single-file mode: `start` carries `total: 1` and one `progress` event

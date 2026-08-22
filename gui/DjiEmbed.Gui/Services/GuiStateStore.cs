@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -39,6 +40,15 @@ public sealed class GuiStateStore
     public void SaveWindow(WindowBounds bounds)
     {
         State = State with { Window = bounds };
+        SaveNow();
+    }
+
+    /// <summary>The app looked for a newer version (or learned it must
+    /// not) at <paramref name="when"/> — remember it so the next launch
+    /// inside <see cref="UpdateCheck.MinInterval"/> stays offline (#319).</summary>
+    public void MarkUpdateCheck(DateTimeOffset when)
+    {
+        State = State with { LastUpdateCheck = when };
         SaveNow();
     }
 
