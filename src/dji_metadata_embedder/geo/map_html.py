@@ -192,10 +192,22 @@ if (panoMarkers.length) {
     panoCluster;
 }
 Object.assign(allOverlays, overlays);
-if (Object.keys(allOverlays).length > 1) {
-  L.control.layers(null, allOverlays, { collapsed: false }).addTo(map);
+// Expanded is the legend rule, but one row per flight grows without
+// bound: a 24-flight folder measured 529 px tall on a 768 px viewport
+// (#515 field check). Past this many rows the control collapses to its
+// icon and expands on hover, like flightmap's own.
+const LAYER_CONTROL_EXPANDED_MAX = 10;
+const overlayCount = Object.keys(allOverlays).length;
+if (overlayCount > 1) {
+  L.control.layers(null, allOverlays, {
+    collapsed: overlayCount > LAYER_CONTROL_EXPANDED_MAX
+  }).addTo(map);
 }
+// No photo or panorama pins, no hover-previews toggle (#515): a
+// tracks-only folder has nothing for it to preview.
+if (allMarkers.length) {
 __HOVER_CONTROL__
+}
 
 const bounds = photoLatLngs.concat(allLatLngs);
 if (bounds.length > 1) {

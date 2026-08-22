@@ -117,6 +117,25 @@ def test_html_renders_single_type_folders():
     assert "pb-play" in mixed_to_html([], TRACKS, title="t")
 
 
+def test_html_collapses_the_layer_control_past_ten_rows():
+    # #515 field check: 24 flights = a 529 px legend on a 768 px viewport.
+    # The threshold is a runtime count (photo/pano rows + one per flight);
+    # the browser test exercises both sides of it.
+    html = mixed_to_html(POINTS, TRACKS, title="t")
+    assert "const LAYER_CONTROL_EXPANDED_MAX = 10;" in html
+    assert "collapsed: overlayCount > LAYER_CONTROL_EXPANDED_MAX" in html
+    assert "{ collapsed: false }" not in html
+
+
+def test_html_gates_the_hover_toggle_on_photo_or_pano_pins():
+    # #515: a tracks-only folder has nothing to preview, so the toggle
+    # must not be emitted; allMarkers holds both photo and pano markers.
+    html = mixed_to_html(POINTS, TRACKS, title="t")
+    gate = html.index("if (allMarkers.length) {")
+    assert gate < html.index("id=\"hover-toggle\"")
+    assert gate > html.index("L.control.layers(null, allOverlays")
+
+
 def test_html_substitutions_are_complete():
     # A leftover placeholder is a JS SyntaxError that kills the whole page
     # while every substring assertion above stays green.

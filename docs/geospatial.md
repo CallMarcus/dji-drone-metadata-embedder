@@ -686,7 +686,11 @@ subfolders; photos cluster and toggle exactly as in `photomap`, flights
 draw and play back exactly as in `flightmap`, and recordings split at the
 4 GB limit are chained back into single flights the same way. A tree with
 no photos never touches ExifTool, so a tracks-only archive maps on a
-machine that doesn't have it installed.
+machine that doesn't have it installed (and, having nothing to preview,
+gets no hover-previews toggle). One layer control covers the photo and
+panorama rows plus one row per flight; it stays open for a handful of
+rows and collapses to its icon (open on hover) past ten, so a 20-flight
+archive doesn't wall off the map.
 
 Panoramas that already have a saved opening view (see [Setting the opening
 view](#setting-the-opening-view)) render their popup thumbnail as a square

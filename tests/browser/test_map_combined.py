@@ -8,6 +8,7 @@ playback control must actually advance the clock.
 
 import base64
 import io
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -75,3 +76,47 @@ def test_photo_popup_track_and_playback_share_one_page(serve_map, page):
     page.locator("#pb-play").click()
     page.wait_for_function(
         "() => Number(document.getElementById('pb-slider').value) > 0")
+
+
+def _flight(i: int) -> Track:
+    return Track(name=f"DJI_{i:04d}", points=[
+        TrackPoint(lat=34.0570 + i * 0.002 + k * 0.0005,
+                   lon=-84.1230 + k * 0.0001, alt=5.0 + k,
+                   timestamp=f"00:00:{k:02d},000",
+                   utc=_T0 + timedelta(seconds=30 * k))
+        for k in range(3)
+    ])
+
+
+LAYERS = ".leaflet-control-layers:not(.hover-control)"
+
+
+def test_layer_control_stays_expanded_for_a_few_flights_and_collapses_at_scale(
+        serve_map, page):
+    # #515 field check: the expanded legend is right for a handful of
+    # rows (photomap's rule) and a 529 px wall at 24 flights. Leaflet
+    # marks the open state with -expanded; a collapsed control shows its
+    # icon and opens on hover.
+    # (Regex: the class list's order differs between an initially-expanded
+    # control and one expanded on hover.)
+    expanded = re.compile(r"\bleaflet-control-layers-expanded\b")
+    serve_map(mixed_to_html(POINTS, [_flight(i) for i in range(4)], title="few"))
+    expect(page.locator(LAYERS)).to_have_class(expanded)
+    # 1 photo row + 12 flight rows = 13 > 10.
+    serve_map(mixed_to_html(POINTS, [_flight(i) for i in range(12)], title="many"))
+    control = page.locator(LAYERS)
+    expect(control).to_be_visible()
+    expect(control).not_to_have_class(expanded)
+    control.hover()
+    expect(control).to_have_class(expanded)
+    expect(control).to_contain_text("DJI_0011")
+
+
+def test_tracks_only_folder_has_no_hover_previews_toggle(serve_map, page):
+    # #515: nothing to preview, so the control is not emitted at all —
+    # unlike a folder with photos, where it sits beside the layer list.
+    serve_map(mixed_to_html([], TRACKS, title="tracks only"))
+    expect(page.locator("path.leaflet-interactive").first).to_be_visible()
+    expect(page.locator("#hover-toggle")).to_have_count(0)
+    serve_map(HTML)
+    expect(page.locator("#hover-toggle")).to_have_count(1)
