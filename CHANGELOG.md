@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-08-22
+
 ### Added
 
 - **geo**: Render UK activation status and schedule text in zone popups (#503) (#537) (c83e0ef)
@@ -32,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **geo**: Collapse the combined map's legend at scale, drop the hover toggle on photo-less maps (#515) (#538) (1c5c2c8)
 - **gui/panoedit/photomap**: The v2.9.0 field-tester round (#532) (#535) (b932968)
+- Prepare version 2.12.0 (#540) (90c9861)
 
 ## [2.11.0] - 2026-08-20
 
