@@ -240,6 +240,15 @@ def test_airspace_json_embeds_block_layer_and_note():
     assert "zonePopupHtml" in html
 
 
+def test_airspace_popup_states_the_edition_date_only_when_published():
+    # #502: the popup JS renders "effective <date>" from the zone's
+    # source block when present and nothing when the feed is undated.
+    from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+    html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
+    assert "if (z.source.effective) html += `<br>effective " in html
+    assert "`<br>fetched ${esc(z.source.fetched)}`" in html
+
+
 def test_airspace_json_escapes_script_breakout():
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
     evil = dict(_OVERLAY)

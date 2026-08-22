@@ -56,24 +56,40 @@ def _bbox(track: Track) -> tuple[float, float, float, float]:
     return min(lons), min(lats), max(lons), max(lats)
 
 
-def _read_cache(body_path: Path) -> tuple[bytes, str] | None:
+def _read_cache(body_path: Path) -> tuple[bytes, str, str | None] | None:
+    """``(body, fetched, effective)`` — ``effective`` is the dataset's own
+    edition date when the sidecar recorded one (#502); sidecars written
+    before that, or for undated feeds, yield None and the record simply
+    omits the line."""
     meta_path = body_path.with_name(body_path.name + ".meta.json")
     if not (body_path.exists() and meta_path.exists()):
         return None
     try:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        return body_path.read_bytes(), str(meta.get("fetched", "unknown time"))
-    except (OSError, ValueError):
-        # A corrupt cache (bad JSON, bad encoding, unreadable file) is a
-        # cache miss, not a crash — the caller will refetch.
+        effective = meta.get("effective")
+        return (
+            body_path.read_bytes(),
+            str(meta.get("fetched", "unknown time")),
+            str(effective) if effective is not None else None,
+        )
+    except (OSError, ValueError, AttributeError):
+        # A corrupt cache (bad JSON, bad encoding, unreadable file, or a
+        # sidecar that is not an object) is a cache miss, not a crash —
+        # the caller will refetch.
         return None
 
 
-def _write_cache(body_path: Path, body: bytes, url: str, fetched: str) -> None:
+def _write_cache(
+    body_path: Path, body: bytes, url: str, fetched: str,
+    effective: str | None,
+) -> None:
     body_path.parent.mkdir(parents=True, exist_ok=True)
     body_path.write_bytes(body)
+    meta: dict[str, str] = {"url": url, "fetched": fetched}
+    if effective is not None:
+        meta["effective"] = effective
     body_path.with_name(body_path.name + ".meta.json").write_text(
-        json.dumps({"url": url, "fetched": fetched}), encoding="utf-8"
+        json.dumps(meta), encoding="utf-8"
     )
 
 
@@ -189,9 +205,10 @@ def fetch_zones(
         return parse_aixm51(body, source)
 
     cached = None if refresh else _read_cache(body_path)
+    effective: str | None = None
     try:
         if cached is not None:
-            body, fetched = cached
+            body, fetched, effective = cached
             from_cache = True
         else:
             host = url.split("/")[2]
@@ -218,7 +235,7 @@ def fetch_zones(
                 body = _fetch_url(url, transport)
             else:
                 page = _fetch_url(url, transport)
-                zip_url = discover_aixm_url(
+                zip_url, effective = discover_aixm_url(
                     page, url, today=datetime.now(timezone.utc).date()
                 )
                 body = extract_xml(_fetch_url(zip_url, transport))
@@ -228,6 +245,7 @@ def fetch_zones(
         source = SourceInfo(
             feed=feed_name, url=url, fetched=fetched,
             license=license_line, caveat=caveat, note=note,
+            effective=effective,
         )
         zones = parse_body(body, source)
         if from_cache:
@@ -240,14 +258,15 @@ def fetch_zones(
             # Cache only what parsed (#518): a maintenance page served
             # with HTTP 200 must never become the body every later run
             # trusts.
-            _write_cache(body_path, body, url, fetched)
+            _write_cache(body_path, body, url, fetched, effective)
     except AirspaceError as exc:
         stale = _read_cache(body_path) if refresh else None
         if stale is not None:
-            body, fetched = stale
+            body, fetched, effective = stale
             source = SourceInfo(
                 feed=feed_name, url=url, fetched=fetched,
                 license=license_line, caveat=caveat, note=note,
+                effective=effective,
             )
             try:
                 zones = parse_body(body, source)

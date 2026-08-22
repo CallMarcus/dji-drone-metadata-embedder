@@ -41,19 +41,22 @@ BASE = "https://nats-uk.ead-it.com/cms-nats/opencms/en/Publications/digital-data
 def test_discovery_picks_the_effective_cycle_not_the_next_one():
     # Both the current and the NEXT AIRAC cycle are on the page; a cycle
     # takes effect at 00:00 UTC on its filename date.
-    url = discover_feed_url(PAGE, BASE, today=date(2026, 8, 15))
+    url, effective = discover_feed_url(PAGE, BASE, today=date(2026, 8, 15))
     assert url.endswith("EG_UAS_FR_DS_AREA1_FULL_20260806_XML.zip")
     assert url.startswith("https://nats-uk.ead-it.com/x/")
+    # #502: the cycle's effective date travels with the URL so the record
+    # can state which cycle the zones reflect, not just when we fetched.
+    assert effective == "2026-08-06"
 
 
 def test_discovery_rolls_over_on_the_cycle_date():
-    url = discover_feed_url(PAGE, BASE, today=date(2026, 9, 3))
-    assert "20260903_XML" in url
+    url, effective = discover_feed_url(PAGE, BASE, today=date(2026, 9, 3))
+    assert "20260903_XML" in url and effective == "2026-09-03"
 
 
 def test_discovery_falls_back_to_the_oldest_when_all_dates_are_future():
-    url = discover_feed_url(PAGE, BASE, today=date(2026, 8, 1))
-    assert "20260806_XML" in url
+    url, effective = discover_feed_url(PAGE, BASE, today=date(2026, 8, 1))
+    assert "20260806_XML" in url and effective == "2026-08-06"
 
 
 def test_discovery_never_picks_the_kml_product():

@@ -67,6 +67,22 @@ def test_sources_caveats_and_footer_identify_the_record():
     assert "factual record, not a determination" in html
 
 
+def test_a_dated_source_shows_its_effective_date_beside_the_fetch_time():
+    # #502: "Fetched" is when this copy was downloaded; "Effective" is the
+    # date the dataset itself took effect (the UK AIRAC cycle). Undated
+    # feeds render no such row.
+    from dataclasses import replace
+
+    dated = replace(SRC, effective="2026-08-06")
+    rec = _record()
+    rec.airspace.source = dated
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "<dt>Effective</dt><dd>2026-08-06</dd>" in html
+    assert html.index("<dt>Fetched</dt>") < html.index("<dt>Effective</dt>")
+    plain = record_to_html([_record()], "t", "2.4.0")
+    assert "<dt>Effective</dt>" not in plain
+
+
 def test_record_carries_the_generator_comment():
     from dji_metadata_embedder.geo.provenance import generator_comment
 

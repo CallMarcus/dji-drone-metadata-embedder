@@ -41,8 +41,9 @@ function zonePopupHtml(z) {
       html += `<br>max altitude in zone: ${e.max_amsl_m} m (as logged)`;
     if (e.time_note) html += `<br><i>${esc(e.time_note)}</i>`;
   }
-  html += `<hr>${esc(z.source.feed)} — ${esc(z.source.license)}` +
-          `<br>fetched ${esc(z.source.fetched)}`;
+  html += `<hr>${esc(z.source.feed)} — ${esc(z.source.license)}`;
+  if (z.source.effective) html += `<br>effective ${esc(z.source.effective)}`;
+  html += `<br>fetched ${esc(z.source.fetched)}`;
   html += '</div>';
   return html;
 }

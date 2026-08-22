@@ -60,6 +60,12 @@ class SourceInfo:
     license: str   # license line, printed verbatim
     caveat: str    # the feed's own informational-only wording
     note: str | None = None  # e.g. Finland's established-zones-only limit
+    # ISO date the dataset itself took effect, when the product states
+    # one (the UK AIRAC cycle date in the zip filename, #502). ``fetched``
+    # is when this copy was downloaded; this is which edition it is — a
+    # cached copy keeps serving a superseded cycle, and the record must
+    # let the reader see that. None when the feed publishes no date.
+    effective: str | None = None
 
 
 @dataclass

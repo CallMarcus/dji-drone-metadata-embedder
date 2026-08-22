@@ -77,7 +77,10 @@ def zones_to_overlay_json(
             continue
         covered = True
         if data.source is not None:
-            line = f"Airspace: {data.source.feed}, fetched {data.source.fetched}"
+            line = f"Airspace: {data.source.feed}, "
+            if data.source.effective:
+                line += f"effective {data.source.effective}, "
+            line += f"fetched {data.source.fetched}"
             if line not in notes:
                 notes.append(line)
             if data.source.note:
@@ -106,6 +109,8 @@ def zones_to_overlay_json(
                         "feed": zone.source.feed,
                         "license": zone.source.license,
                         "fetched": zone.source.fetched,
+                        **({"effective": zone.source.effective}
+                           if zone.source.effective else {}),
                     },
                     "entered": [],
                 }
