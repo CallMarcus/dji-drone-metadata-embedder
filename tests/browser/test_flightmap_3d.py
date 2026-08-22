@@ -43,6 +43,36 @@ def test_3d_map_boots_and_lists_flights(serve_map, page):
     assert page.locator("#map canvas").count() >= 1
 
 
+def test_layer_panel_folds_to_one_button_and_reopens(serve_map, page):
+    # #542: the hand-built panel is the largest thing on the page once
+    # airspace notes ride in it; like Leaflet's control on the 2D map it
+    # must be able to fold down to a single button, and come back.
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", 10.0, 20.0, 5), _flight("DJI_0002", 11.0, 21.0, 5)],
+        "trip",
+    )
+    serve_map(html)
+    panel = page.locator("#flights-panel")
+    toggle = page.locator("#panel-toggle")
+    rows = page.locator("#flights-panel input[type=checkbox]")
+    expect(panel).to_be_visible(timeout=15000)
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    expect(rows.first).to_be_visible()
+    open_width = panel.bounding_box()["width"]
+
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    expect(toggle).to_have_text("Layers \u25be")
+    expect(rows.first).to_be_hidden()
+    assert rows.count() == 2                       # hidden, never removed
+    assert panel.bounding_box()["width"] < open_width
+
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    expect(rows.first).to_be_visible()
+    expect(rows.nth(1)).to_be_visible()
+
+
 def test_3d_terrain_failure_shows_flat_view_banner(serve_map, page):
     html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, 5)], "trip")
     serve_map(html)

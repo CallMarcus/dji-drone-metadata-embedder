@@ -150,6 +150,30 @@ def test_entered_zone_lands_in_the_entered_layer(serve_map, page):
     ) == ["!", ["get", "entered"]]
 
 
+def test_long_airspace_notes_wrap_inside_a_capped_panel(serve_map, page):
+    # #542: each note is one long sentence; uncapped, the panel grew to
+    # the width of the longest one (nearly the whole browser on a real
+    # Swedish folder). The cap makes the notes wrap instead.
+    long_note = ("Airspace note: Published by LFV with Transportstyrelsen "
+                 "as data provider. Some zones apply only during scheduled "
+                 "hours within their validity window; the schedule is in "
+                 "the zone's published data and is not evaluated here.")
+    html = flights_to_3d_html(
+        [_flight()], "t",
+        airspace_json=_overlay([_zone()], notes=[
+            "Airspace: Sweden UAS geographical zones (ED-318, LFV), "
+            "fetched 2026-08-22T12:44:39Z", long_note]))
+    page.set_viewport_size({"width": 1600, "height": 900})
+    serve_map(html, terrain_stub=100.0)
+    _wait_layers(page)
+    panel = page.locator("#flights-panel")
+    expect(panel).to_contain_text("not evaluated here")
+    width = panel.bounding_box()["width"]
+    assert width <= 360 + 2, width               # the cap, not the note
+    note = page.locator("#airspace-notes div").nth(1)
+    assert note.bounding_box()["height"] > 30       # wrapped onto lines
+
+
 def test_airspace_toggle_hides_all_layers(serve_map, page):
     html = flights_to_3d_html(
         [_flight()], "t", airspace_json=_overlay([_zone()]))
