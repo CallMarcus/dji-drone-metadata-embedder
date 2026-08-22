@@ -1,6 +1,7 @@
 """Fetch orchestration tests (#413): consent lines, cache, honest gaps."""
 import hashlib
 import io
+import json
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -42,6 +43,13 @@ def test_luxembourg_fetch_parses_caches_and_announces(tmp_path):
     assert any("Fetching" in ln and "geoportail.lu" in ln for ln in lines)
     assert (tmp_path / "ed269-LU.json").exists()
     assert (tmp_path / "ed269-LU.json.meta.json").exists()
+    # No dated product here: nothing is claimed and the sidecar stays as
+    # it was (#502 only adds the key when a feed states a date).
+    assert data.source.effective is None
+    meta = json.loads(
+        (tmp_path / "ed269-LU.json.meta.json").read_text(encoding="utf-8")
+    )
+    assert "effective" not in meta
 
 
 def test_second_run_uses_the_cache_offline(tmp_path):
@@ -256,6 +264,13 @@ def test_a_uk_flight_discovers_the_cycle_zip_and_caches_the_xml(tmp_path):
     assert (tmp_path / "aixm-GB.xml").read_bytes().startswith(b"<?xml")
     assert any("Fetching" in ln and "nats-uk.ead-it.com" in ln
                for ln in lines)
+    # #502: the AIRAC cycle date from the zip filename reaches the
+    # source line and the cache sidecar, so a cached run can state it.
+    assert data.source.effective == "2020-01-01"
+    meta = json.loads(
+        (tmp_path / "aixm-GB.xml.meta.json").read_text(encoding="utf-8")
+    )
+    assert meta["effective"] == "2020-01-01"
 
 
 def test_a_cached_uk_body_skips_discovery_and_the_network(tmp_path):
@@ -266,6 +281,25 @@ def test_a_cached_uk_body_skips_discovery_and_the_network(tmp_path):
         raise AssertionError("cached run must not touch the network")
     data = fetch_zones(_track(51.50, -0.12), tmp_path, transport=no_network)
     assert data.from_cache and len(data.zones) == 6
+    assert data.source is not None and data.source.effective == "2020-01-01"
+
+
+def test_a_cache_sidecar_without_a_cycle_date_states_none(tmp_path):
+    # Sidecars written before #502 (or by feeds with no dated product)
+    # carry no "effective" key: the record simply omits the line rather
+    # than inventing a date or refusing the cache.
+    fetch_zones(_track(51.50, -0.12), tmp_path,
+                transport=FakeTransport([GB_PAGE, _gb_zip()]))
+    meta_path = tmp_path / "aixm-GB.xml.meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["effective"]
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(51.50, -0.12), tmp_path, transport=no_network)
+    assert data.from_cache and data.source is not None
+    assert data.source.effective is None
 
 
 def _gb_zip_bad_sha() -> bytes:

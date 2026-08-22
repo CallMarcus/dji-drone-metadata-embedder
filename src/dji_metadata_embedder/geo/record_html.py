@@ -303,6 +303,12 @@ def _source_dl(source, terrain_source: str | None, version: str) -> str:
             ("Feed", source.feed),
             ("URL", source.url),
             ("Fetched", source.fetched),
+        ]
+        if source.effective:
+            # The dataset's own edition date (#502) — "Fetched" is only
+            # when this copy was downloaded.
+            items.append(("Effective", source.effective))
+        items += [
             ("License", source.license),
             ("Caveat", source.caveat),
         ]

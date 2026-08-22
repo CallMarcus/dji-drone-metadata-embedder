@@ -119,6 +119,32 @@ def test_notes_provenance_line_once_and_gap_lines():
     assert any(n.startswith("Airspace, B:") for n in out["notes"])
 
 
+def test_a_dated_product_states_its_effective_date_everywhere():
+    # #502: a feed published per cycle (the UK AIRAC dataset) states the
+    # cycle's effective date beside the fetch time — in the corner note
+    # and in every zone's popup source block — so a reader can tell which
+    # cycle the zones reflect, not just when this copy was downloaded.
+    zones, source = _lu_zones()
+    dated = SourceInfo(
+        feed=source.feed, url=source.url, fetched=source.fetched,
+        license=source.license, caveat=source.caveat, note=source.note,
+        effective="2026-08-06",
+    )
+    for z in zones:
+        z.source = dated
+    out = zones_to_overlay_json(
+        [_track_far()], [AirspaceData(zones=zones, source=dated)]
+    )
+    assert (f"Airspace: {dated.feed}, effective 2026-08-06, "
+            f"fetched {dated.fetched}") in out["notes"]
+    assert all(z["source"]["effective"] == "2026-08-06" for z in out["zones"])
+    # Undated feeds keep the old shape: no key invented.
+    out = zones_to_overlay_json(
+        [_track_far()], [AirspaceData(zones=_lu_zones()[0], source=source)]
+    )
+    assert all("effective" not in z["source"] for z in out["zones"])
+
+
 def test_source_note_reaches_the_map_notes_once():
     # #510 I3: the schedule/reference-only disclosures that ride in
     # SourceInfo.note must reach the overlay, not just the record.

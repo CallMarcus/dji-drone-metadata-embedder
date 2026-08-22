@@ -99,8 +99,11 @@ _ZIP_HREF_RE = re.compile(
 )
 
 
-def discover_feed_url(page: bytes, page_url: str, *, today: date) -> str:
-    """The currently-effective dataset zip URL from the datasets page.
+def discover_feed_url(
+    page: bytes, page_url: str, *, today: date
+) -> tuple[str, str]:
+    """The currently-effective dataset zip URL from the datasets page,
+    with the cycle's effective date as ISO ``YYYY-MM-DD`` (#502).
 
     A cycle takes effect at 00:00 UTC on its filename date, so the
     newest listed date that is not in the future wins; a page listing
@@ -120,8 +123,8 @@ def discover_feed_url(page: bytes, page_url: str, *, today: date) -> str:
             f"NATS page ({page_url}) — the page layout may have changed"
         )
     current = [(d, h) for d, h in dated if d <= today]
-    _, href = max(current) if current else min(dated)
-    return urljoin(page_url, href)
+    effective, href = max(current) if current else min(dated)
+    return urljoin(page_url, href), effective.isoformat()
 
 
 _XML_MEMBER_RE = re.compile(r"EG_UAS_FR_DS_AREA1_FULL_\d{8}\.xml$")
