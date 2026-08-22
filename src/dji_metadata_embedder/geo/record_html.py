@@ -153,8 +153,16 @@ def _zone_row(f: ZoneFinding) -> str:
             )
         else:
             compare = "limit datum not recognized"
+    name_cell = f"{_esc(z.name)}<br><small>{_esc(z.identifier)}</small>"
+    if z.activation:
+        # #503: the feed's own activation status/schedule text, verbatim
+        # and labelled — the record never evaluated it.
+        name_cell += (
+            "<br><small>activation (published, not evaluated): "
+            f"{_esc('; '.join(z.activation))}</small>"
+        )
     return (
-        f"<tr><td>{_esc(z.name)}<br><small>{_esc(z.identifier)}</small></td>"
+        f"<tr><td>{name_cell}</td>"
         f"<td>{_esc(z.restriction)}</td><td>{_esc(limit)}</td>"
         f"<td>{_esc(status)}</td><td>{_esc(compare)}</td></tr>"
     )

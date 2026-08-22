@@ -103,7 +103,8 @@ def test_gb_feed_registry_states_source_rights_and_honesty_note():
     assert "NATS" in feed.license and "ISO 19115" in feed.license
     assert "not for resale" in feed.license
     note = feed.note or ""
-    assert "Activation hours" in note and "Temporary restrictions" in note
+    assert "Activation status" in note and "not evaluated" in note
+    assert "Temporary restrictions" in note
 
 
 def _gb() -> bytes:
@@ -159,6 +160,38 @@ def test_activation_rides_in_native_and_never_becomes_applicability():
                     "notes": ["Mon-Sat SR to SS."]}]
     assert zones[0].native["type"] == "R"
     assert zones[0].native["localType"] == "RPZ"
+
+
+def test_activation_is_also_rendered_as_published_text_lines():
+    # #503: the same blocks become reader-facing lines — the status code
+    # in plain words plus the prose schedule, exactly as published — so a
+    # part-time danger area can say so in the popup and the record.
+    # Still no applicability (the evaluator never sees these).
+    zones = parse_aixm51(_gb(), SRC)
+    assert zones[0].activation == [
+        "available for activation — Mon-Sat SR to SS."
+    ]
+    assert all(z.activation == [] for z in zones[1:])
+    assert all(z.applicability == [] for z in zones)
+
+
+def test_activation_status_codes_read_as_words_and_unknowns_pass_through():
+    from dji_metadata_embedder.geo.airspace.aixm51 import _activation_lines
+
+    assert _activation_lines([
+        {"status": "ACTIVE", "notes": ["H24."]},
+        {"status": "AVBL_FOR_ACTIVATION", "notes": []},
+        {"status": "INTERMITTENT", "notes": ["a", "b"]},
+        {"status": None, "notes": ["schedule only"]},
+        {"status": "SOME_NEW_CODE", "notes": []},
+        {"status": None, "notes": []},
+    ]) == [
+        "active — H24.",
+        "available for activation",
+        "intermittent — a; b",
+        "schedule only",
+        "SOME_NEW_CODE",
+    ]
 
 
 def test_coordinates_come_out_lon_lat_and_rings_close():

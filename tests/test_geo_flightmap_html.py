@@ -231,6 +231,17 @@ def test_no_airspace_json_means_no_airspace_bytes():
     assert "airspace" not in html.lower()
 
 
+def test_airspace_popup_renders_activation_text_as_published_not_evaluated():
+    # #503: the popup shows a zone's activation status/schedule text
+    # verbatim, labelled as published information the record did not
+    # evaluate — and nothing at all for zones without it.
+    from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+    html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
+    assert "if (z.activation && z.activation.length)" in html
+    assert "activation (published, not evaluated): " in html
+    assert "z.activation.map(esc).join('; ')" in html
+
+
 def test_airspace_json_embeds_block_layer_and_note():
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
     html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
