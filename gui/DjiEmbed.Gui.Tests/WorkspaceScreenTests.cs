@@ -139,6 +139,42 @@ public class WorkspaceScreenTests
     }
 
     [AvaloniaFact]
+    public void Update_question_and_note_live_in_the_footer_and_hide_by_default()
+    {
+        // #319: nothing shows until the view model says so; the question
+        // brings its Yes/No, the note brings its release-page link, and
+        // neither disturbs the CLI escape-hatch link beside them.
+        var vm = NewWorkspaceViewModel();
+        var window = ShowWorkspace(vm);
+        var panels = window.GetVisualDescendants().OfType<StackPanel>().ToList();
+        var question = panels.Single(n => n.Name == "UpdateQuestion");
+        var note = panels.Single(n => n.Name == "UpdateNotePanel");
+        Assert.False(question.IsVisible);
+        Assert.False(note.IsVisible);
+
+        vm.ShowUpdateQuestion = true;
+        Assert.True(question.IsVisible);
+        var labels = window.GetVisualDescendants().OfType<Button>()
+            .Where(b => b.Name is "UpdateYes" or "UpdateNo")
+            .Select(b => b.Command).ToList();
+        Assert.Equal(2, labels.Count);
+        Assert.All(labels, Assert.NotNull);
+
+        vm.UpdateNote = "Version 99.0.0 is available";
+        Assert.True(note.IsVisible);
+        var text = string.Join(" ", note.GetVisualDescendants()
+            .OfType<TextBlock>().Select(t => t.Text ?? ""));
+        Assert.Contains("99.0.0", text);
+        // The link's content is declared in XAML; its template only
+        // realises on the next layout pass, so read the Content directly.
+        var link = window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Name == "UpdateReleaseLink");
+        Assert.Contains("download page", ((TextBlock)link.Content!).Text);
+        Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+            b => b.Classes.Contains("footerLink"));
+    }
+
+    [AvaloniaFact]
     public void Idle_pane_keeps_the_photo_identity()
     {
         var window = ShowWorkspace();

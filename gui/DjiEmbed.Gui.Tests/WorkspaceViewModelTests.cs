@@ -436,6 +436,144 @@ public class WorkspaceViewModelTests : IDisposable
         """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"tools": {"ffmpeg": {"present": true, "version": "7.1"}}}}""",
     ];
 
+    // ----- launch update note (#319) -----------------------------------
+
+    private static string DoctorWithUpdate(string updateBlock) =>
+        """{"v": 1, "event": "result", "ok": true, "outputs": [], "summary": {"tools": {"ffmpeg": {"present": true}}, "update_check": """
+        + updateBlock + "}}";
+
+    private const string Rel = "https://example.invalid/releases";
+
+    private static readonly DateTimeOffset Noon =
+        new(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
+
+    private (string Cli, string ArgsFile) UpdateCli(string updateBlock)
+    {
+        var argsFile = Path.Combine(_dir, "argv-" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile,
+        [
+            """{"v": 1, "event": "start", "command": "doctor"}""",
+            DoctorWithUpdate(updateBlock),
+        ]);
+        return (cli, argsFile);
+    }
+
+    private static string[] Argv(string argsFile) =>
+        File.Exists(argsFile) ? File.ReadAllLines(argsFile) : [];
+
+    [Fact]
+    public async Task Update_check_asks_doctors_question_once_when_consent_is_unknown()
+    {
+        var (cli, argsFile) = UpdateCli(
+            $$$"""{"consent": null, "hard_disabled": false, "current": "2.11.0", "releases_url": "{{{Rel}}}"}""");
+        var store = new GuiStateStore(Path.Combine(_dir, "state.json"));
+        var vm = Vm(cli, stateStore: store);
+        await vm.CheckForUpdatesAsync(Noon);
+        Assert.True(vm.ShowUpdateQuestion);
+        Assert.Null(vm.UpdateNote);
+        // The probe was plain doctor — no flag, no network — and nothing
+        // was stamped: an unanswered question is not a check.
+        Assert.Equal(["doctor", "--progress", "jsonl"], Argv(argsFile));
+        Assert.Null(store.State.LastUpdateCheck);
+    }
+
+    [Fact]
+    public async Task Answering_yes_runs_the_online_check_and_notes_a_newer_version()
+    {
+        var (cli, argsFile) = UpdateCli(
+            $$$"""{"consent": null, "hard_disabled": false, "current": "2.11.0", "latest": "99.0.0", "newer": true, "releases_url": "{{{Rel}}}"}""");
+        var store = new GuiStateStore(Path.Combine(_dir, "state.json"));
+        var vm = Vm(cli, stateStore: store);
+        await vm.CheckForUpdatesAsync(Noon);
+        await vm.AllowUpdateChecksCommand.ExecuteAsync(null);
+        Assert.False(vm.ShowUpdateQuestion);
+        Assert.Equal("Version 99.0.0 is available", vm.UpdateNote);
+        Assert.Contains("--online", Argv(argsFile));
+        Assert.NotNull(store.State.LastUpdateCheck);
+        string? opened = null;
+        vm.UrlLauncher = u => opened = u;
+        vm.OpenReleasePageCommand.Execute(null);
+        Assert.Equal(Rel, opened);
+    }
+
+    [Fact]
+    public async Task Answering_no_persists_through_doctor_offline_and_stamps_the_day()
+    {
+        var (cli, argsFile) = UpdateCli(
+            $$$"""{"consent": null, "hard_disabled": false, "current": "2.11.0", "releases_url": "{{{Rel}}}"}""");
+        var store = new GuiStateStore(Path.Combine(_dir, "state.json"));
+        var vm = Vm(cli, stateStore: store);
+        await vm.CheckForUpdatesAsync(Noon);
+        await vm.DeclineUpdateChecksCommand.ExecuteAsync(null);
+        Assert.False(vm.ShowUpdateQuestion);
+        Assert.Null(vm.UpdateNote);
+        Assert.Contains("--offline", Argv(argsFile));
+        Assert.DoesNotContain("--online", Argv(argsFile));
+        Assert.NotNull(store.State.LastUpdateCheck);
+    }
+
+    [Fact]
+    public async Task Remembered_consent_checks_online_once_a_day_and_links_the_release_page()
+    {
+        var (cli, argsFile) = UpdateCli(
+            $$$"""{"consent": true, "hard_disabled": false, "current": "2.11.0", "latest": "99.0.0", "newer": true, "releases_url": "{{{Rel}}}"}""");
+        var store = new GuiStateStore(Path.Combine(_dir, "state.json"));
+        var vm = Vm(cli, stateStore: store);
+        await vm.CheckForUpdatesAsync(Noon);
+        Assert.False(vm.ShowUpdateQuestion);
+        Assert.Equal("Version 99.0.0 is available", vm.UpdateNote);
+        // Offline probe first, then the explicit flag — the flag is the consent.
+        Assert.Equal(
+            ["doctor", "--progress", "jsonl", "doctor", "--online", "--progress", "jsonl"],
+            Argv(argsFile));
+        Assert.Equal(Noon, store.State.LastUpdateCheck);
+
+        // Same day: nothing spawns. Next day: the probe runs again.
+        var before = Argv(argsFile).Length;
+        await vm.CheckForUpdatesAsync(Noon.AddHours(6));
+        Assert.Equal(before, Argv(argsFile).Length);
+        await vm.CheckForUpdatesAsync(Noon.AddHours(25));
+        Assert.True(Argv(argsFile).Length > before);
+    }
+
+    [Fact]
+    public async Task Remembered_refusal_and_the_kill_switch_stay_offline_and_silent()
+    {
+        foreach (var block in new[]
+        {
+            $$$"""{"consent": false, "hard_disabled": false, "current": "2.11.0", "releases_url": "{{{Rel}}}"}""",
+            $$$"""{"consent": true, "hard_disabled": true, "current": "2.11.0", "releases_url": "{{{Rel}}}"}""",
+        })
+        {
+            var (cli, argsFile) = UpdateCli(block);
+            var store = new GuiStateStore(Path.Combine(_dir, Guid.NewGuid().ToString("N") + ".json"));
+            var vm = Vm(cli, stateStore: store);
+            await vm.CheckForUpdatesAsync(Noon);
+            Assert.False(vm.ShowUpdateQuestion);
+            Assert.Null(vm.UpdateNote);
+            Assert.Equal(["doctor", "--progress", "jsonl"], Argv(argsFile));
+            Assert.Equal(Noon, store.State.LastUpdateCheck);
+        }
+    }
+
+    [Fact]
+    public async Task Update_check_is_silent_without_a_cli_or_without_the_block()
+    {
+        var store = new GuiStateStore(Path.Combine(_dir, "state.json"));
+        await Vm(null, stateStore: store).CheckForUpdatesAsync(Noon);
+        Assert.Null(store.State.LastUpdateCheck);
+        // An older CLI whose doctor summary predates the block: nothing to
+        // act on, and no stamp either — the newer CLI gets asked next time.
+        var cli = FakeCli.WritePerCommand(_dir, new Dictionary<string, (string[], int)>
+        {
+            ["doctor"] = (DoctorStream, 0),
+        });
+        var vm = Vm(cli, stateStore: store);
+        await vm.CheckForUpdatesAsync(Noon);
+        Assert.False(vm.ShowUpdateQuestion);
+        Assert.Null(vm.UpdateNote);
+    }
+
     [Fact]
     public async Task Missing_cli_fails_with_novice_wording()
     {

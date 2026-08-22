@@ -23,12 +23,12 @@
         <Style Selector="Border#DropZone.dragover Rectangle.dropOutline">
             <Setter Property="Stroke" Value="#6366f1" />
         </Style>
-        <Style Selector="Button.footerLink, Button.copyLink">
+        <Style Selector="Button.footerLink, Button.copyLink, Button.quietLink">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.copyLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.copyLink:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.quietLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
 
@@ -86,6 +86,39 @@
                                Opacity="0.7" FontSize="12"
                                TextWrapping="Wrap" TextDecorations="Underline" />
                 </Button>
+                <!-- Launch update note (#319): doctor's one-time question
+                     while the remembered choice is unknown, otherwise at
+                     most one quiet line with a link. Never a download. -->
+                <StackPanel DockPanel.Dock="Bottom" Name="UpdateQuestion"
+                            Margin="2,18,0,0" Spacing="6"
+                            IsVisible="{Binding ShowUpdateQuestion}">
+                    <TextBlock Text="Look for new versions when the app starts? One request to pypi.org for the latest version number; nothing about you or your files is sent."
+                               Opacity="0.7" FontSize="12" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <Button Classes="quietLink" Name="UpdateYes"
+                                AutomationProperties.Name="Yes, look for new versions"
+                                Command="{Binding AllowUpdateChecksCommand}">
+                            <TextBlock Text="Yes" FontSize="12" TextDecorations="Underline" />
+                        </Button>
+                        <Button Classes="quietLink" Name="UpdateNo"
+                                AutomationProperties.Name="No, stay offline"
+                                Command="{Binding DeclineUpdateChecksCommand}">
+                            <TextBlock Text="No" FontSize="12" TextDecorations="Underline" />
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom" Name="UpdateNotePanel"
+                            Orientation="Horizontal" Spacing="8" Margin="2,18,0,0"
+                            IsVisible="{Binding UpdateNote, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding UpdateNote}" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Button Classes="quietLink" Name="UpdateReleaseLink"
+                            AutomationProperties.Name="Open the download page"
+                            Command="{Binding OpenReleasePageCommand}">
+                        <TextBlock Text="open the download page →" FontSize="12"
+                                   Opacity="0.8" TextDecorations="Underline" />
+                    </Button>
+                </StackPanel>
 
                 <StackPanel>
                     <TextBlock Classes="zone" Text="SOURCE" Margin="2,0,0,6" />

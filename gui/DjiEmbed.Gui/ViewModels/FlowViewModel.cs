@@ -110,6 +110,10 @@ public abstract partial class FlowViewModel(
     /// Settable so a long-lived flow can re-probe a missing CLI.</summary>
     protected string? CliPath { get; set; } = cliPath;
 
+    /// <summary>The CLI bridge, for subclass work that runs outside the
+    /// flow's busy state (the launch update check, #319).</summary>
+    protected DjiEmbedRunner Runner => runner;
+
     /// <summary>Fails fast when the bundled CLI is missing.</summary>
     protected bool EnsureCli()
     {

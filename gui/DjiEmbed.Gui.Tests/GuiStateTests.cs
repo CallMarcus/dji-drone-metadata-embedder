@@ -33,6 +33,30 @@ public class GuiStateTests : IDisposable
     }
 
     [Fact]
+    public void Last_update_check_round_trips_and_alone_is_not_Empty()
+    {
+        // #319 spec amendment: the one extra field. A state holding only
+        // the stamp must load as itself, not as the Empty singleton, or
+        // the once-a-day gate would reset on every launch.
+        var when = new DateTimeOffset(2026, 8, 22, 10, 30, 0, TimeSpan.Zero);
+        GuiState.Save(new GuiState(null, [], when), StatePath);
+        var loaded = GuiState.Load(StatePath);
+        Assert.NotSame(GuiState.Empty, loaded);
+        Assert.Equal(when, loaded.LastUpdateCheck);
+        Assert.Contains("\"lastUpdateCheck\"", File.ReadAllText(StatePath));
+    }
+
+    [Fact]
+    public void Garbled_last_update_check_degrades_to_never_and_keeps_the_rest()
+    {
+        File.WriteAllText(StatePath,
+            """{"recentFolders": ["C:\\Drone"], "lastUpdateCheck": "yesterday-ish"}""");
+        var loaded = GuiState.Load(StatePath);
+        Assert.Null(loaded.LastUpdateCheck);
+        Assert.Equal(["C:\\Drone"], loaded.RecentFolders);
+    }
+
+    [Fact]
     public void State_round_trips_through_the_file()
     {
         var state = new GuiState(

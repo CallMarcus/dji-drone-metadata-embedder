@@ -278,6 +278,38 @@ def exiftool_pin_lines() -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+def machine_report(cli_choice: bool | None = None) -> dict:
+    """Structured update-check block for ``doctor --progress jsonl`` (#319).
+
+    Never prompts, and goes online only on an explicit ``--online`` flag —
+    the flag is the consent, persisted exactly as on the interactive path —
+    never as a side effect of a plain machine run. The remembered choice is
+    reported either way so a GUI can put doctor's one-time question to the
+    user itself and pass the answer back as the flag. The kill-switch env
+    var blocks both the network and the persisting, as everywhere else.
+    """
+    from .. import __version__
+
+    disabled = hard_disabled()
+    report: dict = {
+        "consent": load_consent(),
+        "hard_disabled": disabled,
+        "current": __version__,
+        "releases_url": RELEASES_URL,
+    }
+    if disabled or cli_choice is None:
+        return report
+    save_consent(cli_choice)
+    report["consent"] = cli_choice
+    if cli_choice:
+        latest = latest_pypi_version()
+        report["latest"] = latest
+        report["newer"] = is_newer(latest, __version__) if latest else None
+        if report["newer"]:
+            report["hint"] = upgrade_hint()
+    return report
+
+
 def update_report(cli_choice: bool | None = None) -> list[str]:
     """All update-check lines for doctor output (may prompt interactively)."""
     online, status = resolve_online(cli_choice)

@@ -1777,8 +1777,12 @@ def doctor(
 
     if progress.active:
         # Machine consumers get a structured report. The online update
-        # check never runs here: consent is interactive-only, and a GUI or
-        # script must not trigger the network path as a side effect.
+        # check never runs here as a side effect and nobody is prompted:
+        # only the explicit --online flag goes online (the flag is the
+        # consent, #319), and the remembered choice is reported so a GUI
+        # can ask doctor's one-time question itself.
+        from .utils import update_check
+
         with _jsonl_terminal(progress, "doctor"):
             if install_tool == "exiftool":
                 exe = provision_exiftool(force=force)
@@ -1786,6 +1790,7 @@ def doctor(
                     f"ExifTool {EXIFTOOL_VERSION} installed: {exe}", err=True
                 )
             summary = _doctor_summary()
+            summary["update_check"] = update_check.machine_report(online)
             for tool, info in summary["tools"].items():
                 if not info["present"]:
                     progress.warning("Not found", item=tool)

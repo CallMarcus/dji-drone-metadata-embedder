@@ -12,13 +12,16 @@ public sealed record WindowBounds(
     int X, int Y, int Width, int Height, bool Maximized);
 
 /// <summary>
-/// The one persisted GUI state (workspace spec 2026-07-18): MRU folders and
-/// window bounds, nothing else, ever, without a spec amendment. Pure data
-/// plus static I/O helpers; the runtime lifecycle lives in
+/// The one persisted GUI state (workspace spec 2026-07-18): MRU folders,
+/// window bounds and — the one amendment, granted by #319 — when the app
+/// last looked for a newer version, so the opt-in check does not ping on
+/// every launch. Nothing else, ever, without a further amendment. Pure
+/// data plus static I/O helpers; the runtime lifecycle lives in
 /// <see cref="GuiStateStore"/>.
 /// </summary>
 public sealed record GuiState(
-    WindowBounds? Window, IReadOnlyList<string> RecentFolders)
+    WindowBounds? Window, IReadOnlyList<string> RecentFolders,
+    DateTimeOffset? LastUpdateCheck = null)
 {
     /// <summary>Shared no-saved-state instance: record equality over
     /// IReadOnlyList is reference equality, so "no state" must be one
@@ -54,6 +57,9 @@ public sealed record GuiState(
     {
         public WindowDto? Window { get; set; }
         public List<string>? RecentFolders { get; set; }
+        // ISO-8601 round-trip text, not a DateTimeOffset: a hand-edited or
+        // garbled value must degrade to "never checked", not fail the load.
+        public string? LastUpdateCheck { get; set; }
     }
 
     /// <summary>Missing, corrupt, or unreadable → <see cref="Empty"/>.
@@ -76,9 +82,13 @@ public sealed record GuiState(
                 .Where(static f => !string.IsNullOrWhiteSpace(f))
                 .Take(MaxRecent)
                 .ToList();
-            return window is null && recents.Count == 0
+            DateTimeOffset? lastCheck = DateTimeOffset.TryParse(
+                dto.LastUpdateCheck, null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var t)
+                ? t : null;
+            return window is null && recents.Count == 0 && lastCheck is null
                 ? Empty
-                : new GuiState(window, recents);
+                : new GuiState(window, recents, lastCheck);
         }
         catch (Exception)
         {
@@ -112,6 +122,7 @@ public sealed record GuiState(
                     }
                     : null,
                 RecentFolders = state.RecentFolders.ToList(),
+                LastUpdateCheck = state.LastUpdateCheck?.ToString("o"),
             };
             File.WriteAllText(temp, JsonSerializer.Serialize(dto, Json));
             File.Move(temp, path, overwrite: true);
