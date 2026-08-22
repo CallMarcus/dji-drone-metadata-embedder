@@ -82,6 +82,18 @@ def test_3d_html_has_flight_toggle_panel():
     assert "flights-panel" in html
 
 
+def test_3d_html_caps_the_panel_width_and_offers_a_collapse_toggle():
+    # #542: the panel has no natural width limit, and airspace notes are
+    # long single sentences, so without a cap it stretched to the width
+    # of the longest note. The toggle is a <button>, never a checkbox --
+    # the checkboxes in this panel are the flight rows.
+    html = flights_to_3d_html([_track()], "t")
+    assert "max-width: min(360px, 70vw)" in html
+    assert "toggle.id = 'panel-toggle'" in html
+    assert "toggle.type = 'button'" in html
+    assert ".flights-panel.collapsed > :not(.panel-head) { display: none; }" in html
+
+
 def test_3d_html_does_not_render_at_altitude():
     # Spec amendment: draped tracks only — line geometry never anchors at
     # elevation. Ghost Camera (#372) legitimately calls

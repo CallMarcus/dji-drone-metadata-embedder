@@ -65,8 +65,19 @@ _TEMPLATE = """<!DOCTYPE html>
                    background: #fff; border-radius: 4px; padding: 8px 12px;
                    box-shadow: 0 1px 5px rgba(0,0,0,.4);
                    font: 13px/1.8 sans-serif; max-height: 60%;
-                   overflow-y: auto; }}
+                   overflow-y: auto; max-width: min(360px, 70vw);
+                   box-sizing: border-box; }}
   .flights-panel label {{ display: block; cursor: pointer; }}
+  .flights-panel .panel-head {{ display: flex; justify-content: flex-end;
+                               margin: -4px -6px 0 0; line-height: 1.4; }}
+  .flights-panel .panel-head button {{ border: none; background: none;
+                                      cursor: pointer; font: inherit;
+                                      font-size: 12px; opacity: .7;
+                                      padding: 2px 4px; }}
+  .flights-panel.collapsed {{ padding: 4px 8px; }}
+  .flights-panel.collapsed .panel-head {{ margin: 0; }}
+  .flights-panel.collapsed .panel-head button {{ opacity: 1; }}
+  .flights-panel.collapsed > :not(.panel-head) {{ display: none; }}
   .flights-panel hr {{ border: none; border-top: 1px solid #ddd;
                       margin: 6px 0; }}
   .panel-note {{ opacity: .7; font-size: 11px; }}
@@ -287,6 +298,27 @@ function buildPanel() {
   const panel = document.createElement('div');
   panel.id = 'flights-panel';
   panel.className = 'flights-panel';
+  // Collapse toggle (#542): the panel is hand-built (MapLibre has no
+  // layer control), and once airspace notes ride in it it is the largest
+  // thing on the page -- so, like the layer control on the 2D map, it
+  // can fold down to a single button. A <button>, not a checkbox: the
+  // checkboxes in this panel are the flight rows, and are counted as such.
+  const head = document.createElement('div');
+  head.className = 'panel-head';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.id = 'panel-toggle';
+  const setCollapsed = (c) => {
+    panel.classList.toggle('collapsed', c);
+    toggle.setAttribute('aria-expanded', String(!c));
+    toggle.textContent = c ? 'Layers \\u25be' : 'hide \\u25b4';
+    toggle.title = c ? 'Show the layer list' : 'Hide the layer list';
+  };
+  toggle.addEventListener('click', () =>
+    setCollapsed(!panel.classList.contains('collapsed')));
+  head.appendChild(toggle);
+  panel.appendChild(head);
+  setCollapsed(false);
   flights.forEach(f => {
     const label = document.createElement('label');
     const box = document.createElement('input');
