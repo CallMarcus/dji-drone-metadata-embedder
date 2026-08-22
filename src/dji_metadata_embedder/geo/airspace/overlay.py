@@ -102,6 +102,10 @@ def zones_to_overlay_json(
                     ],
                     "polygons": zone.polygons,
                     "holes": zone.holes,
+                    # Published, unevaluated text (#503) — only when the
+                    # zone carries any, so undated/plain feeds keep shape.
+                    **({"activation": list(zone.activation)}
+                       if zone.activation else {}),
                     "source": {
                         "feed": zone.source.feed,
                         "license": zone.source.license,

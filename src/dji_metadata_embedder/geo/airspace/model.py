@@ -86,3 +86,9 @@ class Zone:
     source: SourceInfo
     holes: list[list[tuple[float, float]]] = field(default_factory=list)
     native: dict = field(default_factory=dict)
+    # Published activation status/schedule text, one line per activation
+    # block, rendered verbatim and labelled as not evaluated (#503). The
+    # UK dataset carries these for part-time danger areas ("available for
+    # activation — Mon-Sat SR to SS."). Never an applicability window:
+    # the evaluator must keep treating such zones as applicable.
+    activation: list[str] = field(default_factory=list)

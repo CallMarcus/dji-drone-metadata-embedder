@@ -30,6 +30,12 @@ function zonePopupHtml(z) {
   html += z.applicability.length
     ? `<br>applies: ${z.applicability.map(esc).join('; ')}`
     : '<br>applies: permanently';
+  // #503: activation status/schedule as the feed published it. The
+  // evaluator never read these (they are not machine-evaluable), and the
+  // label says so — a part-time danger area still counts as entered.
+  if (z.activation && z.activation.length)
+    html += `<br><i>activation (published, not evaluated): ` +
+            `${z.activation.map(esc).join('; ')}</i>`;
   for (const e of z.entered) {
     html += `<hr><b>${esc(e.flight)}</b> was inside this zone`;
     html += e.entry_utc

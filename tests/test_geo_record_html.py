@@ -74,6 +74,24 @@ def test_record_carries_the_generator_comment():
     assert html.startswith("<!DOCTYPE html>\n" + generator_comment())
 
 
+def test_zone_row_carries_published_activation_text_when_present():
+    # #503: a part-time zone's published activation status/schedule shows
+    # under its name in the zone table, framed as published and not
+    # evaluated; zones without it render exactly as before.
+    from dataclasses import replace
+
+    part_time = replace(
+        ZONE, activation=["available for activation — Mon-Sat SR to SS."]
+    )
+    rec = _record()
+    rec.airspace.findings[0].zone = part_time
+    html = record_to_html([rec], "t", "2.4.0")
+    assert ("<small>activation (published, not evaluated): "
+            "available for activation — Mon-Sat SR to SS.</small>") in html
+    plain = record_to_html([_record()], "t", "2.4.0")
+    assert "activation (published" not in plain
+
+
 def test_no_verdict_vocabulary_ever():
     html = record_to_html([_record()], "t", "2.4.0").lower()
     for word in ("legal", "illegal", "compliant", "violation"):

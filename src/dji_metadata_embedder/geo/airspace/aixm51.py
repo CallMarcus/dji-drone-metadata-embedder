@@ -83,10 +83,11 @@ AIXM_FEEDS: dict[str, Aixm51Feed] = {
         ),
         caveat=_CAVEAT,
         note=(
-            "Activation hours are not in the dataset and are not "
-            "evaluated here (many danger areas are part-time; the AIP "
-            "and NOTAM service hold the hours). Temporary restrictions "
-            "live in NOTAMs and AIP Supplements, not in this record."
+            "Activation status and schedule text are shown as published "
+            "and are not evaluated here (many danger areas are part-time; "
+            "the AIP and NOTAM service hold the authoritative hours). "
+            "Temporary restrictions live in NOTAMs and AIP Supplements, "
+            "not in this record."
         ),
     ),
 }
@@ -515,6 +516,33 @@ def _limit(
     return VerticalLimit(value, _LIMIT_UNITS[uom], _LIMIT_REFS[ref_raw])
 
 
+# AIXM 5.1 CodeStatusAirspaceType values seen or expected in the UK
+# product, in plain words; anything else passes through as published.
+_ACTIVATION_STATUS = {
+    "ACTIVE": "active",
+    "AVBL_FOR_ACTIVATION": "available for activation",
+    "INACTIVE": "inactive",
+    "INTERMITTENT": "intermittent",
+    "IN_USE": "in use",
+}
+
+
+def _activation_lines(activations: list[dict]) -> list[str]:
+    """Reader-facing lines for the activation blocks (#503): the status
+    code in plain words, then the published notes joined — exactly what
+    the dataset says, never an evaluation."""
+    lines = []
+    for act in activations:
+        status = act.get("status")
+        words = _ACTIVATION_STATUS.get(status, status) if status else None
+        notes = "; ".join(act.get("notes") or [])
+        if words and notes:
+            lines.append(f"{words} — {notes}")
+        elif words or notes:
+            lines.append(words or notes)
+    return lines
+
+
 def _native(
     ts: ElementTree.Element, type_code: str, local_type: str
 ) -> dict:
@@ -630,6 +658,7 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
                     (lon, lat)
                     for lat, lon in _ring_points(inner, borders, where)
                 ])
+        native = _native(ts, type_code, local_type)
         zones.append(
             Zone(
                 identifier=designator,
@@ -641,7 +670,8 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
                 polygons=[[(lon, lat) for lat, lon in ring]],
                 holes=holes,
                 source=source,
-                native=_native(ts, type_code, local_type),
+                native=native,
+                activation=_activation_lines(native["activation"]),
             )
         )
     if not zones:
