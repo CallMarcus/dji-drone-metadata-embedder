@@ -33,6 +33,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **geo**: Collapse the combined map's legend at scale, drop the hover toggle on photo-less maps (#515) (#538) (1c5c2c8)
 - **gui/panoedit/photomap**: The v2.9.0 field-tester round (#532) (#535) (b932968)
 
+## [2.12.0] - 2026-08-22
+
+### Added
+
+- **geo**: Render UK activation status and schedule text in zone popups (#503) (#537) (c83e0ef)
+- **geo**: State the AIRAC cycle date in the UK airspace source line (#502) (#536) (b4c195c)
+- **gui**: Launch update note reusing doctor's opt-in online check (#319) (#539) (e4f0a13)
+
+### Fixed
+
+- **gui**: Let --airspace through with the 3D toggle (#530) (#533) (0decc63)
+- **panoedit/gui**: Stop discarding the save-timeout evidence (#531) (#534) (b0da0ed)
+
+### Documentation
+
+- Catch the overview docs up with v2.11 (airspace, map, panoedit, 360° views) (#529) (ac68d3e)
+
+### Other
+
+- **geo**: Collapse the combined map's legend at scale, drop the hover toggle on photo-less maps (#515) (#538) (1c5c2c8)
+- **gui/panoedit/photomap**: The v2.9.0 field-tester round (#532) (#535) (b932968)
+- Prepare version 2.12.0 (#540) (90c9861)
+
+
 ## [2.11.0] - 2026-08-20
 
 ### Added
