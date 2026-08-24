@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **geo**: Cap the 3D flight map's layer panel and let it fold to one button (#542) (#543) (6a95183)
 
+## [2.12.1] - 2026-08-24
+
+### Fixed
+
+- **geo**: Cap the 3D flight map's layer panel and let it fold to one button (#542) (#543) (6a95183)
+
+### Other
+
+- Prepare version 2.12.1 (#544) (b2e11ef)
+
+
 ## [2.12.0] - 2026-08-22
 
 ### Added
