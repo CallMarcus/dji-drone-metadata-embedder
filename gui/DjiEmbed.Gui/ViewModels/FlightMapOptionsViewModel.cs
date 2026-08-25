@@ -45,6 +45,9 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
     public partial bool LinkOriginals { get; set; }
 
     [ObservableProperty]
+    public partial bool GimbalFromVideo { get; set; }
+
+    [ObservableProperty]
     public partial bool ExportAll { get; set; }
 
     [ObservableProperty]
@@ -157,7 +160,8 @@ public partial class FlightMapOptionsViewModel : ViewModelBase
         ExportAll: ExportAll,
         TzOffset: TzOffset,
         Title: Title,
-        Output: Output);
+        Output: Output,
+        GimbalFromVideo: GimbalFromVideo);
 
     /// <summary>Reset the output override back to the default (write the map
     /// into the source folder).</summary>

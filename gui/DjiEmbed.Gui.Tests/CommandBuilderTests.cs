@@ -311,6 +311,29 @@ public class CommandBuilderTests
     }
 
     [Fact]
+    public void Gimbal_from_video_with_three_d_follows_the_3d_flags()
+    {
+        var opts = FlightMapOptions.Defaults with
+        {
+            ThreeD = true,
+            LinkOriginals = true,
+            GimbalFromVideo = true,
+        };
+        Assert.Equal(
+            ["flightmap", "/x", "-r", "--3d", "--link-originals",
+             "--gimbal-from-video"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
+    public void Gimbal_from_video_without_three_d_is_suppressed()
+    {
+        var opts = FlightMapOptions.Defaults with { GimbalFromVideo = true };
+        Assert.Equal(["flightmap", "/x", "-r"],
+            CommandBuilder.FlightMap("/x", opts));
+    }
+
+    [Fact]
     public void Link_originals_rides_along_with_fuzz_like_the_cli_permits()
     {
         var opts = FlightMapOptions.Defaults with

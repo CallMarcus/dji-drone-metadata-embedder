@@ -22,6 +22,7 @@ public class FlightMapOptionsViewModelTests
         Assert.False(vm.Airspace);
         Assert.Equal(15, vm.JoinGap);
         Assert.False(vm.LinkOriginals);
+        Assert.False(vm.GimbalFromVideo);
         Assert.False(vm.ExportAll);
         Assert.Equal("auto", vm.TzOffset);
         Assert.Equal("", vm.Title);
@@ -48,6 +49,7 @@ public class FlightMapOptionsViewModelTests
             Airspace = true,
             JoinGap = 0,
             LinkOriginals = true,
+            GimbalFromVideo = true,
             ExportAll = true,
             TzOffset = "-8",
             Title = "Trip",
@@ -58,7 +60,7 @@ public class FlightMapOptionsViewModelTests
 
         Assert.Equal(
             new FlightMapOptions(false, true, "cyclosm", MapPrivacy.Fuzz, true,
-                0, true, true, "-8", "Trip", "/out/map.html"),
+                0, true, true, "-8", "Trip", "/out/map.html", GimbalFromVideo: true),
             vm.ToOptions());
     }
 
