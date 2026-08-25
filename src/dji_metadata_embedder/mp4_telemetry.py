@@ -76,6 +76,11 @@ _TELEMETRY_KEYS = (
 _DOC_KEY_RE = re.compile(r"^Doc(\d+)$")
 
 
+# Optional scalar fields protobuf drops at their default (see the defaults
+# comment inside :func:`_samples_from_exiftool`).
+_DEFAULTED_KEYS = ("GimbalYaw", "GimbalPitch", "RelativeAltitude")
+
+
 def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
     """Map ExifTool ``-g3 -j`` JSON to samples and whether telemetry was decoded.
 
@@ -91,6 +96,18 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
         ((m.group(1), v) for k, v in root.items() if (m := _DOC_KEY_RE.match(k))),
         key=lambda kv: int(kv[0]),
     )
+    # Protobuf omits fields at their default value, so ExifTool emits no tag
+    # for a level gimbal (pitch 0), one pointing true north (yaw 0), or an
+    # aircraft still on the ground (relative altitude 0). A field the stream
+    # carries anywhere is therefore 0.0 where a sample lacks it, not unknown;
+    # a field the stream never carries stays None (#546: Air 3S clips run
+    # 3 minutes without GimbalPitch and then report 0.2, a minute without
+    # RelativeAltitude and then 0.1; GimbalRoll never appears because it is
+    # always 0).
+    defaults: dict[str, float | None] = {
+        key: 0.0 if any(key in doc for _, doc in docs) else None
+        for key in _DEFAULTED_KEYS
+    }
     samples: list[TelemetrySample] = []
     saw_telemetry = False
     for _, doc in docs:
@@ -104,9 +121,9 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
         if not is_gps_fix(lat, lon):
             continue
         alt = float(doc.get("AbsoluteAltitude", 0.0))
-        rel = doc.get("RelativeAltitude")
-        gy = doc.get("GimbalYaw")
-        gp = doc.get("GimbalPitch")
+        rel = doc.get("RelativeAltitude", defaults["RelativeAltitude"])
+        gy = doc.get("GimbalYaw", defaults["GimbalYaw"])
+        gp = doc.get("GimbalPitch", defaults["GimbalPitch"])
         samples.append(
             TelemetrySample(
                 lat,
