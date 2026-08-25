@@ -55,10 +55,12 @@ from .geo.panoedit import (
 from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
-from .geo.media import resolve_media
+from .geo.media import find_video_path, resolve_media
+from .geo.videogimbal import VideoGimbalReport, VideoGimbalUnavailable
 from .geo.record import build_records
 from .geo.record_html import write_flight_record
-from .mp4_telemetry import Mp4TelemetryError
+from .mp4_telemetry import _EXIFTOOL_INSTALL_HINT, Mp4TelemetryError, probe
+from .utils.exiftool import exiftool_available
 from .progress import NullProgress, make_progress
 from .utilities import (
     check_dependencies,
@@ -843,6 +845,42 @@ def photomap(
         )
 
 
+def _hint_gimbal_from_video(tracks: list, src: Path) -> None:
+    """Say once when 3D flights lack gimbal attitude their videos could supply.
+
+    Only when ExifTool is present: without it there is nothing to probe and
+    no honest way to know what the videos hold. The probe reads the moov
+    atom alone (0.14 s on a 4 GB Air 3S clip), so it is cheap enough to run
+    per gimbal-less flight (#546).
+    """
+    if not exiftool_available():
+        return
+    carrying = 0
+    for track in tracks:
+        if any(
+            p.gimbal_yaw is not None or p.gimbal_pitch is not None
+            for p in track.points
+        ):
+            continue
+        for name in track.segments or [track.name]:
+            video = find_video_path(src, name)
+            if video is None:
+                continue
+            try:
+                if probe(video) is not None:
+                    carrying += 1
+                    break
+            except Mp4TelemetryError:
+                continue
+    if carrying:
+        click.echo(
+            f"Note: {carrying} flight{'s' if carrying != 1 else ''} "
+            f"{'have' if carrying != 1 else 'has'} no gimbal attitude in the "
+            "SRT but the video carries it; add --gimbal-from-video to read "
+            "it (opens every video, roughly 15 seconds per gigabyte)",
+            err=True,
+        )
+
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
@@ -930,6 +968,14 @@ def photomap(
          "several flights. Enable the UTC timestamp and the gimbal "
          "pitch/yaw fields in the decoder's export settings.",
 )
+@click.option(
+    "--gimbal-from-video", is_flag=True,
+    help="Read gimbal pitch/yaw from each flight's MP4 timed metadata when "
+         "the SRT carries none (Air 3S and newer), upgrading the 3D map's "
+         "estimated camera footprints to measurements. Needs ExifTool "
+         "(dji-embed doctor --install exiftool) and opens every video, "
+         "roughly 15 seconds per gigabyte. SRT values are never overwritten.",
+)
 @_tile_style_option
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -949,6 +995,7 @@ def flightmap(
     link_originals: bool,
     link_base: str | None,
     flight_logs: tuple[str, ...],
+    gimbal_from_video: bool,
     tile_style: str,
     progress_mode: str | None,
     verbose: bool,
@@ -1033,14 +1080,24 @@ def flightmap(
                 err=True,
             )
         src = Path(directory)
-        tracks, skipped = scan_flights(
-            src,
-            recursive=recursive,
-            redact=redact.lower(),
-            join_gap=join_gap,
-            tz_offset=offset,
-            on_file=progress.advance if progress.active else None,
-        )
+        if gimbal_from_video and not exiftool_available():
+            raise click.ClickException(
+                "--gimbal-from-video needs ExifTool. " + _EXIFTOOL_INSTALL_HINT
+            )
+        video_reports: list[VideoGimbalReport] = []
+        try:
+            tracks, skipped = scan_flights(
+                src,
+                recursive=recursive,
+                redact=redact.lower(),
+                join_gap=join_gap,
+                tz_offset=offset,
+                on_file=progress.advance if progress.active else None,
+                gimbal_from_video=gimbal_from_video,
+                on_video_gimbal=video_reports.append,
+            )
+        except VideoGimbalUnavailable as e:
+            raise click.ClickException(str(e))
         total = len(tracks) + len(skipped)
         if total == 0:
             raise click.ClickException(
@@ -1089,6 +1146,30 @@ def flightmap(
                     f"flight: {reason}",
                     err=True,
                 )
+        if gimbal_from_video:
+            enriched = [r for r in video_reports if r.matched]
+            for r in enriched:
+                if not quiet:
+                    click.echo(
+                        f"Gimbal from video: {r.matched} of {r.total} samples "
+                        f"on {r.name} ({r.seconds:.1f} s)"
+                    )
+            if verbose:
+                for r in video_reports:
+                    if not r.matched:
+                        click.echo(
+                            f"Gimbal from video skipped for {r.name}: "
+                            f"{r.reason}",
+                            err=True,
+                        )
+            if not quiet:
+                click.echo(
+                    f"Gimbal from video: {len(enriched)} flight"
+                    f"{'s' if len(enriched) != 1 else ''} of "
+                    f"{len(video_reports)} enriched"
+                )
+        elif three_d:
+            _hint_gimbal_from_video(tracks, src)
         joined = [t for t in tracks if t.segments]
         files_joined = sum(len(t.segments or []) for t in joined)
         if not quiet:
