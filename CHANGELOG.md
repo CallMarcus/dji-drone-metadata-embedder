@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **flightmap**: Read gimbal attitude from the MP4 djmd stream when the SRT has none, via `--gimbal-from-video` (Air 3S and newer; opt-in, needs ExifTool) (#546) (#547) (c2b4b6e)
+
+### Fixed
+
+- **mp4**: Treat a protobuf default omission as 0, not unknown: a level gimbal has no pitch tag and an aircraft on the ground no relative altitude (#546) (#547) (c2b4b6e)
+- **geo**: Take the 3D map's ground reference from a sample on the ground, not sample 0, so clips that start airborne keep the right altitude (#548) (#549) (b9c1489)
+
 ## [2.12.1] - 2026-08-24
 
 ### Fixed
