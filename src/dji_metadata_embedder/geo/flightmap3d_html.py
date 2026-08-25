@@ -475,9 +475,38 @@ function terrainElevAt(lngLat) {
   return typeof e === 'number' ? e : null;
 }
 
+// A sample this close to takeoff height counts as "on the ground": DJI's
+// rel_alt reads -0.1..0.3 m at rest, so half a metre never catches a hover.
+const GROUND_AGL_M = 0.5;
+
+function groundRef(fl) {
+  // The DEM elevation the flight's rel_alt is measured from (#548).
+  // rel_alt is relative to the real takeoff point, NOT to wherever the
+  // recording happened to start: a clip whose first sample is airborne
+  // (record pressed after launch) would otherwise borrow the terrain under
+  // that sample, lifting or sinking every consumer of this reference --
+  // the sculpture, the ghost camera and the gaze. So prefer a sample that
+  // is on the ground: the start when it qualifies, else the landing, else
+  // the first ground contact anywhere; and only then fall back to sample 0,
+  // flagged so the HUD can say the reference is a guess.
+  const n = fl.pts.length;
+  let idx = 0, estimated = true;
+  if (fl.agl && n) {
+    const onGround = i => fl.agl[i] != null && Math.abs(fl.agl[i]) <= GROUND_AGL_M;
+    if (onGround(0)) { idx = 0; estimated = false; }
+    else if (onGround(n - 1)) { idx = n - 1; estimated = false; }
+    else {
+      for (let i = 1; i < n - 1; i++) {
+        if (onGround(i)) { idx = i; estimated = false; break; }
+      }
+    }
+  }
+  const p = fl.pts[idx];
+  return { elev: terrainElevAt([p[0], p[1]]), idx: idx, estimated: estimated };
+}
+
 function takeoffElev(fl) {
-  const p0 = fl.pts[0];
-  return terrainElevAt([p0[0], p0[1]]);
+  return groundRef(fl).elev;
 }
 
 function ghostEnter(flightIdx, sampleIdx) {
@@ -669,6 +698,9 @@ function updateHud() {
   };
   if (pose.clamped) badge('pitch clamped to ' + GHOST_MAX_PITCH + '\\u00b0');
   if (pose.estimated) badge('estimated view \\u2014 no gimbal data');
+  if (fl.agl && groundRef(fl).estimated) {
+    badge('ground reference estimated \\u2014 clip started airborne');
+  }
   if (REDACTED === 'fuzz') badge('position fuzzed ~100 m');
 }
 

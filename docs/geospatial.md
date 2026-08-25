@@ -315,6 +315,13 @@ which keeps it consistent with the landscape you are looking at instead of
 trusting an absolute altitude whose datum may not match. Fly level toward
 rising ground and the curtain visibly shortens as the clearance closes.
 
+The takeoff point is a sample where the aircraft was on the ground, not
+simply the first sample: if you pressed record after launching, the clip
+starts airborne, often over terrain quite unlike the launch site, and the
+landing at the end of the clip gives the reference instead. A clip with no
+ground contact at all falls back to its first sample, and the cockpit view
+badges it *ground reference estimated* so you know the heights are a guess.
+
 Where the terrain model is unavailable the curtain falls back to plain height
 above takeoff. Segments where the drone works out to be at or below the
 rendered ground — a rooftop launch, a datum artefact near a cliff, or a low

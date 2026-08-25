@@ -693,3 +693,63 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
         " 'doubleClickZoom', 'touchZoomRotate']"
         ".every(h => map[h].isEnabled())"), (
         "camera interaction handlers were not re-enabled after settling")
+
+
+# --- #548: the ground reference is a sample on the ground, not sample 0 ---
+
+
+def _serve_steps(serve_map, page, agls):
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    start_lon = tile_lon + TILE_DEG * 1.75          # high (600 m) side
+    step = TILE_DEG * 0.12                          # walks east into the valley
+    html = flights_to_3d_html(
+        [_flight("DJI_0001", lat, start_lon, agls, step=step)], "trip")
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer("
+        "'sculpt-0-curtain')", timeout=20000)
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+    page.evaluate("() => setSculptData()")
+
+
+def test_airborne_start_takes_the_ground_reference_from_the_landing(
+    serve_map, page
+):
+    """Recording started airborne over the plateau; landed in the valley.
+
+    rel_alt is relative to the real launch site (the valley floor, where
+    the clip ends on the ground), so the ribbon over the plateau must NOT
+    be lifted by the 600 m the DEM under sample 0 would imply.
+    """
+    _serve_steps(serve_map, page, [6.0, 6.0, 6.0, 6.0, 3.0, 0.0])
+    ref = page.evaluate("() => groundRef(flights[0])")
+    assert ref["idx"] == 5 and ref["estimated"] is False
+    assert abs(ref["elev"]) < 1.0, ref
+    hs = page.evaluate(
+        "() => planksFor(flights[0], 10).map(f => f.properties.hgt)")
+    assert hs, "no planks built"
+    assert max(hs) < 20, f"plateau planks lifted by the wrong reference: {hs}"
+
+
+def test_ground_start_still_wins_over_a_later_landing(serve_map, page):
+    """Sample 0 on the ground stays the reference even when the clip also
+    lands somewhere else (a one-way flight down into the valley)."""
+    _serve_steps(serve_map, page, [0.0, 6.0, 6.0, 6.0, 3.0, 0.0])
+    ref = page.evaluate("() => groundRef(flights[0])")
+    assert ref["idx"] == 0 and ref["estimated"] is False
+    assert ref["elev"] > 500, ref
+
+
+def test_no_ground_contact_falls_back_to_sample_zero_with_a_badge(
+    serve_map, page
+):
+    from playwright.sync_api import expect
+
+    _serve_steps(serve_map, page, [6.0, 6.0, 6.0, 6.0, 6.0, 6.0])
+    ref = page.evaluate("() => groundRef(flights[0])")
+    assert ref["idx"] == 0 and ref["estimated"] is True
+    page.evaluate("() => ghostEnter(0, 1)")
+    expect(page.locator("#ghost-badges")).to_contain_text(
+        "ground reference estimated", timeout=10000)
