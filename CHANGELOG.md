@@ -22,6 +22,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **mp4**: Treat a protobuf default omission as 0, not unknown: a level gimbal has no pitch tag and an aircraft on the ground no relative altitude (#546) (#547) (c2b4b6e)
 - **geo**: Take the 3D map's ground reference from a sample on the ground, not sample 0, so clips that start airborne keep the right altitude (#548) (#549) (b9c1489)
 
+## [2.13.0] - 2026-08-25
+
+### Added
+
+- **flightmap**: Read gimbal attitude from the MP4 djmd stream when the SRT has none (#546) (#547) (c2b4b6e)
+
+### Fixed
+
+- **flightmap --3d**: Take the ground reference from a sample on the ground, not sample 0 (#548) (#549) (b9c1489)
+
+### Other
+
+- Prepare version 2.13.0 (#551) (3f44f93)
+
+
 ## [2.12.1] - 2026-08-24
 
 ### Fixed
