@@ -523,6 +523,10 @@ Notes:
   position) where the previous one ended — measured on the SRT's own
   timestamps, so it survives copied files with rewritten mtimes. The popup
   lists the joined files; tune or disable with `--join-gap`.
+- The 3D map's camera footprints are estimates unless the SRT logs gimbal
+  angles. `--gimbal-from-video` reads them from the MP4's own telemetry (Air
+  3S and newer; needs ExifTool, opens every video), and `--flight-log CSV`
+  merges them from a decoded flight record for drones that log none.
 - Tracks are thinned to ~1 GPS point per second for the map (DJI logs ~30
   per second) — visually identical but far smaller files; use
   `dji-embed convert` on a single flight when you need every sample.

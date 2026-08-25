@@ -189,12 +189,21 @@ reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
 telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
 those per clip with `dji-embed convert html VIDEO.MP4`.
 
-Drones whose SRT carries no gimbal attitude (the Mini series) can borrow it
-from a decoded flight log: `--flight-log my-flight.csv` merges per-sample
-gimbal pitch/yaw into the matching flight by timestamp, upgrading the 3D
-map's estimated camera footprints to measurements. See
-[Gimbal from a flight log](how-to/flight-log-gimbal.md) for the export
-settings that make the join exact.
+Most DJI SRTs carry no gimbal attitude, so the 3D map draws the camera
+footprint as a labelled estimate. Two routes upgrade it to a measurement,
+and neither ever overwrites a value the SRT itself recorded:
+
+- Drones whose MP4 carries a timed-metadata track with gimbal angles (Air 3S
+  and newer): `--gimbal-from-video` reads pitch/yaw from the video beside
+  each SRT and joins it frame by frame. It needs ExifTool (`dji-embed doctor
+  --install exiftool`) and opens every video, roughly 15 seconds per
+  gigabyte, which is why it is opt-in; the 3D map says so once when it
+  notices videos that carry angles the SRTs lack.
+- Drones that log no gimbal attitude anywhere on the SD card (the Mini
+  series): `--flight-log my-flight.csv` merges per-sample gimbal pitch/yaw
+  from a decoded flight record into the matching flight by timestamp. See
+  [Gimbal from a flight log](how-to/flight-log-gimbal.md) for the export
+  settings that make the join exact.
 
 Popup start times are converted to UTC by auto-detecting the recording
 timezone from each file's mtime. On archives whose mtimes were rewritten by

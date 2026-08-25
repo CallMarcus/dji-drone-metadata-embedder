@@ -5,6 +5,10 @@ track, and similar) record **no gimbal attitude anywhere on the SD card**.
 Their SRT sidecars carry position but not where the camera pointed, so the
 3D map draws the camera footprint as a labelled *estimate*.
 
+(Air 3S and newer write gimbal angles into the MP4 itself; for those,
+`flightmap --3d --gimbal-from-video` reads them straight from the video and
+no flight log is needed.)
+
 The attitude does exist — inside the flight record your DJI app or RC
 keeps. `--flight-log` merges it into the map:
 
