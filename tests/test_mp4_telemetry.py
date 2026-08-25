@@ -49,12 +49,39 @@ def test_samples_from_exiftool_maps_air3s():
     assert first.cue == "00:00:00,000"
     assert first.dt == datetime(2026, 5, 16, 23, 55, 53, 0)
     assert first.gimbal_yaw == -7.1
-    # sparse early sample: optional fields absent
-    assert first.rel_alt is None and first.gimbal_pitch is None
+    # Early sample lacks RelativeAltitude and GimbalPitch, but later samples
+    # carry both, so these are protobuf default omissions: the aircraft sits
+    # at 0 m with a level gimbal (#546, verified on Air 3S: 182 s without a
+    # pitch tag, then 0.2 appears; GimbalRoll never does because it is 0).
+    assert first.rel_alt == 0.0 and first.gimbal_pitch == 0.0
     # rich mid-flight sample: optional fields present
     assert last.rel_alt == 5.4
     assert last.gimbal_pitch == -90
     assert last.focal_len is None  # stream carries no focal length
+
+
+def _docs(*per_sample):
+    root = {}
+    for i, fields in enumerate(per_sample, start=1):
+        root[f"Doc{i}"] = {"GPSLatitude": 51.0, "GPSLongitude": -0.1, **fields}
+    return [root]
+
+
+def test_default_omission_fills_a_field_the_stream_carries_elsewhere():
+    samples, _ = mt._samples_from_exiftool(_docs(
+        {"GimbalYaw": 12.5},
+        {"GimbalYaw": 13.0, "GimbalPitch": -30.0, "RelativeAltitude": 0.1},
+    ))
+    first = samples[0]
+    assert (first.gimbal_yaw, first.gimbal_pitch, first.rel_alt) == (12.5, 0.0, 0.0)
+
+
+def test_fields_the_stream_never_carries_stay_unknown():
+    samples, _ = mt._samples_from_exiftool(_docs(
+        {"AbsoluteAltitude": 10.0}, {"AbsoluteAltitude": 11.0},
+    ))
+    for s in samples:
+        assert (s.gimbal_yaw, s.gimbal_pitch, s.rel_alt) == (None, None, None)
 
 
 def test_samples_from_exiftool_undecoded_sets_saw_false():

@@ -317,6 +317,11 @@
                                                   IsChecked="{Binding FlightOptions.LinkOriginals}"
                                                   Content="Link the original videos"
                                                   ToolTip.Tip="Lets the cockpit view blend into the real footage. Needs the videos next to the map, in a format the browser can play (DJI 4K H.265 needs Edge or Chrome)." />
+                                        <CheckBox Name="FlightGimbalFromVideoCheck"
+                                                  IsVisible="{Binding FlightOptions.ThreeD}"
+                                                  IsChecked="{Binding FlightOptions.GimbalFromVideo}"
+                                                  Content="Read gimbal angles from the videos"
+                                                  ToolTip.Tip="For drones whose SRT carries no gimbal data (Air 3S and newer): the camera direction comes from the video's own telemetry instead of an estimate. Needs ExifTool (Doctor installs it) and opens every video, about 15 seconds per gigabyte." />
                                         <TextBlock Name="FlightFuzzCaveatNote"
                                                    Text="With fuzzed locations the video blend stays off — coarsened coordinates can't honestly be compared against real footage. The links still open the originals, which keep exact GPS in their own metadata."
                                                    IsVisible="{Binding FlightOptions.ShowsFuzzCaveat}"

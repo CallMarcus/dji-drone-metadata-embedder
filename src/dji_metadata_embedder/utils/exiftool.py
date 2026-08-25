@@ -10,6 +10,7 @@ on ``PATH``.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -25,6 +26,19 @@ def exiftool_exe() -> str:
     if provisioned is not None:
         return str(provisioned)
     return "exiftool"
+
+
+def exiftool_available() -> bool:
+    """True when :func:`exiftool_exe` resolves to something that exists.
+
+    The resolver falls back to the bare name ``exiftool``, which only works
+    when it is on PATH; callers that want to fail fast with the install hint
+    (rather than once per file) check this first.
+    """
+    exe = exiftool_exe()
+    if os.sep in exe or (os.altsep and os.altsep in exe):
+        return Path(exe).exists()
+    return shutil.which(exe) is not None
 
 
 def exiftool_source() -> str:

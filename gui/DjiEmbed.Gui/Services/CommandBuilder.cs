@@ -62,6 +62,13 @@ public static class CommandBuilder
             // the same media data is embedded with nothing that reads it.
             args.Add("--link-originals");
         }
+        if (opts.ThreeD && opts.GimbalFromVideo)
+        {
+            // Same reasoning as --link-originals: only the 3D map's camera
+            // footprints read gimbal attitude, and the flag costs minutes of
+            // ExifTool time, so it never rides on a flat map (#546).
+            args.Add("--gimbal-from-video");
+        }
         if (!opts.ThreeD && opts.TileStyle != FlightMapOptions.Defaults.TileStyle)
         {
             args.Add("--tile-style");

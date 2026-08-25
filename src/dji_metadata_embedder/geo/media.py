@@ -20,8 +20,9 @@ from .track import Track
 _VIDEO_SUFFIXES = (".MP4", ".mp4", ".MOV", ".mov")
 
 
-def _find_video(root: Path, name: str) -> str | None:
-    """Relative POSIX path of the video for segment *name*, or ``None``.
+def find_video_path(root: Path, name: str) -> Path | None:
+    """The video for segment *name* (an SRT stem, path-qualified on
+    recursive scans) as a path under *root*, or ``None``.
 
     Scans the real directory entries rather than probing guessed filenames.
     Probing (``(root / f"{name}{suffix}").is_file()``) is wrong on a
@@ -42,7 +43,13 @@ def _find_video(root: Path, name: str) -> str | None:
             r = rank.get(entry.suffix.lower())
             if r is not None and (best is None or r < best[0]):
                 best = (r, entry)
-    return best[1].relative_to(root).as_posix() if best else None
+    return best[1] if best else None
+
+
+def _find_video(root: Path, name: str) -> str | None:
+    """Relative POSIX path of the video for segment *name*, or ``None``."""
+    found = find_video_path(root, name)
+    return found.relative_to(root).as_posix() if found else None
 
 
 def resolve_media(

@@ -704,3 +704,52 @@ def test_cue_s_restarts_at_a_segment_boundary(tmp_path):
     last_seg0 = max(i for i, s in enumerate(seg_i) if s == 0)
     first_seg1 = min(i for i, s in enumerate(seg_i) if s == 1)
     assert props["cue_s"][first_seg1] < props["cue_s"][last_seg0]
+
+
+# --- #546: gimbal attitude from the sibling video ---
+
+
+def _djmd_sample(cue: str, yaw: float, pitch: float):
+    from dji_metadata_embedder.utilities import TelemetrySample
+
+    return TelemetrySample(
+        lat=10.0, lon=20.0, alt=5.0, cue=cue, dt=None,
+        gimbal_yaw=yaw, gimbal_pitch=pitch,
+    )
+
+
+def test_scan_flights_gimbal_from_video_fills_points_and_reports(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "dji_metadata_embedder.geo.videogimbal.exiftool_available", lambda: True
+    )
+    _write(tmp_path, "DJI_0001.SRT", _bracket_srt((10.0, 20.0, 5.0), (10.001, 20.001, 6.0)))
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"")
+    reports = []
+    fake = lambda p: [  # noqa: E731
+        _djmd_sample("00:00:00,000", 90.0, -30.0),
+        _djmd_sample("00:00:01,000", 91.0, -31.0),
+    ]
+    tracks, skipped = scan_flights(
+        tmp_path, gimbal_from_video=True, on_video_gimbal=reports.append, extract=fake
+    )
+    assert skipped == []
+    assert [(p.gimbal_yaw, p.gimbal_pitch) for p in tracks[0].points] == [
+        (90.0, -30.0), (91.0, -31.0)
+    ]
+    assert len(reports) == 1
+    assert (reports[0].name, reports[0].video, reports[0].matched) == (
+        "DJI_0001", "DJI_0001.MP4", 2
+    )
+
+
+def test_scan_flights_without_the_flag_never_touches_videos(tmp_path):
+    _write(tmp_path, "DJI_0001.SRT", _bracket_srt((10.0, 20.0, 5.0)))
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"")
+
+    def boom(p):
+        raise AssertionError("extractor must not run")
+
+    reports = []
+    tracks, _ = scan_flights(tmp_path, on_video_gimbal=reports.append, extract=boom)
+    assert tracks[0].points[0].gimbal_yaw is None
+    assert reports == []

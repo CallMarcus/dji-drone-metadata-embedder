@@ -33,6 +33,12 @@ public enum MapPrivacy
 /// Only useful with <paramref name="ThreeD"/> — on the flat map the CLI
 /// warns it embeds dead weight — so the builder emits it only alongside
 /// <c>--3d</c> (#392).</param>
+/// <param name="GimbalFromVideo">Read gimbal pitch/yaw from each flight's
+/// MP4 timed metadata when the SRT carries none (<c>--gimbal-from-video</c>,
+/// #546: Air 3S and newer). Opens every video through ExifTool, roughly 15 s
+/// per GB, and only the 3D map's camera footprints consume it, so like
+/// <paramref name="LinkOriginals"/> the builder emits it only alongside
+/// <c>--3d</c>.</param>
 /// <param name="ExportAll">Also write KML + GeoJSON and the printable flight
 /// record (<c>--format all</c>, record since v2.3.0); the CLI format is
 /// single-valued, so this is one honest toggle, not per-format. The record
@@ -50,7 +56,8 @@ public sealed record FlightMapOptions(
     bool ExportAll,
     string TzOffset,
     string Title,
-    string Output)
+    string Output,
+    bool GimbalFromVideo = false)
 {
     public static readonly FlightMapOptions Defaults = new(
         Recursive: true,
@@ -63,5 +70,6 @@ public sealed record FlightMapOptions(
         ExportAll: false,
         TzOffset: "auto",
         Title: "",
-        Output: "");
+        Output: "",
+        GimbalFromVideo: false);
 }

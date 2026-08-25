@@ -427,3 +427,109 @@ def test_flightmap_flight_log_bad_export_fails_loudly(tmp_path):
     ])
     assert res.exit_code != 0
     assert "gimbal" in res.output.lower()
+
+
+# --- #546: --gimbal-from-video reads attitude from the sibling MP4 ---
+
+
+def _djmd(cue, yaw, pitch):
+    from dji_metadata_embedder.utilities import TelemetrySample
+
+    return TelemetrySample(lat=10.0, lon=20.0, alt=5.0, cue=cue, dt=None,
+                           gimbal_yaw=yaw, gimbal_pitch=pitch)
+
+
+def _video_folder(tmp_path, monkeypatch, available=True):
+    folder = _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
+    (folder / "DJI_0001.MP4").write_bytes(b"")
+    monkeypatch.setattr(
+        "dji_metadata_embedder.geo.videogimbal.exiftool_available",
+        lambda: available,
+    )
+    monkeypatch.setattr(
+        "dji_metadata_embedder.cli.exiftool_available", lambda: available
+    )
+    monkeypatch.setattr(
+        "dji_metadata_embedder.geo.videogimbal.extract_samples",
+        lambda p: [_djmd("00:00:00,000", 90.0, -30.0),
+                   _djmd("00:00:01,000", 91.0, -31.0)],
+    )
+    return folder
+
+
+def test_flightmap_gimbal_from_video_fills_attitude(tmp_path, monkeypatch):
+    folder = _video_folder(tmp_path, monkeypatch)
+    out = folder / "out.geojson"
+    res = CliRunner().invoke(main, [
+        "flightmap", str(folder), "-f", "geojson", "-o", str(out),
+        "--gimbal-from-video",
+    ])
+    assert res.exit_code == 0, res.output
+    assert "Gimbal from video: 2 of 2 samples on DJI_0001" in res.output
+    props = json.loads(out.read_text(encoding="utf-8"))[
+        "features"][0]["properties"]
+    assert props["gyaw_deg"] == [90.0, 91.0]
+    assert props["gpitch_deg"] == [-30.0, -31.0]
+
+
+def test_flightmap_gimbal_from_video_without_exiftool_fails_with_hint(
+    tmp_path, monkeypatch
+):
+    folder = _video_folder(tmp_path, monkeypatch, available=False)
+    res = CliRunner().invoke(main, [
+        "flightmap", str(folder), "--gimbal-from-video",
+    ])
+    assert res.exit_code != 0
+    assert "doctor --install exiftool" in res.output
+    assert not (folder / "flightmap.html").exists()
+
+
+def test_flightmap_gimbal_from_video_skip_reason_only_verbose(
+    tmp_path, monkeypatch
+):
+    folder = _video_folder(tmp_path, monkeypatch)
+    (folder / "DJI_0001.MP4").unlink()
+    quiet = CliRunner().invoke(
+        main, ["flightmap", str(folder), "--gimbal-from-video"])
+    assert quiet.exit_code == 0, quiet.output
+    assert "no video" not in quiet.output
+    assert "Gimbal from video: 0 flights" in quiet.output
+    loud = CliRunner().invoke(
+        main, ["flightmap", str(folder), "--gimbal-from-video", "-v"])
+    assert "skipped for DJI_0001: no video" in loud.output
+
+
+def test_flightmap_3d_hints_when_videos_carry_gimbal(tmp_path, monkeypatch):
+    folder = _video_folder(tmp_path, monkeypatch)
+    probed = []
+
+    def probe(path):
+        probed.append(path.name)
+        return "dvtm_Air3s.proto"
+
+    monkeypatch.setattr("dji_metadata_embedder.cli.probe", probe)
+    res = CliRunner().invoke(main, ["flightmap", str(folder), "--3d"])
+    assert res.exit_code == 0, res.output
+    assert res.output.count("--gimbal-from-video") == 1
+    assert "1 flight" in res.output
+    assert probed == ["DJI_0001.MP4"]
+
+
+def test_flightmap_3d_no_hint_when_video_has_no_djmd(tmp_path, monkeypatch):
+    folder = _video_folder(tmp_path, monkeypatch)
+    monkeypatch.setattr("dji_metadata_embedder.cli.probe", lambda p: None)
+    res = CliRunner().invoke(main, ["flightmap", str(folder), "--3d"])
+    assert res.exit_code == 0, res.output
+    assert "--gimbal-from-video" not in res.output
+
+
+def test_flightmap_flat_map_never_probes_videos(tmp_path, monkeypatch):
+    folder = _video_folder(tmp_path, monkeypatch)
+
+    def boom(path):
+        raise AssertionError("probe must not run for the flat map")
+
+    monkeypatch.setattr("dji_metadata_embedder.cli.probe", boom)
+    res = CliRunner().invoke(main, ["flightmap", str(folder)])
+    assert res.exit_code == 0, res.output
+    assert "--gimbal-from-video" not in res.output
