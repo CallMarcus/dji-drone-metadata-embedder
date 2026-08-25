@@ -40,6 +40,12 @@ from .tiles import DEFAULT_TILE_STYLE, TILE_STYLES, TileStyle
 from .solar import sun_position
 from .track import Track, TrackPoint, build_track
 
+from .videogimbal import (
+    VideoGimbalReport,
+    VideoGimbalUnavailable,
+    enrich_from_video,
+)
+
 __all__ = [
     "Track",
     "TrackPoint",
@@ -76,6 +82,9 @@ __all__ = [
     "FlightLogError",
     "MergeReport",
     "parse_flight_log",
+    "VideoGimbalReport",
+    "VideoGimbalUnavailable",
+    "enrich_from_video",
     "merge_gimbal",
     "merge_into_flights",
     "scan_flights",

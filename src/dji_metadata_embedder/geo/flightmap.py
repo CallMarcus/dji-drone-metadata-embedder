@@ -20,10 +20,12 @@ from statistics import median
 from xml.sax.saxutils import escape
 
 from .. import utilities
-from ..utilities import load_samples, redact_coords
+from ..utilities import TelemetrySample, load_samples, redact_coords
+from . import videogimbal
 from .footprint import DEFAULT_LENS, fov_degrees
 from .geometry import haversine_m
 from .track import Track, TrackPoint, _cue_seconds, build_track_from_samples
+from .videogimbal import VideoGimbalReport
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +199,9 @@ def scan_flights(
     join_gap: float = 15.0,
     tz_offset: timedelta | None = None,
     on_file: Callable[[int, int, str], None] | None = None,
+    gimbal_from_video: bool = False,
+    on_video_gimbal: Callable[[VideoGimbalReport], None] | None = None,
+    extract: Callable[[Path], list[TelemetrySample]] | None = None,
 ) -> tuple[list[Track], list[str]]:
     """Scan *directory* for ``.SRT`` files and return ``(tracks, skipped)``.
 
@@ -212,7 +217,13 @@ def scan_flights(
     per file from the mtime, falling back to mtime-based start times (with one
     aggregated warning) when the mtimes were rewritten by a transfer.
     ``on_file(index, total, name)`` is called (1-based) as each SRT file is
-    picked up, for progress reporting.
+    picked up, for progress reporting. ``gimbal_from_video`` fills each
+    SRT's missing gimbal attitude from the sibling video's djmd stream
+    before the track is built (#546, opt-in: ExifTool walks every video);
+    ``on_video_gimbal(report)`` hears what happened per file, and
+    ``extract`` overrides the video sample extractor for tests.
+    :class:`~.videogimbal.VideoGimbalUnavailable` propagates when ExifTool
+    is missing, so the caller can say so once.
     """
     root = Path(directory)
     files: set[Path] = set()
@@ -234,6 +245,13 @@ def scan_flights(
                 if not samples:
                     skipped.append(name)
                     continue
+                if gimbal_from_video:
+                    report = videogimbal.enrich_from_video(
+                        path, samples, name=name,
+                        extract=extract or videogimbal.extract_samples,
+                    )
+                    if on_video_gimbal is not None:
+                        on_video_gimbal(report)
                 mtime_utc = datetime.fromtimestamp(
                     path.stat().st_mtime, tz=timezone.utc
                 ).replace(tzinfo=None)
