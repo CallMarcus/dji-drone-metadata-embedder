@@ -6,7 +6,8 @@ tests pin the parser, telemetry-point extraction, and format detection against
 the trimmed ``clip.SRT`` fixtures shipped under ``samples/``. They also lock the
 decimal-aperture and FrameCnt fixes on real data — see ``test_parsing`` for the
 focused regressions. Air 3S additionally pins ``color_md: hlg``, the first
-fixture to exercise the HLG color mode.
+fixture to exercise the HLG color mode. Mavic 4 Pro pins the ``tint``
+suffix on the colour-temperature token.
 """
 
 from pathlib import Path
@@ -20,7 +21,7 @@ from dji_metadata_embedder.utilities import parse_telemetry_points
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
 
 # Models with on-disk golden clip.SRT fixtures.
-MODELS = ["Avata360", "Mini5PRO", "neo2", "air3S"]
+MODELS = ["Avata360", "Mini5PRO", "neo2", "air3S", "mavic4pro"]
 
 
 @pytest.mark.parametrize(
@@ -32,6 +33,8 @@ MODELS = ["Avata360", "Mini5PRO", "neo2", "air3S"]
         ("neo2", (45.607181, 13.753860), 114.0, "2.2", None, "default"),
         # Air 3S: first fixture exercising the HLG color mode.
         ("air3S", (34.270373, -84.176160), 302.208, "1.8", "24.00", "hlg"),
+        # Mavic 4 Pro (DJI Stockholm samples, 2026-08-26): ``[ct: N, tint: N]``.
+        ("mavic4pro", (59.329400, 18.068600), 92.670, "2.8", "28.00", "default"),
     ],
 )
 def test_new_model_clip_parses(
@@ -70,3 +73,9 @@ def test_new_model_format_detected_html_extended(model):
     assert validation["valid"]
     assert validation["format_detected"] == "html_extended"
     assert validation["telemetry_points"] == 5
+
+
+def test_mavic4pro_clip_ct_and_tint(tmp_path):
+    t = DJIMetadataEmbedder(tmp_path).parse_dji_srt(SAMPLES / "mavic4pro" / "clip.SRT")
+    assert t["camera_settings"]["ct"] == "5574"
+    assert t["camera_settings"]["tint"] == "8"

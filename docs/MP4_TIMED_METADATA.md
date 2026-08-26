@@ -23,6 +23,7 @@ ExifTool decodes each model's protobuf schema in a specific release:
 | DJI Neo | 13.35 |
 | Air 3S | 13.39 |
 | Mini 5 Pro | 13.52 |
+| Mavic 4 Pro | 13.59 (verified; may work earlier) |
 
 Newer models land in later releases — check the ExifTool change history. If your
 ExifTool is too old, the stream is recognised but no GPS is decoded, and
@@ -48,5 +49,16 @@ supported model. To use a specific binary instead, set
 Field coverage varies by model (e.g. Air 3S includes gimbal angles; Mini 5 Pro
 is GPS + altitude only). CSV from an MP4 fills geo/altitude/`datetime_utc`/solar
 columns; SRT-only camera columns (iso, shutter, …) stay blank.
+
+## Bundled ExifTool config
+
+`dji-embed` passes its own ExifTool user config (`data/exiftool.config` inside
+the package) on every call. It adds tag mappings ExifTool does not have yet;
+today that is the Mavic 4 Pro gimbal block (protobuf field `3-4-3`, the same
+layout ExifTool names `GimbalInfo` on the Air 3/Air 3S), so
+`flightmap --3d --gimbal-from-video` works on Mavic 4 Pro footage. Plain
+`exiftool` on the command line will not show those tags unless you pass
+`-config <that file>` yourself. An ExifTool too old to know the table being
+extended ignores the config.
 
 > UTC note: an MP4's time is intrinsic, so `--tz-offset` is ignored for video.

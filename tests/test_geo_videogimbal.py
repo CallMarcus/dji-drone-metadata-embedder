@@ -161,3 +161,24 @@ def test_enrich_merges_and_reports(tmp_path, monkeypatch):
     assert report.reason is None
     assert report.seconds >= 0.0
     assert samples[2].gimbal_yaw is None
+
+
+# --- schema_carries_gimbal: which djmd schemas hold a GimbalInfo block ---
+
+
+@pytest.mark.parametrize(
+    "schema, expected",
+    [
+        ("dvtm_Air3s.proto;model_name:FC9113;pb_version:02.00.02;", True),
+        ("dvtm_Air3.proto", True),
+        ("dvtm_Mavic4.proto;model_name:L3D-100c;pb_version:02.00.03;", True),
+        ("dvtm_Mini5Pro.proto;model_name:FC9999;", False),
+        ("dvtm_NEO2.proto;model_name:FC9470", False),
+        ("djmd", False),
+        (None, False),
+    ],
+)
+def test_schema_carries_gimbal(schema, expected):
+    from dji_metadata_embedder.geo.videogimbal import schema_carries_gimbal
+
+    assert schema_carries_gimbal(schema) is expected

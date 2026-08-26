@@ -24,7 +24,7 @@ samples below).
 |---|---|---|---|---|---|
 | DJI Mini 5 Pro | Shipping | Yes (reported) | Square-bracket (likely) | Moderate | Sample request |
 | DJI Air 3S | Shipping | Yes (official) | HTML-style extended (likely) | Moderate | Sample request |
-| DJI Mavic 4 Pro | Shipping | Yes (first-hand) | Possibly novel extended | Large | Sample request |
+| DJI Mavic 4 Pro | Shipping | Yes (confirmed) | Format 3b (`html_extended`) | Done | Fixture `samples/mavic4pro/`, 2026-08-26 |
 | DJI Neo | Shipping | Unconfirmed | Unknown | Large | Sample request |
 | DJI Flip | Shipping (2025) | Yes (official) | Square-bracket (likely) | Trivial | Sample request |
 | DJI Avata 360 | Shipping | Yes (official) | Legacy / Avata 2 (likely) | Trivial | Sample request |
@@ -143,9 +143,11 @@ prerequisite.
   successor). Best consumer candidate.
 - **DJI Air 3S** — officially confirmed SRT support; expected HTML-style
   extended (Air 3 successor).
-- **DJI Mavic 4 Pro** — first-hand confirmation of `.SRT` + `.LRF` files on
-  internal storage (MavicPilots thread 155866). Tri-camera + new gimbal may
-  add novel tokens; treat as possibly novel until a file proves otherwise.
+- **DJI Mavic 4 Pro** — **confirmed 2026-08-26** on sample clips from DJI
+  Stockholm (firmware V01.00.0800): plain Format 3b, the only new token being
+  `[ct: N, tint: N]`. The MP4 and `.LRF` carry `djmd`/`dbgi`
+  (`dvtm_Mavic4.proto`); ExifTool 13.59 decodes GPS, altitude and aircraft
+  attitude, and dji-embed's bundled ExifTool config adds the gimbal block.
 - **DJI Neo** — indirect tooling support; unconfirmed format; lower priority
   than the three above.
 - **DJI Flip** — officially confirmed SRT; square-bracket family expected;
