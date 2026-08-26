@@ -5,7 +5,8 @@ track, and similar) record **no gimbal attitude anywhere on the SD card**.
 Their SRT sidecars carry position but not where the camera pointed, so the
 3D map draws the camera footprint as a labelled *estimate*.
 
-(Air 3S and newer write gimbal angles into the MP4 itself; for those,
+(Air 3, Air 3S, Mavic 3 and 4 Pro and Mini 4 Pro write gimbal angles into
+the MP4 itself; for those,
 `flightmap --3d --gimbal-from-video` reads them straight from the video and
 no flight log is needed.)
 

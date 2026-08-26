@@ -5,7 +5,7 @@ a = Analysis(
     ['_pyinstaller_entry.py'],
     pathex=['src'],
     binaries=[],
-    datas=[],
+    datas=[('src/dji_metadata_embedder/data/exiftool.config', 'dji_metadata_embedder/data')],
     hiddenimports=['dji_metadata_embedder', 'dji_metadata_embedder.cli', 'dji_metadata_embedder.core', 'dji_metadata_embedder.telemetry_converter', 'dji_metadata_embedder.metadata_check', 'click', 'rich'],
     hookspath=[],
     hooksconfig={},

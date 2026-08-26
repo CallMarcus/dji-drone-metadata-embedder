@@ -36,6 +36,11 @@ Each directory contains a complete set of test files:
 - **Format**: HTML-style SRT with stabilization (`pp_*`) fields
 - **Features**: GPS, altitude, camera metadata; MP4 also carries embedded `djmd`/`dbgi` data streams. Includes a `clip_nogps.SRT` variant for no-GPS handling.
 
+### `mavic4pro/` - DJI Mavic 4 Pro Format
+- **Format**: HTML-style SRT (`FrameCnt`/`DiffTime`, 60 fps) with a tint on the colour-temperature token (`[ct: 5574, tint: 8]`)
+- **Features**: GPS, altitude, camera settings; the MP4 and `.LRF` carry embedded `djmd`/`dbgi` streams incl. gimbal angles
+- **GPS**: Stockholm, Sweden area (redacted coordinates); footage courtesy of DJI Stockholm
+
 ### `Avata360/` - DJI Avata 360 Format
 - **Format**: HTML-style SRT (`FrameCnt`/`FrameId`) with stabilization (`pp_*`) fields
 - **Features**: Footage ships as `.OSV` (360 video) + `.LRF` proxy alongside the SRT

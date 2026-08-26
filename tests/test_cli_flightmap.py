@@ -533,3 +533,27 @@ def test_flightmap_flat_map_never_probes_videos(tmp_path, monkeypatch):
     res = CliRunner().invoke(main, ["flightmap", str(folder)])
     assert res.exit_code == 0, res.output
     assert "--gimbal-from-video" not in res.output
+
+
+def test_flightmap_3d_no_hint_when_schema_carries_no_gimbal(tmp_path, monkeypatch):
+    """A djmd track alone is not enough: Mini 5 Pro streams have no gimbal
+    block, so promising ``--gimbal-from-video`` there would be a false hope."""
+    folder = _video_folder(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "dji_metadata_embedder.cli.probe",
+        lambda p: "dvtm_Mini5Pro.proto;model_name:FC9999;pb_version:02.00.03;",
+    )
+    res = CliRunner().invoke(main, ["flightmap", str(folder), "--3d"])
+    assert res.exit_code == 0, res.output
+    assert "--gimbal-from-video" not in res.output
+
+
+def test_flightmap_3d_hints_for_mavic4pro_schema(tmp_path, monkeypatch):
+    folder = _video_folder(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "dji_metadata_embedder.cli.probe",
+        lambda p: "dvtm_Mavic4.proto;model_name:L3D-100c;pb_version:02.00.03;",
+    )
+    res = CliRunner().invoke(main, ["flightmap", str(folder), "--3d"])
+    assert res.exit_code == 0, res.output
+    assert res.output.count("--gimbal-from-video") == 1

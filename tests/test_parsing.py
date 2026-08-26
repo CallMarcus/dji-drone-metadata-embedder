@@ -252,3 +252,29 @@ def test_embed_metadata_ffmpeg_mkv_preserves_data_streams(tmp_path, monkeypatch)
     assert cmd[cmd.index("-map") + 1] == "0"
     # Matroska-native subtitle codec.
     assert cmd[cmd.index("-c:s") + 1] == "srt"
+
+
+def test_parse_ct_with_tint(tmp_path):
+    """Mavic 4 Pro appends a tint to the colour-temperature token:
+    ``[ct: 5562, tint: 0]``. ``ct`` must stay numeric and ``tint`` is kept."""
+    srt = """1
+00:00:00,000 --> 00:00:00,016
+<font size="28">FrameCnt: 1, DiffTime: 16ms
+2026-08-23 17:20:57.804
+[iso: 160] [shutter: 1/640.0] [fnum: 2.8] [ev: -0.3] [color_md: default] [focal_len: 28.00] [latitude: 59.329400] [longitude: 18.068600] [rel_alt: -0.000 abs_alt: 32.938] [ct: 5562, tint: 0] </font>
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["camera_settings"]["ct"] == "5562"
+    assert t["camera_settings"]["tint"] == "0"
+
+
+def test_parse_ct_without_tint_unchanged(tmp_path):
+    srt = """1
+00:00:00,000 --> 00:00:00,016
+<font size="28">FrameCnt: 1, DiffTime: 16ms
+2026-05-17 08:28:30.219
+[iso: 180] [latitude: 34.270373] [longitude: -84.176160] [rel_alt: 0.000 abs_alt: 302.208] [ct: 5419] </font>
+"""
+    t = _parse_from_string(tmp_path, srt)
+    assert t["camera_settings"]["ct"] == "5419"
+    assert "tint" not in t["camera_settings"]

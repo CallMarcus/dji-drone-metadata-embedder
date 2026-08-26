@@ -60,6 +60,31 @@ class VideoGimbalReport:
     reason: str | None = None
 
 
+# djmd schemas whose protobuf carries a GimbalInfo block (pitch/roll/yaw).
+# From ExifTool 13.59's DJI.pm (every ``dvtm_*_3-4-3 => GimbalInfo`` entry)
+# plus the Mavic 4 Pro, which dji-embed's bundled ExifTool config maps at the
+# same path. Mini 5 Pro, Neo, Avata 2 and the action cams stream position
+# only, so their videos cannot supply what the SRT lacks.
+GIMBAL_SCHEMAS: frozenset[str] = frozenset({
+    "dvtm_Air3.proto",
+    "dvtm_Air3s.proto",
+    "dvtm_Mavic4.proto",
+    "dvtm_Mini4_Pro.proto",
+    "dvtm_pm320.proto",    # Matrice 30
+    "dvtm_wa345e.proto",   # Matrice 4E
+    "dvtm_wm261.proto",    # Mavic 3 family
+    "dvtm_wm265e.proto",   # Mavic 3 Enterprise
+})
+
+
+def schema_carries_gimbal(schema: str | None) -> bool:
+    """True when a :func:`~dji_metadata_embedder.mp4_telemetry.probe` result
+    names a djmd schema that includes gimbal attitude."""
+    if not schema:
+        return False
+    return any(key in schema for key in GIMBAL_SCHEMAS)
+
+
 def needs_gimbal(samples: list[TelemetrySample]) -> bool:
     """True when any sample lacks gimbal yaw or pitch."""
     return any(s.gimbal_yaw is None or s.gimbal_pitch is None for s in samples)

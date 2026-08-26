@@ -55,6 +55,9 @@ def test_decode_floor_matches_known_schemas():
     assert decode_floor("dvtm_Air3s.proto;model_name:FC9113") == "13.39"
     assert decode_floor("dvtm_Mini5Pro.proto") == "13.52"
     assert decode_floor("dvtm_NEO.proto") == "13.35"
+    # Mavic 4 Pro: verified on real footage at 13.59 (the pin); earlier
+    # releases that may already decode it are untested.
+    assert decode_floor("dvtm_Mavic4.proto;model_name:L3D-100c") == "13.59"
 
 
 def test_describe_decode_capability_unavailable_below_baseline():

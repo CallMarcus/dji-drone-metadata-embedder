@@ -98,7 +98,7 @@ Used by: DJI Mavic 3, DJI Air 2S
 
 ### Format 3b: Modern HTML Bracket (FrameCnt + decimal units)
 
-Used by: DJI Mini 5 Pro, DJI Avata 360, DJI Neo 2, DJI Air 3S
+Used by: DJI Mini 5 Pro, DJI Avata 360, DJI Neo 2, DJI Air 3S, DJI Mavic 4 Pro
 
 Current models keep the HTML-wrapped bracket structure of Format 3 but change
 two things: the counter is `FrameCnt` (not `SrtCnt`), and the aperture and
@@ -125,6 +125,12 @@ focal length are written as **literal decimals** rather than the legacy
   observed fixture to report `color_md: hlg` (HLG color mode, alongside the
   usual `default`/`dlog_m`). Its MP4 also carries DJI's proprietary
   `djmd`/`dbgi` data streams, dropped on MP4 mux and round-tripped on MKV.
+- The Mavic 4 Pro variant appends a tint to the colour-temperature token,
+  `[ct: 5562, tint: 0]`, parsed as `ct` and `tint` (CSV gets a `tint` column
+  next to `ct`). It logs at 60 fps with no gimbal fields; the MP4 and the
+  `.LRF` proxy both carry the `djmd`/`dbgi` streams, and the gimbal angles
+  in them are readable via `--gimbal-from-video` (see
+  [MP4_TIMED_METADATA.md](MP4_TIMED_METADATA.md)).
 - Detected as the `html_extended` format family.
 
 ## Camera Settings Interpretation
@@ -224,6 +230,7 @@ if new_format_match:
 | DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
 | DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams; audio recorded to a **separate same-basename `.m4a`** (see `--audio-sidecar`) |
 | DJI Air 3S | Format 3b | FrameCnt + decimal units; `color_md: hlg`; MP4 carries `djmd`/`dbgi` streams |
+| DJI Mavic 4 Pro | Format 3b | FrameCnt + decimal units; `[ct: N, tint: N]`; MP4 and `.LRF` carry `djmd`/`dbgi` streams (gimbal via bundled ExifTool config) |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
 | DJI Avata 2 | Format 2 | GPS function format with BAROMETER data |

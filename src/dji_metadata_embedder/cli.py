@@ -56,7 +56,11 @@ from .geo.airspace.overlay import zones_to_overlay_json
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
 from .geo.media import find_video_path, resolve_media
-from .geo.videogimbal import VideoGimbalReport, VideoGimbalUnavailable
+from .geo.videogimbal import (
+    VideoGimbalReport,
+    VideoGimbalUnavailable,
+    schema_carries_gimbal,
+)
 from .geo.record import build_records
 from .geo.record_html import write_flight_record
 from .mp4_telemetry import _EXIFTOOL_INSTALL_HINT, Mp4TelemetryError, probe
@@ -851,7 +855,9 @@ def _hint_gimbal_from_video(tracks: list, src: Path) -> None:
     Only when ExifTool is present: without it there is nothing to probe and
     no honest way to know what the videos hold. The probe reads the moov
     atom alone (0.14 s on a 4 GB Air 3S clip), so it is cheap enough to run
-    per gimbal-less flight (#546).
+    per gimbal-less flight (#546). A djmd track alone does not qualify: the
+    schema it names must be one that carries gimbal attitude (Mini 5 Pro
+    streams, say, hold position only).
     """
     if not exiftool_available():
         return
@@ -867,7 +873,7 @@ def _hint_gimbal_from_video(tracks: list, src: Path) -> None:
             if video is None:
                 continue
             try:
-                if probe(video) is not None:
+                if schema_carries_gimbal(probe(video)):
                     carrying += 1
                     break
             except Mp4TelemetryError:

@@ -11,6 +11,7 @@ import json
 import re
 import subprocess
 from datetime import datetime
+from importlib.resources import files
 from pathlib import Path
 
 from .utilities import TelemetrySample, is_gps_fix
@@ -148,10 +149,29 @@ _EXIFTOOL_INSTALL_HINT = (
 )
 
 
+def exiftool_config_path() -> Path | None:
+    """The ExifTool user config bundled with dji-embed, or ``None`` if absent.
+
+    ``data/exiftool.config`` adds tag mappings ExifTool lacks (today: the
+    Mavic 4 Pro gimbal block). It is passed with ``-config`` on every call so
+    probe and extraction agree; an ExifTool too old to know the table it
+    extends simply ignores it.
+    """
+    try:
+        path = Path(str(files(__package__) / "data" / "exiftool.config"))
+    except (ModuleNotFoundError, TypeError, ValueError):
+        return None
+    return path if path.is_file() else None
+
+
 def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
+    config = exiftool_config_path()
+    # ``-config`` must be the very first argument (ExifTool reads it before
+    # anything else).
+    prefix = ["-config", str(config)] if config is not None else []
     try:
         return subprocess.run(
-            [exiftool_exe(), *args], capture_output=True, text=True
+            [exiftool_exe(), *prefix, *args], capture_output=True, text=True
         )
     except FileNotFoundError:
         raise Mp4TelemetryError(_EXIFTOOL_INSTALL_HINT) from None

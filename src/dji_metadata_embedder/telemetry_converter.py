@@ -310,7 +310,7 @@ def batch_convert_to_csv(directory: Path | str) -> None:
 # is identical regardless of source.
 _CSV_COLUMNS = (
     "timestamp", "latitude", "longitude", "rel_altitude", "abs_altitude",
-    "iso", "shutter", "fnum", "ev", "ct", "color_md", "focal_len",
+    "iso", "shutter", "fnum", "ev", "ct", "tint", "color_md", "focal_len",
     "datetime_utc", "sun_azimuth", "sun_elevation",
 )
 
@@ -321,8 +321,8 @@ def _csv_from_samples(
     """Write CSV rows from video-sourced samples (UTC is intrinsic).
 
     Fills geo, altitude, ``datetime_utc`` and solar columns; camera columns that
-    only the SRT text carries (iso/shutter/fnum/ev/ct/color_md/focal_len) stay
-    blank.
+    only the SRT text carries (iso/shutter/fnum/ev/ct/tint/color_md/focal_len)
+    stay blank.
     """
     import csv
 
@@ -452,7 +452,9 @@ def extract_telemetry_to_csv(
             shutter_match = re.search(r"\[shutter\s*:\s*([^\]]+)\]", telemetry_line)
             fnum_match = re.search(r"\[fnum\s*:\s*(\d+)\]", telemetry_line)
             ev_match = re.search(r"\[ev\s*:\s*([^\]]+)\]", telemetry_line)
-            ct_match = re.search(r"\[ct\s*:\s*([^\]]+)\]", telemetry_line)
+            # ``[ct: 5562]``, or ``[ct: 5562, tint: 0]`` on the Mavic 4 Pro.
+            ct_match = re.search(r"\[ct\s*:\s*([+-]?\d+\.?\d*)", telemetry_line)
+            tint_match = re.search(r"\btint\s*:\s*([+-]?\d+\.?\d*)", telemetry_line)
             color_md_match = re.search(r"\[color_md\s*:\s*([^\]]+)\]", telemetry_line)
             focal_len_match = re.search(r"\[focal_len\s*:\s*([^\]]+)\]", telemetry_line)
 
@@ -466,6 +468,8 @@ def extract_telemetry_to_csv(
                 row["ev"] = ev_match.group(1)
             if ct_match:
                 row["ct"] = ct_match.group(1)
+            if tint_match:
+                row["tint"] = tint_match.group(1)
             if color_md_match:
                 row["color_md"] = color_md_match.group(1)
             if focal_len_match:

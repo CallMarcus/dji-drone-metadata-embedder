@@ -371,7 +371,12 @@ class DJIMetadataEmbedder:
                         ev_match = re.search(
                             r"(?<![A-Za-z])EV\s+([+-]?\d+\.?\d*)", telemetry_line
                         )
-                    ct_match = re.search(r"\[ct\s*:\s*([^\]]+)\]", telemetry_line)
+                    # ``[ct: 5562]`` on most models; the Mavic 4 Pro appends a
+                    # tint inside the same bracket: ``[ct: 5562, tint: 0]``.
+                    ct_match = re.search(r"\[ct\s*:\s*([+-]?\d+\.?\d*)", telemetry_line)
+                    tint_match = re.search(
+                        r"\btint\s*:\s*([+-]?\d+\.?\d*)", telemetry_line
+                    )
                     color_md_match = re.search(
                         r"\[color_md\s*:\s*([^\]]+)\]", telemetry_line
                     )
@@ -385,6 +390,7 @@ class DJIMetadataEmbedder:
                         or fnum_match
                         or ev_match
                         or ct_match
+                        or tint_match
                         or color_md_match
                         or focal_len_match
                     ):
@@ -399,6 +405,8 @@ class DJIMetadataEmbedder:
                             camera_data["ev"] = ev_match.group(1)
                         if ct_match:
                             camera_data["ct"] = ct_match.group(1)
+                        if tint_match:
+                            camera_data["tint"] = tint_match.group(1)
                         if color_md_match:
                             camera_data["color_md"] = color_md_match.group(1)
                         if focal_len_match:

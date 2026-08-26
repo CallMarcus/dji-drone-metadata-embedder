@@ -254,6 +254,7 @@ end-to-end examples in [docs/recipes.md](docs/recipes.md).
 - **DJI Mini 5 Pro** - HTML-style bracket format with decimal aperture (`[fnum: 1.8]`)
 - **DJI Air 3** - HTML-style format with extended telemetry data
 - **DJI Air 3S** - HTML-style bracket format with decimal `focal_len` and HLG color mode (`[color_md: hlg]`); MP4 also carries embedded `djmd`/`dbgi` data streams
+- **DJI Mavic 4 Pro** - HTML-style bracket format with a tint on the colour-temperature token (`[ct: 5562, tint: 0]`); MP4 and `.LRF` carry embedded `djmd`/`dbgi` data streams incl. gimbal angles
 - **DJI Avata 360** - HTML-style bracket format with stabilization (`pp_*`) fields; footage ships as `.OSV` (360 video) + `.LRF` proxy
 - **DJI Neo 2** - HTML-style bracket format with stabilization (`pp_*`) fields; MP4 also carries embedded `djmd`/`dbgi` data streams
 - **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data
@@ -270,7 +271,8 @@ end-to-end examples in [docs/recipes.md](docs/recipes.md).
 **Sidecar-less models (Air 3S, Mini 5 Pro, …):** telemetry is read straight from
 the MP4's embedded `djmd`/`dbgi` track via ExifTool — no `.SRT` needed —
 for `dji-embed convert <fmt> FILE.MP4` and `dji-embed verify-sun FILE.MP4`.
-Requires a recent ExifTool (Air 3S ≥ 13.39, Mini 5 Pro ≥ 13.52); see
+Requires a recent ExifTool (Air 3S ≥ 13.39, Mini 5 Pro ≥ 13.52, Mavic 4 Pro
+≥ 13.59); see
 [docs/MP4_TIMED_METADATA.md](docs/MP4_TIMED_METADATA.md).
 
 ## Intended use & scope
@@ -525,7 +527,8 @@ Notes:
   lists the joined files; tune or disable with `--join-gap`.
 - The 3D map's camera footprints are estimates unless the SRT logs gimbal
   angles. `--gimbal-from-video` reads them from the MP4's own telemetry (Air
-  3S and newer; needs ExifTool, opens every video), and `--flight-log CSV`
+  3/3S, Mavic 3/4 Pro, Mini 4 Pro; needs ExifTool, opens every video), and
+  `--flight-log CSV`
   merges them from a decoded flight record for drones that log none.
 - Tracks are thinned to ~1 GPS point per second for the map (DJI logs ~30
   per second) — visually identical but far smaller files; use
@@ -874,6 +877,8 @@ MIT License - see LICENSE file for details
 ## Acknowledgments
 
 - Thanks to the DJI drone community for format documentation
+- DJI Stockholm (Grev Turegatan) for flying and sharing the Mavic 4 Pro sample
+  footage that confirmed the format and located its gimbal telemetry
 - FFmpeg and ExifTool teams for their excellent tools
 
 ## Related Projects

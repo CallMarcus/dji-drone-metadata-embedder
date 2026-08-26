@@ -193,8 +193,9 @@ Most DJI SRTs carry no gimbal attitude, so the 3D map draws the camera
 footprint as a labelled estimate. Two routes upgrade it to a measurement,
 and neither ever overwrites a value the SRT itself recorded:
 
-- Drones whose MP4 carries a timed-metadata track with gimbal angles (Air 3S
-  and newer): `--gimbal-from-video` reads pitch/yaw from the video beside
+- Drones whose MP4 carries a timed-metadata track with gimbal angles (Air 3,
+  Air 3S, Mavic 3 and 4 Pro, Mini 4 Pro, Matrice): `--gimbal-from-video`
+  reads pitch/yaw from the video beside
   each SRT and joins it frame by frame. It needs ExifTool (`dji-embed doctor
   --install exiftool`) and opens every video, roughly 15 seconds per
   gigabyte, which is why it is opt-in; the 3D map says so once when it

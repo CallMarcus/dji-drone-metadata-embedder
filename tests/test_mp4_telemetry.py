@@ -208,3 +208,42 @@ def test_undecodable_stream_error_names_model_floor(monkeypatch, tmp_path):
     assert ">= 13.39" in text
     assert "12.76" in text
     assert "dji-embed doctor --install exiftool" in text
+
+
+# --- bundled ExifTool user config (Mavic 4 Pro gimbal block) ---
+
+
+def test_bundled_config_exists_and_maps_mavic4_gimbal():
+    cfg = mt.exiftool_config_path()
+    assert cfg is not None and cfg.is_file()
+    text = cfg.read_text(encoding="utf-8")
+    assert "dvtm_Mavic4_3-4-3" in text
+    assert "Image::ExifTool::DJI::GimbalInfo" in text
+
+
+def test_run_prepends_config_before_every_other_argument(monkeypatch):
+    seen = []
+
+    def fake_run(argv, **kwargs):
+        seen.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(mt.subprocess, "run", fake_run)
+    mt._run(["-ver"])
+    argv = seen[0]
+    assert argv[1] == "-config"
+    assert argv[2] == str(mt.exiftool_config_path())
+    assert argv[3:] == ["-ver"]
+
+
+def test_run_without_config_file_falls_back_to_plain_argv(monkeypatch):
+    seen = []
+
+    def fake_run(argv, **kwargs):
+        seen.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(mt.subprocess, "run", fake_run)
+    monkeypatch.setattr(mt, "exiftool_config_path", lambda: None)
+    mt._run(["-ver"])
+    assert seen[0][1:] == ["-ver"]

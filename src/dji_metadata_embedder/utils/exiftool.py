@@ -74,6 +74,9 @@ EXIFTOOL_FLOORS: dict[str, tuple[str, str]] = {
     "dvtm_NEO.proto": ("Neo", "13.35"),
     "dvtm_Air3s.proto": ("Air 3S", "13.39"),
     "dvtm_Mini5Pro.proto": ("Mini 5 Pro", "13.52"),
+    # Verified on real footage at the 13.59 pin (2026-08-26); the gimbal block
+    # comes from dji-embed's bundled ExifTool config, not ExifTool itself.
+    "dvtm_Mavic4.proto": ("Mavic 4 Pro", "13.59"),
 }
 
 _INSTALL_HINT = "run: dji-embed doctor --install exiftool"
