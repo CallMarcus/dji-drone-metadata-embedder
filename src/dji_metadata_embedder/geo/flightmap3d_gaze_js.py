@@ -271,6 +271,62 @@ function beamFor(fl, i, ring) {
   return feats;
 }
 
+// --- Altitude marker (#553): the aircraft itself, not just its shadow ---
+// The cursor dot is a circle layer, and circles can only be draped, so it
+// reads as the drone's shadow on the ground. This is the body at height: a
+// small fill-extrusion block centred on the interpolated position at the
+// drone's true altitude, converted through the same ground reference as the
+// sculpture (#548) so the two agree to the metre. Screen-size-aware like the
+// ribbon, so it neither vanishes zoomed out nor becomes a hangar up close.
+const MARKER_SCALE = 2.5;   // block side, in sculpture plank widths
+
+function aglAt(fl, t) {
+  // Linear between the two samples the clock sits between, like positionAt;
+  // null if either end is unknown, because a marker at an invented height is
+  // a claim the data never made.
+  if (!fl.agl) return null;
+  const i = sampleIndexAt(fl, t);
+  if (i >= fl.pts.length - 1) return fl.agl[i];
+  const a = fl.agl[i], b = fl.agl[i + 1];
+  if (a == null || b == null) return null;
+  const t0 = fl.times[i], t1 = fl.times[i + 1];
+  const f = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
+  return a + (b - a) * f;
+}
+
+function markerFor(fl, t) {
+  const agl = aglAt(fl, t);
+  if (agl == null) return [];
+  const c = positionAt(fl, t);
+  const tElev = takeoffElev(fl);
+  const lElev = tElev == null ? null : terrainElevAt(c);
+  // Same conversion as planksFor: AGL is above the launch site, the
+  // extrusion measures from the local surface (or sea level, terrain off).
+  const top = (tElev != null && lElev != null) ? (tElev + agl) - lElev : agl;
+  const side = sculptWidthM() * MARKER_SCALE, half = side / 2;
+  const hgt = top + half;
+  // Wholly below the rendered surface: fill-extrusion cannot draw there.
+  if (hgt <= 0) return [];
+  const mLat = GAZE_M_PER_DEG_LAT;
+  const mLon = mLat * Math.cos(c[1] * Math.PI / 180);
+  const dx = half / mLon, dy = half / mLat;
+  return [{ type: 'Feature',
+    // base clamped in JS: the style spec forbids a negative one.
+    properties: { base: Math.max(0, top - half), hgt: hgt },
+    geometry: { type: 'Polygon', coordinates: [[
+      [c[0] - dx, c[1] - dy], [c[0] + dx, c[1] - dy],
+      [c[0] + dx, c[1] + dy], [c[0] - dx, c[1] + dy],
+      [c[0] - dx, c[1] - dy],
+    ]] } }];
+}
+
+function renderMarker() {
+  const src = map.getSource('gaze-marker');
+  if (!src || !pb.run) return;
+  src.setData({ type: 'FeatureCollection',
+                features: markerFor(pb.run, pb.t) });
+}
+
 // --- Playback (#378): the flat map's animator (#267/#327), MapLibre-side ---
 // Semantics are deliberately identical to geo/flightmap_html.py so a user who
 // learns one map's playback knows the other's: same eligibility rule, same
@@ -314,6 +370,10 @@ function pbRecolour() {
   if (map.getLayer('gaze-cursor-dot')) {
     map.setPaintProperty('gaze-cursor-dot', 'circle-color', pb.run.color);
   }
+  if (map.getLayer('gaze-marker-body')) {
+    map.setPaintProperty('gaze-marker-body', 'fill-extrusion-color',
+                         pb.run.color);
+  }
   if (map.getLayer('gaze-fill')) {
     map.setPaintProperty('gaze-fill', 'fill-color', pb.run.color);
     map.setPaintProperty('gaze-edge', 'line-color', pb.run.color);
@@ -337,6 +397,7 @@ function pbRender(skipGhost) {
   const src = map.getSource('gaze-cursor');
   if (src) src.setData({ type: 'Feature', properties: {},
     geometry: { type: 'Point', coordinates: positionAt(pb.run, pb.t) } });
+  renderMarker();
   const slider = document.getElementById('pb-slider');
   if (slider) slider.value = String(pb.t);
   const time = document.getElementById('pb-time');
@@ -399,8 +460,10 @@ function applyGazeVisibility() {
   // 'visible' always; its own source data (emptied by gazeHighlight([]) on
   // panel toggle -- see buildPanel -- and on popup close) is what controls
   // whether anything is actually drawn (#378 whole-branch review, M1).
+  // The altitude marker (#553) follows the beam rule: a block at your own
+  // eye would fill the cockpit frame, exactly as the ribbon would.
   [['gaze-fill', v], ['gaze-edge', v], ['gaze-cursor-dot', v],
-   ['beam-ray', beam]].forEach(pair => {
+   ['beam-ray', beam], ['gaze-marker-body', beam]].forEach(pair => {
     if (map.getLayer(pair[0])) {
       map.setLayoutProperty(pair[0], 'visibility', pair[1]);
     }
@@ -509,6 +572,18 @@ function mountPlayback() {
   map.addLayer({ id: 'gaze-cursor-dot', type: 'circle', source: 'gaze-cursor',
     paint: { 'circle-radius': 7, 'circle-color': pb.run.color,
              'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+  // The body at height (#553). Mounted with the dot, not with the gaze:
+  // it claims no more than the dot does, so it survives fuzz. Zoom changes
+  // its metre size (sculptWidthM), so rebuild on zoomend like the ribbon.
+  map.addSource('gaze-marker', { type: 'geojson', data: emptyFC() });
+  map.addLayer({ id: 'gaze-marker-body', type: 'fill-extrusion',
+    source: 'gaze-marker',
+    paint: { 'fill-extrusion-color': pb.run.color,
+             'fill-extrusion-base': ['get', 'base'],
+             'fill-extrusion-height': ['get', 'hgt'],
+             'fill-extrusion-opacity': 0.9,
+             'fill-extrusion-vertical-gradient': false } });
+  map.on('zoomend', renderMarker);
   if (REDACTED === 'none') {
     // Fuzzed coordinates would make every footprint a confident claim about
     // ground the camera never saw. The clock still works.

@@ -345,8 +345,10 @@ you and the flight blocks it from view.
 The 3D map has a playback control at the bottom left: play/pause, a speed
 button cycling 1×, 5×, 20×, 60×, a scrubber, a time readout, and — with more
 than one playable flight on the map — a picker for which one is playing. As
-the clock runs, the camera's ground footprint for that second is drawn on the
-terrain, with four rays connecting the camera to its corners.
+the clock runs, a small block marks the aircraft at its recorded altitude
+with a dot on the ground beneath it as its shadow, and the camera's ground
+footprint for that second is drawn on the terrain, with four rays connecting
+the camera to its corners.
 
 Press play while you are in the ghost view and the camera rides the recorded
 flight in real time instead of stepping sample by sample. An arrow key still
