@@ -122,6 +122,7 @@ def test_template_carries_the_gaze_and_playback_app():
     for needle in ("function gazeRing(", "function beamFor(",
                    "function gazeLookup(", "'gaze-fill'", "'beam-ray'",
                    "'gaze-hits-line'", "id: 'gaze-cursor-dot'",
+                   "id: 'gaze-marker-body'", "function markerFor(",
                    "pb-play", "pb-slider", "GAZE_FALLBACK_HFOV"):
         assert needle in html, needle
 
