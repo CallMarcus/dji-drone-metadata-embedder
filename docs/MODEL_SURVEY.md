@@ -4,14 +4,16 @@ _Consolidated from three deep-research passes (Gemini, DeepSeek, ChatGPT) plus
 direct analysis of comparator sample files. Tracks issue
 [#182](https://github.com/CallMarcus/dji-drone-metadata-embedder/issues/182)._
 
-_Last updated: 2026-04-19_
+_Last updated: 2026-08-28_
 
 ---
 
 ## TL;DR
 
-**No 2024–2026 target model has a qualifying public SRT sample today.**
-Community sample requests are the required next step before any parser work
+**Original assessment (April 2026): no 2024–2026 target model had a qualifying
+public SRT sample.** Since then Mini 5 Pro, Avata 360, Air 3S and Mavic 4 Pro
+have all arrived as real samples and shipped with fixtures (see the table);
+the remaining rows still need community sample requests before any parser work
 starts. Two confirmed prior-art format families from adjacent-generation
 enterprise models are already available for lineage analysis (see §Comparator
 samples below).
@@ -22,12 +24,12 @@ samples below).
 
 | Model | Status | SRT exists? | Format family (inference) | Parser effort | Action |
 |---|---|---|---|---|---|
-| DJI Mini 5 Pro | Shipping | Yes (reported) | Square-bracket (likely) | Moderate | Sample request |
-| DJI Air 3S | Shipping | Yes (official) | HTML-style extended (likely) | Moderate | Sample request |
+| DJI Mini 5 Pro | Shipping | Yes (confirmed) | Format 3b (`html_extended`) | Done | Fixture `samples/Mini5PRO/`, v1.4.0 (2026-05-30, #207) |
+| DJI Air 3S | Shipping | Yes (confirmed) | Format 3b (`html_extended`) | Done | Fixture `samples/air3S/`, v1.6.0 (2026-06-05, #220) |
 | DJI Mavic 4 Pro | Shipping | Yes (confirmed) | Format 3b (`html_extended`) | Done | Fixture `samples/mavic4pro/`, 2026-08-26 |
 | DJI Neo | Shipping | Unconfirmed | Unknown | Large | Sample request |
 | DJI Flip | Shipping (2025) | Yes (official) | Square-bracket (likely) | Trivial | Sample request |
-| DJI Avata 360 | Shipping | Yes (official) | Legacy / Avata 2 (likely) | Trivial | Sample request |
+| DJI Avata 360 | Shipping | Yes (confirmed) | Format 3b (`html_extended`) | Done | Fixture `samples/Avata360/`, v1.4.0 (2026-05-30, #207); `.OSV`/`.LRF` discovery |
 | DJI FPV (original) | Legacy / used | Ambiguous (sidecar or embedded) | Legacy or embedded | Large | Sample request + media-path check |
 | DJI Inspire 3 | Shipping | Unknown | Unknown / cinema workflow | Large | Sample request |
 | DJI Matrice 4E/4T | Shipping (Jan 2025) | Yes (indirect) | RTK compact single-line (likely) | Moderate | Sample request |
