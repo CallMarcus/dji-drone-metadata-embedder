@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SRT/CSV**: `ct` no longer swallows the trailing `tint` on Mavic 4 Pro files (`"5574, tint: 8"` → `5574`)
 - **flightmap --3d**: the `--gimbal-from-video` hint only appears when the video's djmd schema actually carries gimbal attitude (Mini 5 Pro streams hold position only)
 
+## [2.14.0] - 2026-08-28
+
+### Added
+
+- **flightmap --3d**: Playback marker at the drone's true altitude, ground dot kept as its shadow (#553) (#555) (a36775f)
+- **mavic4pro**: Confirm the format, parse ct/tint, and unlock the gimbal block via a bundled ExifTool config (#554) (6fe5ef4)
+
+### Other
+
+- Prepare version 2.14.0 (#556) (8654c03)
+
+
 ## [2.13.0] - 2026-08-25
 
 ### Added
