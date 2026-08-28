@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Mavic 4 Pro**: format confirmed on sample footage from DJI Stockholm; `samples/mavic4pro/clip.SRT` fixture, docs rows, and the `[ct: N, tint: N]` token parsed as `ct` + a new CSV `tint` column
 - **flightmap**: `--gimbal-from-video` now works on Mavic 4 Pro footage via a bundled ExifTool user config that maps the stream's undecoded gimbal block (`dvtm_Mavic4_3-4-3`) to `GimbalInfo`; passed with `-config` on every ExifTool call
+- **flightmap --3d**: the playback marker now flies at the drone's true altitude, with the ground dot kept underneath as its shadow (#553) (#555) (a36775f)
 
 ### Fixed
 
