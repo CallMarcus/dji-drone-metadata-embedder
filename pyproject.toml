@@ -36,27 +36,27 @@ dynamic = ["version"]
 dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "coverage==7.14.3",
+    "coverage==7.16.0",
     "black==26.5.1",
-    "ruff==0.15.20",
-    "mypy==2.1.0",
+    "ruff==0.16.5",
+    "mypy==2.3.1",
     "jsonschema==4.26.0",
     "pillow==12.3.0",
 ]
 # Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
 # (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
 browser = [
-    "pytest-playwright==0.8.0",
-    "playwright==1.61.0",
+    "pytest-playwright==0.9.0",
+    "playwright==1.62.0",
     # Local-machine sharding (`pytest tests/browser -n 2`); the suite is
     # parallel-safe (ephemeral server ports, atomic asset-cache writes).
     # CI stays serial: one SwiftShader Chromium saturates its 4 vCPUs.
     "pytest-xdist==3.8.0",
 ]
 build = [
-    "build==1.5.0",
+    "build==1.6.0",
     "hatchling==1.31.0",
-    "twine==6.2.0",
+    "twine==7.0.0",
     "pyinstaller>=6.0.0",
     "setuptools>=65.0.0",
     "wheel>=0.38.0",
