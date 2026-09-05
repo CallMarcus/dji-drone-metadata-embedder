@@ -88,7 +88,7 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _FURNITURE = {
     "folderpath", "symbolid", "altmode", "base", "clamped", "extruded",
     "snippet", "popupinfo", "fid", "objectid", "id", "field",
-    "shape length", "shape area", "lat", "lon",
+    "shape length", "shape area", "lat", "lon", "lat dec", "lon dec",
 }
 # Name rows, in preference order, for placemarks whose own <name> is junk.
 _NAME_KEYS = ("naziv", "name", "ime", "obmocje", "letalisce", "zone", "subject")
@@ -224,7 +224,10 @@ def _height_agl_m(rows: list[tuple[str, str]], where: str) -> VerticalLimit | No
 
 
 def _is_restriction_key(norm: str) -> bool:
-    return "omejit" in norm or "restrict" in norm
+    # Live spellings (2026-09-05): Omejitev, Omejitve, UAS omejitev, UAS
+    # omejitve, UAS_omejit, UAS_omej_1 / Restrict, Restriction(s), UAS
+    # restriction(s), UAS_restri, UAS_rest_1 — ArcGIS truncates field names.
+    return "omej" in norm or "restri" in norm or norm.startswith("uas rest")
 
 
 def _is_height_key(norm: str) -> bool:
@@ -238,8 +241,10 @@ def _name(placemark_name: str | None, rows: list[tuple[str, str]],
         return own
     by_key = {_norm(k): v for k, v in rows}
     for key in _NAME_KEYS:
-        if by_key.get(key):
-            return by_key[key]
+        candidate = by_key.get(key, "").strip()
+        # The export repeats the junk <name> as a "Name: Placemark" row.
+        if candidate and not _JUNK_NAME_RE.match(candidate):
+            return candidate
     return f"{folder} {index}"
 
 
@@ -299,8 +304,13 @@ def parse_caa_si(raw_zip: bytes, source: SourceInfo) -> list[Zone]:
                 restriction, upper = _restriction(restriction_values, where)
             else:
                 # The restricted/danger areas publish only a name and a
-                # "check NOTAM" pointer: no class is stated, so none is invented.
-                restriction, upper = "Restriction not stated (check NOTAM)", None
+                # "check NOTAM" pointer: no class is stated, so none is
+                # invented; the pointer is named only when it is there.
+                has_notam = any("notam" in _norm(k) for k, _ in rows)
+                restriction = "Restriction not stated" + (
+                    " (check NOTAM)" if has_notam else ""
+                )
+                upper = None
             height = _height_agl_m(rows, where)
             if height is not None:
                 upper = height
@@ -309,7 +319,8 @@ def parse_caa_si(raw_zip: bytes, source: SourceInfo) -> list[Zone]:
                 if _norm(k) not in _FURNITURE
                 and not _is_restriction_key(_norm(k))
                 and not _is_height_key(_norm(k))
-                and not (_norm(k) in _NAME_KEYS and v == name)
+                and not (_norm(k) in _NAME_KEYS
+                         and (v == name or _JUNK_NAME_RE.match(v)))
             ]
             polygons, holes = _polygons(placemark, ns, where)
             zones.append(

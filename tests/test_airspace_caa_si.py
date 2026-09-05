@@ -164,7 +164,8 @@ def test_prohibited_heliport_keeps_its_exceptions_and_contact_as_notes():
             "subcategory A2") in z.notes
     assert "Kontakt: heliport@kclj.si" in z.notes
     # ArcGIS export furniture never reaches the reader
-    assert not any(n.startswith(("FolderPath", "SymbolID", "PopupInfo", "FID"))
+    assert not any(n.startswith(("FolderPath", "SymbolID", "PopupInfo", "FID",
+                                 "UAS_restri", "lat_dec", "lon_dec"))
                    for n in z.notes)
     assert z.polygons[0][0] == pytest.approx((14.52056, 46.07173), abs=1e-5)
 
@@ -246,3 +247,34 @@ def test_nested_folders_are_walked_and_indexed_per_folder():
     ) + b"</Folder>" + KML_TAIL
     ids = [z.identifier for z in parse_caa_si(wrap(kml), SOURCE)]
     assert sorted(ids) == ["SI-inner-1", "SI-outer-1"]
+
+
+def test_truncated_arcgis_keys_still_classify_the_restriction():
+    # Live file, 2026-09-05: 30 heliport/airfield polygons carry the
+    # restriction under the truncated export keys UAS_omej_1 / UAS_rest_1,
+    # a "Name: Placemark" row and lat_dec/lon_dec furniture; the real name
+    # sits under "Ime".
+    rows = ("<tr><td>Name</td><td>Placemark</td></tr>"
+            "<tr><td>FID</td><td>12</td></tr>"
+            "<tr><td>Izjeme</td><td>dovoljenje upravljalca vzletisca</td></tr>"
+            "<tr><td>Exceptions</td><td>approval from airfield operator</td></tr>"
+            "<tr><td>UAS_omej_1</td><td>Prepovedano</td></tr>"
+            "<tr><td>UAS_rest_1</td><td>Forbidden</td></tr>"
+            "<tr><td>Ime</td><td>Kamnik-Duplica</td></tr>"
+            "<tr><td>lat_dec</td><td>46,1972</td></tr>"
+            "<tr><td>lon_dec</td><td>14,5808</td></tr>")
+    kml = KML_HEAD + placemark("Placemark", rows, SQUARE, folder="Polygons") + KML_TAIL
+    z = parse_caa_si(wrap(kml), SOURCE)[0]
+    assert z.restriction == "PROHIBITED"
+    assert z.name == "Kamnik-Duplica"
+    assert z.notes == ["Izjeme: dovoljenje upravljalca vzletisca",
+                       "Exceptions: approval from airfield operator"]
+
+
+def test_no_restriction_row_and_no_notam_row_is_plainly_not_stated():
+    rows = "<tr><td>Naziv</td><td>Some site</td></tr><tr><td>Kontakt</td><td>a@b.si</td></tr>"
+    kml = KML_HEAD + placemark("Some site", rows, SQUARE) + KML_TAIL
+    z = parse_caa_si(wrap(kml), SOURCE)[0]
+    assert z.restriction == "Restriction not stated"
+    assert z.notes == ["Kontakt: a@b.si"]
+
