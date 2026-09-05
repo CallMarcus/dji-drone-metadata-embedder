@@ -108,6 +108,24 @@ def test_zone_row_carries_published_activation_text_when_present():
     assert "activation (published" not in plain
 
 
+def test_zone_row_carries_published_notes_when_present():
+    # #565: a zone's published free text (exceptions, contact, reason) shows
+    # under its name in the zone table, framed as published and not
+    # evaluated; zones without it render exactly as before.
+    from dataclasses import replace
+
+    noted = replace(
+        ZONE, notes=["Exceptions: approval from heliport", "Contact: heliport@kclj.si"]
+    )
+    rec = _record()
+    rec.airspace.findings[0].zone = noted
+    html = record_to_html([rec], "t", "2.4.0")
+    assert ("<small>published, not evaluated: Exceptions: approval from "
+            "heliport; Contact: heliport@kclj.si</small>") in html
+    plain = record_to_html([_record()], "t", "2.4.0")
+    assert "published, not evaluated:" not in plain
+
+
 def test_no_verdict_vocabulary_ever():
     html = record_to_html([_record()], "t", "2.4.0").lower()
     for word in ("legal", "illegal", "compliant", "violation"):

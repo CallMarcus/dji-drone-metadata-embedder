@@ -509,3 +509,51 @@ def test_the_gulf_coast_overlap_band_resolves_ee_via_its_core():
     # the EE hull; only the EE core contains it (#499 tie-break).
     r = resolve_jurisdiction(_track((59.50, 26.50)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+# --- Slovenia (#565): land borders on every side, 51/51 Nominatim probes
+# 2026-09-05 (scratch script si_nominatim.py) -------------------------------
+
+def test_a_ljubljana_flight_resolves_to_si_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((46.05, 14.51)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "SI"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_slovenian_cities_resolve_through_their_cores():
+    # Kranj, Bled, Celje, Velenje, Maribor, Ptuj, Novo Mesto, Postojna,
+    # Murska Sobota: one core each, all >=8 km from the nearest border.
+    for lat, lon in ((46.24, 14.36), (46.37, 14.11), (46.23, 15.26), (46.36, 15.11),
+                     (46.55, 15.65), (46.42, 15.87), (45.80, 15.17), (45.77, 14.21),
+                     (46.66, 16.16)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "SI", (lat, lon)
+
+
+def test_slovenian_border_towns_gap_as_a_border_band():
+    # Koper (Italy 5 km), Nova Gorica (Gorizia adjoins), Jesenice (Austria),
+    # Brežice (Croatia), Lendava (Hungary/Croatia), Metlika (Croatia),
+    # Dravograd (Austria), Gornja Radgona (Austria, Mura bridge): inside the
+    # hull, outside every core, so honestly a band rather than a verdict.
+    for lat, lon in ((45.55, 13.73), (45.96, 13.65), (46.43, 14.07), (45.90, 15.59),
+                     (46.56, 16.45), (45.65, 15.32), (46.59, 15.02), (46.68, 15.99)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_cities_never_resolve_to_si():
+    # Trieste, Gorizia, Villach, Klagenfurt, Bad Radkersburg, Čakovec,
+    # Varaždin, Krapina, Zagreb, Umag: foreign, some inside the SI hull.
+    for lat, lon in ((45.65, 13.77), (45.94, 13.62), (46.61, 13.85), (46.62, 14.31),
+                     (46.69, 15.99), (46.39, 16.43), (46.31, 16.34), (46.16, 15.87),
+                     (45.81, 15.98), (45.43, 13.52)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None or r.jurisdiction.code != "SI", (lat, lon)
+
+
+def test_the_no_provider_message_lists_slovenia():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Slovenia" in r.gap_reason
+

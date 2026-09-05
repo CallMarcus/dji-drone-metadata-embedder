@@ -92,6 +92,26 @@ def test_published_activation_text_reaches_the_popup_data_only_when_present():
     assert all("activation" not in by_id[z.identifier] for z in zones[1:])
 
 
+def test_published_notes_reach_the_popup_data_only_when_present():
+    # #565: zones carrying published free text (Slovenia's exceptions,
+    # contacts, reasons) get a "notes" list in their popup data; every
+    # other zone keeps the pinned shape (no key invented).
+    zones, source = _lu_zones()
+    zones[0].notes = [
+        "Exceptions: Approval from heliport + valid certificate for subcategory A2",
+        "Contact: heliport@kclj.si",
+    ]
+    out = zones_to_overlay_json(
+        [_track_far()], [AirspaceData(zones=zones, source=source)]
+    )
+    by_id = {z["id"]: z for z in out["zones"]}
+    assert by_id[zones[0].identifier]["notes"] == [
+        "Exceptions: Approval from heliport + valid certificate for subcategory A2",
+        "Contact: heliport@kclj.si",
+    ]
+    assert all("notes" not in by_id[z.identifier] for z in zones[1:])
+
+
 def test_zone_dict_shape_and_source_footer():
     zones, source = _lu_zones()
     out = zones_to_overlay_json(
