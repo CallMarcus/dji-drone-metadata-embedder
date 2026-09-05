@@ -31,7 +31,7 @@ from .dronezoner import (
 )
 from .eans import EANS_FEEDS, parse_eans
 from .ed269 import ED269_FEEDS, parse_ed269
-from .ed318 import ED318_FEEDS, discover_feed_url, parse_ed318
+from .ed318 import ED318_FEEDS, discover_feed_url, ed318_effective, parse_ed318
 from .jurisdiction import resolve_jurisdiction
 from .model import AirspaceError, SourceInfo, Zone
 
@@ -226,6 +226,9 @@ def fetch_zones(
                 else:
                     page = _fetch_url(url, transport)
                     body = _fetch_url(discover_feed_url(page, url), transport)
+                # The file states its own edition (#563); it rides in the
+                # record and the cache sidecar like the UK's cycle date.
+                effective = ed318_effective(body)
             elif code in DRONEZONER_FEEDS:
                 page = _fetch_url(url, transport)
                 body = _fetch_url(

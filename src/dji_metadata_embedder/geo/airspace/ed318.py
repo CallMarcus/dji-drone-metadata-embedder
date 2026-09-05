@@ -220,6 +220,35 @@ def _point_circle(
     return _circle_ring(lon, lat, float(radius))
 
 
+def ed318_effective(raw: bytes) -> str | None:
+    """The ISO date of the edition the document says it is, or None.
+
+    #563: the IAA's reuse conditions ask that a reader can see WHICH
+    version is shown, not only when we fetched it. Ireland states the
+    edition in ``datasetMetadata`` and Sweden in ``metadata``;
+    ``validFrom`` is the edition (``issued`` as fallback), reduced to its
+    UTC date to match the UK's AIRAC-cycle line. A stated stamp that is
+    not a datetime fails loudly; an unstated one is honestly None. A
+    document that is not JSON is left to :func:`parse_ed318` to report."""
+    try:
+        data = json.loads(raw.decode("utf-8-sig"))
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    meta = data.get("datasetMetadata")
+    if not isinstance(meta, dict):
+        meta = data.get("metadata")
+    if not isinstance(meta, dict):
+        return None
+    stamp = meta.get("validFrom") or meta.get("issued")
+    if stamp is None:
+        return None
+    if not isinstance(stamp, str):
+        raise AirspaceError(f"ED-318 edition date {stamp!r} is not a string")
+    return _utc(stamp, "ED-318 edition date").date().isoformat()
+
+
 def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
     """Every zone of an ED-318 GeoJSON document as normalized :class:`Zone`s."""
     try:

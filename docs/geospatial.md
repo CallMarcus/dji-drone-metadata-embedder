@@ -470,8 +470,9 @@ Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
 fetch time. Where the dataset is published per edition (the UK's 28-day
-AIRAC cycle, dated in the filename), the popup and the corner note also
-state the edition's effective date, so a cached copy that has outlived its
+AIRAC cycle, dated in the filename; the Irish and Swedish ED-318 files,
+which state their valid-from date inside the document), the popup and the
+corner note also state the edition's effective date, so a cached copy that has outlived its
 cycle is visible as such: "fetched" is when the copy was downloaded,
 "effective" is which cycle it reflects. Zones the
 flight entered get a slightly stronger outline plus the entry/exit times and
