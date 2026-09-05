@@ -462,10 +462,14 @@ Trafikstyrelsen's drone-zone dataset, which likewise leaves NOTAM-driven
 temporaries to the AIP, Sweden via LFV's ED-318 file, where a few
 zones apply only during scheduled hours within their published windows —
 the schedule stays in the zone's published data and is not evaluated,
-and Estonia via EANS's published zones file, which reflects the rules
+Estonia via EANS's published zones file, which reflects the rules
 at the time of download rather than the time of the flight — that
 caveat rides along, and NOTAM activation hours stay as text in the
-zone's published message).
+zone's published message, and Slovenia via the CAA's published UAS
+geo-zones file, which the CAA itself notes does not contain the
+populated-area limits for the Open category and whose restricted and
+danger areas defer to NOTAM; its published exceptions, contacts and
+reasons appear in the popup as text, not evaluated).
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
