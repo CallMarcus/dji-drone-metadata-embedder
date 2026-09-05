@@ -214,6 +214,13 @@ def test_an_irish_flight_discovers_the_dated_file_then_fetches_it(tmp_path):
     assert data.source is not None and "Irish Aviation Authority" in data.source.license
     assert (tmp_path / "ed318-IE.json").exists()
     assert any("Fetching" in ln and "iaa.ie" in ln for ln in lines)
+    # #563: the file's own edition (datasetMetadata.validFrom) is what the
+    # IAA asked the reader to see; it reaches the record and the sidecar.
+    assert data.source.effective == "2026-08-04"
+    meta = json.loads(
+        (tmp_path / "ed318-IE.json.meta.json").read_text(encoding="utf-8")
+    )
+    assert meta["effective"] == "2026-08-04"
 
 
 def test_a_cached_irish_body_skips_discovery_entirely(tmp_path):
@@ -228,6 +235,8 @@ def test_a_cached_irish_body_skips_discovery_entirely(tmp_path):
         raise AssertionError("cached run must not touch the network")
     data = fetch_zones(_track(53.35, -6.26), tmp_path, transport=no_network)
     assert data.from_cache and len(data.zones) == 4
+    # The cached copy still states which edition it is (#563).
+    assert data.source is not None and data.source.effective == "2026-08-04"
 
 
 def _gb_zip() -> bytes:
@@ -387,6 +396,7 @@ def test_a_swedish_flight_fetches_the_lfv_file_directly(tmp_path):
     assert data.source.url.endswith("uas_zones_ED318.json")
     assert (tmp_path / "ed318-SE.json").exists()
     assert any("Fetching" in ln and "dronechart.lfv.se" in ln for ln in lines)
+    assert data.source.effective == "2026-08-13"  # metadata.validFrom (#563)
     circle = next(z for z in data.zones if z.identifier == "ESU902")
     assert len(circle.polygons[0]) >= 32
 

@@ -16,6 +16,7 @@ from dji_metadata_embedder.geo.airspace import AirspaceError, SourceInfo
 from dji_metadata_embedder.geo.airspace.ed318 import (
     ED318_FEEDS,
     discover_feed_url,
+    ed318_effective,
     parse_ed318,
 )
 
@@ -244,3 +245,35 @@ def test_se_feed_registry_states_the_lfv_terms():
     assert "schedule" in (feed.note or "")
     # Ireland keeps the discovery path: no direct URL.
     assert ED318_FEEDS["IE"].file_url is None
+
+
+def _se() -> bytes:
+    return (FIXTURES / "ed318-se.json").read_bytes()
+
+
+def test_edition_date_is_the_irish_datasetmetadata_valid_from():
+    # #563: the IAA's condition is that a reader sees WHICH edition is
+    # shown, not only when we fetched it. Ireland states the edition in
+    # datasetMetadata.validFrom; the record carries the UTC date.
+    assert ed318_effective(_ie()) == "2026-08-04"
+
+
+def test_edition_date_is_the_swedish_metadata_valid_from():
+    # Sweden's file uses a top-level ``metadata`` block instead.
+    assert ed318_effective(_se()) == "2026-08-13"
+
+
+def test_edition_date_falls_back_to_issued_and_is_absent_when_unstated():
+    doc = json.loads(_ie())
+    doc["datasetMetadata"] = {"issued": "2026-08-01T22:00:00+00:00"}
+    assert ed318_effective(json.dumps(doc).encode("utf-8")) == "2026-08-01"
+    del doc["datasetMetadata"]
+    # No stated edition: the record omits the line rather than guessing.
+    assert ed318_effective(json.dumps(doc).encode("utf-8")) is None
+
+
+def test_edition_date_that_is_not_a_datetime_fails_loudly():
+    doc = json.loads(_ie())
+    doc["datasetMetadata"]["validFrom"] = "August 2026"
+    with pytest.raises(AirspaceError):
+        ed318_effective(json.dumps(doc).encode("utf-8"))
