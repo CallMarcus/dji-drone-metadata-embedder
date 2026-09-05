@@ -95,6 +95,13 @@ include = [
     "/LICENSE",
 ]
 
+[tool.ruff.lint]
+# Pin the rule set explicitly. Until ruff 0.16 the implicit default was
+# E4/E7/E9/F; 0.16 widened the defaults to a much larger "recommended"
+# set (DTZ, BLE, PL*, UP*, RUF*, ...) which flagged ~500 sites here. Pin
+# the historical default so upgrades change behaviour only when we say so.
+select = ["E4", "E7", "E9", "F"]
+
 [tool.mypy]
 python_version = "3.10"
 files = ["src"]
