@@ -411,6 +411,60 @@ def test_a_cached_swedish_body_never_touches_the_network(tmp_path):
     assert data.from_cache and len(data.zones) == 3
 
 
+SI_PAGE = (
+    b'<p><a href="https://caa-slovenia.maps.arcgis.com/apps/x">3D aplikacija</a>, '
+    b'<a href="/upload/editor/file/filef72ffaa1afe7b46.zip">ezyZip_maj 2026.zip</a></p>'
+)
+
+
+def _si_zip() -> bytes:
+    # The live nesting: zip -> kmz (a zip) -> doc.kml, kmz member dated.
+    kmz = io.BytesIO()
+    with zipfile.ZipFile(kmz, "w") as zf:
+        zf.writestr("doc.kml", (FIXTURES / "caa-si.kml").read_bytes())
+    outer = io.BytesIO()
+    with zipfile.ZipFile(outer, "w") as zf:
+        info = zipfile.ZipInfo("UAS Geo zones - May_2026.kmz",
+                               date_time=(2026, 5, 25, 13, 39, 0))
+        zf.writestr(info, kmz.getvalue())
+    return outer.getvalue()
+
+
+def test_a_slovenian_flight_discovers_the_zip_then_fetches_it(tmp_path):
+    # #565: the CAA page is the stable address; the zip href is an opaque
+    # upload name, discovered per fetch. The kmz member's timestamp is the
+    # edition and reaches the record and the cache sidecar.
+    fake = FakeTransport([SI_PAGE, _si_zip()])
+    lines = []
+    data = fetch_zones(_track(46.05, 14.51), tmp_path, transport=fake,
+                       announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 9
+    assert fake.urls[0].startswith("https://www.caa.si/geografske-omejitve-za-uas.html")
+    assert fake.urls[1].endswith("/upload/editor/file/filef72ffaa1afe7b46.zip")
+    assert data.source is not None and "caa.si" in data.source.license
+    assert "populated-area" in (data.source.note or "")
+    assert data.source.effective == "2026-05-25"
+    assert (tmp_path / "caa-si-SI.zip").exists()
+    meta = json.loads(
+        (tmp_path / "caa-si-SI.zip.meta.json").read_text(encoding="utf-8")
+    )
+    assert meta["effective"] == "2026-05-25"
+    assert any("Fetching" in ln and "www.caa.si" in ln for ln in lines)
+    heliport = next(z for z in data.zones if z.identifier == "SI-polygons-1")
+    assert heliport.restriction == "PROHIBITED" and heliport.notes
+
+
+def test_a_cached_slovenian_body_skips_discovery_and_the_network(tmp_path):
+    fetch_zones(_track(46.05, 14.51), tmp_path,
+                transport=FakeTransport([SI_PAGE, _si_zip()]))
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_track(46.05, 14.51), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 9
+    assert data.source is not None and data.source.effective == "2026-05-25"
+
+
 def test_an_estonian_flight_fetches_the_eans_file_directly(tmp_path):
     # #511: EANS's URL is stable — one fetch, no discovery, the record
     # cites the file URL itself.

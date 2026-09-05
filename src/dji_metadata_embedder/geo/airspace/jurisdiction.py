@@ -183,6 +183,26 @@ _CORE: dict[str, list[Box]] = {
         (21.9, 57.9, 23.45, 58.65),   # Saaremaa + Muhu (Kolka LV >=17 km S)
         (22.0, 58.68, 23.1, 59.1),    # Hiiumaa incl. Kõpu/Ristna
     ],
+    # Land borders on every side (IT, AT, HU, HR) and a 47 km coast, so the
+    # cores are the interior only. All 51 edge probes Nominatim-verified
+    # 2026-09-05: Slovenian markers (Tržič, Idrija, Žužemberk, Majšperk,
+    # Markovci, Ilirska Bistrica, Divača, Tišina, Moravske Toplice,
+    # Beltinci, Slovenj Gradec) resolve SI inside the cores; foreign
+    # markers (Trieste, Gorizia, Tarvisio, Villach, Klagenfurt, Bleiburg,
+    # Leibnitz, Bad Radkersburg, Lenti, Čakovec, Varaždin, Krapina, Zagreb,
+    # Karlovac, Buje, Umag) sit outside them. Deliberate gaps, each an
+    # honest border band: Koper and the whole coast (Italy <=5 km), Nova
+    # Gorica (Gorizia adjoins), Jesenice/Kranjska Gora, the Drava valley
+    # (Dravograd), Šentilj, Gornja Radgona and the Mura, Lendava, Brežice,
+    # Metlika and the Kolpa, Kočevje.
+    "SI": [
+        (14.00, 45.85, 14.95, 46.38),  # Ljubljana basin, Kranj, Kamnik, Bled (Austria >=8 km N, Italy >=30 km W)
+        (14.95, 46.05, 15.45, 46.45),  # Celje, Velenje, Zasavje (Austria >=15 km N)
+        (15.50, 46.35, 15.95, 46.58),  # Maribor, Ptuj (Šentilj 46.68 N, Rogatec 46.23 S)
+        (14.95, 45.75, 15.25, 45.95),  # Novo Mesto (Metlika 45.65 S)
+        (14.00, 45.62, 14.40, 45.85),  # Postojna, Notranjska (Italy >=20 km W, Croatia >=15 km S)
+        (16.08, 46.58, 16.28, 46.70),  # Murska Sobota (Mura/Austria >=8 km NW, Hungary >=13 km E)
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -230,13 +250,17 @@ _HULL: dict[str, list[Box]] = {
     # outside. Overlaps the FI hull over the Gulf of Finland on purpose:
     # cores break the tie (#499).
     "EE": [(21.5, 57.45, 28.45, 59.9)],
+    # The national bounding box: Trieste, Gorizia, Villach, Klagenfurt,
+    # Bad Radkersburg, Zagreb and Istria sit inside it deliberately, so a
+    # flight there gaps as a border band (cores decide), never as SI.
+    "SI": [(13.35, 45.40, 16.62, 46.88)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
     "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
     "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU, "SE": MEASURE_EU,
-    "EE": MEASURE_EU,
+    "EE": MEASURE_EU, "SI": MEASURE_EU,
 }
 
 
@@ -268,7 +292,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark, Sweden and Estonia)",
+            "Ireland, the UK, Denmark, Sweden, Estonia and Slovenia)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

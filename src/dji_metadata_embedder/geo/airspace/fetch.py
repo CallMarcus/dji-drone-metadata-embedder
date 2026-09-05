@@ -24,6 +24,12 @@ from .aixm51 import (
     parse_aixm51,
 )
 from .arcgis_faa import FAA_FEED, FAA_QUERY_URL, fetch_faa_pages, parse_faa, snap_bbox
+from .caa_si import (
+    CAA_SI_FEEDS,
+    caa_si_effective,
+    discover_feed_url as discover_caa_si_url,
+    parse_caa_si,
+)
 from .dronezoner import (
     DRONEZONER_FEEDS,
     discover_feed_url as discover_dronezoner_url,
@@ -179,6 +185,16 @@ def fetch_zones(
         # fetched and cited directly, like Sweden's ED-318 file.
         url = feed_ee.url
         note = feed_ee.note
+    elif code in CAA_SI_FEEDS:
+        feed_si = CAA_SI_FEEDS[code]
+        # The download is a zip around a kmz around doc.kml; the cache
+        # keeps the zip as downloaded so cached and fresh bodies parse
+        # identically (and the kmz timestamp, the edition, survives).
+        body_path = cache_dir / f"caa-si-{code}.zip"
+        feed_name = feed_si.feed_name
+        license_line, caveat = feed_si.license, feed_si.caveat
+        url = feed_si.page_url
+        note = feed_si.note
     else:
         feed_aixm = AIXM_FEEDS[code]
         body_path = cache_dir / f"aixm-{code}.xml"
@@ -202,6 +218,8 @@ def fetch_zones(
             return parse_dronezoner(body, source)
         if code in EANS_FEEDS:
             return parse_eans(body, source)
+        if code in CAA_SI_FEEDS:
+            return parse_caa_si(body, source)
         return parse_aixm51(body, source)
 
     cached = None if refresh else _read_cache(body_path)
@@ -236,6 +254,12 @@ def fetch_zones(
                 )
             elif code in EANS_FEEDS:
                 body = _fetch_url(url, transport)
+            elif code in CAA_SI_FEEDS:
+                page = _fetch_url(url, transport)
+                body = _fetch_url(discover_caa_si_url(page, url), transport)
+                # The kmz member's timestamp is the edition (#565); it rides
+                # in the record and the cache sidecar like the UK cycle date.
+                effective = caa_si_effective(body)
             else:
                 page = _fetch_url(url, transport)
                 zip_url, effective = discover_aixm_url(
