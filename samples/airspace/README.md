@@ -34,6 +34,14 @@ verified on issue #413 (2026-07-29). Public data, no privacy concern.
   pins the skip contract instead of just the happy path. Attribution:
   "Estonian Air Navigation Services", public data confirmed in writing by
   EANS UTM development.
+- `caa-si.kml` — Slovenia: the `doc.kml` inside the CAA's "UAS Geo zones -
+  May 2026" KMZ (caa.si, file dated 2026-05-25; issue #565, live shape
+  verified 2026-09-05), trimmed to one placemark per representative folder
+  (9 of 137) with each ring reduced to a few of its real vertices. Every
+  placemark's popup HTML is kept whole: that table IS the attribute schema,
+  and its field names differ per folder. Tests wrap the KML into the live
+  zip→kmz nesting in memory. Reproduced under the CAA site's terms of use
+  (source marked, data content unchanged).
 
 The manual E2E step before merge re-fetches each live endpoint and confirms
 these shapes still match; `ed318-se.json` and `eans-ee.json` are synthetic,

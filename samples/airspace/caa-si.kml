@@ -1,0 +1,1367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Trimmed from the CAA Slovenia "UAS Geo zones - May 2026" KMZ (caa.si, 2026-05-25):
+     one placemark per representative folder, rings reduced to a few real vertices.
+     Official public zones; reproduced with the CAA named as source, content unchanged. -->
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>UAS Geo zones - May 2026</name>
+    <Folder>
+      <name>Polygons</name>
+      <Placemark>
+        <name>Heliport UKC Ljubljana</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;Heliport UKC Ljubljana&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Name&lt;/td&gt;
+
+&lt;td&gt;Heliport UKC Ljubljana&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;FolderPath&lt;/td&gt;
+
+&lt;td&gt;Heli_airfield/Heli_airfield&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;SymbolID&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;AltMode&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Base&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Clamped&lt;/td&gt;
+
+&lt;td&gt;-1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Extruded&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Snippet&lt;/td&gt;
+
+&lt;td&gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;PopupInfo&lt;/td&gt;
+
+&lt;td&gt;&amp;lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&amp;gt;
+
+&amp;lt;head&amp;gt;
+
+&amp;lt;META http-equiv="Content-Type" content="text/html"&amp;gt;
+
+&amp;lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&amp;gt;
+
+&amp;lt;/head&amp;gt;
+
+&amp;lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&amp;gt;
+
+&amp;lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&amp;gt;
+
+&amp;lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&amp;gt;
+
+&amp;lt;td&amp;gt;Heliport UKC Ljubljana&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;
+
+&amp;lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;FID&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;0&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;Obmocje&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;Heliport UKC Ljubljana&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;Contact_ap&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;Heliport UKC Ljubljana (hospital)&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;UAS_omejit&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;Prepovedano&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;UAS_restri&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;Forbidden&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;Izjeme&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;Dovoljenje upravljalca heliporta +  veljaven certifikat podkategorije A2&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;Exceptions&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;Approval from heliport + valid certificate for subcategory A2&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;Kontakt&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;heliport@kclj.si&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;Naziv&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;Subject&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;UAS_omej_1&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;UAS_rest_1&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;Izjeme_za&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;lat&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;lon&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;Ime&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr&amp;gt;
+
+&amp;lt;td&amp;gt;lat_dec&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;0&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;tr bgcolor="#D4E4F3"&amp;gt;
+
+&amp;lt;td&amp;gt;lon_dec&amp;lt;/td&amp;gt;
+
+&amp;lt;td&amp;gt;0&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;/table&amp;gt;
+
+&amp;lt;/td&amp;gt;
+
+&amp;lt;/tr&amp;gt;
+
+&amp;lt;/table&amp;gt;
+
+&amp;lt;/body&amp;gt;&amp;lt;script type="text/javascript"&amp;gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&amp;lt;/script&amp;gt;&amp;lt;/html&amp;gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>14.52056,46.07173 14.50002,46.06346 14.49980,46.04695 14.52010,46.03841 14.54099,46.04623 14.54196,46.06273 14.52056,46.07173</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>UAS_URSIKS</name>
+      <Placemark>
+        <name>GO.08 URSIKS</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;GO.08 URSIKS&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;naziv&lt;/td&gt;
+
+&lt;td&gt;GO.08 URSIKS&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;subject&lt;/td&gt;
+
+&lt;td&gt;GO.08 URSIKS&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;omejitev&lt;/td&gt;
+
+&lt;td&gt;Prepovedano&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Restrict&lt;/td&gt;
+
+&lt;td&gt;Prohibited&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Izjema&lt;/td&gt;
+
+&lt;td&gt;Lastne potrebe ali predhodna odobritev.&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Exception&lt;/td&gt;
+
+&lt;td&gt;For operational needs with prior approval.&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Kontakt&lt;/td&gt;
+
+&lt;td&gt;gp.ursiks@gov.si&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Contact&lt;/td&gt;
+
+&lt;td&gt;gp.ursiks@gov.si&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Razlog&lt;/td&gt;
+
+&lt;td&gt;Varovanje&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Reason&lt;/td&gt;
+
+&lt;td&gt;Security&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Zakonodaja&lt;/td&gt;
+
+&lt;td&gt;Zakon o izvrševanju kazenskih sankcij (ZIKS-1)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Regulation&lt;/td&gt;
+
+&lt;td&gt;Act on the Execution of Criminal Sanctions (ZIKS-1)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Višina nad tlemi v m&lt;/td&gt;
+
+&lt;td&gt;150&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Height AGL in meters&lt;/td&gt;
+
+&lt;td&gt;150&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>15.09066,45.95944 15.08415,45.95807 15.08788,45.95145 15.10379,45.94967 15.09980,45.95364 15.09513,45.95727 15.09066,45.95944</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>CTR_WGS</name>
+      <Placemark>
+        <name>Kontrolirana cona (CTR Ljubljana)</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;Kontrolirana cona (CTR Ljubljana)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Območje&lt;/td&gt;
+
+&lt;td&gt;Kontrolirana cona (CTR Ljubljana)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Omejitev&lt;/td&gt;
+
+&lt;td&gt;dovoljeno do višine 50 m AGL (nad terenom)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Subject&lt;/td&gt;
+
+&lt;td&gt;Control zone (CTR Ljubljana)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Kontakt/Contact&lt;/td&gt;
+
+&lt;td&gt;info@sloveniacontrol.si&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Restriction&lt;/td&gt;
+
+&lt;td&gt;allowed up to a height of 50 m AGL (above ground level)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Exceptions during operational hours of aerodrome&lt;/td&gt;
+
+&lt;td&gt;specific category only: approval SloveniaControl&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Izjeme med obratovalnim časom letališča&lt;/td&gt;
+
+&lt;td&gt;posebna kategorija: soglasje KZPS&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Izjeme izven obratovalnega časa letališča&lt;/td&gt;
+
+&lt;td&gt;odprto 24/7&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Exceptions outside operational hours of aerodrome&lt;/td&gt;
+
+&lt;td&gt;open 24/7&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>14.37000000000591,46.32027777913824,-2.349999999751162e-05 14.25972222283931,46.20888888935855,-2.349999999751162e-05 14.69472222198524,46.00000000152041,-2.349999999751162e-05 14.80527777710231,46.11083333343596,-2.349999999751162e-05 14.37000000000591,46.32027777913824,-2.349999999751162e-05</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>ModelarskeCone</name>
+      <Placemark>
+        <name>MK Krško, Žadovinek</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;MK Krško, Žadovinek&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Id&lt;/td&gt;
+
+&lt;td&gt;1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Obmocje&lt;/td&gt;
+
+&lt;td&gt;MK Krško, Žadovinek&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Subject&lt;/td&gt;
+
+&lt;td&gt;MK Krško, Žadovinek&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Omejitve&lt;/td&gt;
+
+&lt;td&gt;dovoljenje za modelarske aktivnosti za člane modelskega kluba&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Restrict&lt;/td&gt;
+
+&lt;td&gt;permit for modeling activities for members of the modeling club&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Kontakt&lt;/td&gt;
+
+&lt;td&gt;Sašo Cerovšek, Modelarski klub Krško, CKŽ 137, 8270 Krško, saso.cerovsek@gmail.com&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Contact&lt;/td&gt;
+
+&lt;td&gt;Sašo Cerovšek, Modelarski klub Krško, CKŽ 137, 8270 Krško, saso.cerovsek@gmail.com&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>15.49746,45.93188 15.48467,45.93120 15.48585,45.92851 15.48909,45.92684 15.49313,45.92684 15.49637,45.92851 15.49746,45.93188</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>restricted_area</name>
+      <Placemark>
+        <name>LJ R6A restricted</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;LJ R6A restricted&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;IME&lt;/td&gt;
+
+&lt;td&gt;LJ R6A restricted&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Pred letom glej NOTAM&lt;/td&gt;
+
+&lt;td&gt;&lt;a target="_blank" href="https://www.sloveniacontrol.si/Strani/Zapore.aspx"&gt;https://www.sloveniacontrol.si/Strani/Zapore.aspx&lt;/a&gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Check NOTAM before fly&lt;/td&gt;
+
+&lt;td&gt;&lt;a target="_blank" href="https://www.sloveniacontrol.si/en"&gt;https://www.sloveniacontrol.si/en&lt;/a&gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Obratovalni čas letališča (glej AD 2.3)&lt;/td&gt;
+
+&lt;td&gt;&amp;lt;Null&amp;gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>14.06866335661168,45.83942496567288,2.399999902991112e-05 13.92923466546879,45.83942077323233,2.399999902991112e-05 13.92924298476665,45.70360071159748,2.399999902991112e-05 14.02090608551644,45.59305870559164,2.399999902991112e-05 14.06867849052928,45.59306014444792,2.399999902991112e-05 14.06866335661168,45.83942496567288,2.399999902991112e-05</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>JEK_PROHIBITED</name>
+      <Placemark>
+        <name>Prohibited areas - Nuclear power plant</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;Prohibited areas - Nuclear power plant&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Zone&lt;/td&gt;
+
+&lt;td&gt;Prohibited areas - Nuclear power plant&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Naziv&lt;/td&gt;
+
+&lt;td&gt;Prepovedana cona - Nuklearna elektrarna Krsko&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;UAS omejitve&lt;/td&gt;
+
+&lt;td&gt;Prepovedano&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;UAS restrictions&lt;/td&gt;
+
+&lt;td&gt;Forbidden&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Izjeme samo za posebno UAS kategorijo&lt;/td&gt;
+
+&lt;td&gt;ocena tveganja+dovoljenje uprave za jedrsko var.&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Exceptions specific UAS category only&lt;/td&gt;
+
+&lt;td&gt;Risk Assesment+Nuclear Safety Adm. approval&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>15.51536,45.94733 15.50418,45.94292 15.50401,45.93396 15.51501,45.92933 15.52628,45.93364 15.52664,45.94260 15.51536,45.94733</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>TNP_WGS</name>
+      <Placemark>
+        <name>Triglavski narodni park (TNP)</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;Triglavski narodni park (TNP)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;IME_ZNAMEN&lt;/td&gt;
+
+&lt;td&gt;Triglavski narodni park (TNP)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Subject&lt;/td&gt;
+
+&lt;td&gt;Triglav National Park (TNP)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;UAS omejitve&lt;/td&gt;
+
+&lt;td&gt;prepovedano&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;UAS restriction&lt;/td&gt;
+
+&lt;td&gt;forbidden&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Izjeme za odprto in posebno UAS kategorijo&lt;/td&gt;
+
+&lt;td&gt;dovoljenje TNP  (glej info)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Exceptions for open and specific UAS category&lt;/td&gt;
+
+&lt;td&gt;approval from TNP (see information)&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Informacije&lt;/td&gt;
+
+&lt;td&gt;&lt;a target="_blank" href="https://www.tnp.si/sl/spoznajte/"&gt;https://www.tnp.si/sl/spoznajte/&lt;/a&gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Information&lt;/td&gt;
+
+&lt;td&gt;&lt;a target="_blank" href="https://www.tnp.si/en/learn/"&gt;https://www.tnp.si/en/learn/&lt;/a&gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>13.84109,46.48113 13.68865,46.44006 13.54021,46.38880 13.74636,46.19500 13.92046,46.29326 14.06005,46.38069 13.84109,46.48113</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>danger</name>
+      <Placemark>
+        <name>33297.328000487156</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;LJD1 - Danger area&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;1&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Naziv&lt;/td&gt;
+
+&lt;td&gt;LJD1 - Danger area&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Check NOTAM before fly&lt;/td&gt;
+
+&lt;td&gt;&lt;a target="_blank" href="https://www.sloveniacontrol.si/Strani/Zapore.aspx"&gt;https://www.sloveniacontrol.si/Strani/Zapore.aspx&lt;/a&gt;&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>14.30514,45.67500 14.26429,45.65822 14.26438,45.62502 14.30527,45.60833 14.34644,45.62468 14.34710,45.65787 14.30514,45.67500</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>Luka_Koper_25</name>
+      <Placemark>
+        <name>22</name>
+        <description>&lt;html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt"&gt;
+
+&lt;head&gt;
+
+&lt;META http-equiv="Content-Type" content="text/html"&gt;
+
+&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+
+&lt;/head&gt;
+
+&lt;body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;"&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px"&gt;
+
+&lt;tr style="text-align:center;font-weight:bold;background:#9CBCE2"&gt;
+
+&lt;td&gt;22&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;
+
+&lt;table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px"&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;FID&lt;/td&gt;
+
+&lt;td&gt;0&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;id&lt;/td&gt;
+
+&lt;td&gt;22&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Naziv&lt;/td&gt;
+
+&lt;td&gt;Luka Koper&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Subject&lt;/td&gt;
+
+&lt;td&gt;Port of Koper&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;UAS omejitev&lt;/td&gt;
+
+&lt;td&gt;Prepovedano&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Restriction&lt;/td&gt;
+
+&lt;td&gt;Forbidden&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Izjema&lt;/td&gt;
+
+&lt;td&gt;predhodna odobritev ali operacije Luke Koper&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Exemptions&lt;/td&gt;
+
+&lt;td&gt;authorisation of operations by Port of Koper&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Kontakt za izjeme&lt;/td&gt;
+
+&lt;td&gt;00 386 31 738 883; matevz.bregar@luka-kp.si&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Contact for exemptions&lt;/td&gt;
+
+&lt;td&gt;00 386 31 738 883; matevz.bregar@luka-kp.si&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Razlog&lt;/td&gt;
+
+&lt;td&gt;Varovanje&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Reason&lt;/td&gt;
+
+&lt;td&gt;Security&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr&gt;
+
+&lt;td&gt;Zakonodaja&lt;/td&gt;
+
+&lt;td&gt;Uradni list RS, št. 195/20 in 31/21&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;tr bgcolor="#D4E4F3"&gt;
+
+&lt;td&gt;Regulation&lt;/td&gt;
+
+&lt;td&gt;Official Gazette RS, Nos. 195/20 and 31/21&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/td&gt;
+
+&lt;/tr&gt;
+
+&lt;/table&gt;
+
+&lt;/body&gt;&lt;script type="text/javascript"&gt;
+
+				function changeImage(attElement, nameElement) {
+
+				document.getElementById('imageAttachment').src = attElement;
+
+				document.getElementById('imageName').innerHTML = nameElement;}
+
+			&lt;/script&gt;&lt;/html&gt;
+
+</description>
+        <MultiGeometry>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>13.76137,45.55985 13.76028,45.55801 13.76851,45.56317 13.76524,45.56834 13.75960,45.56717 13.75836,45.56240 13.76137,45.55985</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>
