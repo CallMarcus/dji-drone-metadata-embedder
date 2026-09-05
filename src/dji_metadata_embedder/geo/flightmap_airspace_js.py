@@ -36,6 +36,11 @@ function zonePopupHtml(z) {
   if (z.activation && z.activation.length)
     html += `<br><i>activation (published, not evaluated): ` +
             `${z.activation.map(esc).join('; ')}</i>`;
+  // #565: the publisher's own free text (exceptions, contacts, reasons),
+  // verbatim; the evaluator never read it and the label says so.
+  if (z.notes && z.notes.length)
+    html += `<br><i>published, not evaluated: ` +
+            `${z.notes.map(esc).join('; ')}</i>`;
   for (const e of z.entered) {
     html += `<hr><b>${esc(e.flight)}</b> was inside this zone`;
     html += e.entry_utc

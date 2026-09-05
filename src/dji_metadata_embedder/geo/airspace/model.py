@@ -98,3 +98,9 @@ class Zone:
     # activation — Mon-Sat SR to SS."). Never an applicability window:
     # the evaluator must keep treating such zones as applicable.
     activation: list[str] = field(default_factory=list)
+    # Published free text about the zone, one line per fact, rendered
+    # verbatim and labelled as not evaluated (#565). Slovenia's CAA file
+    # carries its exceptions, contacts, reasons and regulations only as
+    # popup prose; this is where such prose rides so the reader sees what
+    # the publisher said. Never feeds the evaluator.
+    notes: list[str] = field(default_factory=list)

@@ -109,6 +109,7 @@ def zones_to_overlay_json(
                     # zone carries any, so undated/plain feeds keep shape.
                     **({"activation": list(zone.activation)}
                        if zone.activation else {}),
+                    **({"notes": list(zone.notes)} if zone.notes else {}),
                     "source": {
                         "feed": zone.source.feed,
                         "license": zone.source.license,

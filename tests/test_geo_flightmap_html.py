@@ -242,6 +242,17 @@ def test_airspace_popup_renders_activation_text_as_published_not_evaluated():
     assert "z.activation.map(esc).join('; ')" in html
 
 
+def test_airspace_popup_renders_published_notes_not_evaluated():
+    # #565: the popup shows a zone's published free text (exceptions,
+    # contacts, reasons) verbatim, labelled as published information the
+    # record did not evaluate, and nothing at all for zones without it.
+    from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+    html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
+    assert "if (z.notes && z.notes.length)" in html
+    assert "published, not evaluated: " in html
+    assert "z.notes.map(esc).join('; ')" in html
+
+
 def test_airspace_json_embeds_block_layer_and_note():
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
     html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
