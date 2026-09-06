@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-09-06
+
 ### Added
 
 - **airspace**: Slovenia is the tenth covered country — `-f record` and `--airspace` fetch the CAA's published UAS geo-zones KMZ (137 zones), with the CAA's own caveats (no Open-category populated-area limits; restricted and danger areas defer to NOTAM) and each zone's published exceptions, contacts and reasons carried as text, labelled published, not evaluated (#565) (#566) (4a03952)
@@ -20,29 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Dependency refresh: click 8.5, ruff 0.16 (lint rule set pinned to `E4/E7/E9/F`, wider adoption tracked in #561), mypy 2.3, PyInstaller 6.22, hatchling 1.32 and friends (#559) (#560)
-- Model survey marks the Mini 5 Pro, Air 3S and Avata 360 as shipped with fixtures (#558)
-
-## [2.15.0] - 2026-09-06
-
-### Added
-
-- **airspace**: Slovenia UAS geographical zones from the CAA's published KMZ (#565) (#566) (4a03952)
-- **airspace**: State the ED-318 file's own edition date for Ireland and Sweden (#563) (#564) (3c627c5)
-
-### Documentation
-
-- **model-survey**: Mark Mini 5 Pro, Air 3S and Avata 360 as shipped with fixtures (#558) (e83f04c)
-
-### Maintenance
-
-- **deps**: Bump the production-deps group with 11 updates (#559) (0109b99)
-- **deps-dev**: Bump hatchling from 1.31.0 to 1.32.0 in the development-deps group (#560) (98eb8d9)
+- Dependency refresh: click 8.5, ruff 0.16 (lint rule set pinned to `E4/E7/E9/F`, wider adoption tracked in #561), mypy 2.3, PyInstaller 6.22, hatchling 1.32 and friends (#559) (0109b99) (#560) (98eb8d9)
+- Model survey marks the Mini 5 Pro, Air 3S and Avata 360 as shipped with fixtures (#558) (e83f04c)
 
 ### Other
 
 - Prepare version 2.15.0 (#567) (75e2281)
-
 
 ## [2.14.0] - 2026-08-28
 
