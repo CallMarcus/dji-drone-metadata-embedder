@@ -62,6 +62,12 @@ Six feeds are used:
   NOTAM activation hours live only as text in the zone's published
   message, not a machine-readable field; the record says so on both
   counts.
+- **Slovenia** flights fetch the CAA's whole published UAS geo-zones
+  file (a KMZ export), again with no location sent. The CAA's own page
+  says the file does not contain the populated-area limits for the Open
+  category, and its restricted and danger areas defer to NOTAM; both
+  caveats ride along. The zones' published exceptions, contacts and
+  reasons appear as text, labelled published, not evaluated.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -76,11 +82,12 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
 United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
-Denmark, Sweden, or Estonia. Everywhere else the record states the gap
+Denmark, Sweden, Estonia, or Slovenia. Everywhere else the record states
+the gap
 instead of guessing: *"no supported airspace data source for this
 location."*
 A flight near a jurisdiction boundary gaps the same way, deliberately,

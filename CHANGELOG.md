@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **airspace**: Slovenia is the tenth covered country — `-f record` and `--airspace` fetch the CAA's published UAS geo-zones KMZ (137 zones), with the CAA's own caveats (no Open-category populated-area limits; restricted and danger areas defer to NOTAM) and each zone's published exceptions, contacts and reasons carried as text, labelled published, not evaluated (#565) (#566) (4a03952)
+- **airspace**: the Irish and Swedish ED-318 files' own edition date (`validFrom`) now appears in the record's source line, the map popup and the cache sidecar, alongside the fetch time — the version shown is stated, as promised to the IAA (#563) (#564) (3c627c5)
+
+### Changed
+
+- Dependency refresh: click 8.5, ruff 0.16 (lint rule set pinned to `E4/E7/E9/F`, wider adoption tracked in #561), mypy 2.3, PyInstaller 6.22, hatchling 1.32 and friends (#559) (#560)
+- Model survey marks the Mini 5 Pro, Air 3S and Avata 360 as shipped with fixtures (#558)
+
 ## [2.14.0] - 2026-08-28
 
 ### Added
