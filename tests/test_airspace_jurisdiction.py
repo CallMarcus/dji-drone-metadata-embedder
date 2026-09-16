@@ -557,3 +557,54 @@ def test_the_no_provider_message_lists_slovenia():
     assert r.jurisdiction is None
     assert r.gap_reason is not None and "Slovenia" in r.gap_reason
 
+
+
+# --- Belgium (#562): land borders on three sides, sea on the fourth; 60/60
+# Nominatim probes 2026-09-16 (scratch script be_nominatim.py) --------------
+
+def test_a_brussels_flight_resolves_to_be_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((50.85, 4.35)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "BE"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_belgian_cities_resolve_through_their_cores():
+    # Ostend, Bruges, Ghent, Antwerp, Leuven, Charleroi, Namur, Mons,
+    # Hasselt, Liège: one core each, every edge >=7 km from a border.
+    for lat, lon in ((51.23, 2.92), (51.21, 3.22), (51.05, 3.72), (51.22, 4.40),
+                     (50.88, 4.70), (50.41, 4.44), (50.47, 4.87), (50.45, 3.95),
+                     (50.93, 5.34), (50.63, 5.57)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "BE", (lat, lon)
+
+
+def test_belgian_border_towns_gap_as_a_border_band():
+    # Kortrijk and Ieper (France), Turnhout (Netherlands), Marche-en-Famenne
+    # and Dinant (Givet salient), Arlon (Luxembourg), Eupen (Germany): inside
+    # the hull, outside every core.
+    for lat, lon in ((50.83, 3.27), (50.85, 2.89), (51.32, 4.94), (50.23, 5.34),
+                     (50.26, 4.91), (49.68, 5.82), (50.63, 6.03)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_cities_never_resolve_to_be():
+    # Lille, Dunkirk, Valenciennes, Givet, Breda, Roosendaal, Terneuzen,
+    # Sas van Gent, Eindhoven, Maastricht, Aachen, Luxembourg City.
+    for lat, lon in ((50.63, 3.06), (51.03, 2.38), (50.36, 3.52), (50.14, 4.83),
+                     (51.59, 4.78), (51.53, 4.47), (51.33, 3.83), (51.23, 3.80),
+                     (51.44, 5.47), (50.85, 5.69), (50.78, 6.08), (49.61, 6.13)):
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None or r.jurisdiction.code != "BE", (lat, lon)
+
+
+def test_luxembourg_city_still_resolves_to_lu_inside_the_overlapping_hulls():
+    r = resolve_jurisdiction(_track((49.61, 6.13)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LU"
+
+
+def test_the_no_provider_message_lists_belgium():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Belgium" in r.gap_reason

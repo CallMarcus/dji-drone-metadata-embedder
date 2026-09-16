@@ -491,3 +491,20 @@ def test_an_entered_fl_zone_states_the_pressure_datum_gap():
         )], source=SRC))
     html = record_to_html([rec], "t", "2.4.0")
     assert "flight level" in html and "pressure datum" in html
+
+
+def test_not_applicable_table_prints_the_publisher_reason_when_present():
+    # #562: the reason column says why a zone is listed as not applicable
+    # in the publisher's own words when it has any, else the generic line.
+    from dataclasses import replace
+
+    inactive = replace(
+        ZONE, identifier="BE-1",
+        not_active_reason="not active during the flight window (publisher's evaluation)",
+    )
+    timed_out = replace(ZONE, identifier="BE-2")
+    rec = _record()
+    rec.airspace.not_applicable = [inactive, timed_out]
+    html = record_to_html([rec], "t", "2.4.0")
+    assert "not active during the flight window (publisher&#x27;s evaluation)" in html
+    assert "not applicable during this flight window" in html

@@ -1,0 +1,713 @@
+{
+ "window": [
+  "2026-09-16T07:00:00Z",
+  "2026-09-16T09:00:00Z"
+ ],
+ "zones": {
+  "type": "FeatureCollection",
+  "features": [
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.66812c63-4ea4-418d-8285-d971088081ed",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        5.70873,
+        51.18103
+       ],
+       [
+        5.55521,
+        51.2444
+       ],
+       [
+        5.1818,
+        51.10563
+       ],
+       [
+        5.24728,
+        51.00486
+       ],
+       [
+        5.70873,
+        51.18103
+       ],
+       [
+        5.70873,
+        51.18103
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "66812c63-4ea4-418d-8285-d971088081ed",
+     "external_reference": "EBBL_KLEINE-BROGEL CTR",
+     "name": "{\"en\":\"KLEINE-BROGEL CTR\"}",
+     "code": "EBBL",
+     "description": null,
+     "lower_limit_altitude": 0,
+     "lower_limit_reference": "GND",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 2500,
+     "upper_limit_reference": "MSL",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": 0,
+     "upper_limit_altitude_meter_agl": 700.3262138366699,
+     "type_code": "MIL_CONTROL_ZONE",
+     "restriction": "REQ_AUTHORISATION",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.d67737fe-fe98-40b6-86d4-5392f5c0f3c0",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        4.99861,
+        51.0475
+       ],
+       [
+        5.55674,
+        51.25879
+       ],
+       [
+        5.72692,
+        51.18556
+       ],
+       [
+        5.79783,
+        51.15758
+       ],
+       [
+        4.99861,
+        51.0475
+       ],
+       [
+        4.99861,
+        51.0475
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "d67737fe-fe98-40b6-86d4-5392f5c0f3c0",
+     "external_reference": "EBBL_KLEINE-BROGEL TMA",
+     "name": "{\"en\":\"KLEINE-BROGEL TMA\"}",
+     "code": "EBBL",
+     "description": null,
+     "lower_limit_altitude": 2500,
+     "lower_limit_reference": "MSL",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 4500,
+     "upper_limit_reference": "MSL",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": 700.4400100708008,
+     "upper_limit_altitude_meter_agl": 1310.040010070801,
+     "type_code": "MIL_TMA",
+     "restriction": "REQ_AUTHORISATION",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.698d80dc-7f96-4c9e-a675-c86cb9475ac8",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        3.61496,
+        50.84343
+       ],
+       [
+        3.613,
+        50.84064
+       ],
+       [
+        3.60952,
+        50.8438
+       ],
+       [
+        3.61006,
+        50.84449
+       ],
+       [
+        3.61218,
+        50.8441
+       ],
+       [
+        3.61496,
+        50.84343
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "698d80dc-7f96-4c9e-a675-c86cb9475ac8",
+     "external_reference": "B1468",
+     "name": "{\"en\":\"OUDENAARDE STRAFINRICHTING\"}",
+     "code": "B1468",
+     "description": null,
+     "lower_limit_altitude": 0,
+     "lower_limit_reference": "GND",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 500,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": 0,
+     "upper_limit_altitude_meter_agl": 152.4,
+     "type_code": "CIV_PRISON",
+     "restriction": "REQ_AUTHORISATION",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.dcae6f9b-ff6c-418c-b538-8d678fe70451",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        4.68553,
+        50.98739
+       ],
+       [
+        4.65379,
+        50.9674
+       ],
+       [
+        4.68553,
+        50.94741
+       ],
+       [
+        4.71727,
+        50.9674
+       ],
+       [
+        4.68709,
+        50.98736
+       ],
+       [
+        4.68553,
+        50.98739
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "dcae6f9b-ff6c-418c-b538-8d678fe70451",
+     "external_reference": null,
+     "name": "{\"de\":\"Werchter 2026\",\"en\":\"Werchter 2026\",\"fr\":\"Werchter 2026\",\"nl\":\"Werchter 2026\"}",
+     "code": "G26142",
+     "description": "{\"de\":\"A prior flight authorisation must have been issued by the zone manager.\\nThe pilot must at all times be accompanied by an observer.\\nThe pilot/observer must be available at all times during the flight on a mobile phone registered in advance with the zone manager.\",\"en\":\"A prior flight authorisation must have been issued by the zone manager.\\nThe pilot must at all times be accompanied by an observer.\\nThe pilot/observer must be available at all times during the flight on a mobile phone registered in advance with the zone manager.\",\"fr\":\"A prior flight authorisation must have been issued by the zone manager.\\nThe pilot must at all times be accompanied by an observer.\\nThe pilot/observer must be available at all times during the flight on a mobile phone registered in advance with the zone manager.\",\"nl\":\"A prior flight authorisation must have been issued by the zone manager.\\nThe pilot must at all times be accompanied by an observer.\\nThe pilot/observer must be available at all times during the flight on a mobile phone registered in advance with the zone manager.\"}",
+     "lower_limit_altitude": null,
+     "lower_limit_reference": null,
+     "lower_limit_unit": null,
+     "upper_limit_altitude": 400,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "M",
+     "lower_limit_altitude_meter_agl": null,
+     "upper_limit_altitude_meter_agl": 400,
+     "type_code": "TEMPORARY-NO-FLY-ZONE",
+     "restriction": "PROHIBITED",
+     "original_geometry": "{\"type\": \"Circle\", \"radius\": 2222.4, \"properties\": {\"radius_units\": \"m\"}, \"coordinates\": [4.685529543315416, 50.96740041450431]}",
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 1,
+     "active_within_window": 1
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.b4c3af54-1a15-4ec0-a876-1d49ad45da38",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        3.12028,
+        50.95277
+       ],
+       [
+        3.09385,
+        50.93611
+       ],
+       [
+        3.12028,
+        50.91946
+       ],
+       [
+        3.14671,
+        50.93611
+       ],
+       [
+        3.12157,
+        50.95275
+       ],
+       [
+        3.12028,
+        50.95277
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "b4c3af54-1a15-4ec0-a876-1d49ad45da38",
+     "external_reference": null,
+     "name": "{\"de\":\"Police activities\",\"en\":\"Police activities\",\"fr\":\"Police activities\",\"nl\":\"Police activities\"}",
+     "code": "G26126a",
+     "description": "{\"de\":\"No Fly Zone\",\"en\":\"No Fly Zone\",\"fr\":\"No Fly Zone\",\"nl\":\"No Fly Zone\"}",
+     "lower_limit_altitude": null,
+     "lower_limit_reference": null,
+     "lower_limit_unit": null,
+     "upper_limit_altitude": 400,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": null,
+     "upper_limit_altitude_meter_agl": 121.92,
+     "type_code": "TEMPORARY-NO-FLY-ZONE",
+     "restriction": "PROHIBITED",
+     "original_geometry": "{\"type\": \"Circle\", \"radius\": 1852, \"properties\": {\"radius_units\": \"m\"}, \"coordinates\": [3.120277777777778, 50.93611111111111]}",
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.b958013b-2133-446d-a699-3f2e5dbced5f",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        2,
+        51.51
+       ],
+       [
+        3.29778,
+        51.27278
+       ],
+       [
+        3.56417,
+        51.01306
+       ],
+       [
+        2,
+        51.21194
+       ],
+       [
+        2,
+        51.51
+       ],
+       [
+        2,
+        51.51
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "b958013b-2133-446d-a699-3f2e5dbced5f",
+     "external_reference": "EBTRA WD_TRA WEST DELTA",
+     "name": "{\"en\":\"TRA WEST DELTA\"}",
+     "code": "EBTRA WD",
+     "description": null,
+     "lower_limit_altitude": 195,
+     "lower_limit_reference": "STD",
+     "lower_limit_unit": "FL",
+     "upper_limit_altitude": 999,
+     "upper_limit_reference": "STD",
+     "upper_limit_unit": "FL",
+     "lower_limit_altitude_meter_agl": 5943.6,
+     "upper_limit_altitude_meter_agl": 30449.52,
+     "type_code": "MIL_TRA",
+     "restriction": "REQ_AUTHORISATION",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.92350863-9a05-401a-98a3-a269502652c5",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        2.57306,
+        51.19583
+       ],
+       [
+        2.97361,
+        51.06583
+       ],
+       [
+        2.57583,
+        51.02472
+       ],
+       [
+        2.545,
+        51.08917
+       ],
+       [
+        2.38639,
+        51.09806
+       ],
+       [
+        2.57306,
+        51.19583
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "92350863-9a05-401a-98a3-a269502652c5",
+     "external_reference": null,
+     "name": "G1464/26",
+     "code": "G1464/26",
+     "description": "TEMPO SEGREGATED AREA (TSA) 'TSA MIL 301' ESTABLISHED FOR MILITARY ACTIVITIES. SITUATED: 510553 N0022311E - AN ARC OF CIRCLE 5NM RADIUS CENTERED AT 510717 N0023045E - AND TRACED CLOCKWISE TO 511145N 0023423E - 510357N 0025825E - 505900N 0024917E - 510129N 0023433E - 510521N 0023242E - 510553N 0022311E PROHIBITED FOR NON-PARTICIPATING ACFT",
+     "lower_limit_altitude": 55,
+     "lower_limit_reference": "MSL",
+     "lower_limit_unit": "FL",
+     "upper_limit_altitude": 75,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "FL",
+     "lower_limit_altitude_meter_agl": 1675.2906378746034,
+     "upper_limit_altitude_meter_agl": 2286,
+     "type_code": "NOTAM",
+     "restriction": "PROHIBITED",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 1,
+     "active_within_window": 1
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.28176e4f-7b55-4795-bc7d-9998c46851e4",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        6.7426,
+        49.79764
+       ],
+       [
+        6.12456,
+        49.36741
+       ],
+       [
+        5.45798,
+        49.76547
+       ],
+       [
+        6.07486,
+        50.19922
+       ],
+       [
+        6.72644,
+        49.87858
+       ],
+       [
+        6.7426,
+        49.79764
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "28176e4f-7b55-4795-bc7d-9998c46851e4",
+     "external_reference": null,
+     "name": "G2219/26",
+     "code": "G2219/26",
+     "description": "AERIAL FILMING LOW LEVEL HELICOPTER FLT DUE TO CYCLING RACE SKODA TOUR DE LUXEMBOURG 2026. IN ADDITION AND EXC FOR POLICE, CUSTOMS, SAR, EMERGENCY, FIRE-FIGHTING, ALL UAS FLIGHTS ARE PROHIBITED IN A VOLUME OF AIRSPACE DEFINED VERTICALLY FROM GND/120M AND LATERALLY BY A 500M STRIP ON EITHER SIDE OF THE COURSE. FOR FURTHER DETAILS ABOUT THIS INTERDICTION AND THE RACE TRACK, PLEASE CONSULT NATIONAL REGULATIONS.",
+     "lower_limit_altitude": 0,
+     "lower_limit_reference": "GND",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 25,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "FL",
+     "lower_limit_altitude_meter_agl": 0,
+     "upper_limit_altitude_meter_agl": 762,
+     "type_code": "NOTAM",
+     "restriction": "PROHIBITED",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.52223cf9-8a49-4bf8-b0e5-64a3f126a6e9",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        4.60833,
+        50.76583
+       ],
+       [
+        4.54444,
+        50.72556
+       ],
+       [
+        4.60611,
+        50.68833
+       ],
+       [
+        4.66306,
+        50.72111
+       ],
+       [
+        4.60833,
+        50.76583
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "52223cf9-8a49-4bf8-b0e5-64a3f126a6e9",
+     "external_reference": null,
+     "name": "F1342/26",
+     "code": "F1342/26",
+     "description": "TEMPO SEGREGATED AREA (TSA) 'WAVRE' ESTABLISHED 504557N 0043630E - 504332N 0043240E - 504118N 0043622E - 504316N 0043947E - 504557N 0043630E FOR POLICE MINI UAS BEYOND VISUAL LINE OF SIGHT",
+     "lower_limit_altitude": 0,
+     "lower_limit_reference": "GND",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 500,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": 0,
+     "upper_limit_altitude_meter_agl": 152.4,
+     "type_code": "NOTAM",
+     "restriction": "PROHIBITED",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.90d8518c-d0a9-499f-a889-4ac11ec5cb1f",
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        4.76327,
+        50.59164
+       ],
+       [
+        4.76891,
+        50.58826
+       ],
+       [
+        4.76327,
+        50.58445
+       ],
+       [
+        4.75763,
+        50.58784
+       ],
+       [
+        4.76262,
+        50.59162
+       ],
+       [
+        4.76327,
+        50.59164
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "90d8518c-d0a9-499f-a889-4ac11ec5cb1f",
+     "external_reference": "4513854",
+     "name": "{\"en\":\"Ailes Grand-Leeziennes\"}",
+     "code": "4513854",
+     "description": null,
+     "lower_limit_altitude": 0,
+     "lower_limit_reference": "GND",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 400,
+     "upper_limit_reference": "GND",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": 0,
+     "upper_limit_altitude_meter_agl": 121.92,
+     "type_code": "CIV_MODEL_TERRAIN",
+     "restriction": "REQ_AUTHORISATION",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "geo_zone_fast.cf4d1360-9e40-4fe5-af13-6c6defd9a88c",
+    "geometry": {
+     "type": "MultiPolygon",
+     "coordinates": [
+      [
+       [
+        [
+         4.54456,
+         50.95262
+        ],
+        [
+         4.55772,
+         50.94465
+        ],
+        [
+         4.54456,
+         50.93598
+        ],
+        [
+         4.53139,
+         50.94394
+        ],
+        [
+         4.54344,
+         50.95259
+        ],
+        [
+         4.54456,
+         50.95262
+        ]
+       ]
+      ],
+      [
+       [
+        [
+         4.564559999999999,
+         50.95262
+        ],
+        [
+         4.577719999999999,
+         50.94465
+        ],
+        [
+         4.564559999999999,
+         50.93598
+        ],
+        [
+         4.55139,
+         50.94394
+        ],
+        [
+         4.56344,
+         50.95259
+        ],
+        [
+         4.564559999999999,
+         50.95262
+        ]
+       ]
+      ]
+     ]
+    },
+    "properties": {
+     "unique_identifier": "cf4d1360-9e40-4fe5-af13-6c6defd9a88c",
+     "external_reference": "4842917",
+     "name": "{\"en\":\"EBRL - KAMPENHOUT (UGZ)\"}",
+     "code": "4842917",
+     "description": null,
+     "lower_limit_altitude": 0,
+     "lower_limit_reference": "GND",
+     "lower_limit_unit": "F",
+     "upper_limit_altitude": 4500,
+     "upper_limit_reference": "MSL",
+     "upper_limit_unit": "F",
+     "lower_limit_altitude_meter_agl": 0,
+     "upper_limit_altitude_meter_agl": 1360.1789852142335,
+     "type_code": "CIV_HELISTRIP",
+     "restriction": "REQ_AUTHORISATION",
+     "original_geometry": null,
+     "root": null,
+     "parent": null,
+     "active_at_window_start": 0,
+     "active_within_window": 0
+    }
+   }
+  ],
+  "totalFeatures": 11,
+  "numberMatched": 11,
+  "numberReturned": 11,
+  "timeStamp": "2026-09-16T09:29:00.000Z",
+  "crs": {
+   "type": "name",
+   "properties": {
+    "name": "urn:ogc:def:crs:EPSG::4326"
+   }
+  }
+ },
+ "notam": {
+  "type": "FeatureCollection",
+  "features": [
+   {
+    "type": "Feature",
+    "id": "notam.4b61074b-0c84-42f3-a08a-f5b456c79590",
+    "geometry": null,
+    "properties": {
+     "unique_identifier": "4b61074b-0c84-42f3-a08a-f5b456c79590",
+     "identification": "G1464/26",
+     "fir": "EBBU",
+     "start_date": "2026-06-15T12:30:00Z",
+     "end_date": "2026-06-15T15:00:00Z",
+     "location": "EBBU",
+     "selection_code": "QRACA",
+     "scheduling": null
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "notam.95db8569-408f-499c-b2d8-7c277ec1fe7e",
+    "geometry": null,
+    "properties": {
+     "unique_identifier": "95db8569-408f-499c-b2d8-7c277ec1fe7e",
+     "identification": "G2219/26",
+     "fir": "EBBU",
+     "start_date": "2026-09-16T12:15:00Z",
+     "end_date": "2026-09-20T14:30:00Z",
+     "location": "EBBU",
+     "selection_code": "QROLT",
+     "scheduling": "16 1215-1730, 17 1200-1730, 18 1130-1730, 19 1330-1730, 20 0945-1430"
+    }
+   }
+  ],
+  "totalFeatures": 2,
+  "numberMatched": 2,
+  "numberReturned": 2,
+  "timeStamp": "2026-09-16T09:29:00.000Z"
+ }
+}

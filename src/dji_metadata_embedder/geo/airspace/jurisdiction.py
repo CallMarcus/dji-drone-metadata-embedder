@@ -203,6 +203,23 @@ _CORE: dict[str, list[Box]] = {
         (14.00, 45.62, 14.40, 45.85),  # Postojna, Notranjska (Italy >=20 km W, Croatia >=15 km S)
         (16.08, 46.58, 16.28, 46.70),  # Murska Sobota (Mura/Austria >=8 km NW, Hungary >=13 km E)
     ],
+    # Land borders with FR, LU, DE and NL, the North Sea on the fourth side.
+    # Every edge and corner Nominatim-verified BE on 2026-09-16 (the coastal
+    # box's NW corner is open sea, safe: no other jurisdiction's zones apply
+    # there). Deliberate gaps, each an honest border band: the French strip
+    # (Kortrijk, Ieper, Tournai, Chimay), the Campine north of Turnhout, the
+    # Meuse below Dinant (the Givet salient reaches 50.15N), Belgian
+    # Luxembourg (Arlon, Bastogne), the German-speaking east (Eupen,
+    # Verviers) and the Maas at Maasmechelen.
+    "BE": [
+        (2.75, 50.95, 3.30, 51.40),   # coast + West Flanders (Ostend, Bruges); France >=14 km W, NL >=6 km E at Knokke
+        (3.35, 50.80, 4.15, 51.12),   # Ghent, Aalst, Oudenaarde; Sas van Gent (NL, 51.23) >=12 km N
+        (4.15, 50.35, 5.00, 51.28),   # Brussels, Antwerp, Leuven, Mechelen, Charleroi; NL border >=9 km N
+        (4.60, 50.28, 5.60, 50.70),   # Namur, Ciney, Marche approaches; Givet (FR, 50.15) >=14 km S
+        (3.75, 50.40, 4.15, 50.80),   # Mons, La Louvière, Ath; France >=9 km S
+        (5.00, 50.80, 5.45, 51.15),   # Hasselt, Sint-Truiden, Genk; NL >=12 km N and E
+        (5.30, 50.45, 5.75, 50.68),   # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -254,13 +271,19 @@ _HULL: dict[str, list[Box]] = {
     # Bad Radkersburg, Zagreb and Istria sit inside it deliberately, so a
     # flight there gaps as a border band (cores decide), never as SI.
     "SI": [(13.35, 45.40, 16.62, 46.88)],
+    # The national bounding box with a sea margin north of the coast:
+    # Lille, Breda, Maastricht, Aachen and Belgian Luxembourg sit inside it
+    # deliberately (border-band semantics). Overlaps the LU hull over the
+    # Grand Duchy on purpose: cores break the tie (#499), so Luxembourg City
+    # keeps resolving LU.
+    "BE": [(2.50, 49.49, 6.42, 51.51)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
     "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
     "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU, "SE": MEASURE_EU,
-    "EE": MEASURE_EU, "SI": MEASURE_EU,
+    "EE": MEASURE_EU, "SI": MEASURE_EU, "BE": MEASURE_EU,
 }
 
 
@@ -292,7 +315,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark, Sweden, Estonia and Slovenia)",
+            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia and Belgium)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

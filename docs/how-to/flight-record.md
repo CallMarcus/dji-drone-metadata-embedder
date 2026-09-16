@@ -34,7 +34,7 @@ takeoff-referenced height, which is aircraft-reported. The
 surface-referenced height is the exception — it needs a fetch from
 Mapterhorn's terrain tiles (see "The `[terrain]` extra" below).
 
-Six feeds are used:
+Seven feeds are used:
 
 - **US flights** query the FAA's UAS Facility Map (keyless ArcGIS). The
   bounding box sent to the endpoint is padded and snapped outward to a
@@ -68,6 +68,22 @@ Six feeds are used:
   category, and its restricted and danger areas defer to NOTAM; both
   caveats ride along. The zones' published exceptions, contacts and
   reasons appear as text, labelled published, not evaluated.
+- **Belgium** flights fetch the Droneguide platform's zones (the public
+  map's own feature service, operated by skeyes for the BCAA). This is
+  the one feed that is asked for the flight's time window: the
+  publisher's server drops zones that had already expired when the
+  flight began and marks, per zone, whether it was active during the
+  flight. Nothing else about the flight is sent, and the whole country's
+  zones come back. That activity status is the publisher's evaluation and
+  is shown as such; a zone it marks inactive that the flight was inside
+  is listed as not applicable, never as entered. NOTAM zones carry their dates from Droneguide's NOTAM
+  layer; temporary zones carry none, so the publisher's status is the
+  only currency signal for them, and the record says so. The BCAA's
+  letter (ref G26-187) asked for four notices to stay visible, and every
+  Belgian record carries them: the source, that this is not an official
+  application of the BCAA or the Belgian authorities, that only the
+  official publication channels are authoritative, and that regulatory
+  compliance verification remains with the remote pilot and UAS operator.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -82,11 +98,12 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
 United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
-Denmark, Sweden, Estonia, or Slovenia. Everywhere else the record states
+Denmark, Sweden, Estonia, Slovenia, or Belgium. Everywhere else the record
+states
 the gap
 instead of guessing: *"no supported airspace data source for this
 location."*

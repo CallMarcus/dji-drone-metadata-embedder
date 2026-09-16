@@ -12,9 +12,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
-from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
+from .model import (
+    AirspaceError,
+    Applicability,
+    SourceInfo,
+    VerticalLimit,
+    Zone,
+    iso_utc,
+)
 
 
 @dataclass(frozen=True)
@@ -78,16 +84,6 @@ ED269_FEEDS: dict[str, Ed269Feed] = {
 }
 
 
-def _utc(raw: str, where: str) -> datetime:
-    try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise AirspaceError(f"{where}: {raw!r} is not an ISO datetime") from exc
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
-
-
 def _limit(
     geom: dict, side: str, unit: str, where: str
 ) -> VerticalLimit | None:
@@ -145,8 +141,8 @@ def parse_ed269(
             end = win.get("endDateTime")
             applicability.append(
                 Applicability(
-                    start=_utc(start, f"{where}: startDateTime") if start else None,
-                    end=_utc(end, f"{where}: endDateTime") if end else None,
+                    start=iso_utc(start, f"{where}: startDateTime") if start else None,
+                    end=iso_utc(end, f"{where}: endDateTime") if end else None,
                     permanent=False,
                 )
             )

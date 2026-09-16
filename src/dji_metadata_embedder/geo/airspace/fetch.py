@@ -30,6 +30,15 @@ from .caa_si import (
     discover_feed_url as discover_caa_si_url,
     parse_caa_si,
 )
+from .droneguide import (
+    DRONEGUIDE_FEEDS,
+    NO_TIMESTAMPS_NOTE,
+    build_envelope,
+    cache_name as droneguide_cache_name,
+    notam_url,
+    parse_droneguide,
+    zones_url,
+)
 from .dronezoner import (
     DRONEZONER_FEEDS,
     discover_feed_url as discover_dronezoner_url,
@@ -38,6 +47,7 @@ from .dronezoner import (
 from .eans import EANS_FEEDS, parse_eans
 from .ed269 import ED269_FEEDS, parse_ed269
 from .ed318 import ED318_FEEDS, discover_feed_url, ed318_effective, parse_ed318
+from .evaluate import track_window
 from .jurisdiction import resolve_jurisdiction
 from .model import AirspaceError, SourceInfo, Zone
 
@@ -195,6 +205,20 @@ def fetch_zones(
         license_line, caveat = feed_si.license, feed_si.caveat
         url = feed_si.page_url
         note = feed_si.note
+    elif code in DRONEGUIDE_FEEDS:
+        feed_dg = DRONEGUIDE_FEEDS[code]
+        # The publisher evaluates validity for the window the request
+        # names, so the cache is per flight window (the FAA's per-bbox key
+        # is the precedent). No window: no viewparams, and the note says
+        # validity went unevaluated.
+        window = track_window(track)
+        body_path = cache_dir / droneguide_cache_name(code, window)
+        feed_name = feed_dg.feed_name
+        license_line, caveat = feed_dg.license, feed_dg.caveat
+        # The cited address is the zones request without the window: the
+        # one a reader can open.
+        url = zones_url(feed_dg.ows_url, None)
+        note = feed_dg.note if window else f"{feed_dg.note} {NO_TIMESTAMPS_NOTE}"
     else:
         feed_aixm = AIXM_FEEDS[code]
         body_path = cache_dir / f"aixm-{code}.xml"
@@ -220,6 +244,8 @@ def fetch_zones(
             return parse_eans(body, source)
         if code in CAA_SI_FEEDS:
             return parse_caa_si(body, source)
+        if code in DRONEGUIDE_FEEDS:
+            return parse_droneguide(body, source)
         return parse_aixm51(body, source)
 
     cached = None if refresh else _read_cache(body_path)
@@ -260,6 +286,10 @@ def fetch_zones(
                 # The kmz member's timestamp is the edition (#565); it rides
                 # in the record and the cache sidecar like the UK cycle date.
                 effective = caa_si_effective(body)
+            elif code in DRONEGUIDE_FEEDS:
+                zones_body = _fetch_url(zones_url(feed_dg.ows_url, window), transport)
+                notam_body = _fetch_url(notam_url(feed_dg.ows_url), transport)
+                body = build_envelope(zones_body, notam_body, window)
             else:
                 page = _fetch_url(url, transport)
                 zip_url, effective = discover_aixm_url(

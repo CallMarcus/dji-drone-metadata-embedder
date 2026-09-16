@@ -300,7 +300,7 @@ def _not_applicable_table(rec: FlightRecordData) -> str:
         return ""
     rows = "".join(
         f"<tr><td>{_esc(z.name)}</td><td>{_esc(z.identifier)}</td>"
-        "<td>not applicable during this flight window</td></tr>"
+        f"<td>{_esc(z.not_active_reason or 'not applicable during this flight window')}</td></tr>"
         for z in rec.airspace.not_applicable
     )
     return (

@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from ..track import Track
+from ..track import Track, TrackPoint
 from .model import SourceInfo, Zone
 
 
@@ -56,7 +56,9 @@ class AirspaceReport:
     gap_reason: str | None = None
 
 
-def _window(track: Track) -> tuple[datetime, datetime] | None:
+def track_window(track: Track) -> tuple[datetime, datetime] | None:
+    """The flight's UTC span, or None unless every point is timed —
+    the rule the fetch layer shares when a feed is asked for a window."""
     times = [p.utc for p in track.points if p.utc is not None]
     if len(times) != len(track.points) or not times:
         return None  # uncertain time -> treat every zone as applicable
@@ -75,6 +77,17 @@ def _applies(zone: Zone, window: tuple[datetime, datetime] | None) -> bool:
     return False
 
 
+def _inside(p: TrackPoint, zone: Zone) -> bool:
+    """Inside any exterior ring, minus the interior rings (holes) the
+    parsers keep in zone.holes (#422). Plain even-odd parity over one flat
+    list was rejected in review: it under-reports for overlapping
+    same-limit volumes — and an under-reporting record misleads in the one
+    direction it must not."""
+    if not any(point_in_ring(p.lon, p.lat, ring) for ring in zone.polygons):
+        return False
+    return not any(point_in_ring(p.lon, p.lat, hole) for hole in zone.holes)
+
+
 def evaluate(
     track: Track,
     zones: list[Zone],
@@ -87,24 +100,20 @@ def evaluate(
             f"surface_heights_m has {len(surface_heights_m)} entries but "
             f"track has {len(track.points)} points"
         )
-    window = _window(track)
+    window = track_window(track)
     report = AirspaceReport()
     for zone in zones:
-        if not _applies(zone, window):
-            report.not_applicable.append(zone)
+        if zone.not_active_reason or not _applies(zone, window):
+            # "Not applicable" is a statement about this flight: only a zone
+            # the track was actually inside is listed (#562 — a country-wide
+            # activity-flagged feed would otherwise list hundreds of zones
+            # the flight never went near).
+            if any(_inside(p, zone) for p in track.points):
+                report.not_applicable.append(zone)
             continue
         finding = ZoneFinding(zone=zone, entered=False)
         for i, p in enumerate(track.points):
-            # Inside any exterior ring, minus the interior rings (holes)
-            # the parsers keep in zone.holes (#422). Plain even-odd parity
-            # over one flat list was rejected in review: it under-reports
-            # for overlapping same-limit volumes — and an under-reporting
-            # record misleads in the one direction it must not.
-            if not any(
-                point_in_ring(p.lon, p.lat, ring) for ring in zone.polygons
-            ):
-                continue
-            if any(point_in_ring(p.lon, p.lat, hole) for hole in zone.holes):
+            if not _inside(p, zone):
                 continue
             finding.entered = True
             if p.utc is not None:

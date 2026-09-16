@@ -41,6 +41,10 @@ function zonePopupHtml(z) {
   if (z.notes && z.notes.length)
     html += `<br><i>published, not evaluated: ` +
             `${z.notes.map(esc).join('; ')}</i>`;
+  // #562: the publisher's own flight-window activity evaluation
+  // (Droneguide); shown as published, the zone is not counted as entered.
+  if (z.status)
+    html += `<br><i>status (publisher's evaluation): ${esc(z.status)}</i>`;
   for (const e of z.entered) {
     html += `<hr><b>${esc(e.flight)}</b> was inside this zone`;
     html += e.entry_utc

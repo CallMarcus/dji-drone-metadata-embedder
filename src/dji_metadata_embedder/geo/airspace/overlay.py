@@ -110,6 +110,8 @@ def zones_to_overlay_json(
                     **({"activation": list(zone.activation)}
                        if zone.activation else {}),
                     **({"notes": list(zone.notes)} if zone.notes else {}),
+                    **({"status": zone.not_active_reason}
+                       if zone.not_active_reason else {}),
                     "source": {
                         "feed": zone.source.feed,
                         "license": zone.source.license,

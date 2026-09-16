@@ -275,3 +275,22 @@ def test_a_flight_level_ceiling_renders_flat_in_3d_not_100_metres():
     from dji_metadata_embedder.geo.airspace.overlay import _upper_numeric
     from dji_metadata_embedder.geo.airspace.model import VerticalLimit
     assert _upper_numeric(VerticalLimit(100.0, "FL", "STD")) == (None, None)
+
+
+def test_publisher_status_reaches_the_popup_data_only_when_present():
+    # #562: a zone the publisher evaluated as not active for the flight
+    # window carries a "status" line in its popup data; every other zone
+    # keeps its shape.
+    zones, source = _lu_zones()
+    zones[0].not_active_reason = (
+        "not active during the flight window (publisher's evaluation)"
+    )
+    out = zones_to_overlay_json(
+        [_track_inside(zones[1])], [AirspaceData(zones=zones, source=source)]
+    )
+    by_id = {z["id"]: z for z in out["zones"]}
+    assert by_id[zones[0].identifier]["status"] == (
+        "not active during the flight window (publisher's evaluation)"
+    )
+    assert by_id[zones[0].identifier]["entered"] == []
+    assert all("status" not in by_id[z.identifier] for z in zones[1:])

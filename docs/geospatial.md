@@ -469,7 +469,16 @@ zone's published message, and Slovenia via the CAA's published UAS
 geo-zones file, which the CAA itself notes does not contain the
 populated-area limits for the Open category and whose restricted and
 danger areas defer to NOTAM; its published exceptions, contacts and
-reasons appear in the popup as text, not evaluated).
+reasons appear in the popup as text, not evaluated, and Belgium via the
+Droneguide platform's own feature service (skeyes, publishing for the
+BCAA), asked for the flight's time window so the publisher's server
+drops zones that had already expired and marks, per zone, whether it was
+active during the flight; that status shows in the popup as the
+publisher's evaluation and such a zone, if the flight was inside it, is
+listed as not applicable, never as entered. NOTAM zones take their dates from Droneguide's NOTAM layer.
+The BCAA's four notices ride with every Belgian record: not an official
+application, only the official channels are authoritative, and compliance
+verification stays with the remote pilot).
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
