@@ -49,3 +49,14 @@ so there is nothing to byte-match for them — but their live endpoints are
 still re-fetched and each fixture's shape confirmed against it (these are
 the fixtures with no tie to a live file, which makes them the most prone to
 drifting from reality unnoticed).
+- `droneguide-be.json` — Belgium: one cache envelope as `fetch_zones` writes
+  it (`window`, `zones` = the Droneguide `uaszone` WFS response, `notam` =
+  the `notam` layer response), issue #562, live shape verified 2026-09-16.
+  Eleven real zone rows chosen to cover every parsing rule (shared code
+  EBBL, null lower limit, a metre-unit ceiling, FL 999, a NOTAM row that
+  says "FL 75 GND", a four-language name, an expired and a current NOTAM
+  with their layer rows, a NOTAM with none), rings reduced to five real
+  vertices; the helistrip's geometry is rewritten as a MultiPolygon (the
+  live layer publishes Polygons only). The activity flags are set by hand
+  for the fixture window. Reuse per the BCAA's letter ref G26-187
+  (public-sector information, no individual authorisation).
