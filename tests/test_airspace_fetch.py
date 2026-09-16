@@ -530,3 +530,59 @@ def test_a_fresh_fetch_failure_does_not_name_the_refresh_flag(tmp_path):
     data = fetch_zones(_track(49.62, 6.2), tmp_path, transport=fake)
     assert data.gap_reason is not None
     assert "--airspace-refresh" not in data.gap_reason
+
+
+def _be_track(timed=True):
+    start = datetime(2026, 9, 16, 7, 0) if timed else None
+    end = datetime(2026, 9, 16, 9, 0) if timed else None
+    return Track(name="t", points=[
+        TrackPoint(lat=50.85, lon=4.35, alt=100, timestamp="c", utc=start, rel_alt=30),
+        TrackPoint(lat=50.86, lon=4.36, alt=100, timestamp="c", utc=end, rel_alt=30),
+    ])
+
+
+def _be_bodies():
+    env = json.loads((FIXTURES / "droneguide-be.json").read_text(encoding="utf-8"))
+    return [json.dumps(env["zones"]).encode(), json.dumps(env["notam"]).encode()]
+
+
+def test_a_belgian_flight_asks_droneguide_for_its_window_and_the_notam_layer(tmp_path):
+    # #562: two WFS requests — the uaszone layer with the flight window as
+    # the publisher's viewparams, then the notam layer for the dates — cached
+    # as one envelope keyed by that window.
+    fake = FakeTransport(_be_bodies())
+    lines = []
+    data = fetch_zones(_be_track(), tmp_path, transport=fake, announce=lines.append)
+    assert data.gap_reason is None and len(data.zones) == 11
+    assert fake.urls[0].startswith("https://map.droneguide.be/ows?")
+    assert "typeNames=uaszone" in fake.urls[0]
+    assert "window_start%3A2026-09-16T07%5C%3A00%5C%3A00.000Z" in fake.urls[0]
+    assert "typeNames=notam" in fake.urls[1]
+    assert data.source is not None and "viewparams" not in data.source.url
+    assert "G26-187" in data.source.license
+    assert "Not an official application" in (data.source.note or "")
+    assert "not evaluated by the publisher" not in (data.source.note or "")
+    assert data.source.effective is None
+    assert (tmp_path / "droneguide-BE-20260916T0700Z-20260916T0900Z.json").exists()
+    assert any("Fetching" in ln and "map.droneguide.be" in ln for ln in lines)
+    inactive = [z for z in data.zones if z.not_active_reason]
+    assert {z.identifier for z in inactive} == {"G26142", "G1464/26"}
+
+
+def test_a_cached_belgian_envelope_never_touches_the_network(tmp_path):
+    fetch_zones(_be_track(), tmp_path, transport=FakeTransport(_be_bodies()))
+
+    def no_network(req, timeout=None):
+        raise AssertionError("cached run must not touch the network")
+    data = fetch_zones(_be_track(), tmp_path, transport=no_network)
+    assert data.from_cache and len(data.zones) == 11
+
+
+def test_an_untimed_belgian_flight_sends_no_window_and_says_so(tmp_path):
+    fake = FakeTransport(_be_bodies())
+    data = fetch_zones(_be_track(timed=False), tmp_path, transport=fake)
+    assert data.gap_reason is None
+    assert "viewparams" not in fake.urls[0]
+    assert "not evaluated by the publisher" in (data.source.note or "")
+    assert (tmp_path / "droneguide-BE-nowindow.json").exists()
+    assert all(z.not_active_reason is None for z in data.zones)
