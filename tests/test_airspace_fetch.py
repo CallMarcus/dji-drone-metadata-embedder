@@ -563,7 +563,7 @@ def test_a_belgian_flight_asks_droneguide_for_its_window_and_the_notam_layer(tmp
     assert "Not an official application" in (data.source.note or "")
     assert "not evaluated by the publisher" not in (data.source.note or "")
     assert data.source.effective is None
-    assert (tmp_path / "droneguide-BE-20260916T0700Z-20260916T0900Z.json").exists()
+    assert (tmp_path / "droneguide-BE-20260916T070000Z-20260916T090000Z.json").exists()
     assert any("Fetching" in ln and "map.droneguide.be" in ln for ln in lines)
     inactive = [z for z in data.zones if z.not_active_reason]
     assert {z.identifier for z in inactive} == {"G26142", "G1464/26"}

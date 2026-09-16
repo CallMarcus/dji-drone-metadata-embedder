@@ -28,10 +28,17 @@ from __future__ import annotations
 import json
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import urlencode
 
-from .model import AirspaceError, Applicability, SourceInfo, VerticalLimit, Zone
+from .model import (
+    AirspaceError,
+    Applicability,
+    SourceInfo,
+    VerticalLimit,
+    Zone,
+    iso_utc,
+)
 
 Window = tuple[datetime, datetime]
 Ring = list[tuple[float, float]]
@@ -126,7 +133,9 @@ def notam_url(ows_url: str) -> str:
 def cache_name(code: str, window: Window | None) -> str:
     if window is None:
         return f"droneguide-{code}-nowindow.json"
-    start, end = (d.strftime("%Y%m%dT%H%MZ") for d in window)
+    # Second resolution: the same instants the request names, so two
+    # flights a few seconds apart never share one publisher evaluation.
+    start, end = (d.strftime("%Y%m%dT%H%M%SZ") for d in window)
     return f"droneguide-{code}-{start}-{end}.json"
 
 
@@ -173,16 +182,6 @@ def _text(raw: object) -> str | None:
                     return value.strip()
             return None
     return text or None
-
-
-def _utc(raw: str, where: str) -> datetime:
-    try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise AirspaceError(f"{where}: {raw!r} is not an ISO datetime") from exc
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
 
 
 def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
@@ -338,8 +337,8 @@ def parse_droneguide(raw: bytes, source: SourceInfo) -> list[Zone]:
                 start = row.get("start_date")
                 end = row.get("end_date")
                 applicability.append(Applicability(
-                    start=_utc(start, f"{where}: start_date") if start else None,
-                    end=_utc(end, f"{where}: end_date") if end else None,
+                    start=iso_utc(start, f"{where}: start_date") if start else None,
+                    end=iso_utc(end, f"{where}: end_date") if end else None,
                     permanent=False,
                 ))
                 if row.get("scheduling"):

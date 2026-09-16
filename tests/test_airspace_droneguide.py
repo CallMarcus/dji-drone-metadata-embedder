@@ -83,7 +83,7 @@ def test_notam_url_asks_for_the_date_fields_only():
 
 
 def test_cache_name_is_per_flight_window():
-    assert cache_name("BE", WINDOW) == "droneguide-BE-20260916T0700Z-20260916T0900Z.json"
+    assert cache_name("BE", WINDOW) == "droneguide-BE-20260916T070000Z-20260916T090000Z.json"
     assert cache_name("BE", None) == "droneguide-BE-nowindow.json"
 
 

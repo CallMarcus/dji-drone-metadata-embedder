@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from urllib.parse import urljoin
 
 from .dronezoner import _circle_ring
-from .ed269 import _utc
+from .model import iso_utc
 from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
 
 
@@ -246,7 +246,7 @@ def ed318_effective(raw: bytes) -> str | None:
         return None
     if not isinstance(stamp, str):
         raise AirspaceError(f"ED-318 edition date {stamp!r} is not a string")
-    return _utc(stamp, "ED-318 edition date").date().isoformat()
+    return iso_utc(stamp, "ED-318 edition date").date().isoformat()
 
 
 def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
@@ -291,9 +291,9 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
                 end = win.get("endDateTime")
                 applicability.append(
                     Applicability(
-                        start=_utc(start, f"{where}: startDateTime")
+                        start=iso_utc(start, f"{where}: startDateTime")
                         if start else None,
-                        end=_utc(end, f"{where}: endDateTime") if end else None,
+                        end=iso_utc(end, f"{where}: endDateTime") if end else None,
                         permanent=False,
                     )
                 )

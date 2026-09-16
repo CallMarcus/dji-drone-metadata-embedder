@@ -506,6 +506,5 @@ def test_not_applicable_table_prints_the_publisher_reason_when_present():
     rec = _record()
     rec.airspace.not_applicable = [inactive, timed_out]
     html = record_to_html([rec], "t", "2.4.0")
-    assert "not active during the flight window (publisher&#x27;s evaluation)" in html \
-        or "not active during the flight window (publisher's evaluation)" in html
+    assert "not active during the flight window (publisher&#x27;s evaluation)" in html
     assert "not applicable during this flight window" in html

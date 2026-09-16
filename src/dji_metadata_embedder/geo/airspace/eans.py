@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from .ed269 import _utc
+from .model import iso_utc
 from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
 
 
@@ -178,9 +178,9 @@ def parse_eans(raw: bytes, source: SourceInfo) -> list[Zone]:
                 end = win.get("endDateTime")
                 applicability.append(
                     Applicability(
-                        start=_utc(start, f"{where}: startDateTime")
+                        start=iso_utc(start, f"{where}: startDateTime")
                         if start else None,
-                        end=_utc(end, f"{where}: endDateTime") if end else None,
+                        end=iso_utc(end, f"{where}: endDateTime") if end else None,
                         permanent=False,
                     )
                 )

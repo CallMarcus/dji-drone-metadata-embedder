@@ -9,7 +9,7 @@ normalization must lose nothing.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 M_PER_FT = 0.3048
 
@@ -17,6 +17,18 @@ M_PER_FT = 0.3048
 class AirspaceError(ValueError):
     """A feed failed to fetch or parse; the message names the concrete
     field/position. All-or-nothing: one bad zone invalidates the feed."""
+
+
+def iso_utc(raw: str, where: str) -> datetime:
+    """An ISO-8601 instant as the naive UTC datetime the evaluator compares
+    (``Z`` and offsets both honoured); *where* names the field on error."""
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise AirspaceError(f"{where}: {raw!r} is not an ISO datetime") from exc
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 @dataclass(frozen=True)
