@@ -75,8 +75,8 @@ Six feeds are used:
   flight began and marks, per zone, whether it was active during the
   flight. Nothing else about the flight is sent, and the whole country's
   zones come back. That activity status is the publisher's evaluation and
-  is shown as such; a zone it marks inactive is listed as not applicable,
-  never as entered. NOTAM zones carry their dates from Droneguide's NOTAM
+  is shown as such; a zone it marks inactive that the flight was inside
+  is listed as not applicable, never as entered. NOTAM zones carry their dates from Droneguide's NOTAM
   layer; temporary zones carry none, so the publisher's status is the
   only currency signal for them, and the record says so. The BCAA's
   letter (ref G26-187) asked for four notices to stay visible, and every

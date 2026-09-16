@@ -474,8 +474,8 @@ Droneguide platform's own feature service (skeyes, publishing for the
 BCAA), asked for the flight's time window so the publisher's server
 drops zones that had already expired and marks, per zone, whether it was
 active during the flight; that status shows in the popup as the
-publisher's evaluation and such zones are listed as not applicable, never
-as entered. NOTAM zones take their dates from Droneguide's NOTAM layer.
+publisher's evaluation and such a zone, if the flight was inside it, is
+listed as not applicable, never as entered. NOTAM zones take their dates from Droneguide's NOTAM layer.
 The BCAA's four notices ride with every Belgian record: not an official
 application, only the official channels are authoritative, and compliance
 verification stays with the remote pilot).

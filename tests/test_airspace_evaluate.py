@@ -197,3 +197,21 @@ def test_track_window_is_public_and_needs_every_point_timed():
         TrackPoint(lat=49.1, lon=6.1, alt=300, timestamp="c"),
     ])
     assert track_window(untimed) is None
+
+
+def test_not_applicable_lists_only_zones_the_flight_was_inside():
+    # #562: a country-wide feed can carry hundreds of zones that were not in
+    # force during the flight; "not applicable" is a statement about THIS
+    # flight, so only zones the track actually entered are listed.
+    far_square = [(7.0, 50.0), (7.2, 50.0), (7.2, 50.2), (7.0, 50.2), (7.0, 50.0)]
+    timed_out_far = _zone(identifier="FAR", polygons=[far_square], applicability=[
+        Applicability(datetime(2026, 8, 1, 6), datetime(2026, 8, 1, 18), False)
+    ])
+    inactive_far = _zone(identifier="FAR2", polygons=[far_square],
+                         not_active_reason="not active (publisher's evaluation)")
+    inactive_here = _zone(identifier="HERE",
+                          not_active_reason="not active (publisher's evaluation)")
+    track = Track(name="t", points=[_pt(49.1, 6.1, 0), _pt(49.1, 6.1, 5)])
+    report = evaluate(track, [timed_out_far, inactive_far, inactive_here])
+    assert report.findings == []
+    assert [z.identifier for z in report.not_applicable] == ["HERE"]
