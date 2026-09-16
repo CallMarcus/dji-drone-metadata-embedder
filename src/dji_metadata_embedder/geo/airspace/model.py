@@ -104,3 +104,9 @@ class Zone:
     # popup prose; this is where such prose rides so the reader sees what
     # the publisher said. Never feeds the evaluator.
     notes: list[str] = field(default_factory=list)
+    # The publisher's own evaluation that this zone was not active during
+    # the flight window (#562). Droneguide (Belgium) evaluates activity
+    # server-side for the window the fetch names; the zone is still drawn
+    # and listed, under this reason, and never counted as entered. Set only
+    # by providers that receive such an evaluation.
+    not_active_reason: str | None = None

@@ -56,7 +56,9 @@ class AirspaceReport:
     gap_reason: str | None = None
 
 
-def _window(track: Track) -> tuple[datetime, datetime] | None:
+def track_window(track: Track) -> tuple[datetime, datetime] | None:
+    """The flight's UTC span, or None unless every point is timed —
+    the rule the fetch layer shares when a feed is asked for a window."""
     times = [p.utc for p in track.points if p.utc is not None]
     if len(times) != len(track.points) or not times:
         return None  # uncertain time -> treat every zone as applicable
@@ -87,10 +89,10 @@ def evaluate(
             f"surface_heights_m has {len(surface_heights_m)} entries but "
             f"track has {len(track.points)} points"
         )
-    window = _window(track)
+    window = track_window(track)
     report = AirspaceReport()
     for zone in zones:
-        if not _applies(zone, window):
+        if zone.not_active_reason or not _applies(zone, window):
             report.not_applicable.append(zone)
             continue
         finding = ZoneFinding(zone=zone, entered=False)

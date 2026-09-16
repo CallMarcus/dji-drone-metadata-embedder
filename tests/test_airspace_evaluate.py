@@ -171,3 +171,29 @@ def test_a_duplicated_exterior_ring_still_counts():
     z = _zone(polygons=[SQUARE, SQUARE])  # a feed repeating geometry
     track = Track(name="t", points=[_pt(49.1, 6.1, 0)])
     assert evaluate(track, [z], surface_heights_m=None).findings[0].entered
+
+
+def test_a_publisher_declared_inactive_zone_lands_in_not_applicable():
+    # #562: Droneguide evaluates activity for the flight window server-side;
+    # a zone it marks inactive is reported, labelled, not entered.
+    z = _zone(
+        not_active_reason="not active during the flight window (publisher's evaluation)"
+    )
+    track = Track(name="t", points=[_pt(49.1, 6.1, 0), _pt(49.1, 6.1, 5)])
+    report = evaluate(track, [z])
+    assert report.findings == []
+    assert [x.identifier for x in report.not_applicable] == ["Z1"]
+
+
+def test_track_window_is_public_and_needs_every_point_timed():
+    from dji_metadata_embedder.geo.airspace.evaluate import track_window
+
+    timed = Track(name="t", points=[_pt(49.1, 6.1, 0), _pt(49.1, 6.1, 5)])
+    assert track_window(timed) == (
+        datetime(2026, 7, 30, 12, 0), datetime(2026, 7, 30, 12, 5)
+    )
+    untimed = Track(name="t", points=[
+        _pt(49.1, 6.1, 0),
+        TrackPoint(lat=49.1, lon=6.1, alt=300, timestamp="c"),
+    ])
+    assert track_window(untimed) is None
