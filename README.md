@@ -37,7 +37,8 @@ it's a handful of copy-paste commands. For a guided tour see
   and `--airspace` overlays the same zones on the interactive maps — as
   translucent ceiling-height volumes in the 3D view. Covered so far: the
   US, UK, Ireland, Switzerland, Luxembourg, Denmark, Sweden, Finland,
-  Estonia and Slovenia; everywhere else the record states the gap honestly.
+  Estonia, Slovenia and Belgium; everywhere else the record states the gap
+  honestly.
 - **See where every photo was taken** — `dji-embed photomap` pins a whole
   folder of stills on one clustered map, thumbnails included; 360° panoramas
   get their own marker color and toggle, and open in an interactive viewer.
