@@ -110,6 +110,11 @@ _DEFAULTED_KEYS = ("GimbalYaw", "GimbalPitch", "RelativeAltitude")
 # Parrot.pm). Everything else is DJI.
 _PARROT_KEY = "FrameView"
 
+# Sample-description MIME type of a Parrot Anafi `mett` metadata track:
+# `application/octet-stream;type=com.parrot.videometadata3` (V3, verified on
+# Anafi 4K fw 1.8.2); the Anafi Ai writes `...videometadataproto` (untested).
+_PARROT_META_TYPE = "com.parrot.videometadata"
+
 
 def _parrot_sample(doc: dict) -> TelemetrySample | None:
     """Map one Parrot V3 record (ExifTool ``Parrot.pm`` tag names) to a sample.
@@ -275,25 +280,35 @@ def _run_exiftool_json(path: Path) -> list:
 def probe(path: Path) -> str | None:
     """Cheaply detect an embedded telemetry track without extracting samples.
 
-    Returns the schema descriptor (e.g. ``dvtm_Air3s.proto;model_name:FC9113;…``)
-    when the MP4 carries a ``djmd``/``dbgi`` metadata track, else ``None``.
+    Returns a schema descriptor, or ``None`` when the file has no telemetry
+    track. DJI: the ``Category`` string of a ``djmd``/``dbgi`` track (e.g.
+    ``dvtm_Air3s.proto;model_name:FC9113;…``), or ``"djmd"`` when it has none.
+    Parrot: ``parrot:videometadata3`` (the suffix is whatever follows
+    :data:`_PARROT_META_TYPE` in the track's MIME type).
     """
     proc = _run(
-        ["-s", "-api", "LargeFileSupport=1", "-MetaFormat", "-Category", str(path)]
+        [
+            "-s", "-api", "LargeFileSupport=1",
+            "-MetaFormat", "-MetaType", "-Category", str(path),
+        ]
     )
     out = proc.stdout
-    if "djmd" not in out and "dbgi" not in out:
-        return None
-    m = re.search(r"pb_file:\s*([^\s;]+\.proto[^\n]*)", out)
-    return m.group(1).strip() if m else "djmd"
+    if "djmd" in out or "dbgi" in out:
+        m = re.search(r"pb_file:\s*([^\s;]+\.proto[^\n]*)", out)
+        return m.group(1).strip() if m else "djmd"
+    m = re.search(re.escape(_PARROT_META_TYPE) + r"(\w*)", out)
+    if m:
+        return f"parrot:videometadata{m.group(1)}"
+    return None
 
 
 def extract_samples(path: Path) -> list[TelemetrySample]:
     """Extract GPS-fixed telemetry samples from an MP4/MOV via ExifTool.
 
     Raises :class:`Mp4TelemetryError` when there is no telemetry track, or a
-    track is present but this ExifTool cannot decode the model. A clip that
-    decodes but never acquired a GPS fix yields an empty list (not an error).
+    DJI track is present but this ExifTool cannot decode the model, or a
+    Parrot track yields nothing. A clip that decodes but never acquired a
+    GPS fix yields an empty list (not an error).
     """
     path = Path(path)
     samples, saw_telemetry = _samples_from_exiftool(_run_exiftool_json(path))
@@ -306,6 +321,14 @@ def extract_samples(path: Path) -> list[TelemetrySample]:
             f".SRT for this clip?"
         )
     if not saw_telemetry:
+        if schema.startswith("parrot:"):
+            ver = exiftool_version() or "unknown"
+            raise Mp4TelemetryError(
+                f"Parrot telemetry track ({schema}) in {path.name} decoded no "
+                f"samples with ExifTool {ver}. Only the Anafi V3 format "
+                f"(parrot:videometadata3) is verified; please open an issue "
+                f"with the output of 'exiftool -ee -G1 -s -n FILE'."
+            )
         floor = decode_floor(schema)
         ver = exiftool_version() or "unknown"
         raise Mp4TelemetryError(

@@ -228,6 +228,58 @@ def test_probe_none_when_no_track(monkeypatch, tmp_path):
     assert mt.probe(f) is None
 
 
+def test_probe_recognises_parrot_metadata_track(monkeypatch, tmp_path):
+    out = (
+        "MetaFormat                      : mett\n"
+        "MetaType                        : application/octet-stream;"
+        "type=com.parrot.videometadata3\n"
+    )
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "P2690514.MP4"
+    f.write_bytes(b"\x00")
+    assert mt.probe(f) == "parrot:videometadata3"
+
+
+def test_probe_asks_exiftool_for_the_meta_type(monkeypatch, tmp_path):
+    # Parrot tracks have no Category tag; the MIME type is the discriminator.
+    seen: list[list[str]] = []
+
+    def fake_run(args):
+        seen.append(list(args))
+        return subprocess.CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(mt, "_run", fake_run)
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    mt.probe(f)
+    assert "-MetaType" in seen[0]
+
+
+def test_generic_mett_track_without_parrot_type_is_not_telemetry(monkeypatch, tmp_path):
+    out = "MetaFormat                      : mett\n"
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    assert mt.probe(f) is None
+
+
+def test_undecoded_parrot_stream_error_makes_no_version_claim(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}])
+    monkeypatch.setattr(mt, "probe", lambda p: "parrot:videometadataproto")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "13.59")
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    msg = str(exc.value)
+    assert "parrot:videometadataproto" in msg
+    assert ">=" not in msg  # the DJI version-floor wording must not appear
+
+
 def test_install_hint_names_the_doctor_command():
     from dji_metadata_embedder.mp4_telemetry import _EXIFTOOL_INSTALL_HINT
 
