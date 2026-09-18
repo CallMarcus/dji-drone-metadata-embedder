@@ -1,0 +1,69 @@
+[
+  {
+    "SourceFile": "scrubbed.mp4",
+    "Doc1": {
+      "SampleTime": 0,
+      "Elevation": 43.3074951171875,
+      "GPSLatitude": 51.5007,
+      "GPSLongitude": -0.1246,
+      "GPSAltitude": 75.125,
+      "GPSSatellites": 26,
+      "FrameView": "-0.66998291015625 -0.24359130859375 0.655517578125 -0.24896240234375",
+      "FrameBaseView": "0.937255859375 0 0 0.34844970703125",
+      "DroneQuaternion": "-0.9364013671875 0.01458740234375 0.0142822265625 -0.35028076171875",
+      "FOV": "69 42.26953125",
+      "Battery": 71,
+      "FlyingState": 3,
+      "PilotingMode": 2,
+      "GPSDateTime": "2025:09:22 21:27:56.000Z"
+    },
+    "Doc2": {
+      "SampleTime": 13.3466666666667,
+      "Elevation": 37.5210571289062,
+      "GPSLatitude": 51.500481,
+      "GPSLongitude": -0.125196,
+      "GPSAltitude": 69.21484375,
+      "GPSSatellites": 27,
+      "FrameView": "-0.92431640625 0 0 -0.381591796875",
+      "FrameBaseView": "0.92431640625 0 0 0.381591796875",
+      "DroneQuaternion": "-0.92193603515625 -0.01300048828125 0.07861328125 -0.37896728515625",
+      "FOV": "69 42.26953125",
+      "Battery": 70,
+      "FlyingState": 3,
+      "PilotingMode": 2,
+      "GPSDateTime": "2025:09:22 21:28:09.346Z"
+    },
+    "Doc3": {
+      "SampleTime": 26.2595666666667,
+      "Elevation": 36.4272613525391,
+      "GPSLatitude": 51.500767,
+      "GPSLongitude": -0.125163,
+      "GPSAltitude": 68.1875,
+      "GPSSatellites": 25,
+      "FrameView": "-0.382568359375 -0.41094970703125 0.19549560546875 -0.80401611328125",
+      "FrameBaseView": "0.42889404296875 0 0 0.9033203125",
+      "DroneQuaternion": "-0.42864990234375 -0.02789306640625 0.13775634765625 -0.89239501953125",
+      "FOV": "69 42.26953125",
+      "Battery": 69,
+      "FlyingState": 3,
+      "PilotingMode": 2,
+      "GPSDateTime": "2025:09:22 21:28:22.259Z"
+    },
+    "Doc4": {
+      "SampleTime": 52.4857666666667,
+      "Elevation": 37.4488525390625,
+      "GPSLatitude": 51.500482,
+      "GPSLongitude": -0.125035,
+      "GPSAltitude": 69.609375,
+      "GPSSatellites": 26,
+      "FrameView": "0.87664794921875 0.0797119140625 -0.44805908203125 0.15594482421875",
+      "FrameBaseView": "0.9844970703125 0 0 0.175048828125",
+      "DroneQuaternion": "0.9835205078125 0.0048828125 -0.04937744140625 0.17376708984375",
+      "FOV": "69 42.26953125",
+      "Battery": 67,
+      "FlyingState": 3,
+      "PilotingMode": 2,
+      "GPSDateTime": "2025:09:22 21:28:48.485Z"
+    }
+  }
+]

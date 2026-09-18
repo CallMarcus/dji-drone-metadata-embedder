@@ -1,4 +1,4 @@
-"""ExifTool-backed extractor for DJI MP4 timed metadata (djmd/dbgi).
+"""ExifTool-backed extractor for MP4 timed metadata (DJI djmd/dbgi, Parrot mett).
 
 Reads the per-sample protobuf telemetry ExifTool decodes from a DJI MP4/MOV and
 normalises it to the canonical :class:`~dji_metadata_embedder.utilities.TelemetrySample`
@@ -106,9 +106,45 @@ _DOC_KEY_RE = re.compile(r"^Doc(\d+)$")
 # comment inside :func:`_samples_from_exiftool`).
 _DEFAULTED_KEYS = ("GimbalYaw", "GimbalPitch", "RelativeAltitude")
 
+# A per-sample document carrying this tag is a Parrot V3 record (ExifTool
+# Parrot.pm). Everything else is DJI.
+_PARROT_KEY = "FrameView"
+
+
+def _parrot_sample(doc: dict) -> TelemetrySample | None:
+    """Map one Parrot V3 record (ExifTool ``Parrot.pm`` tag names) to a sample.
+
+    Parrot writes every field in every record, so unlike the DJI branch
+    nothing is defaulted: a missing field is unknown, not zero.
+    ``GPSAltitude`` is EGM96 mean sea level (libvideo-metadata's V3 reader
+    stores it as ``altitude_egm96amsl``), ``Elevation`` the drone's estimated
+    distance to ground. Returns ``None`` for a record without a fix: the
+    ``(0, 0)`` sentinel or Parrot's out-of-range ``500`` marker.
+    """
+    lat = doc.get("GPSLatitude")
+    lon = doc.get("GPSLongitude")
+    if lat is None or lon is None:
+        return None
+    lat, lon = float(lat), float(lon)
+    if abs(lat) > 90.0 or abs(lon) > 180.0 or not is_gps_fix(lat, lon):
+        return None
+    heading, pitch = quat_to_heading_pitch(str(doc[_PARROT_KEY]))
+    rel = doc.get("Elevation")
+    return TelemetrySample(
+        lat,
+        lon,
+        float(doc.get("GPSAltitude", 0.0)),
+        _sample_time_to_cue(doc.get("SampleTime", 0.0)),
+        _parse_gps_datetime(doc.get("GPSDateTime", "")),
+        rel_alt=float(rel) if rel is not None else None,
+        focal_len=None,
+        gimbal_yaw=heading,
+        gimbal_pitch=pitch,
+    )
+
 
 def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
-    """Map ExifTool ``-g3 -j`` JSON to samples and whether telemetry was decoded.
+    """Map ExifTool ``-g3 -j`` JSON (DJI or Parrot records) to samples and whether telemetry was decoded.
 
     ``data`` is ExifTool's JSON: a one-element list whose object holds ``Doc1 …
     DocN`` per-sample sub-documents. Returns ``(samples, saw_telemetry)`` where
@@ -137,6 +173,12 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
     samples: list[TelemetrySample] = []
     saw_telemetry = False
     for _, doc in docs:
+        if _PARROT_KEY in doc:
+            saw_telemetry = True
+            sample = _parrot_sample(doc)
+            if sample is not None:
+                samples.append(sample)
+            continue
         if any(key in doc for key in _TELEMETRY_KEYS):
             saw_telemetry = True
         lat = doc.get("GPSLatitude")

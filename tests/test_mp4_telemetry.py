@@ -98,6 +98,48 @@ def test_samples_from_exiftool_filters_null_island():
     assert saw is True        # but telemetry WAS decoded (AbsoluteAltitude)
 
 
+def test_samples_from_exiftool_maps_parrot_anafi():
+    samples, saw = mt._samples_from_exiftool(_load("anafi_g3j.json"))
+    assert saw is True
+    assert len(samples) == 4
+    first, level, tilted, last = samples
+    assert (first.lat, first.lon) == (51.5007, -0.1246)
+    assert first.alt == 75.125  # Parrot GPSAltitude: EGM96 mean sea level
+    assert first.rel_alt == pytest.approx(43.307, abs=1e-3)  # Elevation = AGL
+    assert first.cue == "00:00:00,000"
+    assert first.dt == datetime(2025, 9, 22, 21, 27, 56)
+    assert first.focal_len is None
+    # Camera heading/pitch from the FrameView quaternion: straight down at
+    # the start, level 13 s in, tilted to -54 later (verified on footage).
+    assert (round(first.gimbal_yaw, 1), round(first.gimbal_pitch, 1)) == (40.6, -88.5)
+    assert (round(level.gimbal_yaw, 1), round(level.gimbal_pitch, 1)) == (44.9, 0.0)
+    assert (round(tilted.gimbal_yaw, 1), round(tilted.gimbal_pitch, 1)) == (129.1, -54.1)
+    assert last.cue == "00:00:52,485"
+    assert last.dt == datetime(2025, 9, 22, 21, 28, 48, 485000)
+
+
+def test_parrot_records_are_never_zero_defaulted():
+    # The DJI protobuf rule (a field the stream carries elsewhere is 0.0
+    # where missing) must not leak across vendors: Parrot writes every
+    # field in every record, so a missing one is unknown.
+    docs = _load("anafi_g3j.json")
+    del docs[0]["Doc1"]["Elevation"]
+    samples, _ = mt._samples_from_exiftool(docs)
+    assert samples[0].rel_alt is None
+    assert samples[1].rel_alt is not None
+
+
+def test_parrot_invalid_location_sentinel_is_dropped():
+    # Parrot marks an invalid location with 500 (seen on the clip's unused
+    # GPSDest*/GPSFraming* fields); it must not become a track point.
+    docs = _load("anafi_g3j.json")
+    docs[0]["Doc1"]["GPSLatitude"] = 500
+    docs[0]["Doc1"]["GPSLongitude"] = 500
+    samples, saw = mt._samples_from_exiftool(docs)
+    assert saw is True
+    assert len(samples) == 3
+
+
 def test_extract_samples_happy(monkeypatch, tmp_path):
     f = tmp_path / "clip.mp4"
     f.write_bytes(b"\x00")
