@@ -565,3 +565,4 @@ def test_unread_videos_note_grammar():
     assert one.startswith("Note: 1 video without an .SRT was not read")
     assert many.startswith("Note: 2 videos without an .SRT were not read")
     assert "doctor --install exiftool" in one
+    assert "the SRT flights are mapped" not in one

@@ -80,15 +80,15 @@ class _ScanEntry:
     both segments share the same unknown offset, so the gap is exact even when
     timezone auto-detection fails, and it never falls back to file mtimes,
     which zip/cloud copies rewrite. Entries built from a sidecar-less video
-    carry absolute UTC here instead (its telemetry has no local clock), so a
-    split-join check between an SRT flight and a video flight compares
-    different conventions; two video segments compare correctly with each
-    other.
+    carry absolute UTC here instead (its telemetry has no local clock), so
+    the join check refuses to compare an SRT flight against a video flight;
+    two segments of the same kind still compare correctly with each other.
     """
 
     track: Track
     first_dt: datetime | None
     last_dt: datetime | None
+    utc: bool = False
 
 
 def _joinable(prev: _ScanEntry, nxt: _ScanEntry, max_gap_s: float) -> bool:
@@ -96,6 +96,10 @@ def _joinable(prev: _ScanEntry, nxt: _ScanEntry, max_gap_s: float) -> bool:
     if posixpath.dirname(prev.track.name) != posixpath.dirname(nxt.track.name):
         return False
     if prev.last_dt is None or nxt.first_dt is None:
+        return False
+    if prev.utc != nxt.utc:
+        # SRT local wall-clock and video absolute UTC are different clock
+        # conventions; comparing them would produce a meaningless gap.
         return False
     gap = (nxt.first_dt - prev.last_dt).total_seconds()
     # Sub-second overlap tolerated: the new file's first block can be stamped
@@ -292,7 +296,9 @@ def scan_flights(
                     if not samples:
                         skipped.append(name)
                         continue
-                    track = build_track_from_samples(name, samples, assume_utc=True)
+                    track = build_track_from_samples(
+                        name, samples, assume_utc=True, tz_offset=tz_offset
+                    )
                 else:
                     samples = load_samples(path)
                     if not samples:
@@ -315,7 +321,11 @@ def scan_flights(
                 logger.warning("Skipping %s: %s", path, exc)
                 skipped.append(name)
                 continue
-            entries.append(_ScanEntry(track, samples[0].dt, samples[-1].dt))
+            entries.append(
+                _ScanEntry(
+                    track, samples[0].dt, samples[-1].dt, utc=is_video(path)
+                )
+            )
     finally:
         util_logger.removeFilter(tz_warnings)
     if tz_warnings.count:

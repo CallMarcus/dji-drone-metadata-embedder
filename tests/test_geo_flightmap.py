@@ -3,6 +3,8 @@ import logging
 import os
 from datetime import datetime, timedelta
 
+import pytest
+
 from dji_metadata_embedder.geo import flightmap as fm
 from dji_metadata_embedder.geo.flightmap import (
     flights_to_geojson,
@@ -345,6 +347,30 @@ def test_join_gap_zero_disables_joining(tmp_path):
     _write(tmp_path, "DJI_0002.SRT", SEG_B)
     tracks, _ = scan_flights(tmp_path, join_gap=0)
     assert len(tracks) == 2
+
+
+def test_no_join_across_srt_and_video_clock_conventions(tmp_path, monkeypatch):
+    # SEG_A's last block is unresolved local wall-clock at T0+2s, position
+    # (34.00002, -84.0). A sidecar-less video finishing 2 s later at almost
+    # the same spot looks joinable by gap and distance alone, but its dt is
+    # absolute UTC — a different clock convention that must never be
+    # compared against the SRT's local one.
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    _write(tmp_path, "DJI_0001.SRT", SEG_A)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    video_sample = TelemetrySample(
+        lat=34.00003, lon=-84.0, alt=103.0, cue="00:00:00,000",
+        dt=T0 + timedelta(seconds=4),
+        rel_alt=40.0, gimbal_yaw=40.0, gimbal_pitch=-88.0,
+    )
+    tracks, skipped = scan_flights(
+        tmp_path,
+        probe_video=lambda p: "parrot:videometadata3",
+        extract=lambda p: [video_sample],
+    )
+    assert skipped == []
+    assert len(tracks) == 2
+    assert all(t.segments is None for t in tracks)
 
 
 def test_join_applies_fuzz_after_joining(tmp_path):
@@ -766,10 +792,13 @@ def _video_sample(cue, dt):
     )
 
 
-def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(tmp_path, monkeypatch):
+@pytest.mark.parametrize("video_name", ["P2690514.MP4", "P2690514.MOV"])
+def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(
+    tmp_path, monkeypatch, video_name
+):
     monkeypatch.setattr(fm, "exiftool_available", lambda: True)
     _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
-    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    (tmp_path / video_name).write_bytes(b"")
     fake_extract = lambda p: [  # noqa: E731
         _video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56)),
         _video_sample("00:00:01,000", datetime(2025, 9, 22, 21, 27, 57)),
@@ -783,6 +812,25 @@ def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(tmp_path, 
     assert (video.points[0].gimbal_yaw, video.points[0].gimbal_pitch) == (40.0, -88.0)
     assert video.points[0].rel_alt == 40.0
     assert skipped == []
+
+
+def test_scan_flights_tz_offset_sets_local_offset_for_a_video_track(tmp_path, monkeypatch):
+    # --tz-offset cannot shift an already-UTC video sample, but it should
+    # still land on the track so the flight record can print local times.
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    fake_extract = lambda p: [  # noqa: E731
+        _video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56)),
+    ]
+    tracks, _ = scan_flights(
+        tmp_path,
+        probe_video=lambda p: "parrot:videometadata3",
+        extract=fake_extract,
+        tz_offset=timedelta(hours=2),
+    )
+    video = tracks[0]
+    assert video.local_offset == timedelta(hours=2)
+    assert video.points[0].utc == datetime(2025, 9, 22, 21, 27, 56)  # unchanged
 
 
 def test_scan_flights_ignores_videos_without_a_telemetry_track(tmp_path, monkeypatch):

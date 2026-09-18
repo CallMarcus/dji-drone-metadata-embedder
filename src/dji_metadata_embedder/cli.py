@@ -890,12 +890,12 @@ def _hint_gimbal_from_video(tracks: list, src: Path) -> None:
 
 def _unread_videos_note(names: list[str]) -> str:
     """One stderr note for videos without an .SRT that went unread because
-    ExifTool is missing (the SRT flights still map)."""
+    ExifTool is missing."""
     n = len(names)
     return (
         f"Note: {n} video{'s' if n != 1 else ''} without an .SRT "
         f"{'were' if n != 1 else 'was'} not read because ExifTool is "
-        "missing; the SRT flights are mapped. " + _EXIFTOOL_INSTALL_HINT
+        "missing. " + _EXIFTOOL_INSTALL_HINT
     )
 
 @main.command()
@@ -1117,8 +1117,6 @@ def flightmap(
             )
         except VideoGimbalUnavailable as e:
             raise click.ClickException(str(e))
-        if unread_videos:
-            click.echo(_unread_videos_note(unread_videos), err=True)
         total = len(tracks) + len(skipped)
         if total == 0:
             if unread_videos:
@@ -1135,6 +1133,8 @@ def flightmap(
             raise click.ClickException(
                 f"None of the {total} telemetry files in {src} contain GPS telemetry"
             )
+        if unread_videos:
+            click.echo(_unread_videos_note(unread_videos), err=True)
         for name in skipped:
             progress.warning("No GPS telemetry", item=name)
             if verbose:
@@ -1559,8 +1559,6 @@ def map_cmd(
             on_file=progress.advance if progress.active else None,
             on_unread_videos=unread_videos.extend,
         )
-        if unread_videos:
-            click.echo(_unread_videos_note(unread_videos), err=True)
         if not points and not tracks:
             found = len(photo_skipped) + len(srt_skipped)
             if found:
@@ -1578,6 +1576,8 @@ def map_cmd(
                 f"Nothing to map in {src}: no photos (JPG/JPEG/DNG), no .SRT "
                 "flight logs and no telemetry-carrying videos found"
             )
+        if unread_videos:
+            click.echo(_unread_videos_note(unread_videos), err=True)
         for name in photo_skipped:
             progress.warning("No GPS data", item=name)
             if verbose:
