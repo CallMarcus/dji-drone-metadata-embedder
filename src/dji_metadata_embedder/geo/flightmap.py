@@ -1,10 +1,12 @@
 """Multi-flight folder scan and exporters (GeoJSON, KML) for ``flightmap``.
 
 A directory of DJI ``.SRT`` sidecars is parsed straight into :class:`Track`
-objects — the videos are never opened and no external tool is needed — so
-scanning an archive of clips is fast. The resulting track list is the single
-model every flightmap writer consumes: GeoJSON and KML here, the combined
-HTML map in :mod:`.flightmap_html`.
+objects with no external tool. Videos that have no sidecar are probed for an
+embedded telemetry track (DJI ``djmd``/``dbgi``, Parrot ``mett``) and, when
+they carry one, read through ExifTool; plain videos are ignored, so scanning
+an archive of clips stays fast. The resulting track list is the single model
+every flightmap writer consumes: GeoJSON and KML here, the combined HTML map
+in :mod:`.flightmap_html`.
 """
 
 from __future__ import annotations
@@ -20,7 +22,9 @@ from statistics import median
 from xml.sax.saxutils import escape
 
 from .. import utilities
+from ..mp4_telemetry import Mp4TelemetryError, is_video, probe
 from ..utilities import TelemetrySample, load_samples, redact_coords
+from ..utils.exiftool import exiftool_available
 from . import videogimbal
 from .footprint import DEFAULT_LENS, fov_degrees
 from .geometry import haversine_m
@@ -32,6 +36,19 @@ logger = logging.getLogger(__name__)
 # Both cases so case-sensitive filesystems match DJI's .SRT and renamed .srt;
 # identical paths matched twice (case-insensitive filesystems) dedupe via set.
 _SRT_PATTERNS = ("*.SRT", "*.srt")
+
+# Videos considered when they have no SRT beside them (same suffix set as
+# mp4_telemetry.VIDEO_SUFFIXES, both cases for case-sensitive filesystems).
+_VIDEO_PATTERNS = ("*.MP4", "*.mp4", "*.MOV", "*.mov")
+
+
+def _sidecarless_videos(root: Path, recursive: bool, srts: set[Path]) -> list[Path]:
+    """Videos under *root* with no SRT of the same stem in the same folder."""
+    stems = {p.with_suffix("") for p in srts}
+    videos: set[Path] = set()
+    for pattern in _VIDEO_PATTERNS:
+        videos.update(root.rglob(pattern) if recursive else root.glob(pattern))
+    return sorted(v for v in videos if v.with_suffix("") not in stems)
 
 
 def _display_name(path: Path, root: Path, recursive: bool) -> str:
@@ -202,6 +219,8 @@ def scan_flights(
     gimbal_from_video: bool = False,
     on_video_gimbal: Callable[[VideoGimbalReport], None] | None = None,
     extract: Callable[[Path], list[TelemetrySample]] | None = None,
+    probe_video: Callable[[Path], str | None] = probe,
+    on_unread_videos: Callable[[list[str]], None] | None = None,
 ) -> tuple[list[Track], list[str]]:
     """Scan *directory* for ``.SRT`` files and return ``(tracks, skipped)``.
 
@@ -224,41 +243,70 @@ def scan_flights(
     ``extract`` overrides the video sample extractor for tests.
     :class:`~.videogimbal.VideoGimbalUnavailable` propagates when ExifTool
     is missing, so the caller can say so once.
+
+    Videos with no SRT of the same stem are probed with ``probe_video``
+    (default :func:`~dji_metadata_embedder.mp4_telemetry.probe`); those
+    reporting a telemetry track are read with ``extract`` (default
+    ExifTool) and mapped like SRTs, their sample times already UTC. Plain
+    videos are ignored, not skipped. When ExifTool is missing, no video is
+    read and ``on_unread_videos(names)`` is called once with their display
+    names so the caller can say so; the SRTs still map.
     """
     root = Path(directory)
     files: set[Path] = set()
     for pattern in _SRT_PATTERNS:
         files.update(root.rglob(pattern) if recursive else root.glob(pattern))
+    videos = _sidecarless_videos(root, recursive, files)
+    if videos and not exiftool_available():
+        if on_unread_videos is not None:
+            on_unread_videos([_display_name(v, root, recursive) for v in videos])
+        videos = []
+    telemetry_videos: list[Path] = []
+    for video in videos:
+        try:
+            if probe_video(video) is not None:
+                telemetry_videos.append(video)
+        except Mp4TelemetryError as exc:
+            logger.warning("Could not probe %s: %s", video, exc)
     entries: list[_ScanEntry] = []
     skipped: list[str] = []
     tz_warnings = _TzWarningAggregator()
     util_logger = logging.getLogger(utilities.__name__)
     util_logger.addFilter(tz_warnings)
     try:
-        files_sorted = sorted(files)
+        files_sorted = sorted(files | set(telemetry_videos))
         for index, path in enumerate(files_sorted, start=1):
             name = _display_name(path, root, recursive)
             if on_file is not None:
                 on_file(index, len(files_sorted), name)
             try:
-                samples = load_samples(path)
-                if not samples:
-                    skipped.append(name)
-                    continue
-                if gimbal_from_video:
-                    report = videogimbal.enrich_from_video(
-                        path, samples, name=name,
-                        extract=extract or videogimbal.extract_samples,
+                if is_video(path):
+                    # Embedded telemetry: GPSDateTime is absolute UTC, so no
+                    # mtime fallback and no timezone resolution.
+                    samples = (extract or videogimbal.extract_samples)(path)
+                    if not samples:
+                        skipped.append(name)
+                        continue
+                    track = build_track_from_samples(name, samples, assume_utc=True)
+                else:
+                    samples = load_samples(path)
+                    if not samples:
+                        skipped.append(name)
+                        continue
+                    if gimbal_from_video:
+                        report = videogimbal.enrich_from_video(
+                            path, samples, name=name,
+                            extract=extract or videogimbal.extract_samples,
+                        )
+                        if on_video_gimbal is not None:
+                            on_video_gimbal(report)
+                    mtime_utc = datetime.fromtimestamp(
+                        path.stat().st_mtime, tz=timezone.utc
+                    ).replace(tzinfo=None)
+                    track = build_track_from_samples(
+                        name, samples, tz_offset=tz_offset, mtime_utc=mtime_utc
                     )
-                    if on_video_gimbal is not None:
-                        on_video_gimbal(report)
-                mtime_utc = datetime.fromtimestamp(
-                    path.stat().st_mtime, tz=timezone.utc
-                ).replace(tzinfo=None)
-                track = build_track_from_samples(
-                    name, samples, tz_offset=tz_offset, mtime_utc=mtime_utc
-                )
-            except (OSError, ValueError) as exc:
+            except (OSError, ValueError, Mp4TelemetryError) as exc:
                 logger.warning("Skipping %s: %s", path, exc)
                 skipped.append(name)
                 continue

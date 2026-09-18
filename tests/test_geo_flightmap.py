@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 
+from dji_metadata_embedder.geo import flightmap as fm
 from dji_metadata_embedder.geo.flightmap import (
     flights_to_geojson,
     flights_to_kml,
@@ -12,6 +13,8 @@ from dji_metadata_embedder.geo.flightmap import (
     write_flights_kml,
 )
 from dji_metadata_embedder.geo.track import Track, TrackPoint
+from dji_metadata_embedder.mp4_telemetry import Mp4TelemetryError
+from dji_metadata_embedder.utilities import TelemetrySample
 
 
 def _bracket_srt(*coords: tuple[float, float, float]) -> str:
@@ -753,3 +756,111 @@ def test_scan_flights_without_the_flag_never_touches_videos(tmp_path):
     tracks, _ = scan_flights(tmp_path, on_video_gimbal=reports.append, extract=boom)
     assert tracks[0].points[0].gimbal_yaw is None
     assert reports == []
+
+
+def _video_sample(cue, dt):
+    """A sidecar-less video sample: UTC dt, altitude, AGL and camera pose."""
+    return TelemetrySample(
+        lat=48.0, lon=-122.0, alt=70.0, cue=cue, dt=dt,
+        rel_alt=40.0, gimbal_yaw=40.0, gimbal_pitch=-88.0,
+    )
+
+
+def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    fake_extract = lambda p: [  # noqa: E731
+        _video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56)),
+        _video_sample("00:00:01,000", datetime(2025, 9, 22, 21, 27, 57)),
+    ]
+    tracks, skipped = scan_flights(
+        tmp_path, probe_video=lambda p: "parrot:videometadata3", extract=fake_extract
+    )
+    assert [t.name for t in tracks] == ["DJI_0001", "P2690514"]
+    video = tracks[1]
+    assert video.points[0].utc == datetime(2025, 9, 22, 21, 27, 56)  # already UTC
+    assert (video.points[0].gimbal_yaw, video.points[0].gimbal_pitch) == (40.0, -88.0)
+    assert video.points[0].rel_alt == 40.0
+    assert skipped == []
+
+
+def test_scan_flights_ignores_videos_without_a_telemetry_track(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
+    (tmp_path / "holiday.mp4").write_bytes(b"")
+
+    def boom(p):
+        raise AssertionError("extractor must not run for a plain video")
+
+    tracks, skipped = scan_flights(tmp_path, probe_video=lambda p: None, extract=boom)
+    assert [t.name for t in tracks] == ["DJI_0001"]
+    assert skipped == []  # a plain video is not a failed flight
+
+
+def test_scan_flights_does_not_probe_videos_that_have_an_srt(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
+    (tmp_path / "DJI_0001.MP4").write_bytes(b"")
+    probed = []
+    tracks, _ = scan_flights(tmp_path, probe_video=lambda p: probed.append(p) or None)
+    assert probed == []
+    assert [t.name for t in tracks] == ["DJI_0001"]
+
+
+def test_scan_flights_reports_unread_videos_when_exiftool_is_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: False)
+    _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    unread = []
+
+    def boom(p):
+        raise AssertionError("probe must not run without ExifTool")
+
+    tracks, skipped = scan_flights(
+        tmp_path, probe_video=boom, on_unread_videos=unread.append
+    )
+    assert [t.name for t in tracks] == ["DJI_0001"]  # the SRTs still map
+    assert skipped == []
+    assert unread == [["P2690514"]]
+
+
+def test_scan_flights_counts_videos_in_the_progress_total(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    seen = []
+    scan_flights(
+        tmp_path,
+        probe_video=lambda p: "parrot:videometadata3",
+        extract=lambda p: [_video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56))],
+        on_file=lambda i, n, name: seen.append((i, n, name)),
+    )
+    assert seen == [(1, 2, "DJI_0001"), (2, 2, "P2690514")]
+
+
+def test_scan_flights_skips_a_video_whose_extraction_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+
+    def fail(p):
+        raise Mp4TelemetryError("decoder said no")
+
+    tracks, skipped = scan_flights(
+        tmp_path, probe_video=lambda p: "parrot:videometadata3", extract=fail
+    )
+    assert tracks == []
+    assert skipped == ["P2690514"]
+
+
+def test_scan_flights_recursive_labels_videos_with_their_subdir(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    (tmp_path / "day1").mkdir()
+    (tmp_path / "day1" / "P2690514.MP4").write_bytes(b"")
+    tracks, _ = scan_flights(
+        tmp_path,
+        recursive=True,
+        probe_video=lambda p: "parrot:videometadata3",
+        extract=lambda p: [_video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56))],
+    )
+    assert [t.name for t in tracks] == ["day1/P2690514"]
