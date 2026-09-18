@@ -853,6 +853,16 @@ def test_scan_flights_skips_a_video_whose_extraction_fails(tmp_path, monkeypatch
     assert skipped == ["P2690514"]
 
 
+def test_scan_flights_skips_a_video_that_decodes_but_has_no_fix(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    (tmp_path / "P2690514.MP4").write_bytes(b"")
+    tracks, skipped = scan_flights(
+        tmp_path, probe_video=lambda p: "parrot:videometadata3", extract=lambda p: []
+    )
+    assert tracks == []
+    assert skipped == ["P2690514"]
+
+
 def test_scan_flights_recursive_labels_videos_with_their_subdir(tmp_path, monkeypatch):
     monkeypatch.setattr(fm, "exiftool_available", lambda: True)
     (tmp_path / "day1").mkdir()

@@ -52,7 +52,7 @@ def _sidecarless_videos(root: Path, recursive: bool, srts: set[Path]) -> list[Pa
 
 
 def _display_name(path: Path, root: Path, recursive: bool) -> str:
-    """Flight label: the SRT stem, path-qualified on recursive scans.
+    """Flight label: the SRT or video stem, path-qualified on recursive scans.
 
     DJI restarts numbering per card/session, so recursive scans keep the
     subdirectory (``session1/DJI_0001``) to stop distinct flights collapsing
@@ -79,7 +79,11 @@ class _ScanEntry:
     gaps are measured on these rather than on the resolved UTC in the track:
     both segments share the same unknown offset, so the gap is exact even when
     timezone auto-detection fails, and it never falls back to file mtimes,
-    which zip/cloud copies rewrite.
+    which zip/cloud copies rewrite. Entries built from a sidecar-less video
+    carry absolute UTC here instead (its telemetry has no local clock), so a
+    split-join check between an SRT flight and a video flight compares
+    different conventions; two video segments compare correctly with each
+    other.
     """
 
     track: Track
@@ -240,7 +244,8 @@ def scan_flights(
     SRT's missing gimbal attitude from the sibling video's djmd stream
     before the track is built (#546, opt-in: ExifTool walks every video);
     ``on_video_gimbal(report)`` hears what happened per file, and
-    ``extract`` overrides the video sample extractor for tests.
+    ``extract`` overrides the video sample extractor for tests, both for
+    gimbal enrichment and for sidecar-less video tracks.
     :class:`~.videogimbal.VideoGimbalUnavailable` propagates when ExifTool
     is missing, so the caller can say so once.
 
@@ -266,7 +271,7 @@ def scan_flights(
         try:
             if probe_video(video) is not None:
                 telemetry_videos.append(video)
-        except Mp4TelemetryError as exc:
+        except (OSError, Mp4TelemetryError) as exc:
             logger.warning("Could not probe %s: %s", video, exc)
     entries: list[_ScanEntry] = []
     skipped: list[str] = []
