@@ -276,6 +276,15 @@ Requires a recent ExifTool (Air 3S ≥ 13.39, Mini 5 Pro ≥ 13.52, Mavic 4 Pro
 ≥ 13.59); see
 [docs/MP4_TIMED_METADATA.md](docs/MP4_TIMED_METADATA.md).
 
+**Parrot Anafi (non-DJI):** the Anafi family embeds per-frame telemetry in the
+MP4 (a `mett` track of type `com.parrot.videometadata3`), and `dji-embed` reads
+it the same way: `convert`, `verify-sun`, `check`, `flightmap` and `map` accept
+the clips, with altitude, height above ground and camera heading/pitch.
+Verified on an Anafi 4K (firmware 1.8.2); the Anafi USA and Thermal share the
+format but are unverified. Video only: no `.SRT`, no `embed`, no camera
+columns. Any ExifTool from 12.x decodes it. See
+[docs/MP4_TIMED_METADATA.md](docs/MP4_TIMED_METADATA.md#parrot-anafi).
+
 ## Intended use & scope
 
 This is a tool for **transparency and accountability**. Drone telemetry is

@@ -1,4 +1,4 @@
-# MP4 Timed Metadata (sidecar-less DJI footage)
+# MP4 Timed Metadata (sidecar-less footage: DJI and Parrot)
 
 Newer DJI models (Air 3S, Mini 5 Pro, and others) record telemetry **inside the
 MP4** as DJI's `djmd`/`dbgi` protobuf timed-metadata track, with no sidecar
@@ -44,11 +44,45 @@ supported model. To use a specific binary instead, set
 
 ## What you get
 
-`GPSDateTime` in the stream is true UTC, so GPX/CoT timestamps, CSV
+`GPSDateTime` in a DJI stream is true UTC, so GPX/CoT timestamps, CSV
 `datetime_utc`, and `verify-sun` are correct without any timezone guessing.
+Parrot records carry no wall-clock time; their UTC is the file's QuickTime
+`CreateDate` (UTC by specification) plus each sample's offset, so a wrong
+camera clock shifts the whole clip by the same amount.
 Field coverage varies by model (e.g. Air 3S includes gimbal angles; Mini 5 Pro
 is GPS + altitude only). CSV from an MP4 fills geo/altitude/`datetime_utc`/solar
 columns; SRT-only camera columns (iso, shutter, …) stay blank.
+
+## Parrot Anafi
+
+Anafi recordings carry a `mett` metadata track whose sample description is
+`application/octet-stream;type=com.parrot.videometadata3`: one packed record
+per frame (30 Hz) with position, altitude, ground distance, velocity, drone and
+camera orientation quaternions, exposure, field of view, link and battery
+state. ExifTool has decoded it since 2019 (`Parrot.pm`), so any 12.x or newer
+release works; the version table above is DJI-only.
+
+What `dji-embed` maps (verified on an Anafi 4K, firmware 1.8.2):
+
+| Parrot tag | Sample field | Meaning |
+|------------|--------------|---------|
+| `GPSLatitude`/`GPSLongitude` | lat/lon | WGS84 |
+| `GPSAltitude` | abs. altitude | EGM96 mean sea level (Parrot's own datum) |
+| `Elevation` | rel. altitude | the drone's estimated distance to ground |
+| `FrameView` (quaternion) | gimbal yaw/pitch | camera heading (from north) and pitch (negative = down), derived from the world-frame camera quaternion; roll is always 0 |
+| `SampleTime` | cue | offset into the clip |
+
+Not read: the per-sample field of view, velocities, battery and link state, and
+the takeoff location in the file header. `embed` does not apply (nothing to
+merge into the MP4 it does not already carry), and the CSV camera columns stay
+blank. The Anafi Ai writes a protobuf variant (`...videometadataproto`); it is
+recognised but untested, and `dji-embed` says so if it decodes nothing.
+
+`flightmap` and `map` now also read videos that have no `.SRT` beside them:
+each such video costs one quick ExifTool header probe, and those that carry a
+telemetry track (Parrot, or sidecar-less DJI models) are read in full, roughly
+15 seconds per gigabyte. Videos with an `.SRT`, and plain videos without
+telemetry, are not read.
 
 ## Bundled ExifTool config
 
