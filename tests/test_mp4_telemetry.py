@@ -247,3 +247,25 @@ def test_run_without_config_file_falls_back_to_plain_argv(monkeypatch):
     monkeypatch.setattr(mt, "exiftool_config_path", lambda: None)
     mt._run(["-ver"])
     assert seen[0][1:] == ["-ver"]
+
+
+def test_extraction_argv_pins_quicktime_dates_to_utc(monkeypatch, tmp_path):
+    # Parrot records carry no wall-clock time, so ExifTool synthesises
+    # GPSDateTime from CreateDate + SampleTime and, without this option,
+    # treats CreateDate as *local* time: a UTC+2 machine read an Anafi clip
+    # two hours early (#323). DJI streams carry their own GPSDateTime and
+    # ignore the option.
+    seen: list[list[str]] = []
+
+    def fake_run(args):
+        seen.append(list(args))
+        return subprocess.CompletedProcess([], 0, "[]", "")
+
+    monkeypatch.setattr(mt, "_run", fake_run)
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    mt._run_exiftool_json(f)
+    args = seen[0]
+    i = args.index("QuickTimeUTC=1")
+    assert args[i - 1] == "-api"
+    assert args.index("-ee") < i < args.index(str(f))

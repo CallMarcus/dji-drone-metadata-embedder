@@ -180,7 +180,17 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
 def _run_exiftool_json(path: Path) -> list:
     """Run the embedded-metadata extraction and return parsed JSON (one element)."""
     proc = _run(
-        ["-ee", "-j", "-g3", "-n", "-api", "LargeFileSupport=1", str(path)]
+        [
+            "-ee", "-j", "-g3", "-n",
+            "-api", "LargeFileSupport=1",
+            # QuickTime CreateDate is UTC by spec. A stream without its own
+            # wall-clock time (Parrot) gets GPSDateTime synthesised as
+            # CreateDate + SampleTime, and without this option ExifTool
+            # shifts it by the machine's local zone (#323). DJI protobuf
+            # streams carry GPSDateTime themselves and are unaffected.
+            "-api", "QuickTimeUTC=1",
+            str(path),
+        ]
     )
     if proc.returncode != 0:
         raise Mp4TelemetryError(
