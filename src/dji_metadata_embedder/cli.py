@@ -221,7 +221,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4/MOV pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
-      flightmap Map every flight in a folder of SRT logs on one combined map
+      flightmap Map every flight in a folder (SRT logs or telemetry videos) on one map
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       panoedit  Edit the opening view of 360° panoramas (drag, save, next)
       check     Analyze video files for embedded metadata
@@ -1007,14 +1007,14 @@ def flightmap(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Map every flight in a folder of DJI .SRT logs on one combined map.
+    """Map every flight in a folder on one combined map.
 
-    Reads only the .SRT telemetry sidecars (fast — the videos are never
-    opened) and draws each flight as its own coloured track with a summary
-    popup, as HTML, KML, or GeoJSON. Recordings split at the 4 GB file
-    limit are chained back into one flight (see --join-gap). Sidecar-less
-    models whose telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, ...)
-    need 'dji-embed convert html VIDEO.MP4' per clip instead.
+    Reads the .SRT telemetry sidecars (fast) and, for videos that have no
+    sidecar, the telemetry track inside the MP4/MOV itself (DJI djmd/dbgi on
+    the Air 3S, Mini 5 Pro and others; Parrot Anafi), opened only for those
+    files via ExifTool. Each flight is its own coloured track with a
+    summary popup, as HTML, KML, or GeoJSON. Recordings split at the 4 GB
+    file limit are chained back into one flight (see --join-gap).
     """
     progress = make_progress(progress_mode)
     if progress.active:
@@ -1091,6 +1091,7 @@ def flightmap(
                 "--gimbal-from-video needs ExifTool. " + _EXIFTOOL_INSTALL_HINT
             )
         video_reports: list[VideoGimbalReport] = []
+        unread_videos: list[str] = []
         try:
             tracks, skipped = scan_flights(
                 src,
@@ -1101,18 +1102,27 @@ def flightmap(
                 on_file=progress.advance if progress.active else None,
                 gimbal_from_video=gimbal_from_video,
                 on_video_gimbal=video_reports.append,
+                on_unread_videos=unread_videos.extend,
             )
         except VideoGimbalUnavailable as e:
             raise click.ClickException(str(e))
+        if unread_videos:
+            n = len(unread_videos)
+            click.echo(
+                f"Note: {n} video{'s' if n != 1 else ''} without an .SRT "
+                f"{'were' if n != 1 else 'was'} not read because ExifTool is "
+                "missing; the SRT flights are mapped. " + _EXIFTOOL_INSTALL_HINT,
+                err=True,
+            )
         total = len(tracks) + len(skipped)
         if total == 0:
             raise click.ClickException(
-                f"No .SRT telemetry files found in {src}"
+                f"No .SRT telemetry files or telemetry-carrying videos found in {src}"
                 + ("" if recursive else " (use -r to scan subdirectories)")
             )
         if not tracks:
             raise click.ClickException(
-                f"None of the {total} SRT files in {src} contain GPS telemetry"
+                f"None of the {total} telemetry files in {src} contain GPS telemetry"
             )
         for name in skipped:
             progress.warning("No GPS telemetry", item=name)
@@ -1494,8 +1504,9 @@ def map_cmd(
     """One map of everything in a folder: photos, panoramas, and flights.
 
     The simple mode (#322): scans DIRECTORY and all its subfolders for
-    geotagged photos (JPG/JPEG/DNG, read with ExifTool) and DJI .SRT
-    flight logs, and writes one HTML map — clustered photo and 360°
+    geotagged photos (JPG/JPEG/DNG, read with ExifTool) and flights, from
+    .SRT flight logs or from the telemetry inside sidecar-less DJI and Parrot
+    videos, and writes one HTML map — clustered photo and 360°
     panorama pins plus a coloured track per flight, each type and flight
     toggleable, with playback built in. Recordings split at the 4 GB
     limit are chained back into single flights. Deliberately few options:
@@ -1528,12 +1539,22 @@ def map_cmd(
             points, photo_skipped = [], []
         if redact.lower() == "fuzz":
             points = redact_photo_points(points, "fuzz")
+        unread_videos: list[str] = []
         tracks, srt_skipped = scan_flights(
             src,
             recursive=True,
             redact=redact.lower(),
             on_file=progress.advance if progress.active else None,
+            on_unread_videos=unread_videos.extend,
         )
+        if unread_videos:
+            n = len(unread_videos)
+            click.echo(
+                f"Note: {n} video{'s' if n != 1 else ''} without an .SRT "
+                f"{'were' if n != 1 else 'was'} not read because ExifTool is "
+                "missing; the SRT flights are mapped. " + _EXIFTOOL_INSTALL_HINT,
+                err=True,
+            )
         if not points and not tracks:
             found = len(photo_skipped) + len(srt_skipped)
             if found:
@@ -1542,8 +1563,8 @@ def map_cmd(
                     f"{'s' if found != 1 else ''} found, none with GPS data"
                 )
             raise click.ClickException(
-                f"Nothing to map in {src}: no photos (JPG/JPEG/DNG) and "
-                "no .SRT flight logs found"
+                f"Nothing to map in {src}: no photos (JPG/JPEG/DNG), no .SRT "
+                "flight logs and no telemetry-carrying videos found"
             )
         for name in photo_skipped:
             progress.warning("No GPS data", item=name)
