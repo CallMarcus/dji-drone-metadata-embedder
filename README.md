@@ -282,7 +282,7 @@ it the same way: `convert`, `verify-sun`, `check`, `flightmap` and `map` accept
 the clips, with altitude, height above ground and camera heading/pitch.
 Verified on an Anafi 4K (firmware 1.8.2); the Anafi USA and Thermal share the
 format but are unverified. Video only: no `.SRT`, no `embed`, no camera
-columns. Any ExifTool from 12.x decodes it. See
+columns. Verified with ExifTool 12.76 and 13.59. See
 [docs/MP4_TIMED_METADATA.md](docs/MP4_TIMED_METADATA.md#parrot-anafi).
 
 ## Intended use & scope
@@ -315,7 +315,7 @@ Commands:
   embed      Embed telemetry from SRT files into MP4 videos
   validate   Validate SRT/MP4 pairs and report drift
   convert    Convert SRT telemetry to GPX, CSV, GeoJSON, KML, HTML, or CoT
-  flightmap  Map every flight in a folder of SRT logs on one combined map
+  flightmap  Map every flight in a folder (SRT logs or telemetry videos) on one map
   map        One map of everything in a folder: photos, panoramas, and flights
   photomap   Map GPS-tagged still photos to an HTML/KML/GeoJSON map
   check      Check media files for embedded metadata
@@ -472,13 +472,16 @@ dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 
 ### `dji-embed flightmap` - Combined Flight Map
 
-Map every flight in a folder of DJI `.SRT` logs on one combined map. Reads
-only the `.SRT` telemetry sidecars — the videos are never opened and no
-external tool is needed — so scanning a large archive is fast. Each flight
-becomes its own coloured track with a popup (start time, duration, altitude
-range, GPS points) and a layer toggle; the KML imports into Google Earth and
-Google My Maps as one line per flight. SRT files without GPS telemetry
-(e.g. ordinary subtitles) are skipped and counted in a summary; `-v` lists them.
+Map every flight in a folder of DJI `.SRT` logs and telemetry-carrying videos
+on one combined map. `.SRT` sidecars are read directly; a video with no
+`.SRT` beside it is probed for an embedded telemetry track and, when it
+carries one, read via ExifTool. A video that already has an `.SRT` is never
+opened by the scan, so a folder of paired SRT/MP4 clips stays fast. Each
+flight becomes its own coloured track with a popup (start time, duration,
+altitude range, GPS points) and a layer toggle; the KML imports into Google
+Earth and Google My Maps as one line per flight. SRT files without GPS
+telemetry (e.g. ordinary subtitles) are skipped and counted in a summary;
+`-v` lists them.
 
 ```bash
 dji-embed flightmap /path/to/footage                        # -> footage/flightmap.html
@@ -547,9 +550,6 @@ Notes:
   whose mtimes were rewritten (zip/cloud transfers) the tool warns once and
   falls back to the mtime; pass `--tz-offset` with your recording timezone to
   get correct absolute times. Joining itself is unaffected either way.
-- Sidecar-less models whose telemetry lives inside the MP4 (Air 3S,
-  Mini 5 Pro, …) are not scanned; map those per clip with
-  `dji-embed convert html VIDEO.MP4`.
 - Leaflet and the OpenStreetMap basemap tiles load from the internet; the
   flight data itself is embedded, so the HTML file is portable but needs a
   connection to render. A flight map publishes where you fly — share it
@@ -568,8 +568,8 @@ Notes:
 The simple mode: point it at a mixed folder and get a single HTML map of
 the geotagged photos, 360° panoramas, and DJI flight tracks inside. It
 always scans subfolders, chains recordings split at the 4 GB limit back
-into single flights, and needs no decisions — photos require ExifTool,
-flight tracks don't.
+into single flights, and needs no decisions — photos and sidecar-less
+videos require ExifTool; SRT flight tracks don't.
 
 ```bash
 dji-embed map /path/to/folder                 # -> folder/map.html

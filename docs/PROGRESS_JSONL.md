@@ -62,10 +62,11 @@ field, never by arrival order.
 ## Per-command notes
 
 ### `map`
-- One `progress` event per `.SRT` file scanned, exactly like `flightmap` —
-  the photo scan is a single batch ExifTool call and emits none; `start`
-  carries no `total` (the file count is discovered during the scan — take
-  `total` from the first `progress` event).
+- One `progress` event per telemetry file scanned (`.SRT`, or a video read
+  for its embedded telemetry), exactly like `flightmap` — the photo scan is
+  a single batch ExifTool call and emits none; `start` carries no `total`
+  (the file count is discovered during the scan — take `total` from the
+  first `progress` event).
 - One `warning` per photo without GPS (`message` is `"No GPS data"`, the
   file name is in `item`) and one per SRT without GPS telemetry (`message`
   is `"No GPS telemetry"`, the file name is in `item`), both emitted after
@@ -77,9 +78,10 @@ field, never by arrival order.
   `photomap`.
 
 ### `flightmap`
-- One `progress` event per `.SRT` file scanned; `start` carries no `total`
-  (the file count is discovered during the scan — take `total` from the
-  first `progress` event).
+- One `progress` event per telemetry file scanned (`.SRT`, or a video read
+  for its embedded telemetry); `start` carries no `total` (the file count is
+  discovered during the scan — take `total` from the first `progress`
+  event).
 - One `warning` per SRT without GPS telemetry (`message` is `"No GPS
   telemetry"`, the file name is in `item`), emitted after the scan.
 - `summary`: `{"flights": N, "skipped": N, "joined_files": N}` —

@@ -59,8 +59,8 @@ Anafi recordings carry a `mett` metadata track whose sample description is
 `application/octet-stream;type=com.parrot.videometadata3`: one packed record
 per frame (30 Hz) with position, altitude, ground distance, velocity, drone and
 camera orientation quaternions, exposure, field of view, link and battery
-state. ExifTool has decoded it since 2019 (`Parrot.pm`), so any 12.x or newer
-release works; the version table above is DJI-only.
+state. ExifTool decodes it in every release we tested (12.76 and 13.59 give
+identical results), so the version table above is DJI-only.
 
 What `dji-embed` maps (verified on an Anafi 4K, firmware 1.8.2):
 
@@ -82,7 +82,7 @@ recognised but untested, and `dji-embed` says so if it decodes nothing.
 each such video costs one quick ExifTool header probe, and those that carry a
 telemetry track (Parrot, or sidecar-less DJI models) are read in full, roughly
 15 seconds per gigabyte. Videos with an `.SRT`, and plain videos without
-telemetry, are not read.
+telemetry, are not read in full.
 
 ## Bundled ExifTool config
 
