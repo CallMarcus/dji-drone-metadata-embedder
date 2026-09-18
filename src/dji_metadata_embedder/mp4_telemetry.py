@@ -114,8 +114,11 @@ _PARROT_KEY = "FrameView"
 def _parrot_sample(doc: dict) -> TelemetrySample | None:
     """Map one Parrot V3 record (ExifTool ``Parrot.pm`` tag names) to a sample.
 
-    Parrot writes every field in every record, so unlike the DJI branch
-    nothing is defaulted: a missing field is unknown, not zero.
+    Parrot writes every field in every record, so unlike the DJI branch the
+    optional fields are never zero-defaulted: a missing ``Elevation`` is
+    unknown (``None``), not 0.0. Only ``alt`` falls back to 0.0, because
+    :class:`TelemetrySample` requires a float there; the same fallback the
+    DJI branch uses.
     ``GPSAltitude`` is EGM96 mean sea level (libvideo-metadata's V3 reader
     stores it as ``altitude_egm96amsl``), ``Elevation`` the drone's estimated
     distance to ground. Returns ``None`` for a record without a fix: the
