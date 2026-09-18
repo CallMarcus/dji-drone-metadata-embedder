@@ -276,7 +276,7 @@ def test_extraction_argv_pins_quicktime_dates_to_utc(monkeypatch, tmp_path):
     [
         ("1 0 0 0", 0.0, 0.0),                                  # identity: north, level
         ("0.7071067811865476 0 0 0.7071067811865476", 90.0, 0.0),   # pure yaw east
-        ("0.7071067811865476 0 -0.7071067811865476 0", 0.0, -90.0),  # straight down
+        ("0.8660254037844387 0 -0.5 0", 0.0, -60.0),  # pure pitch -60 (a -90 case is gimbal lock: heading undefined)
         # Real Anafi 4K FrameView values (fixture Doc1..Doc3): straight
         # down at the start, level 13 s in, tilted -54 later.
         ("-0.66998291015625 -0.24359130859375 0.655517578125 -0.24896240234375", 40.6, -88.5),
