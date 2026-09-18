@@ -8,6 +8,7 @@ model, so the convert exporters and verify-sun work on sidecar-less footage.
 from __future__ import annotations
 
 import json
+import math
 import re
 import subprocess
 from datetime import datetime
@@ -60,6 +61,30 @@ def _parse_gps_datetime(value: str) -> datetime | None:
         except ValueError:
             continue
     return None
+
+
+def quat_to_heading_pitch(quat: str) -> tuple[float, float]:
+    """Camera heading and pitch from a Parrot ``FrameView`` quaternion.
+
+    ExifTool prints it as ``"W X Y Z"`` in Parrot's NED world frame
+    (libvideo-metadata: "frame view quaternion in the global frame of
+    reference"). Aerospace ZYX Euler angles: heading in degrees clockwise
+    from north in ``[0, 360)``, pitch in degrees with negative pointing
+    down. Roll is dropped, the stabilised frame view carries none.
+    Verified on Anafi 4K footage (2026-09-18): heading tracked the GPS
+    course while moving, pitch read -88.5 with the camera straight down
+    and 0 when level.
+    """
+    parts = quat.split()
+    if len(parts) != 4:
+        raise ValueError(f"expected four quaternion components, got {quat!r}")
+    w, x, y, z = (float(part) for part in parts)
+    heading = math.degrees(
+        math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+    ) % 360.0
+    sin_pitch = max(-1.0, min(1.0, 2 * (w * y - z * x)))
+    pitch = math.degrees(math.asin(sin_pitch))
+    return heading, pitch
 
 
 # Mapped per-sample tags other than SampleTime. Presence of any of these on any

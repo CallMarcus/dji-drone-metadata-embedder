@@ -269,3 +269,29 @@ def test_extraction_argv_pins_quicktime_dates_to_utc(monkeypatch, tmp_path):
     i = args.index("QuickTimeUTC=1")
     assert args[i - 1] == "-api"
     assert args.index("-ee") < i < args.index(str(f))
+
+
+@pytest.mark.parametrize(
+    "quat, heading, pitch",
+    [
+        ("1 0 0 0", 0.0, 0.0),                                  # identity: north, level
+        ("0.7071067811865476 0 0 0.7071067811865476", 90.0, 0.0),   # pure yaw east
+        ("0.7071067811865476 0 -0.7071067811865476 0", 0.0, -90.0),  # straight down
+        # Real Anafi 4K FrameView values (fixture Doc1..Doc3): straight
+        # down at the start, level 13 s in, tilted -54 later.
+        ("-0.66998291015625 -0.24359130859375 0.655517578125 -0.24896240234375", 40.6, -88.5),
+        ("-0.92431640625 0 0 -0.381591796875", 44.9, 0.0),
+        ("-0.382568359375 -0.41094970703125 0.19549560546875 -0.80401611328125", 129.1, -54.1),
+    ],
+)
+def test_quat_to_heading_pitch(quat, heading, pitch):
+    h, p = mt.quat_to_heading_pitch(quat)
+    assert (round(h, 1), round(p, 1)) == (heading, pitch)
+    assert 0.0 <= h < 360.0
+
+
+def test_quat_to_heading_pitch_rejects_malformed_input():
+    with pytest.raises(ValueError):
+        mt.quat_to_heading_pitch("1 0 0")
+    with pytest.raises(ValueError):
+        mt.quat_to_heading_pitch("a b c d")
