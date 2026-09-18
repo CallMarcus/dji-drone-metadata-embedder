@@ -887,6 +887,17 @@ def _hint_gimbal_from_video(tracks: list, src: Path) -> None:
             err=True,
         )
 
+
+def _unread_videos_note(names: list[str]) -> str:
+    """One stderr note for videos without an .SRT that went unread because
+    ExifTool is missing (the SRT flights still map)."""
+    n = len(names)
+    return (
+        f"Note: {n} video{'s' if n != 1 else ''} without an .SRT "
+        f"{'were' if n != 1 else 'was'} not read because ExifTool is "
+        "missing; the SRT flights are mapped. " + _EXIFTOOL_INSTALL_HINT
+    )
+
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
@@ -1107,15 +1118,15 @@ def flightmap(
         except VideoGimbalUnavailable as e:
             raise click.ClickException(str(e))
         if unread_videos:
-            n = len(unread_videos)
-            click.echo(
-                f"Note: {n} video{'s' if n != 1 else ''} without an .SRT "
-                f"{'were' if n != 1 else 'was'} not read because ExifTool is "
-                "missing; the SRT flights are mapped. " + _EXIFTOOL_INSTALL_HINT,
-                err=True,
-            )
+            click.echo(_unread_videos_note(unread_videos), err=True)
         total = len(tracks) + len(skipped)
         if total == 0:
+            if unread_videos:
+                raise click.ClickException(
+                    f"No .SRT telemetry files in {src}; the only videos there "
+                    "were not read because ExifTool is missing. "
+                    + _EXIFTOOL_INSTALL_HINT
+                )
             raise click.ClickException(
                 f"No .SRT telemetry files or telemetry-carrying videos found in {src}"
                 + ("" if recursive else " (use -r to scan subdirectories)")
@@ -1528,8 +1539,9 @@ def map_cmd(
     # folder is what gets served.
     link_base = "" if serve_map else None
     with _jsonl_terminal(progress, "map"):
-        # A photo-less tree skips ExifTool entirely, so a tracks-only
-        # archive maps on a machine without it.
+        # A photo-less tree skips ExifTool for photos; the flight scan below
+        # still needs it only for videos without an .SRT, and says so when
+        # it is missing.
         if folder_has_photos(src):
             try:
                 points, photo_skipped = scan_photos(src, recursive=True)
@@ -1548,19 +1560,19 @@ def map_cmd(
             on_unread_videos=unread_videos.extend,
         )
         if unread_videos:
-            n = len(unread_videos)
-            click.echo(
-                f"Note: {n} video{'s' if n != 1 else ''} without an .SRT "
-                f"{'were' if n != 1 else 'was'} not read because ExifTool is "
-                "missing; the SRT flights are mapped. " + _EXIFTOOL_INSTALL_HINT,
-                err=True,
-            )
+            click.echo(_unread_videos_note(unread_videos), err=True)
         if not points and not tracks:
             found = len(photo_skipped) + len(srt_skipped)
             if found:
                 raise click.ClickException(
                     f"Nothing to map in {src}: {found} file"
                     f"{'s' if found != 1 else ''} found, none with GPS data"
+                )
+            if unread_videos:
+                raise click.ClickException(
+                    f"Nothing to map in {src}: no photos (JPG/JPEG/DNG), no "
+                    ".SRT flight logs, and the videos there were not read "
+                    "because ExifTool is missing. " + _EXIFTOOL_INSTALL_HINT
                 )
             raise click.ClickException(
                 f"Nothing to map in {src}: no photos (JPG/JPEG/DNG), no .SRT "
