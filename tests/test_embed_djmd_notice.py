@@ -155,6 +155,11 @@ class TestCheckReportsEmbeddedTelemetry:
         monkeypatch.setattr(metadata_check, "run_exiftool", lambda p: {})
         return metadata_check.check_file(Path("clip.mp4"))
 
+    def _check_with_exif(self, monkeypatch, ffprobe_data, exif_data):
+        monkeypatch.setattr(metadata_check, "run_ffprobe", lambda p: ffprobe_data)
+        monkeypatch.setattr(metadata_check, "run_exiftool", lambda p: exif_data)
+        return metadata_check.check_file(Path("clip.mp4"))
+
     def test_djmd_stream_sets_flag(self, monkeypatch):
         result = self._check(
             monkeypatch,
@@ -182,5 +187,25 @@ class TestCheckReportsEmbeddedTelemetry:
                 "format": {"tags": {}},
                 "streams": [{"codec_type": "data", "codec_tag_string": "tmcd"}],
             },
+        )
+        assert result["embedded_telemetry"] is False
+
+    def test_parrot_meta_type_sets_flag_without_ffprobe(self, monkeypatch):
+        # Parrot Anafi (#323): ffprobe only says `mett`, ExifTool names the format.
+        result = self._check_with_exif(
+            monkeypatch,
+            None,
+            {"MetaType": "application/octet-stream;type=com.parrot.videometadata3"},
+        )
+        assert result["embedded_telemetry"] is True
+
+    def test_generic_mett_track_does_not_set_flag(self, monkeypatch):
+        result = self._check_with_exif(
+            monkeypatch,
+            {
+                "format": {"tags": {}},
+                "streams": [{"codec_type": "data", "codec_tag_string": "mett"}],
+            },
+            {"MetaType": "application/arcore-accel"},
         )
         assert result["embedded_telemetry"] is False
