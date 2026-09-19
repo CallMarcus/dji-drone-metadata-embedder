@@ -182,9 +182,7 @@ public abstract partial class FlowViewModel(
         var result = await RunCliAsync(status, args);
         if (!result.Success)
         {
-            Fail(result.Terminal?.Message ?? GenericFailureMessage,
-                string.IsNullOrWhiteSpace(result.StderrText)
-                    ? null : result.StderrText);
+            FailFrom(result);
             return false;
         }
         foreach (var output in result.Terminal!.Outputs ?? [])
@@ -192,6 +190,35 @@ public abstract partial class FlowViewModel(
             Outputs.Add(output);
         }
         return true;
+    }
+
+    /// <summary>The CLI's error message is shown as-is. When it says
+    /// ExifTool is missing — flightmap/map's own wording ("ExifTool is
+    /// missing") or the shared hint raised by convert on a lone MP4, photo
+    /// map, 360° views and --gimbal-from-video ("ExifTool not found") —
+    /// the details gain a pointer to the app's own place for that — never
+    /// the CLI's flag — above whatever stderr the CLI wrote (#572).</summary>
+    internal static string? FailureDetailsFor(string message, string? stderr)
+    {
+        if (!message.Contains("ExifTool is missing", StringComparison.Ordinal)
+            && !message.Contains("ExifTool not found", StringComparison.Ordinal))
+        {
+            return stderr;
+        }
+        const string pointer = "The Setup mode shows whether ExifTool is available.";
+        return stderr is null ? pointer : pointer + "\n\n" + stderr;
+    }
+
+    /// <summary>Fails from a terminal CLI result, applying the same
+    /// generic-message fallback and Setup pointer as <see
+    /// cref="RunStepAsync"/> so every failure path — not only the ones
+    /// routed through it — benefits (#572).</summary>
+    protected void FailFrom(CliRunResult result)
+    {
+        var message = result.Terminal?.Message ?? GenericFailureMessage;
+        Fail(message, FailureDetailsFor(message,
+            string.IsNullOrWhiteSpace(result.StderrText)
+                ? null : result.StderrText));
     }
 
     private void OnEvent(ProgressEvent e)

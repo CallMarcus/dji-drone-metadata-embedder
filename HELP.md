@@ -25,15 +25,16 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
 - **Map your footage** — `photomap` pins every GPS-tagged photo (JPG/JPEG/
   DNG) on an interactive HTML map with thumbnails; 360° panoramas get their
   own orange pins and an in-page viewer. `flightmap` draws every flight in
-  a folder of `.SRT` logs on one map. `map` combines both: photos,
+  a folder on one map, from `.SRT` logs or from the telemetry inside
+  sidecar-less DJI and Parrot Anafi videos. `map` combines both: photos,
   panoramas and flight tracks on a single map, subfolders included.
 - **Airspace awareness** — `flightmap --airspace` overlays official drone
   zones (FAA UAS Facility Maps in the US, the national feeds in Europe)
   on the flat or 3D flight map; `flightmap -f record` writes a printable
   flight record listing the zones each flight crossed. Covered so far:
   US, UK, Ireland, Switzerland, Luxembourg, Denmark, Sweden, Finland,
-  Estonia. The map states facts about published zones; it never rules on
-  whether a flight was legal.
+  Estonia, Slovenia, Belgium. The map states facts about published zones;
+  it never rules on whether a flight was legal.
 - **Convert telemetry** — SRT to GPX, CSV, GeoJSON, KML, CoT, or an HTML
   map, for use in other apps (Google Earth, GIS tools, video editors).
 - **Privacy controls** — `--redact fuzz` coarsens locations to ~100 m;
@@ -48,8 +49,10 @@ Two ways to use it — same engine:
    preview pane, with an *Open in browser* pop-out. The Flight map mode
    has a *3D terrain map* toggle for a MapLibre terrain view
    (`flightmap-3d.html`) and an *Airspace* toggle for the official-zones
-   overlay. The *360° views* mode opens a local editor for setting each
-   panorama's opening view. No terminal.
+   overlay. Flight map also takes folders of videos that carry their
+   telemetry inside (Parrot Anafi, sidecar-less DJI); when ExifTool is
+   missing the failure card points at *Setup*. The *360° views* mode opens
+   a local editor for setting each panorama's opening view. No terminal.
    The workspace also accepts a
    single telemetry file (`.SRT`/`.MP4`/`.MOV`) as the source, and
    *Convert telemetry* turns it (or a folder) into GPX, CSV, GeoJSON, KML,

@@ -41,6 +41,9 @@ public enum MediaKinds
     FlightLogs = 1,
     Photos = 2,
     Videos = 4,
+    /// <summary>MP4/MOV with no .SRT of the same stem beside it: the CLI's
+    /// flightmap reads the telemetry track inside such videos (#572).</summary>
+    TelemetryVideos = 8,
 }
 
 /// <summary>
@@ -64,12 +67,14 @@ public sealed record WorkspaceMode(
     public bool Fits(FolderContents contents) =>
         (Needs.HasFlag(MediaKinds.FlightLogs) && contents.HasFlightLogs)
         || (Needs.HasFlag(MediaKinds.Photos) && contents.HasPhotos)
-        || (Needs.HasFlag(MediaKinds.Videos) && contents.HasVideos);
+        || (Needs.HasFlag(MediaKinds.Videos) && contents.HasVideos)
+        || (Needs.HasFlag(MediaKinds.TelemetryVideos) && contents.HasTelemetryVideos);
 
     public static readonly IReadOnlyList<WorkspaceMode> All =
     [
         new(WorkspaceModeKind.FlightMap, "Flight map", "Generate flight map",
-            Sources: SourceKinds.Folder, Needs: MediaKinds.FlightLogs,
+            Sources: SourceKinds.Folder,
+            Needs: MediaKinds.FlightLogs | MediaKinds.TelemetryVideos,
             "Something went wrong while mapping your flights."),
         new(WorkspaceModeKind.PhotoMap, "Photo map", "Generate photo map",
             Sources: SourceKinds.Folder, Needs: MediaKinds.Photos,

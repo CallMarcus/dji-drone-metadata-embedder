@@ -14,22 +14,25 @@ public class WorkspaceViewModelTests : IDisposable
         bool srt = false, bool photos = false, bool videos = false,
         bool flightMap = false, bool photoMap = false,
         bool nestedSrt = false, bool nestedPhotos = false,
-        bool nestedVideos = false)
+        bool nestedVideos = false, bool sidecarless = false,
+        bool nestedSidecarless = false)
     {
         var folder = Path.Combine(_dir, "footage-" + Guid.NewGuid().ToString("N")[..6]);
         Directory.CreateDirectory(folder);
         if (srt) File.WriteAllText(Path.Combine(folder, "DJI_0001.SRT"), "");
         if (photos) File.WriteAllText(Path.Combine(folder, "IMG_1.JPG"), "");
         if (videos) File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
+        if (sidecarless) File.WriteAllText(Path.Combine(folder, "P2690514.MP4"), "");
         if (flightMap) File.WriteAllText(Path.Combine(folder, "flightmap.html"), "");
         if (photoMap) File.WriteAllText(Path.Combine(folder, "photomap.html"), "");
-        if (nestedSrt || nestedPhotos || nestedVideos)
+        if (nestedSrt || nestedPhotos || nestedVideos || nestedSidecarless)
         {
             var sub = Directory.CreateDirectory(
                 Path.Combine(folder, "trip")).FullName;
             if (nestedSrt) File.WriteAllText(Path.Combine(sub, "DJI_0002.SRT"), "");
             if (nestedPhotos) File.WriteAllText(Path.Combine(sub, "IMG_2.JPG"), "");
             if (nestedVideos) File.WriteAllText(Path.Combine(sub, "DJI_0002.MP4"), "");
+            if (nestedSidecarless) File.WriteAllText(Path.Combine(sub, "P2690515.MP4"), "");
         }
         return folder;
     }
@@ -50,8 +53,11 @@ public class WorkspaceViewModelTests : IDisposable
 
     private static FolderContents Contents(
         bool logs = false, bool photos = false, bool videos = false,
-        bool topLogs = false, bool topPhotos = false, bool topVideos = false) =>
-        new(logs, photos, videos, topLogs, topPhotos, topVideos, null, null);
+        bool topLogs = false, bool topPhotos = false, bool topVideos = false,
+        bool telemetryVideos = false, bool topTelemetryVideos = false) =>
+        new(logs, photos, videos, topLogs, topPhotos, topVideos, null, null,
+            HasTelemetryVideos: telemetryVideos,
+            HasTopLevelTelemetryVideos: topTelemetryVideos);
 
     [Fact]
     public async Task Folder_scans_go_through_the_injected_inspector()
@@ -107,12 +113,38 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
     }
 
+    // #572: a video with no .SRT may carry its telemetry inside (Parrot
+    // Anafi, sidecar-less DJI). The CLI's flightmap reads those, so the
+    // folder suggests Flight map — Embed, which needs SRT/MP4 pairs, was
+    // never able to do anything with it.
     [Fact]
-    public async Task Videos_only_suggests_embed()
+    public async Task Videos_without_srt_suggest_flight_map()
     {
         var vm = Vm("unused");
-        await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SuggestedMode!.Kind);
+        await vm.SetFolderAsync(MakeFolder(sidecarless: true));
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SelectedMode.Kind);
+    }
+
+    [Fact]
+    public async Task Pairs_still_suggest_flight_map()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true, videos: true));
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+    }
+
+    [Fact]
+    public async Task A_chosen_embed_survives_a_pairs_folder()
+    {
+        // #476 regression: Embed still fits (it has videos), so the Flight
+        // map suggestion is offered, not imposed.
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        await vm.SetFolderAsync(MakeFolder(srt: true, videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+        Assert.True(vm.ShowModeSuggestion);
     }
 
     // #476: the scan's suggestion used to overwrite SelectedMode
@@ -647,7 +679,7 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Equal(
-            "Those flight logs are in subfolders — turn on Include subfolders.",
+            "Those flight logs or drone videos are in subfolders — turn on Include subfolders.",
             vm.ErrorMessage);
     }
 
@@ -668,7 +700,8 @@ public class WorkspaceViewModelTests : IDisposable
     public async Task Embed_blocks_nested_only_videos_instead_of_a_hollow_success()
     {
         var vm = Vm(Path.Combine(_dir, "does-not-exist"));
-        await vm.SetFolderAsync(MakeFolder(nestedVideos: true));  // suggests Embed
+        await vm.SetFolderAsync(MakeFolder(nestedVideos: true));  // suggests Flight map since #572
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Equal(
@@ -798,7 +831,7 @@ public class WorkspaceViewModelTests : IDisposable
     public async Task Photo_map_on_a_videos_folder_fails_before_launching_anything()
     {
         var vm = Vm(Path.Combine(_dir, "does-not-exist"));
-        await vm.SetFolderAsync(MakeFolder(videos: true));   // suggests Embed
+        await vm.SetFolderAsync(MakeFolder(videos: true));   // suggests Flight map since #572
         vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
@@ -937,6 +970,44 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains("detail line", vm.ErrorDetails);
     }
 
+    // #572: the CLI's terminal error is shown as-is; when it names ExifTool
+    // the details gain a pointer to the app's own place for that, above
+    // the stderr text the CLI wrote.
+    [Fact]
+    public async Task Exiftool_missing_error_points_at_setup_above_stderr()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "flightmap"}""",
+            """{"v": 1, "event": "error", "message": "No .SRT telemetry files in /clips; the only videos there were not read because ExifTool is missing. run: dji-embed doctor --install exiftool"}""",
+        ], exitCode: 1, stderrLine: "Note: 3 videos without an .SRT were not read");
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(sidecarless: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("ExifTool is missing", vm.ErrorMessage);
+        Assert.StartsWith(
+            "The Setup mode shows whether ExifTool is available.\n\n",
+            vm.ErrorDetails);
+        Assert.Contains("Note: 3 videos", vm.ErrorDetails);
+    }
+
+    [Fact]
+    public void Failure_details_rule_is_pure()
+    {
+        Assert.Null(FlowViewModel.FailureDetailsFor("boom", null));
+        Assert.Equal("stderr", FlowViewModel.FailureDetailsFor("boom", "stderr"));
+        Assert.Equal(
+            "The Setup mode shows whether ExifTool is available.",
+            FlowViewModel.FailureDetailsFor("… because ExifTool is missing.", null));
+        Assert.Equal(
+            "The Setup mode shows whether ExifTool is available.\n\nstderr",
+            FlowViewModel.FailureDetailsFor("… because ExifTool is missing.", "stderr"));
+        Assert.Equal(
+            "The Setup mode shows whether ExifTool is available.",
+            FlowViewModel.FailureDetailsFor("ExifTool not found. Install it and try again.", null));
+    }
+
     [Fact]
     public async Task Cancel_returns_to_the_idle_pane()
     {
@@ -1033,7 +1104,7 @@ public class WorkspaceViewModelTests : IDisposable
         ]);
         var vm = Vm(cli);
         await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(["/footage/processed"], vm.Outputs);
@@ -1085,6 +1156,7 @@ public class WorkspaceViewModelTests : IDisposable
         ], exitCode: 0, stderrLine: "boom detail");
         var vm = Vm(cli);
         await vm.SetFolderAsync(MakeFolder(videos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Equal("Something went wrong while embedding the flight data.",
@@ -1696,7 +1768,7 @@ public class WorkspaceViewModelTests : IDisposable
             vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
         vm.EmbedOptions.DatAuto = true;
         await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
 
         await vm.RunCommand.ExecuteAsync(null);
 
@@ -1878,7 +1950,7 @@ public class WorkspaceViewModelTests : IDisposable
         ]);
         var vm = Vm(cli);
         await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
             .Single(p => p.Value == TelemetryPrivacy.Fuzz);
         vm.EmbedOptions.SelectedContainer =
@@ -2572,5 +2644,61 @@ public class WorkspaceViewModelTests : IDisposable
         // State never affects argv: same strip with and without recents.
         Assert.Equal(Vm(cli: null).CommandPreview,
             Vm(cli: null, stateStore: store).CommandPreview);
+    }
+
+    // #572: the guard and its copy stop claiming .SRT is the only source.
+    [Fact]
+    public async Task Flight_map_runs_on_a_folder_of_videos_without_srt()
+    {
+        var argsFile = Path.Combine(_dir, "args-anafi.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(sidecarless: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.StartsWith("flightmap", File.ReadAllText(argsFile).TrimStart());
+    }
+
+    [Fact]
+    public async Task Flight_map_without_subfolders_blocks_nested_only_videos_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedSidecarless: true));
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Those flight logs or drone videos are in subfolders — turn on Include subfolders.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Flight_map_not_found_copy_names_both_sources_with_the_toggle_on()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No flight logs (.SRT) or drone videos were found in that folder. "
+            + "Pick the folder that contains your footage — subfolders are "
+            + "included automatically.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Flight_map_not_found_copy_names_both_sources_with_the_toggle_off()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No flight logs (.SRT) or drone videos were found in that folder. "
+            + "Pick the folder that contains your footage.",
+            vm.ErrorMessage);
     }
 }

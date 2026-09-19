@@ -32,14 +32,17 @@ Drop a folder (or a single `.SRT`/`.MP4` file) into **Source** and the
 likely mode is picked for you. The **Mode** strip offers:
 
 - **Flight map** — one interactive map of every flight in the folder,
-  with playback. Needs videos with their `.SRT` flight logs. A **3D
-  terrain map** toggle renders the flights draped over real terrain
-  instead (writes `flightmap-3d.html`, so the flat map is never
-  overwritten). An **Airspace zones** option overlays official zone
-  data on either map (US FAA, plus ED-269 feeds where a country
-  publishes one), fetched from the official sources and cached beside
-  the map for reuse; on the 3D map, published ceilings become
-  translucent volumes.
+  with playback. Needs your flight logs, your drone videos, or both.
+  Some drones write the telemetry inside the video instead of a
+  `.SRT` (Parrot Anafi, and DJI models such as the Air 3S, Mini 5 Pro
+  and Neo). Those clips are read with ExifTool, which is slower than
+  reading a `.SRT`. A **3D terrain map** toggle renders the flights
+  draped over real terrain instead (writes `flightmap-3d.html`, so
+  the flat map is never overwritten). An **Airspace zones** option
+  overlays official zone data on either map (US FAA, plus ED-269
+  feeds where a country publishes one), fetched from the official
+  sources and cached beside the map for reuse; on the 3D map,
+  published ceilings become translucent volumes.
 - **Photo map** — your still photos pinned on a map, including a full
   360° panorama viewer for drone panoramas.
 - **Embed telemetry** — writes each flight log's GPS track into the video
@@ -57,8 +60,8 @@ likely mode is picked for you. The **Mode** strip offers:
   and the saved view are identical either way); an **Edit at full
   resolution** option turns that off for machines with a capable
   graphics card.
-- **Setup** — confirms FFmpeg and ExifTool are ready, and can install
-  what's missing.
+- **Setup** — confirms FFmpeg and ExifTool are ready, and tells you how
+  to install what's missing.
 
 ![Photo map options](assets/gui/workspace-photo-options.png)
 

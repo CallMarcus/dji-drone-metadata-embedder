@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using DjiEmbed.Gui.Services;
 
@@ -19,15 +20,46 @@ public class DoctorReportTests
         Assert.Equal("version 7.1", item.Detail);
     }
 
+    // The Windows installer bundles both tools, so "reinstall" is right
+    // there; the macOS app relies on Homebrew and must say so (#572).
     [Fact]
-    public void Missing_tool_gets_the_reinstall_hint()
+    public void Missing_tool_on_windows_gets_the_reinstall_hint()
     {
         var items = DoctorReport.Parse(Summary(
-            """{"tools": {"exiftool": {"present": false}}}"""));
+            """{"tools": {"exiftool": {"present": false}}}"""), OSPlatform.Windows);
         var item = Assert.Single(items);
         Assert.Equal("Photo tools (ExifTool)", item.Label);
         Assert.False(item.Present);
-        Assert.Contains("Reinstalling", item.Detail);
+        Assert.Equal("Reinstalling the application should restore this.", item.Detail);
+    }
+
+    [Theory]
+    [InlineData("exiftool", "Install it with Homebrew: brew install exiftool")]
+    [InlineData("ffmpeg", "Install it with Homebrew: brew install ffmpeg")]
+    public void Missing_tool_on_macos_names_the_homebrew_command(
+        string tool, string expected)
+    {
+        var items = DoctorReport.Parse(Summary(
+            $"{{\"tools\": {{\"{tool}\": {{\"present\": false}}}}}}"), OSPlatform.OSX);
+        Assert.Equal(expected, Assert.Single(items).Detail);
+    }
+
+    // A tool the CLI might report in future has no Homebrew formula this
+    // app knows of, so it should not get a confidently wrong brew command.
+    [Fact]
+    public void Unknown_missing_tool_on_macos_points_at_the_package_manager()
+    {
+        var items = DoctorReport.Parse(Summary(
+            """{"tools": {"newtool": {"present": false}}}"""), OSPlatform.OSX);
+        Assert.Equal("Install it with your package manager.", Assert.Single(items).Detail);
+    }
+
+    [Fact]
+    public void Missing_tool_elsewhere_points_at_the_package_manager()
+    {
+        var items = DoctorReport.Parse(Summary(
+            """{"tools": {"exiftool": {"present": false}}}"""), OSPlatform.Linux);
+        Assert.Equal("Install it with your package manager.", Assert.Single(items).Detail);
     }
 
     [Fact]

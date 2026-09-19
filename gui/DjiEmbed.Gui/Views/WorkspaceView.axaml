@@ -145,7 +145,7 @@
                                         <TextBlock Text="Drop a folder of footage here"
                                                    FontSize="15"
                                                    HorizontalAlignment="Center" />
-                                        <TextBlock Text="photos, drone videos with their .SRT flight logs, or both — or a single .SRT/.MP4 to convert"
+                                        <TextBlock Text="photos, drone videos with or without .SRT flight logs, or both — or a single .SRT/.MP4 to convert"
                                                    Opacity="0.6" FontSize="12"
                                                    HorizontalAlignment="Center"
                                                    TextWrapping="Wrap"
