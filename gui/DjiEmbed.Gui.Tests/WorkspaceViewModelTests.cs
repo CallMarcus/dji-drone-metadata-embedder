@@ -967,6 +967,41 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Contains("detail line", vm.ErrorDetails);
     }
 
+    // #572: the CLI's terminal error is shown as-is; when it names ExifTool
+    // the details gain a pointer to the app's own place for that, above
+    // the stderr text the CLI wrote.
+    [Fact]
+    public async Task Exiftool_missing_error_points_at_setup_above_stderr()
+    {
+        var cli = FakeCli.WriteEventStream(_dir,
+        [
+            """{"v": 1, "event": "start", "command": "flightmap"}""",
+            """{"v": 1, "event": "error", "message": "No .SRT telemetry files in /clips; the only videos there were not read because ExifTool is missing. run: dji-embed doctor --install exiftool"}""",
+        ], exitCode: 1, stderrLine: "Note: 3 videos without an .SRT were not read");
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(sidecarless: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Contains("ExifTool is missing", vm.ErrorMessage);
+        Assert.StartsWith(
+            "The Setup mode shows whether ExifTool is available.\n\n",
+            vm.ErrorDetails);
+        Assert.Contains("Note: 3 videos", vm.ErrorDetails);
+    }
+
+    [Fact]
+    public void Failure_details_rule_is_pure()
+    {
+        Assert.Null(FlowViewModel.FailureDetailsFor("boom", null));
+        Assert.Equal("stderr", FlowViewModel.FailureDetailsFor("boom", "stderr"));
+        Assert.Equal(
+            "The Setup mode shows whether ExifTool is available.",
+            FlowViewModel.FailureDetailsFor("… because ExifTool is missing.", null));
+        Assert.Equal(
+            "The Setup mode shows whether ExifTool is available.\n\nstderr",
+            FlowViewModel.FailureDetailsFor("… because ExifTool is missing.", "stderr"));
+    }
+
     [Fact]
     public async Task Cancel_returns_to_the_idle_pane()
     {
