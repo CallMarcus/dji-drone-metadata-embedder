@@ -14,22 +14,25 @@ public class WorkspaceViewModelTests : IDisposable
         bool srt = false, bool photos = false, bool videos = false,
         bool flightMap = false, bool photoMap = false,
         bool nestedSrt = false, bool nestedPhotos = false,
-        bool nestedVideos = false)
+        bool nestedVideos = false, bool sidecarless = false,
+        bool nestedSidecarless = false)
     {
         var folder = Path.Combine(_dir, "footage-" + Guid.NewGuid().ToString("N")[..6]);
         Directory.CreateDirectory(folder);
         if (srt) File.WriteAllText(Path.Combine(folder, "DJI_0001.SRT"), "");
         if (photos) File.WriteAllText(Path.Combine(folder, "IMG_1.JPG"), "");
         if (videos) File.WriteAllText(Path.Combine(folder, "DJI_0001.MP4"), "");
+        if (sidecarless) File.WriteAllText(Path.Combine(folder, "P2690514.MP4"), "");
         if (flightMap) File.WriteAllText(Path.Combine(folder, "flightmap.html"), "");
         if (photoMap) File.WriteAllText(Path.Combine(folder, "photomap.html"), "");
-        if (nestedSrt || nestedPhotos || nestedVideos)
+        if (nestedSrt || nestedPhotos || nestedVideos || nestedSidecarless)
         {
             var sub = Directory.CreateDirectory(
                 Path.Combine(folder, "trip")).FullName;
             if (nestedSrt) File.WriteAllText(Path.Combine(sub, "DJI_0002.SRT"), "");
             if (nestedPhotos) File.WriteAllText(Path.Combine(sub, "IMG_2.JPG"), "");
             if (nestedVideos) File.WriteAllText(Path.Combine(sub, "DJI_0002.MP4"), "");
+            if (nestedSidecarless) File.WriteAllText(Path.Combine(sub, "P2690515.MP4"), "");
         }
         return folder;
     }
@@ -107,12 +110,38 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(WorkspaceModeKind.PhotoMap, vm.SelectedMode.Kind);
     }
 
+    // #572: a video with no .SRT may carry its telemetry inside (Parrot
+    // Anafi, sidecar-less DJI). The CLI's flightmap reads those, so the
+    // folder suggests Flight map — Embed, which needs SRT/MP4 pairs, was
+    // never able to do anything with it.
     [Fact]
-    public async Task Videos_only_suggests_embed()
+    public async Task Videos_without_srt_suggest_flight_map()
     {
         var vm = Vm("unused");
-        await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SuggestedMode!.Kind);
+        await vm.SetFolderAsync(MakeFolder(sidecarless: true));
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SelectedMode.Kind);
+    }
+
+    [Fact]
+    public async Task Pairs_still_suggest_flight_map()
+    {
+        var vm = Vm("unused");
+        await vm.SetFolderAsync(MakeFolder(srt: true, videos: true));
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+    }
+
+    [Fact]
+    public async Task A_chosen_embed_survives_a_pairs_folder()
+    {
+        // #476 regression: Embed still fits (it has videos), so the Flight
+        // map suggestion is offered, not imposed.
+        var vm = Vm("unused");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        await vm.SetFolderAsync(MakeFolder(srt: true, videos: true));
+        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode!.Kind);
+        Assert.True(vm.ShowModeSuggestion);
     }
 
     // #476: the scan's suggestion used to overwrite SelectedMode
@@ -668,7 +697,8 @@ public class WorkspaceViewModelTests : IDisposable
     public async Task Embed_blocks_nested_only_videos_instead_of_a_hollow_success()
     {
         var vm = Vm(Path.Combine(_dir, "does-not-exist"));
-        await vm.SetFolderAsync(MakeFolder(nestedVideos: true));  // suggests Embed
+        await vm.SetFolderAsync(MakeFolder(nestedVideos: true));  // suggests Flight map since #572
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Equal(
@@ -798,7 +828,7 @@ public class WorkspaceViewModelTests : IDisposable
     public async Task Photo_map_on_a_videos_folder_fails_before_launching_anything()
     {
         var vm = Vm(Path.Combine(_dir, "does-not-exist"));
-        await vm.SetFolderAsync(MakeFolder(videos: true));   // suggests Embed
+        await vm.SetFolderAsync(MakeFolder(videos: true));   // suggests Flight map since #572
         vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PhotoMap);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
@@ -1033,7 +1063,7 @@ public class WorkspaceViewModelTests : IDisposable
         ]);
         var vm = Vm(cli);
         await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Done, vm.Step);
         Assert.Equal(["/footage/processed"], vm.Outputs);
@@ -1085,6 +1115,7 @@ public class WorkspaceViewModelTests : IDisposable
         ], exitCode: 0, stderrLine: "boom detail");
         var vm = Vm(cli);
         await vm.SetFolderAsync(MakeFolder(videos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Equal("Something went wrong while embedding the flight data.",
@@ -1696,7 +1727,7 @@ public class WorkspaceViewModelTests : IDisposable
             vm.EmbedOptions.Containers.Single(c => c.Key == "mkv");
         vm.EmbedOptions.DatAuto = true;
         await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
 
         await vm.RunCommand.ExecuteAsync(null);
 
@@ -1878,7 +1909,7 @@ public class WorkspaceViewModelTests : IDisposable
         ]);
         var vm = Vm(cli);
         await vm.SetFolderAsync(MakeFolder(videos: true));
-        Assert.Equal(WorkspaceModeKind.Embed, vm.SelectedMode.Kind);
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
         vm.EmbedOptions.SelectedPrivacy = vm.EmbedOptions.PrivacyOptions
             .Single(p => p.Value == TelemetryPrivacy.Fuzz);
         vm.EmbedOptions.SelectedContainer =

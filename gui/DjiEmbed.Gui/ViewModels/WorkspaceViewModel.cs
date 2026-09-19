@@ -528,10 +528,14 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             return;
         }
+        // Flight logs, or videos that may carry telemetry inside (#572),
+        // point at Flight map; photos at Photo map. Nothing suggests Embed
+        // any more: a video either has its SRT (a flight source already)
+        // or lacks it (a telemetry candidate now), so Embed is a choice.
         SuggestedMode =
-            scan.contents.HasFlightLogs ? WorkspaceMode.Of(WorkspaceModeKind.FlightMap)
+            scan.contents.HasFlightLogs || scan.contents.HasTelemetryVideos
+                ? WorkspaceMode.Of(WorkspaceModeKind.FlightMap)
             : scan.contents.HasPhotos ? WorkspaceMode.Of(WorkspaceModeKind.PhotoMap)
-            : scan.contents.HasVideos ? WorkspaceMode.Of(WorkspaceModeKind.Embed)
             : null;
         // A suggestion must not defeat a choice the user has already made
         // and that still works here: picking 360° views and then the pano

@@ -62,4 +62,21 @@ public class WorkspaceModeTests
         Assert.Equal("Flight map",
             WorkspaceMode.Of(WorkspaceModeKind.FlightMap).Title);
     }
+
+    // #572: sidecar-less telemetry videos are a Flight map source.
+    [Fact]
+    public void Flight_map_fits_a_folder_of_videos_without_srt()
+    {
+        var anafiClips = new FolderContents(
+            false, false, true, false, false, true, null, null,
+            HasTelemetryVideos: true, HasTopLevelTelemetryVideos: true);
+        Assert.True(WorkspaceMode.Of(WorkspaceModeKind.FlightMap).Fits(anafiClips));
+        Assert.True(WorkspaceMode.Of(WorkspaceModeKind.Embed).Fits(anafiClips));
+        Assert.False(WorkspaceMode.Of(WorkspaceModeKind.PhotoMap).Fits(anafiClips));
+    }
+
+    [Fact]
+    public void Flight_map_needs_flight_logs_or_telemetry_videos() =>
+        Assert.Equal(MediaKinds.FlightLogs | MediaKinds.TelemetryVideos,
+            WorkspaceMode.Of(WorkspaceModeKind.FlightMap).Needs);
 }
