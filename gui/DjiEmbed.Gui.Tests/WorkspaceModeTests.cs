@@ -29,7 +29,8 @@ public class WorkspaceModeTests
     public void Fits_is_answered_from_the_folder_contents()
     {
         var photosOnly = new FolderContents(
-            false, true, false, false, true, false, null, null);
+            false, true, false, false, true, false, null, null,
+            HasTelemetryVideos: false, HasTopLevelTelemetryVideos: false);
         Assert.True(WorkspaceMode.Of(WorkspaceModeKind.PanoEdit).Fits(photosOnly));
         Assert.True(WorkspaceMode.Of(WorkspaceModeKind.PhotoMap).Fits(photosOnly));
         Assert.True(WorkspaceMode.Of(WorkspaceModeKind.Verify).Fits(photosOnly));

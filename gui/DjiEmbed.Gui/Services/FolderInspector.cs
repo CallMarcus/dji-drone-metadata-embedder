@@ -8,7 +8,7 @@ public sealed record FolderContents(
     bool HasFlightLogs, bool HasPhotos, bool HasVideos,
     bool HasTopLevelFlightLogs, bool HasTopLevelPhotos, bool HasTopLevelVideos,
     DateTime? NewestFlightLogUtc, DateTime? NewestPhotoUtc,
-    bool HasTelemetryVideos = false, bool HasTopLevelTelemetryVideos = false);
+    bool HasTelemetryVideos, bool HasTopLevelTelemetryVideos);
 
 /// <summary>
 /// Decides which commands apply to a dropped folder. Extension-only and
@@ -45,7 +45,12 @@ public static class FolderInspector
         // classified, and the walk order is undefined, so videos are held
         // back and resolved after the single pass. Keys are
         // "<directory>|<stem>", compared case-insensitively: DJI_0001.MP4
-        // beside dji_0001.srt is a pair.
+        // beside dji_0001.srt is a pair. This is a deliberate divergence
+        // from the CLI's own _sidecarless_videos
+        // (src/dji_metadata_embedder/geo/flightmap.py), which compares
+        // exact paths: this is a Windows-shaped heuristic (case-insensitive
+        // filesystem), and the CLI remains the authority on what actually
+        // gets read at run time.
         var srtStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var videos = new List<(string Path, string Key, bool TopLevel)>();
         // Embed never receives -o (CommandBuilder.cs), so its output always
@@ -118,6 +123,9 @@ public static class FolderInspector
             hasTelemetryVideos, topTelemetryVideos);
     }
 
+    // "|" cannot appear in a Windows path component, and the key is only
+    // ever compared for equality (never parsed back apart), so it cannot
+    // collide with a real directory-plus-stem combination.
     private static string StemKey(string file) =>
         Path.GetDirectoryName(file) + "|" + Path.GetFileNameWithoutExtension(file);
 

@@ -1519,7 +1519,8 @@ public class WorkspaceScreenTests
             ]);
             var gate = new TaskCompletionSource();
             Func<string, FolderContents> inspect = _ => new FolderContents(
-                true, false, false, true, false, false, null, null);
+                true, false, false, true, false, false, null, null,
+                HasTelemetryVideos: false, HasTopLevelTelemetryVideos: false);
             var vm = new WorkspaceViewModel(cli, new DjiEmbedRunner(),
                 new FakeMapServer(null), () => { },
                 previewAvailable: static () => false,
@@ -1530,7 +1531,8 @@ public class WorkspaceScreenTests
             {
                 gate.Task.Wait();
                 return new FolderContents(
-                    true, false, false, true, false, false, null, null);
+                    true, false, false, true, false, false, null, null,
+                    HasTelemetryVideos: false, HasTopLevelTelemetryVideos: false);
             };
 
             var run = vm.RunCommand.ExecuteAsync(null);

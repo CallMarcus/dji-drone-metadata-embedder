@@ -53,8 +53,11 @@ public class WorkspaceViewModelTests : IDisposable
 
     private static FolderContents Contents(
         bool logs = false, bool photos = false, bool videos = false,
-        bool topLogs = false, bool topPhotos = false, bool topVideos = false) =>
-        new(logs, photos, videos, topLogs, topPhotos, topVideos, null, null);
+        bool topLogs = false, bool topPhotos = false, bool topVideos = false,
+        bool telemetryVideos = false, bool topTelemetryVideos = false) =>
+        new(logs, photos, videos, topLogs, topPhotos, topVideos, null, null,
+            HasTelemetryVideos: telemetryVideos,
+            HasTopLevelTelemetryVideos: topTelemetryVideos);
 
     [Fact]
     public async Task Folder_scans_go_through_the_injected_inspector()

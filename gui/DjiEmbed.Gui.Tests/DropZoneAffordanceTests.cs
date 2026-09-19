@@ -43,6 +43,21 @@ public class DropZoneAffordanceTests
         Assert.NotEmpty(outlines);
     }
 
+    // #572: this is a golden string — it's the only place telling a user
+    // that a folder of videos with no .SRT (or a lone .SRT/.MP4 file)
+    // works too, so an edit that drifts it should fail a test, not just
+    // the axaml diff.
+    [AvaloniaFact]
+    public void Drop_zone_caption_names_sidecarless_video_and_single_file_support()
+    {
+        var window = ShowView(PickView());
+        var caption = window.GetVisualDescendants().OfType<TextBlock>()
+            .FirstOrDefault(t => t.Text ==
+                "photos, drone videos with or without .SRT flight logs, "
+                + "or both — or a single .SRT/.MP4 to convert");
+        Assert.NotNull(caption);
+    }
+
     [AvaloniaFact]
     public void Pick_screen_names_its_drop_zone()
     {

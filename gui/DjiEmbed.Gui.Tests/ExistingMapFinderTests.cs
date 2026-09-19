@@ -27,7 +27,8 @@ public class ExistingMapFinderTests : IDisposable
         DateTime? newestFlightLog = null, DateTime? newestPhoto = null) =>
         new(newestFlightLog is not null, newestPhoto is not null, false,
             newestFlightLog is not null, newestPhoto is not null, false,
-            newestFlightLog, newestPhoto);
+            newestFlightLog, newestPhoto,
+            HasTelemetryVideos: false, HasTopLevelTelemetryVideos: false);
 
     [Fact]
     public void A_folder_with_no_maps_yields_nothing()
