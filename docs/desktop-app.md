@@ -32,17 +32,17 @@ Drop a folder (or a single `.SRT`/`.MP4` file) into **Source** and the
 likely mode is picked for you. The **Mode** strip offers:
 
 - **Flight map** — one interactive map of every flight in the folder,
-  with playback. Needs your drone videos: with their `.SRT` flight
-  logs, or, for drones that write the telemetry inside the video
-  (Parrot Anafi, and DJI models such as the Air 3S, Mini 5 Pro and Neo
-  when no `.SRT` is beside the clip), the videos alone — those are
-  read with ExifTool, which takes longer. A **3D terrain map** toggle
-  renders the flights draped over real terrain instead (writes
-  `flightmap-3d.html`, so the flat map is never overwritten). An
-  **Airspace zones** option overlays official zone data on either map
-  (US FAA, plus ED-269 feeds where a country publishes one), fetched
-  from the official sources and cached beside the map for reuse; on
-  the 3D map, published ceilings become translucent volumes.
+  with playback. Needs your flight logs, your drone videos, or both.
+  Some drones write the telemetry inside the video instead of a
+  `.SRT` (Parrot Anafi, and DJI models such as the Air 3S, Mini 5 Pro
+  and Neo). Those clips are read with ExifTool, which is slower than
+  reading a `.SRT`. A **3D terrain map** toggle renders the flights
+  draped over real terrain instead (writes `flightmap-3d.html`, so
+  the flat map is never overwritten). An **Airspace zones** option
+  overlays official zone data on either map (US FAA, plus ED-269
+  feeds where a country publishes one), fetched from the official
+  sources and cached beside the map for reuse; on the 3D map,
+  published ceilings become translucent volumes.
 - **Photo map** — your still photos pinned on a map, including a full
   360° panorama viewer for drone panoramas.
 - **Embed telemetry** — writes each flight log's GPS track into the video
