@@ -1689,6 +1689,25 @@ public class WorkspaceScreenTests
         Assert.DoesNotContain("--max-width", vm.CommandPreview);
     }
 
+    // The app offers no backup clean-up control (CLI-only by decision), so
+    // the panel must at least tell users what the _original copies are
+    // and how to remove them.
+    [AvaloniaFact]
+    public void Pano_edit_panel_explains_the_original_backups()
+    {
+        var window = ShowWorkspace();
+        var vm = (WorkspaceViewModel)((WorkspaceView)window.Content!).DataContext!;
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.PanoEdit);
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+
+        var note = window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Name == "PanoBackupNote");
+        Assert.True(note.IsEffectivelyVisible);
+        Assert.Contains("<name>_original", note.Text);
+        Assert.Contains("dji-embed panoedit --clean-backups", note.Text);
+    }
+
     [AvaloniaFact]
     public void Non_convert_mode_hides_the_convert_options_panel()
     {

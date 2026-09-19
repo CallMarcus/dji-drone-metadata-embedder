@@ -1327,8 +1327,9 @@ _FETCH_CONSENT = (
 )
 @click.option(
     "--yes", is_flag=True,
-    help="Skip the upload consent prompt (required with --progress jsonl; "
-         "the desktop app asks for consent in its own UI).",
+    help="Skip the upload consent prompt. Required with --progress jsonl, "
+         "where nothing can be prompted, so whatever drives the CLI must "
+         "obtain consent first (the desktop app does not offer fetch-log).",
 )
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
