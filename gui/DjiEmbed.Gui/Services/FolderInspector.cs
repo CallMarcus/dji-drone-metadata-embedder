@@ -48,6 +48,12 @@ public static class FolderInspector
         // beside dji_0001.srt is a pair.
         var srtStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var videos = new List<(string Path, string Key, bool TopLevel)>();
+        // Embed never receives -o (CommandBuilder.cs), so its output always
+        // lands at <root>/processed/<stem>_metadata.mp4 with no .SRT beside
+        // it. Left uncorrected, every Embed run would make its own copies
+        // look like fresh telemetry videos and mark every existing flight
+        // map as outrun (#328) on the very next folder pick.
+        var processedDir = Path.Combine(root, "processed");
         // No early exit: the newest write time is only known once every
         // file has been seen. IgnoreInaccessible keeps an unreadable
         // subfolder from throwing out of the (async void) folder pick.
@@ -93,6 +99,11 @@ public static class FolderInspector
         foreach (var (path, key, topLevel) in videos)
         {
             if (srtStems.Contains(key))
+            {
+                continue;
+            }
+            if (string.Equals(Path.GetDirectoryName(path), processedDir,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

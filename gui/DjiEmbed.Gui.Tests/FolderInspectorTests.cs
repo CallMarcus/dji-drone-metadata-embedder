@@ -279,4 +279,26 @@ public class FolderInspectorTests : IDisposable
         // The paired video's newer time is ignored: its SRT carries the time.
         Assert.Equal(anafiTime, c.NewestFlightLogUtc);
     }
+
+    // #572 fix: the GUI never passes -o to embed, so its copies land at
+    // <folder>/processed/<stem>_metadata.mp4 with no .SRT beside them.
+    // Counting those as telemetry videos would mark every flight map as
+    // outrun after each Embed run (#328).
+    [Fact]
+    public void Embeds_processed_copies_are_not_telemetry_videos()
+    {
+        var srtTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var processedTime = new DateTime(2026, 9, 9, 0, 0, 0, DateTimeKind.Utc);
+        Touch("DJI_0001.SRT");
+        Touch("DJI_0001.MP4");
+        Touch("processed", "DJI_0001_metadata.MP4");
+        Stamp(srtTime, "DJI_0001.SRT");
+        Stamp(processedTime, "processed", "DJI_0001_metadata.MP4");
+
+        var c = FolderInspector.Inspect(_dir);
+
+        Assert.False(c.HasTelemetryVideos);
+        Assert.True(c.HasVideos);
+        Assert.Equal(srtTime, c.NewestFlightLogUtc);
+    }
 }
