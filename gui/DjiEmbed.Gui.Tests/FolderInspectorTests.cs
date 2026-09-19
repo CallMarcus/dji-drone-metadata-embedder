@@ -206,4 +206,77 @@ public class FolderInspectorTests : IDisposable
         Assert.Null(c.NewestFlightLogUtc);
         Assert.NotNull(c.NewestPhotoUtc);
     }
+
+    // #572: a video with no .SRT of its own stem beside it may carry
+    // telemetry inside (Parrot Anafi, sidecar-less DJI); the CLI's
+    // flightmap reads those, so the GUI must count them as sources.
+    [Fact]
+    public void A_video_with_its_srt_is_not_a_telemetry_video()
+    {
+        Touch("DJI_0001.MP4");
+        Touch("DJI_0001.SRT");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasVideos);
+        Assert.True(c.HasFlightLogs);
+        Assert.False(c.HasTelemetryVideos);
+        Assert.False(c.HasTopLevelTelemetryVideos);
+    }
+
+    [Fact]
+    public void Videos_without_an_srt_are_telemetry_videos()
+    {
+        Touch("P2690514.MP4");
+        Touch("clip.mov");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasTelemetryVideos);
+        Assert.True(c.HasTopLevelTelemetryVideos);
+        Assert.False(c.HasFlightLogs);
+    }
+
+    [Fact]
+    public void Stem_pairing_is_case_insensitive()
+    {
+        Touch("DJI_0001.MP4");
+        Touch("dji_0001.srt");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.False(c.HasTelemetryVideos);
+    }
+
+    [Fact]
+    public void An_srt_in_another_directory_does_not_pair()
+    {
+        Touch("clips", "DJI_0001.MP4");
+        Touch("logs", "DJI_0001.SRT");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasTelemetryVideos);
+        Assert.True(c.HasFlightLogs);
+    }
+
+    [Fact]
+    public void Telemetry_videos_carry_top_level_and_nested_flags()
+    {
+        Touch("sub", "P2690514.MP4");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasTelemetryVideos);
+        Assert.False(c.HasTopLevelTelemetryVideos);
+    }
+
+    [Fact]
+    public void Telemetry_videos_feed_the_newest_flight_log_time_but_paired_videos_do_not()
+    {
+        var srtTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var pairedVideoTime = new DateTime(2026, 9, 9, 0, 0, 0, DateTimeKind.Utc);
+        var anafiTime = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        Touch("DJI_0001.SRT");
+        Touch("DJI_0001.MP4");
+        Touch("P2690514.MP4");
+        Stamp(srtTime, "DJI_0001.SRT");
+        Stamp(pairedVideoTime, "DJI_0001.MP4");
+        Stamp(anafiTime, "P2690514.MP4");
+
+        var c = FolderInspector.Inspect(_dir);
+
+        // The paired video's newer time is ignored: its SRT carries the time.
+        Assert.Equal(anafiTime, c.NewestFlightLogUtc);
+    }
 }
