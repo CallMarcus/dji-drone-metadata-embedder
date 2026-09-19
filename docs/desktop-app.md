@@ -59,7 +59,10 @@ likely mode is picked for you. The **Mode** strip offers:
   shown downscaled so older graphics cards can display them (the files
   and the saved view are identical either way); an **Edit at full
   resolution** option turns that off for machines with a capable
-  graphics card.
+  graphics card. Each edited panorama keeps its original beside it as
+  `<name>_original`; the app has no control for removing those copies,
+  so once the views are right run `dji-embed panoedit --clean-backups`
+  on the folder (see [Setting the opening view](geospatial.md#setting-the-opening-view)).
 - **Setup** — confirms FFmpeg and ExifTool are ready, and tells you how
   to install what's missing.
 

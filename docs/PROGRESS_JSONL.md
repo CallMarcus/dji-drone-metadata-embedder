@@ -178,7 +178,8 @@ field, never by arrival order.
   must be obtained by the frontend before invoking the command; omitting
   `--yes` is a usage error. It also requires `FLIGHTREADER_API_KEY` to
   already be set in the environment — there is no key prompt under jsonl
-  either.
+  either. The desktop app does not offer `fetch-log` (it keeps no
+  settings, so it has nowhere to hold a key); the command is CLI-only.
 - One `progress` event is not emitted per record; records that already have
   a cached CSV are skipped silently and counted in `summary.cached`.
 - A successful run — including a run where every record was a cache hit and

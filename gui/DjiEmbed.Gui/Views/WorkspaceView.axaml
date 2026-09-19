@@ -976,6 +976,10 @@
                                                TextWrapping="Wrap" Opacity="0.5"
                                                FontSize="11"
                                                Text="By default, panoramas wider than 6000 px are shown downscaled so older graphics cards can display them — the saved view is identical either way, and the files are never modified. Full resolution needs a graphics card with enough memory for the whole image." />
+                                    <TextBlock Name="PanoBackupNote"
+                                               TextWrapping="Wrap" Opacity="0.5"
+                                               FontSize="11"
+                                               Text="Each edited panorama keeps its original beside it as &lt;name&gt;_original, so a save can always be undone. The copies double the folder's size; once you're happy with the views, run dji-embed panoedit --clean-backups on the folder in a terminal to remove them. Maps never reference the copies." />
                                 </StackPanel>
                             </suki:GlassCard>
                         </StackPanel>
