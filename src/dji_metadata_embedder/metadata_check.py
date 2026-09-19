@@ -55,7 +55,7 @@ def run_exiftool(path: Path) -> Optional[Dict]:
 
 
 def check_file(path: Path) -> Dict[str, bool]:
-    """Check a single media file for common DJI metadata."""
+    """Check a single media file for GPS, altitude, creation time and embedded telemetry (DJI djmd/dbgi or Parrot mett)."""
     ffprobe_data = run_ffprobe(path) or {}
     exif_data = run_exiftool(path) or {}
 
@@ -71,11 +71,14 @@ def check_file(path: Path) -> Dict[str, bool]:
     # DJI's djmd/dbgi data streams: per-frame telemetry embedded in the MP4
     # itself. Reported so users know the file carries more than the sidecar
     # SRT — and that a default (MP4) embed will not carry it over (#478).
+    # Parrot Anafi clips embed theirs in a `mett` track (#323); ffprobe only
+    # sees the generic `mett` tag, which other devices use too, so the
+    # ExifTool MetaType is the discriminator there.
     embedded_telemetry = any(
         s.get("codec_tag_string") in ("djmd", "dbgi")
         for s in ffprobe_data.get("streams", [])
         if s.get("codec_type") == "data"
-    )
+    ) or "com.parrot.videometadata" in str(exif_data.get("MetaType", ""))
 
     return {
         "gps": gps_present,

@@ -98,6 +98,48 @@ def test_samples_from_exiftool_filters_null_island():
     assert saw is True        # but telemetry WAS decoded (AbsoluteAltitude)
 
 
+def test_samples_from_exiftool_maps_parrot_anafi():
+    samples, saw = mt._samples_from_exiftool(_load("anafi_g3j.json"))
+    assert saw is True
+    assert len(samples) == 4
+    first, level, tilted, last = samples
+    assert (first.lat, first.lon) == (51.5007, -0.1246)
+    assert first.alt == 75.125  # Parrot GPSAltitude: EGM96 mean sea level
+    assert first.rel_alt == pytest.approx(43.307, abs=1e-3)  # Elevation = AGL
+    assert first.cue == "00:00:00,000"
+    assert first.dt == datetime(2025, 9, 22, 21, 27, 56)
+    assert first.focal_len is None
+    # Camera heading/pitch from the FrameView quaternion: straight down at
+    # the start, level 13 s in, tilted to -54 later (verified on footage).
+    assert (round(first.gimbal_yaw, 1), round(first.gimbal_pitch, 1)) == (40.6, -88.5)
+    assert (round(level.gimbal_yaw, 1), round(level.gimbal_pitch, 1)) == (44.9, 0.0)
+    assert (round(tilted.gimbal_yaw, 1), round(tilted.gimbal_pitch, 1)) == (129.1, -54.1)
+    assert last.cue == "00:00:52,485"
+    assert last.dt == datetime(2025, 9, 22, 21, 28, 48, 485000)
+
+
+def test_parrot_records_are_never_zero_defaulted():
+    # The DJI protobuf rule (a field the stream carries elsewhere is 0.0
+    # where missing) must not leak across vendors: Parrot writes every
+    # field in every record, so a missing one is unknown.
+    docs = _load("anafi_g3j.json")
+    del docs[0]["Doc1"]["Elevation"]
+    samples, _ = mt._samples_from_exiftool(docs)
+    assert samples[0].rel_alt is None
+    assert samples[1].rel_alt is not None
+
+
+def test_parrot_invalid_location_sentinel_is_dropped():
+    # Parrot marks an invalid location with 500 (seen on the clip's unused
+    # GPSDest*/GPSFraming* fields); it must not become a track point.
+    docs = _load("anafi_g3j.json")
+    docs[0]["Doc1"]["GPSLatitude"] = 500
+    docs[0]["Doc1"]["GPSLongitude"] = 500
+    samples, saw = mt._samples_from_exiftool(docs)
+    assert saw is True
+    assert len(samples) == 3
+
+
 def test_extract_samples_happy(monkeypatch, tmp_path):
     f = tmp_path / "clip.mp4"
     f.write_bytes(b"\x00")
@@ -186,6 +228,58 @@ def test_probe_none_when_no_track(monkeypatch, tmp_path):
     assert mt.probe(f) is None
 
 
+def test_probe_recognises_parrot_metadata_track(monkeypatch, tmp_path):
+    out = (
+        "MetaFormat                      : mett\n"
+        "MetaType                        : application/octet-stream;"
+        "type=com.parrot.videometadata3\n"
+    )
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "P2690514.MP4"
+    f.write_bytes(b"\x00")
+    assert mt.probe(f) == "parrot:videometadata3"
+
+
+def test_probe_asks_exiftool_for_the_meta_type(monkeypatch, tmp_path):
+    # Parrot tracks have no Category tag; the MIME type is the discriminator.
+    seen: list[list[str]] = []
+
+    def fake_run(args):
+        seen.append(list(args))
+        return subprocess.CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(mt, "_run", fake_run)
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    mt.probe(f)
+    assert "-MetaType" in seen[0]
+
+
+def test_generic_mett_track_without_parrot_type_is_not_telemetry(monkeypatch, tmp_path):
+    out = "MetaFormat                      : mett\n"
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    assert mt.probe(f) is None
+
+
+def test_undecoded_parrot_stream_error_makes_no_version_claim(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}])
+    monkeypatch.setattr(mt, "probe", lambda p: "parrot:videometadataproto")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "13.59")
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    msg = str(exc.value)
+    assert "parrot:videometadataproto" in msg
+    assert ">=" not in msg  # the DJI version-floor wording must not appear
+
+
 def test_install_hint_names_the_doctor_command():
     from dji_metadata_embedder.mp4_telemetry import _EXIFTOOL_INSTALL_HINT
 
@@ -247,3 +341,51 @@ def test_run_without_config_file_falls_back_to_plain_argv(monkeypatch):
     monkeypatch.setattr(mt, "exiftool_config_path", lambda: None)
     mt._run(["-ver"])
     assert seen[0][1:] == ["-ver"]
+
+
+def test_extraction_argv_pins_quicktime_dates_to_utc(monkeypatch, tmp_path):
+    # Parrot records carry no wall-clock time, so ExifTool synthesises
+    # GPSDateTime from CreateDate + SampleTime and, without this option,
+    # treats CreateDate as *local* time: a UTC+2 machine read an Anafi clip
+    # two hours early (#323). DJI streams carry their own GPSDateTime and
+    # ignore the option.
+    seen: list[list[str]] = []
+
+    def fake_run(args):
+        seen.append(list(args))
+        return subprocess.CompletedProcess([], 0, "[]", "")
+
+    monkeypatch.setattr(mt, "_run", fake_run)
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    mt._run_exiftool_json(f)
+    args = seen[0]
+    i = args.index("QuickTimeUTC=1")
+    assert args[i - 1] == "-api"
+    assert args.index("-ee") < i < args.index(str(f))
+
+
+@pytest.mark.parametrize(
+    "quat, heading, pitch",
+    [
+        ("1 0 0 0", 0.0, 0.0),                                  # identity: north, level
+        ("0.7071067811865476 0 0 0.7071067811865476", 90.0, 0.0),   # pure yaw east
+        ("0.8660254037844387 0 -0.5 0", 0.0, -60.0),  # pure pitch -60 (a -90 case is gimbal lock: heading undefined)
+        # Real Anafi 4K FrameView values (fixture Doc1..Doc3): straight
+        # down at the start, level 13 s in, tilted -54 later.
+        ("-0.66998291015625 -0.24359130859375 0.655517578125 -0.24896240234375", 40.6, -88.5),
+        ("-0.92431640625 0 0 -0.381591796875", 44.9, 0.0),
+        ("-0.382568359375 -0.41094970703125 0.19549560546875 -0.80401611328125", 129.1, -54.1),
+    ],
+)
+def test_quat_to_heading_pitch(quat, heading, pitch):
+    h, p = mt.quat_to_heading_pitch(quat)
+    assert (round(h, 1), round(p, 1)) == (heading, pitch)
+    assert 0.0 <= h < 360.0
+
+
+def test_quat_to_heading_pitch_rejects_malformed_input():
+    with pytest.raises(ValueError):
+        mt.quat_to_heading_pitch("1 0 0")
+    with pytest.raises(ValueError):
+        mt.quat_to_heading_pitch("a b c d")

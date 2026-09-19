@@ -1,4 +1,4 @@
-"""ExifTool-backed extractor for DJI MP4 timed metadata (djmd/dbgi).
+"""ExifTool-backed extractor for MP4 timed metadata (DJI djmd/dbgi, Parrot mett).
 
 Reads the per-sample protobuf telemetry ExifTool decodes from a DJI MP4/MOV and
 normalises it to the canonical :class:`~dji_metadata_embedder.utilities.TelemetrySample`
@@ -8,6 +8,7 @@ model, so the convert exporters and verify-sun work on sidecar-less footage.
 from __future__ import annotations
 
 import json
+import math
 import re
 import subprocess
 from datetime import datetime
@@ -62,6 +63,30 @@ def _parse_gps_datetime(value: str) -> datetime | None:
     return None
 
 
+def quat_to_heading_pitch(quat: str) -> tuple[float, float]:
+    """Camera heading and pitch from a Parrot ``FrameView`` quaternion.
+
+    ExifTool prints it as ``"W X Y Z"`` in Parrot's NED world frame
+    (libvideo-metadata: "frame view quaternion in the global frame of
+    reference"). Aerospace ZYX Euler angles: heading in degrees clockwise
+    from north in ``[0, 360)``, pitch in degrees with negative pointing
+    down. Roll is dropped, the stabilised frame view carries none.
+    Verified on Anafi 4K footage (2026-09-18): heading tracked the GPS
+    course while moving, pitch read -88.5 with the camera straight down
+    and 0 when level.
+    """
+    parts = quat.split()
+    if len(parts) != 4:
+        raise ValueError(f"expected four quaternion components, got {quat!r}")
+    w, x, y, z = (float(part) for part in parts)
+    heading = math.degrees(
+        math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+    ) % 360.0
+    sin_pitch = max(-1.0, min(1.0, 2 * (w * y - z * x)))
+    pitch = math.degrees(math.asin(sin_pitch))
+    return heading, pitch
+
+
 # Mapped per-sample tags other than SampleTime. Presence of any of these on any
 # Doc means ExifTool decoded the protobuf (vs. an unsupported model where only
 # SampleTime survives).
@@ -81,9 +106,53 @@ _DOC_KEY_RE = re.compile(r"^Doc(\d+)$")
 # comment inside :func:`_samples_from_exiftool`).
 _DEFAULTED_KEYS = ("GimbalYaw", "GimbalPitch", "RelativeAltitude")
 
+# A per-sample document carrying this tag is a Parrot V3 record (ExifTool
+# Parrot.pm). Everything else is DJI.
+_PARROT_KEY = "FrameView"
+
+# Sample-description MIME type of a Parrot Anafi `mett` metadata track:
+# `application/octet-stream;type=com.parrot.videometadata3` (V3, verified on
+# Anafi 4K fw 1.8.2); the Anafi Ai writes `...videometadataproto` (untested).
+_PARROT_META_TYPE = "com.parrot.videometadata"
+
+
+def _parrot_sample(doc: dict) -> TelemetrySample | None:
+    """Map one Parrot V3 record (ExifTool ``Parrot.pm`` tag names) to a sample.
+
+    Parrot writes every field in every record, so unlike the DJI branch the
+    optional fields are never zero-defaulted: a missing ``Elevation`` is
+    unknown (``None``), not 0.0. Only ``alt`` falls back to 0.0, because
+    :class:`TelemetrySample` requires a float there; the same fallback the
+    DJI branch uses.
+    ``GPSAltitude`` is EGM96 mean sea level (libvideo-metadata's V3 reader
+    stores it as ``altitude_egm96amsl``), ``Elevation`` the drone's estimated
+    distance to ground. Returns ``None`` for a record without a fix: the
+    ``(0, 0)`` sentinel or Parrot's out-of-range ``500`` marker.
+    """
+    lat = doc.get("GPSLatitude")
+    lon = doc.get("GPSLongitude")
+    if lat is None or lon is None:
+        return None
+    lat, lon = float(lat), float(lon)
+    if abs(lat) > 90.0 or abs(lon) > 180.0 or not is_gps_fix(lat, lon):
+        return None
+    heading, pitch = quat_to_heading_pitch(str(doc[_PARROT_KEY]))
+    rel = doc.get("Elevation")
+    return TelemetrySample(
+        lat,
+        lon,
+        float(doc.get("GPSAltitude", 0.0)),
+        _sample_time_to_cue(doc.get("SampleTime", 0.0)),
+        _parse_gps_datetime(doc.get("GPSDateTime", "")),
+        rel_alt=float(rel) if rel is not None else None,
+        focal_len=None,
+        gimbal_yaw=heading,
+        gimbal_pitch=pitch,
+    )
+
 
 def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
-    """Map ExifTool ``-g3 -j`` JSON to samples and whether telemetry was decoded.
+    """Map ExifTool ``-g3 -j`` JSON (DJI or Parrot records) to samples and whether telemetry was decoded.
 
     ``data`` is ExifTool's JSON: a one-element list whose object holds ``Doc1 …
     DocN`` per-sample sub-documents. Returns ``(samples, saw_telemetry)`` where
@@ -112,6 +181,12 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
     samples: list[TelemetrySample] = []
     saw_telemetry = False
     for _, doc in docs:
+        if _PARROT_KEY in doc:
+            saw_telemetry = True
+            sample = _parrot_sample(doc)
+            if sample is not None:
+                samples.append(sample)
+            continue
         if any(key in doc for key in _TELEMETRY_KEYS):
             saw_telemetry = True
         lat = doc.get("GPSLatitude")
@@ -180,7 +255,17 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
 def _run_exiftool_json(path: Path) -> list:
     """Run the embedded-metadata extraction and return parsed JSON (one element)."""
     proc = _run(
-        ["-ee", "-j", "-g3", "-n", "-api", "LargeFileSupport=1", str(path)]
+        [
+            "-ee", "-j", "-g3", "-n",
+            "-api", "LargeFileSupport=1",
+            # QuickTime CreateDate is UTC by spec. A stream without its own
+            # wall-clock time (Parrot) gets GPSDateTime synthesised as
+            # CreateDate + SampleTime, and without this option ExifTool
+            # shifts it by the machine's local zone (#323). DJI protobuf
+            # streams carry GPSDateTime themselves and are unaffected.
+            "-api", "QuickTimeUTC=1",
+            str(path),
+        ]
     )
     if proc.returncode != 0:
         raise Mp4TelemetryError(
@@ -195,25 +280,35 @@ def _run_exiftool_json(path: Path) -> list:
 def probe(path: Path) -> str | None:
     """Cheaply detect an embedded telemetry track without extracting samples.
 
-    Returns the schema descriptor (e.g. ``dvtm_Air3s.proto;model_name:FC9113;…``)
-    when the MP4 carries a ``djmd``/``dbgi`` metadata track, else ``None``.
+    Returns a schema descriptor, or ``None`` when the file has no telemetry
+    track. DJI: the ``Category`` string of a ``djmd``/``dbgi`` track (e.g.
+    ``dvtm_Air3s.proto;model_name:FC9113;…``), or ``"djmd"`` when it has none.
+    Parrot: ``parrot:videometadata3`` (the suffix is whatever follows
+    :data:`_PARROT_META_TYPE` in the track's MIME type).
     """
     proc = _run(
-        ["-s", "-api", "LargeFileSupport=1", "-MetaFormat", "-Category", str(path)]
+        [
+            "-s", "-api", "LargeFileSupport=1",
+            "-MetaFormat", "-MetaType", "-Category", str(path),
+        ]
     )
     out = proc.stdout
-    if "djmd" not in out and "dbgi" not in out:
-        return None
-    m = re.search(r"pb_file:\s*([^\s;]+\.proto[^\n]*)", out)
-    return m.group(1).strip() if m else "djmd"
+    if "djmd" in out or "dbgi" in out:
+        m = re.search(r"pb_file:\s*([^\s;]+\.proto[^\n]*)", out)
+        return m.group(1).strip() if m else "djmd"
+    m = re.search(re.escape(_PARROT_META_TYPE) + r"(\w*)", out)
+    if m:
+        return f"parrot:videometadata{m.group(1)}"
+    return None
 
 
 def extract_samples(path: Path) -> list[TelemetrySample]:
     """Extract GPS-fixed telemetry samples from an MP4/MOV via ExifTool.
 
     Raises :class:`Mp4TelemetryError` when there is no telemetry track, or a
-    track is present but this ExifTool cannot decode the model. A clip that
-    decodes but never acquired a GPS fix yields an empty list (not an error).
+    DJI track is present but this ExifTool cannot decode the model, or a
+    Parrot track yields nothing. A clip that decodes but never acquired a
+    GPS fix yields an empty list (not an error).
     """
     path = Path(path)
     samples, saw_telemetry = _samples_from_exiftool(_run_exiftool_json(path))
@@ -226,6 +321,14 @@ def extract_samples(path: Path) -> list[TelemetrySample]:
             f".SRT for this clip?"
         )
     if not saw_telemetry:
+        if schema.startswith("parrot:"):
+            ver = exiftool_version() or "unknown"
+            raise Mp4TelemetryError(
+                f"Parrot telemetry track ({schema}) in {path.name} decoded no "
+                f"samples with ExifTool {ver}. Only the Anafi V3 format "
+                f"(parrot:videometadata3) is verified; please open an issue "
+                f"with the output of 'exiftool -ee -G1 -s -n FILE'."
+            )
         floor = decode_floor(schema)
         ver = exiftool_version() or "unknown"
         raise Mp4TelemetryError(

@@ -165,11 +165,13 @@ dji-embed flightmap ./footage --redact fuzz      # ~100 m coarsened tracks
 ```
 
 Where `convert html` maps one flight, `flightmap` maps a whole folder: every
-`.SRT` log becomes its own coloured track on a single standalone HTML map,
-with a start marker, a summary popup (start time, duration, altitude range,
-GPS point count), and a layer control to toggle flights. Only the SRT sidecars
-are read — the videos are never opened — so scanning a large archive takes
-seconds and needs no external tools.
+`.SRT` log, and every telemetry-carrying video that has no `.SRT` beside it,
+becomes its own coloured track on a single standalone HTML map, with a start
+marker, a summary popup (start time, duration, altitude range, GPS point
+count), and a layer control to toggle flights. SRT sidecars are read
+directly; a sidecar-less video is probed for an embedded telemetry track and,
+when it carries one, read via ExifTool. A video that already has an `.SRT`
+is never opened by the scan, so a folder of paired SRT/MP4 clips stays fast.
 
 The GeoJSON output is one `LineString` feature per flight carrying the same
 summary properties (no per-sample points — at archive scale they would swamp
@@ -185,9 +187,7 @@ flight use `dji-embed convert` instead.
 SRT files without GPS telemetry (ordinary subtitles, clips that never got a
 fix) are skipped and counted; `-v` lists them. With `-r`, flights are labelled
 by their path relative to the scanned folder so per-session directories that
-reuse DJI's restarting file numbering stay distinct. Sidecar-less models whose
-telemetry lives inside the MP4 (Air 3S, Mini 5 Pro, …) are not scanned — map
-those per clip with `dji-embed convert html VIDEO.MP4`.
+reuse DJI's restarting file numbering stay distinct.
 
 Most DJI SRTs carry no gimbal attitude, so the 3D map draws the camera
 footprint as a labelled estimate. Two routes upgrade it to a measurement,

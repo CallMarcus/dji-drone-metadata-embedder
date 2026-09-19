@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from click.testing import CliRunner
 
-from dji_metadata_embedder.cli import main
+from dji_metadata_embedder.cli import _unread_videos_note, main
 
 FLIGHT_A = (
     "1\n00:00:00,000 --> 00:00:01,000\n"
@@ -557,3 +557,12 @@ def test_flightmap_3d_hints_for_mavic4pro_schema(tmp_path, monkeypatch):
     res = CliRunner().invoke(main, ["flightmap", str(folder), "--3d"])
     assert res.exit_code == 0, res.output
     assert res.output.count("--gimbal-from-video") == 1
+
+
+def test_unread_videos_note_grammar():
+    one = _unread_videos_note(["P2690514"])
+    many = _unread_videos_note(["a", "b"])
+    assert one.startswith("Note: 1 video without an .SRT was not read")
+    assert many.startswith("Note: 2 videos without an .SRT were not read")
+    assert "doctor --install exiftool" in one
+    assert "the SRT flights are mapped" not in one
