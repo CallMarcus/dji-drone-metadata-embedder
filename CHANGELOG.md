@@ -27,6 +27,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `fetch-log --yes` help and the JSONL contract no longer claim the desktop app asks for upload consent in its own UI (the app does not offer `fetch-log`); the 360° views panel and the desktop-app doc explain the `<name>_original` backups and how `panoedit --clean-backups` removes them (#574) (4ae31a2)
 
+## [2.16.0] - 2026-09-19
+
+### Added
+
+- **airspace**: Belgium UAS geographical zones from the Droneguide WFS (#562) (#569) (f02f9de)
+- **mp4**: Read Parrot Anafi embedded telemetry; video GPS time no longer shifted by the local zone (#323) (#570) (78f0671)
+
+### Fixed
+
+- **gui**: Flight map maps folders whose telemetry lives inside the videos (#572) (#573) (cb17d75)
+
+### Documentation
+
+- Fetch-log help stops promising a desktop consent UI; 360° views panel explains the _original backups (#574) (4ae31a2)
+
+### Other
+
+- Prepare version 2.16.0 (#575) (7123936)
+
+
 ## [2.15.0] - 2026-09-06
 
 ### Added
