@@ -40,11 +40,15 @@ public static class DoctorReport
 
     /// <summary>The Windows installer bundles FFmpeg and ExifTool, so a
     /// reinstall restores them; the macOS app relies on Homebrew, and
-    /// telling a Mac user to reinstall would send them nowhere (#572).</summary>
+    /// telling a Mac user to reinstall would send them nowhere (#572).
+    /// Homebrew is only named for the two tools this app actually knows a
+    /// formula for — a future tool key the CLI might report gets the
+    /// generic package-manager advice instead of an invented brew
+    /// command.</summary>
     private static string MissingAdvice(string tool, OSPlatform os) =>
         os == OSPlatform.Windows
             ? "Reinstalling the application should restore this."
-        : os == OSPlatform.OSX
+        : os == OSPlatform.OSX && (tool == "ffmpeg" || tool == "exiftool")
             ? $"Install it with Homebrew: brew install {tool}"
         : "Install it with your package manager.";
 

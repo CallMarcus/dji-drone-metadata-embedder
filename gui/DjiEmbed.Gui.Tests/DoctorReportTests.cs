@@ -44,6 +44,16 @@ public class DoctorReportTests
         Assert.Equal(expected, Assert.Single(items).Detail);
     }
 
+    // A tool the CLI might report in future has no Homebrew formula this
+    // app knows of, so it should not get a confidently wrong brew command.
+    [Fact]
+    public void Unknown_missing_tool_on_macos_points_at_the_package_manager()
+    {
+        var items = DoctorReport.Parse(Summary(
+            """{"tools": {"newtool": {"present": false}}}"""), OSPlatform.OSX);
+        Assert.Equal("Install it with your package manager.", Assert.Single(items).Detail);
+    }
+
     [Fact]
     public void Missing_tool_elsewhere_points_at_the_package_manager()
     {
