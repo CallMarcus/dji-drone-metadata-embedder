@@ -33,8 +33,8 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
   on the flat or 3D flight map; `flightmap -f record` writes a printable
   flight record listing the zones each flight crossed. Covered so far:
   US, UK, Ireland, Switzerland, Luxembourg, Denmark, Sweden, Finland,
-  Estonia. The map states facts about published zones; it never rules on
-  whether a flight was legal.
+  Estonia, Slovenia, Belgium. The map states facts about published zones;
+  it never rules on whether a flight was legal.
 - **Convert telemetry** — SRT to GPX, CSV, GeoJSON, KML, CoT, or an HTML
   map, for use in other apps (Google Earth, GIS tools, video editors).
 - **Privacy controls** — `--redact fuzz` coarsens locations to ~100 m;
