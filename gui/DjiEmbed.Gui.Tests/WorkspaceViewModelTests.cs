@@ -1000,6 +1000,9 @@ public class WorkspaceViewModelTests : IDisposable
         Assert.Equal(
             "The Setup mode shows whether ExifTool is available.\n\nstderr",
             FlowViewModel.FailureDetailsFor("… because ExifTool is missing.", "stderr"));
+        Assert.Equal(
+            "The Setup mode shows whether ExifTool is available.",
+            FlowViewModel.FailureDetailsFor("ExifTool not found. Install it and try again.", null));
     }
 
     [Fact]

@@ -1208,9 +1208,7 @@ public partial class WorkspaceViewModel : FlowViewModel
             if (result.ExitCode != 0
                 || result.Terminal is not { Kind: ProgressEventKind.Result } t)
             {
-                Fail(result.Terminal?.Message ?? GenericFailureMessage,
-                    string.IsNullOrWhiteSpace(result.StderrText)
-                        ? null : result.StderrText);
+                FailFrom(result);
                 return false;
             }
             var report = opts.SubAction switch
@@ -1236,9 +1234,7 @@ public partial class WorkspaceViewModel : FlowViewModel
         if (result.ExitCode != 0
             || result.Terminal is not { Kind: ProgressEventKind.Result } t)
         {
-            Fail(result.Terminal?.Message ?? GenericFailureMessage,
-                string.IsNullOrWhiteSpace(result.StderrText)
-                    ? null : result.StderrText);
+            FailFrom(result);
             return false;
         }
         foreach (var item in DoctorReport.Parse(t.Summary))
