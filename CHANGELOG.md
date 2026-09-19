@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-09-19
+
 ### Added
 
 - **airspace**: Belgium is the eleventh covered country: `-f record` and `--airspace` fetch the BCAA's UAS geographical zones from the Droneguide WFS for the flight's own time window, join in the NOTAM zones with their dates, and carry the BCAA's four notices in the source note (letter G26-187). For every country, a zone the publisher marks as not active during the flight is now listed as not applicable with the publisher's own reason, and the not-applicable list only names zones the flight was inside (#562) (#569) (f02f9de)
