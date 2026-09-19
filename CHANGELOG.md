@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **airspace**: Belgium is the eleventh covered country: `-f record` and `--airspace` fetch the BCAA's UAS geographical zones from the Droneguide WFS for the flight's own time window, join in the NOTAM zones with their dates, and carry the BCAA's four notices in the source note (letter G26-187). For every country, a zone the publisher marks as not active during the flight is now listed as not applicable with the publisher's own reason, and the not-applicable list only names zones the flight was inside (#562) (#569) (f02f9de)
+- **mp4**: Parrot Anafi telemetry is read straight from the video's `mett` track, so `convert`, `check`, `verify-sun`, `flightmap` and `map` get position, altitude and camera pose without a sidecar. `flightmap` and `map` now also scan videos that carry telemetry but have no `.SRT` beside them, which DJI models that write telemetry into the MP4 (Air 3S, Mini 5 Pro, Neo) benefit from too (#323) (#570) (78f0671)
+
+### Fixed
+
+- **mp4**: GPS times synthesised from a video's QuickTime dates were shifted by the machine's local zone; they are now read as UTC. Only Parrot files were affected (#323) (#570) (78f0671)
+- **gui**: Flight map accepts folders whose telemetry lives inside the videos rather than in `.SRT` files: the folder scan recognises them, the mode fits and is suggested, and the pre-flight guard says what it looked for. A run that fails because ExifTool is missing now points at Setup, and Setup tells Mac users to install a missing tool with Homebrew instead of reinstalling the app (#572) (#573) (cb17d75)
+
+### Changed
+
+- `fetch-log --yes` help and the JSONL contract no longer claim the desktop app asks for upload consent in its own UI (the app does not offer `fetch-log`); the 360° views panel and the desktop-app doc explain the `<name>_original` backups and how `panoedit --clean-backups` removes them (#574) (4ae31a2)
+
 ## [2.15.0] - 2026-09-06
 
 ### Added
