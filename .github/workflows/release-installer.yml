@@ -42,8 +42,8 @@ permissions:
 env:
   # Pinned FFmpeg build bundled into the installer (gyan.dev release
   # essentials, GPL). Upgrading the pin = bump both lines.
-  FFMPEG_VERSION: '8.1.2'
-  FFMPEG_SHA256: 'db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec'
+  FFMPEG_VERSION: '9.0.1'
+  FFMPEG_SHA256: 'fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9'
 
 jobs:
   build:
