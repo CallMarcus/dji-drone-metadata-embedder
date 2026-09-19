@@ -676,7 +676,7 @@ public class WorkspaceViewModelTests : IDisposable
         await vm.RunCommand.ExecuteAsync(null);
         Assert.Equal(FlowStep.Failed, vm.Step);
         Assert.Equal(
-            "Those flight logs are in subfolders — turn on Include subfolders.",
+            "Those flight logs or drone videos are in subfolders — turn on Include subfolders.",
             vm.ErrorMessage);
     }
 
@@ -2603,5 +2603,61 @@ public class WorkspaceViewModelTests : IDisposable
         // State never affects argv: same strip with and without recents.
         Assert.Equal(Vm(cli: null).CommandPreview,
             Vm(cli: null, stateStore: store).CommandPreview);
+    }
+
+    // #572: the guard and its copy stop claiming .SRT is the only source.
+    [Fact]
+    public async Task Flight_map_runs_on_a_folder_of_videos_without_srt()
+    {
+        var argsFile = Path.Combine(_dir, "args-anafi.txt");
+        var cli = FakeCli.WriteArgsRecorder(_dir, argsFile, FlightmapStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolder(sidecarless: true));
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.StartsWith("flightmap", File.ReadAllText(argsFile).TrimStart());
+    }
+
+    [Fact]
+    public async Task Flight_map_without_subfolders_blocks_nested_only_videos_with_guidance()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(nestedSidecarless: true));
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Those flight logs or drone videos are in subfolders — turn on Include subfolders.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Flight_map_not_found_copy_names_both_sources_with_the_toggle_on()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No flight logs (.SRT) or drone videos were found in that folder. "
+            + "Pick the folder that contains your footage — subfolders are "
+            + "included automatically.",
+            vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Flight_map_not_found_copy_names_both_sources_with_the_toggle_off()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolder(photos: true));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.FlightMap);
+        vm.FlightOptions.Recursive = false;
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "No flight logs (.SRT) or drone videos were found in that folder. "
+            + "Pick the folder that contains your footage.",
+            vm.ErrorMessage);
     }
 }

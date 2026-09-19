@@ -1072,11 +1072,17 @@ public partial class WorkspaceViewModel : FlowViewModel
         {
             case WorkspaceModeKind.FlightMap
                 when !(flight.Recursive
-                    ? contents.HasFlightLogs : contents.HasTopLevelFlightLogs):
-                Fail(contents.HasFlightLogs
-                    ? "Those flight logs are in subfolders — turn on "
-                      + "Include subfolders."
-                    : "No drone flight logs (.SRT) were found in that "
+                    ? contents.HasFlightLogs || contents.HasTelemetryVideos
+                    : contents.HasTopLevelFlightLogs
+                      || contents.HasTopLevelTelemetryVideos):
+                // "Drone videos" is deliberately loose: whether a video
+                // without an .SRT really carries telemetry is the CLI's
+                // call at run time (#572), and the guard must not pretend
+                // to know.
+                Fail(contents.HasFlightLogs || contents.HasTelemetryVideos
+                    ? "Those flight logs or drone videos are in subfolders — "
+                      + "turn on Include subfolders."
+                    : "No flight logs (.SRT) or drone videos were found in that "
                       + "folder. Pick the folder that contains your footage"
                       + (flight.Recursive
                           ? " — subfolders are included automatically." : "."));
