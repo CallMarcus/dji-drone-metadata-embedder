@@ -31,6 +31,7 @@ def _ffprobe_duration(path: Path) -> float | None:
                 str(path),
             ],
             capture_output=True, text=True, timeout=30,
+            check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
@@ -62,6 +63,7 @@ def _dji_data_stream_tags(path: Path) -> list[str]:
                 str(path),
             ],
             capture_output=True, text=True, timeout=30,
+            check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
@@ -447,7 +449,7 @@ class DJIMetadataEmbedder:
             if self.extract_home:
                 telemetry_data["home"] = parse_home(content)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # parse is best-effort: log and return what was read
             logger.error("Error parsing SRT file %s: %s", srt_path, e)
 
         return telemetry_data
@@ -548,7 +550,7 @@ class DJIMetadataEmbedder:
             cmd.extend(["-y", str(output_path)])
 
             # Run ffmpeg
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
             if result.returncode == 0:
                 logger.info("Successfully processed: %s", video_path.name)
@@ -557,7 +559,7 @@ class DJIMetadataEmbedder:
                 logger.error("FFmpeg error for %s: %s", video_path.name, result.stderr)
                 return False
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # one bad clip must not stop the batch; logged and reported
             logger.error("Error processing %s: %s", video_path.name, e)
             return False
 
@@ -595,10 +597,10 @@ class DJIMetadataEmbedder:
                 cmd.insert(-2, f'-GPSAltitude={telemetry["max_altitude"]}')
                 cmd.insert(-2, "-GPSAltitudeRef=0")  # Above sea level
 
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
             return result.returncode == 0
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # optional ExifTool pass; failure is logged, not fatal
             logger.error("ExifTool error: %s", e)
             return False
 
@@ -740,7 +742,7 @@ class DJIMetadataEmbedder:
                     try:
                         dat_data = parse_dat_v13(dat_file)
                         telemetry["dat_records"] = dat_data.get("records", [])
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001  # DAT sidecar is optional; a bad one is a warning
                         logger.warning(
                             "Failed to parse DAT file %s: %s", dat_file.name, e
                         )

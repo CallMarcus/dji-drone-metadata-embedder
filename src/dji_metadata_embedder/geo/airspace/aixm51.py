@@ -114,7 +114,7 @@ def discover_feed_url(
         page.decode("utf-8", errors="replace")
     ):
         try:
-            effective = datetime.strptime(ymd, "%Y%m%d").date()
+            effective = datetime.strptime(ymd, "%Y%m%d").date()  # noqa: DTZ007  # calendar date only
         except ValueError:
             continue
         dated.append((effective, href.replace("&amp;", "&")))

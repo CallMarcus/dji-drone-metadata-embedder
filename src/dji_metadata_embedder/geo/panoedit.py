@@ -200,6 +200,7 @@ def _run_scan(directory: Path, recursive: bool) -> list[dict]:
         proc = subprocess.run(
             args, capture_output=True, text=True,
             encoding="utf-8", errors="replace", timeout=timeout,
+            check=False,
         )
     except FileNotFoundError:
         raise PanoEditError(_EXIFTOOL_INSTALL_HINT) from None
@@ -295,6 +296,7 @@ def write_initial_view(
         proc = subprocess.run(
             write_args, capture_output=True, text=True,
             encoding="utf-8", errors="replace", timeout=_WRITE_TIMEOUT,
+            check=False,
         )
     except FileNotFoundError:
         raise PanoEditError(_EXIFTOOL_INSTALL_HINT) from None
@@ -325,6 +327,7 @@ def write_initial_view(
         proc = subprocess.run(
             read_args, capture_output=True, text=True,
             encoding="utf-8", errors="replace", timeout=_WRITE_TIMEOUT,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         raise PanoEditError(

@@ -30,7 +30,7 @@ def run_sample(name: str, tmp_path, monkeypatch):
     points = parse_telemetry_points(srt)
     calls = []
 
-    def fake_run(cmd, capture_output=True, text=True):
+    def fake_run(cmd, capture_output=True, text=True, **kwargs):
         calls.append(cmd)
 
         class Res:

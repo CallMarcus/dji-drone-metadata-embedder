@@ -59,6 +59,7 @@ def exiftool_version(exe: str | None = None) -> str | None:
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None

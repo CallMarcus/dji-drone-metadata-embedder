@@ -172,7 +172,7 @@ def test_embed_metadata_ffmpeg_command(tmp_path, monkeypatch):
     embedder = DJIMetadataEmbedder(tmp_path)
     called = {}
 
-    def fake_run(cmd, capture_output=True, text=True):
+    def fake_run(cmd, capture_output=True, text=True, **kwargs):
         called["cmd"] = cmd
 
         class Res:
@@ -234,7 +234,7 @@ def test_embed_metadata_ffmpeg_mkv_preserves_data_streams(tmp_path, monkeypatch)
     embedder = DJIMetadataEmbedder(tmp_path, container="mkv")
     called = {}
 
-    def fake_run(cmd, capture_output=True, text=True):
+    def fake_run(cmd, capture_output=True, text=True, **kwargs):
         called["cmd"] = cmd
 
         class Res:

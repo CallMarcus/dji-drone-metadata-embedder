@@ -24,8 +24,10 @@ FAA_QUERY_URL = (
 FAA_FEED = (
     "FAA UAS Facility Maps",
     "U.S. Government work (FAA UAS Data Delivery System)",
-    "UAS Facility Map data is informational and does not constitute an "
-    "airspace authorization (LAANC or otherwise).",
+    (
+        "UAS Facility Map data is informational and does not constitute an "
+        "airspace authorization (LAANC or otherwise)."
+    ),
 )
 _GRID = 0.1
 _PAD = 0.05

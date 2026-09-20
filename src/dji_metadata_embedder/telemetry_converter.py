@@ -138,7 +138,7 @@ def extract_telemetry_to_gpx(
     if abs_times and offset is not None:
         metadata_time = (abs_times[0] - offset).strftime("%Y-%m-%dT%H:%M:%SZ")
     else:
-        metadata_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        metadata_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Write GPX file
     gpx_header = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -280,7 +280,7 @@ def batch_convert_to_gpx(directory: Path | str) -> None:
             output_file = gpx_dir / f"{srt_file.stem}.gpx"
             try:
                 extract_telemetry_to_gpx(srt_file, output_file)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # batch loop: log and continue with the next file
                 logger.error("Error converting %s: %s", srt_file.name, e)
             progress.advance(task)
 
@@ -308,7 +308,7 @@ def batch_convert_to_csv(directory: Path | str) -> None:
             output_file = csv_dir / f"{srt_file.stem}.csv"
             try:
                 extract_telemetry_to_csv(srt_file, output_file)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # batch loop: log and continue with the next file
                 logger.error("Error converting %s: %s", srt_file.name, e)
             progress.advance(task)
 

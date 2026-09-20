@@ -141,7 +141,7 @@ def latest_pypi_version(timeout: float = HTTP_TIMEOUT) -> str | None:
         with urlopen(req, timeout=timeout) as response:
             data = json.load(response)
         version = data["info"]["version"]
-    except Exception:  # offline, timeout, PyPI down, bad JSON — never an error
+    except Exception:  # noqa: BLE001  # offline, timeout, PyPI down, bad JSON: never an error
         return None
     return str(version) if version else None
 
@@ -267,8 +267,10 @@ def exiftool_pin_lines() -> list[str]:
     ]
     detail = f"decodes {' / '.join(lagging)}" if lagging else "available"
     return [
-        f"exiftool {ver} ({exiftool_utils.exiftool_source()}) "
-        f"-> pinned {EXIFTOOL_VERSION} {detail}",
+        (
+            f"exiftool {ver} ({exiftool_utils.exiftool_source()}) "
+            f"-> pinned {EXIFTOOL_VERSION} {detail}"
+        ),
         "  update: dji-embed doctor --install exiftool",
     ]
 

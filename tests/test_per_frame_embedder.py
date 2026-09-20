@@ -21,7 +21,7 @@ def test_per_frame_embedder(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_run(cmd, capture_output=True, text=True):
+    def fake_run(cmd, capture_output=True, text=True, **kwargs):
         calls.append(cmd)
 
         class Res:

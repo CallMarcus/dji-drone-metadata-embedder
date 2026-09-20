@@ -128,7 +128,7 @@ def join_split_flights(
     """
     ordered = sorted(
         entries,
-        key=lambda e: (e.first_dt is None, e.first_dt or datetime.min, e.track.name),
+        key=lambda e: (e.first_dt is None, e.first_dt or datetime.min, e.track.name),  # noqa: DTZ901  # naive sort sentinel
     )
     flights: list[_ScanEntry] = []
     for entry in ordered:

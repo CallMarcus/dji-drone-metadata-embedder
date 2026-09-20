@@ -20,6 +20,11 @@ Vendor-neutral by design — no decoder is endorsed or special-cased:
 
 from __future__ import annotations
 
+# ruff: noqa: DTZ001, DTZ901
+# Datetimes here are naive by design: LogRow carries `utc` and `local` as
+# separate fields, so the zone lives in the field name, not the value, and
+# `datetime.min` is only a sort sentinel among naive values.
+
 import csv
 import re
 from bisect import bisect_left

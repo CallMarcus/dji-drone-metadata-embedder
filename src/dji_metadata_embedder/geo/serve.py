@@ -123,7 +123,7 @@ class _RangeHandler(SimpleHTTPRequestHandler):
             return super().send_head()
         first, last = rng
         try:
-            f = open(path, "rb")
+            f = open(path, "rb")  # noqa: SIM115  # returned to the base handler, which closes it
         except OSError:
             self.send_error(HTTPStatus.NOT_FOUND, "File not found")
             return None
