@@ -236,11 +236,11 @@ def test_field_names_returns_empty_on_surprises():
 # Flight Reader-shaped CSV (same shape test_geo_flightlog.py validates):
 # quoted decimal-comma values, 12-hour local clock.
 CSV_BODY = (
-    '"CUSTOM.date [local]","CUSTOM.updateTime [local]","OSD.latitude",'
-    '"OSD.longitude","GIMBAL.pitch","GIMBAL.yaw"\n'
-    '"2026-07-27","2:00:00,0 pm","59,33459","18,06324","-60,0","-10,0"\n'
-    '"2026-07-27","2:00:01,0 pm","59,33460","18,06325","-61,0","-9,0"\n'
-).encode()
+    b'"CUSTOM.date [local]","CUSTOM.updateTime [local]","OSD.latitude",'
+    b'"OSD.longitude","GIMBAL.pitch","GIMBAL.yaw"\n'
+    b'"2026-07-27","2:00:00,0 pm","59,33459","18,06324","-60,0","-10,0"\n'
+    b'"2026-07-27","2:00:01,0 pm","59,33460","18,06325","-61,0","-9,0"\n'
+)
 
 FIELDS_BODY = json.dumps([
     "CUSTOM.date [local]", "CUSTOM.updateTime [local]",

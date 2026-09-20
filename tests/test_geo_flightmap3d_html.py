@@ -24,7 +24,7 @@ def _track(name="DJI_0001", lat=10.0, lon=20.0, n=2):
 def _embedded_data(html: str) -> dict:
     m = re.search(
         r'<script type="application/json" id="flight-data">\s*(.*?)\s*</script>',
-        html, re.S,
+        html, re.DOTALL,
     )
     assert m, "embedded data block missing"
     return json.loads(m.group(1))

@@ -10,7 +10,6 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 
 def dist_binary(platform: str = sys.platform) -> Path:
@@ -22,9 +21,9 @@ def dist_binary(platform: str = sys.platform) -> Path:
 def pyinstaller_args(
     entry_script: str,
     platform: str = sys.platform,
-    icon: Optional[Path] = None,
-    codesign_identity: Optional[str] = None,
-) -> List[str]:
+    icon: Path | None = None,
+    codesign_identity: str | None = None,
+) -> list[str]:
     """PyInstaller argument list for *platform*."""
     if codesign_identity and platform != "darwin":
         raise ValueError("codesign_identity is macOS-only")

@@ -34,13 +34,11 @@ def _footprints_folder(footprints: list[Footprint]) -> str:
     for fp in footprints:
         coords = " ".join(f"{lon},{lat},0" for lon, lat in fp.ring)
         placemarks.append(
-            "\n      <Placemark><name>footprint {idx}</name>"
+            f"\n      <Placemark><name>footprint {fp.index}</name>"
             "<Polygon><altitudeMode>clampToGround</altitudeMode>"
             "<outerBoundaryIs><LinearRing>"
-            "<coordinates>{coords}</coordinates>"
-            "</LinearRing></outerBoundaryIs></Polygon></Placemark>".format(
-                idx=fp.index, coords=coords
-            )
+            f"<coordinates>{coords}</coordinates>"
+            "</LinearRing></outerBoundaryIs></Polygon></Placemark>"
         )
     return (
         "\n    <Folder><name>Camera footprints</name>" + "".join(placemarks) + "\n    </Folder>"

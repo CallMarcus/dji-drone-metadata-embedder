@@ -6,20 +6,29 @@ directories of SRT files can be processed in batch. A small CLI wrapper is
 provided for convenience.
 """
 
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
-from typing import Any
-import re
 import logging
+import re
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
 
 from rich.progress import Progress
-from .utilities import TelemetrySample, is_gps_fix, setup_logging
-from .utilities import _parse_srt_datetime, resolve_utc_offset
-from .utilities import parse_home, redact_home
+
+from .geo.solar import sun_position
+
 # Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
 # import these from here:
-from .utilities import parse_utc_offset, estimate_utc_offset  # noqa: F401
-from .geo.solar import sun_position
+from .utilities import (  # noqa: F401
+    TelemetrySample,
+    _parse_srt_datetime,
+    estimate_utc_offset,
+    is_gps_fix,
+    parse_home,
+    parse_utc_offset,
+    redact_home,
+    resolve_utc_offset,
+    setup_logging,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,16 +141,16 @@ def extract_telemetry_to_gpx(
         metadata_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Write GPX file
-    gpx_header = """<?xml version="1.0" encoding="UTF-8"?>
+    gpx_header = f"""<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="DJI SRT to GPX Converter"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns="http://www.topografix.com/GPX/1/1"
     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
 <metadata>
-    <name>{}</name>
-    <time>{}</time>
+    <name>{Path(srt_file).stem}</name>
+    <time>{metadata_time}</time>
 </metadata>
-""".format(Path(srt_file).stem, metadata_time)
+"""
 
     trk_open = """<trk>
     <name>DJI Flight Path</name>

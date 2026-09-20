@@ -7,7 +7,6 @@ import platform
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict
 
 
 def get_windows_version() -> str:
@@ -28,7 +27,7 @@ def get_windows_version() -> str:
     return "Unknown"
 
 
-def get_python_info() -> Dict[str, str]:
+def get_python_info() -> dict[str, str]:
     """Return the current Python executable path and version."""
     return {"version": platform.python_version(), "path": sys.executable}
 
@@ -61,7 +60,7 @@ def get_system_architecture() -> str:
     return "64-bit" if arch.startswith("64") else "32-bit"
 
 
-def get_system_summary() -> Dict[str, str | int]:
+def get_system_summary() -> dict[str, str | int]:
     """Return summary information about the current system."""
     return {
         "windows_version": get_windows_version(),

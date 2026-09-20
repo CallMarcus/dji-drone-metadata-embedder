@@ -1,8 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from dji_metadata_embedder import DJIMetadataEmbedder
-from dji_metadata_embedder import telemetry_converter
+from dji_metadata_embedder import DJIMetadataEmbedder, telemetry_converter
 
 FORMAT3_SRT = """1
 00:00:00,000 --> 00:00:00,033

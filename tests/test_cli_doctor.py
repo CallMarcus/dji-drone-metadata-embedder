@@ -4,8 +4,8 @@ import logging
 
 from click.testing import CliRunner
 
-from dji_metadata_embedder import embedder
 from dji_metadata_embedder import cli as cli_mod
+from dji_metadata_embedder import embedder
 from dji_metadata_embedder.utils.provision import ProvisionError
 
 

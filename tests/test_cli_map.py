@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 import dji_metadata_embedder.cli as cli_mod
 from dji_metadata_embedder.cli import main
-from dji_metadata_embedder.geo.photomap import PhotoPoint, PhotomapError
+from dji_metadata_embedder.geo.photomap import PhotomapError, PhotoPoint
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 POINTS = [

@@ -8,8 +8,8 @@ from html import escape
 from pathlib import Path
 
 from .airspace import M_PER_FT
-from .provenance import stamp
 from .airspace.evaluate import ZoneFinding
+from .provenance import stamp
 from .record import FlightRecordData
 
 _STYLE = """

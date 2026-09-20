@@ -49,9 +49,10 @@ def test_convert_to_geojson_default_output_path(tmp_path):
 
 def test_geojson_includes_footprint_polygons():
     from pathlib import Path
-    from dji_metadata_embedder.geo.track import build_track
+
     from dji_metadata_embedder.geo.footprint import build_footprints
     from dji_metadata_embedder.geo.geojson import track_to_geojson
+    from dji_metadata_embedder.geo.track import build_track
 
     samples = Path(__file__).resolve().parents[1] / "samples"
     track = build_track(samples / "air3" / "clip.SRT")
@@ -66,8 +67,9 @@ def test_geojson_includes_footprint_polygons():
 
 def test_geojson_without_footprints_unchanged():
     from pathlib import Path
-    from dji_metadata_embedder.geo.track import build_track
+
     from dji_metadata_embedder.geo.geojson import track_to_geojson
+    from dji_metadata_embedder.geo.track import build_track
 
     samples = Path(__file__).resolve().parents[1] / "samples"
     track = build_track(samples / "air3" / "clip.SRT")
@@ -79,10 +81,11 @@ def test_geojson_without_footprints_unchanged():
 def test_geojson_footprint_carries_oblique_flag():
     # Oblique frustum footprints (#265): consumers can style trapezoids
     # differently, so the feature says how it was projected.
+    from datetime import datetime
+
     from dji_metadata_embedder.geo.footprint import build_footprints
     from dji_metadata_embedder.geo.geojson import track_to_geojson
     from dji_metadata_embedder.geo.track import Track, TrackPoint
-    from datetime import datetime
 
     pts = [TrackPoint(lat=0.0, lon=0.0, alt=100.0, timestamp="0",
                       utc=datetime(2026, 1, 1), rel_alt=100.0,

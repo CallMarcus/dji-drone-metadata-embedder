@@ -1,15 +1,13 @@
 import logging
 import logging.handlers
 import re
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Tuple
-import subprocess
 
 from rich.console import Console
 from rich.logging import RichHandler
-
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +170,7 @@ def _normalize_focal_len(raw: str) -> float | None:
     return value / 10.0 if value >= 100.0 else value
 
 
-def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
+def parse_telemetry_samples(srt_path: Path) -> list[TelemetrySample]:
     """Parse an SRT file into :class:`TelemetrySample` records.
 
     Same GPS extraction as the legacy 4-tuple parser (bracket format, ``GPS(...)``
@@ -181,7 +179,7 @@ def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
     """
     content = srt_path.read_text(encoding="utf-8")
     blocks = content.strip().split("\n\n")
-    samples: List[TelemetrySample] = []
+    samples: list[TelemetrySample] = []
     for block in blocks:
         lines = block.strip().split("\n")
         if len(lines) < 3:
@@ -252,7 +250,7 @@ def parse_telemetry_samples(srt_path: Path) -> List[TelemetrySample]:
     return samples
 
 
-def load_samples(path: Path) -> List[TelemetrySample]:
+def load_samples(path: Path) -> list[TelemetrySample]:
     """Load telemetry samples from a DJI ``.SRT`` or a video (MP4/MOV) source.
 
     SRT files are parsed directly; videos are read via the ExifTool-backed
@@ -267,7 +265,7 @@ def load_samples(path: Path) -> List[TelemetrySample]:
     return parse_telemetry_samples(path)
 
 
-def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, str]]:
+def parse_telemetry_points(srt_path: Path) -> list[tuple[float, float, float, str]]:
     """Parse an SRT file into a list of (lat, lon, alt, timestamp).
 
     Backwards-compatible 4-tuple view over :func:`parse_telemetry_samples`.
@@ -276,8 +274,8 @@ def parse_telemetry_points(srt_path: Path) -> List[Tuple[float, float, float, st
 
 
 def redact_coords(
-    coords: List[Tuple[float, float]], mode: str
-) -> List[Tuple[float, float]]:
+    coords: list[tuple[float, float]], mode: str
+) -> list[tuple[float, float]]:
     """Redact or fuzz coordinate list based on ``mode``."""
     if mode == "drop":
         return []
@@ -511,7 +509,7 @@ def get_tool_versions() -> dict[str, str]:
     return versions
 
 
-def check_dependencies() -> Tuple[bool, list[str]]:
+def check_dependencies() -> tuple[bool, list[str]]:
     """Return ``(True, [])`` if external tools are available."""
     import os
     import platform

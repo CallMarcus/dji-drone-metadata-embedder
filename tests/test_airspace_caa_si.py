@@ -80,7 +80,7 @@ def placemark(name: str, rows: str, coords: str,
         f"<outerBoundaryIs><LinearRing><coordinates>{coords}</coordinates>"
         f"</LinearRing></outerBoundaryIs>{hole}</Polygon></MultiGeometry>"
         f"</Placemark></Folder>"
-    ).encode("utf-8")
+    ).encode()
 
 
 SQUARE = "14.5,46.0,0 14.6,46.0,0 14.6,46.1,0 14.5,46.1,0 14.5,46.0,0"

@@ -4,8 +4,8 @@ This module contains reference SRT samples that serve as 'golden files' for
 testing parser robustness across different DJI drone models and formats.
 """
 
-from typing import Dict, List, Any
 from pathlib import Path
+from typing import Any
 
 # Golden SRT samples for different DJI model families
 GOLDEN_SAMPLES = {
@@ -320,7 +320,7 @@ def create_golden_fixtures(output_dir: Path) -> None:
         }, indent=2), encoding="utf-8")
 
 
-def get_sample_by_name(sample_name: str) -> Dict[str, Any]:
+def get_sample_by_name(sample_name: str) -> dict[str, Any]:
     """Get a specific golden sample by name."""
     if sample_name in GOLDEN_SAMPLES:
         return GOLDEN_SAMPLES[sample_name]
@@ -330,12 +330,12 @@ def get_sample_by_name(sample_name: str) -> Dict[str, Any]:
         raise ValueError(f"Unknown sample: {sample_name}")
 
 
-def list_available_samples() -> List[str]:
+def list_available_samples() -> list[str]:
     """List all available sample names."""
     return list(GOLDEN_SAMPLES.keys()) + list(EDGE_CASE_SAMPLES.keys())
 
 
-def validate_sample_parsing(sample_name: str, parser_func) -> Dict[str, Any]:
+def validate_sample_parsing(sample_name: str, parser_func) -> dict[str, Any]:
     """Validate that a parser function correctly handles a golden sample."""
     sample = get_sample_by_name(sample_name)
     

@@ -7,8 +7,8 @@ import zlib
 import pytest
 
 from dji_metadata_embedder.geo.terrain import (
-    TerrainUnavailable,
     ZOOM,
+    TerrainUnavailable,
     surface_elevations,
 )
 

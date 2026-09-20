@@ -45,7 +45,7 @@ from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin
 
 from .aixm51 import _CIRCLE_POINTS, _destination
-from .model import Applicability, AirspaceError, SourceInfo, Zone
+from .model import AirspaceError, Applicability, SourceInfo, Zone
 
 
 @dataclass(frozen=True)

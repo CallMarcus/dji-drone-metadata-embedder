@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-import dji_metadata_embedder.cli as cli
+from dji_metadata_embedder import cli
 from dji_metadata_embedder.cli import main
 from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 

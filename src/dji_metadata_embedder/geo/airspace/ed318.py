@@ -34,8 +34,14 @@ from dataclasses import dataclass
 from urllib.parse import urljoin
 
 from .dronezoner import _circle_ring
-from .model import iso_utc
-from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
+from .model import (
+    AirspaceError,
+    Applicability,
+    SourceInfo,
+    VerticalLimit,
+    Zone,
+    iso_utc,
+)
 
 
 @dataclass(frozen=True)

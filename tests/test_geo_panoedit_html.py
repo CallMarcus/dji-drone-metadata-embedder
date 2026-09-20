@@ -114,7 +114,6 @@ def test_page_save_backstop_outlasts_the_server_timeouts():
     # page's backstop firing first would replace the server's much better
     # message with a bare "timed out" (review finding).
     from dji_metadata_embedder.geo.panoedit import _WRITE_TIMEOUT
-
     from dji_metadata_embedder.geo.panoedit_html import _DEFAULT_SAVE_TIMEOUT_MS
 
     worst_case_ms = 2 * _WRITE_TIMEOUT * 1000

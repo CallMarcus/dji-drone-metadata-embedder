@@ -16,7 +16,7 @@ from datetime import datetime
 from ..track import Track
 from .evaluate import evaluate
 from .fetch import AirspaceData
-from .model import Applicability, M_PER_FT, VerticalLimit
+from .model import M_PER_FT, Applicability, VerticalLimit
 
 _MTIME_NOTE = (
     "times derived from file modification times, not telemetry datetimes"

@@ -1,9 +1,10 @@
 import subprocess
+
 from click.testing import CliRunner
 
-from dji_metadata_embedder.cli import main
-from dji_metadata_embedder import __version__
 import dji_metadata_embedder.utilities as utils
+from dji_metadata_embedder import __version__
+from dji_metadata_embedder.cli import main
 
 
 def test_version_shows_tool_versions(monkeypatch):

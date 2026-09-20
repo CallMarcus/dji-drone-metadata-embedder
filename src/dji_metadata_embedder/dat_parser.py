@@ -1,13 +1,11 @@
 import struct
 from pathlib import Path
-from typing import Dict, List
-
 
 _RECORD_STRUCT = struct.Struct("<IIfff")
 _HEADER = b"DAT13"
 
 
-def parse_v13(path: Path) -> Dict:
+def parse_v13(path: Path) -> dict:
     """Parse a very small subset of DJI DAT v13 logs.
 
     This parser expects a simplified binary layout used by the tests:
@@ -19,7 +17,7 @@ def parse_v13(path: Path) -> Dict:
     data = path.read_bytes()
     if not data.startswith(_HEADER):
         raise ValueError("Unsupported DAT file")
-    records: List[Dict] = []
+    records: list[dict] = []
     offset = len(_HEADER)
     while offset + _RECORD_STRUCT.size <= len(data):
         gps_time, frame, lat, lon, alt = _RECORD_STRUCT.unpack_from(data, offset)

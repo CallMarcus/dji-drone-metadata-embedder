@@ -29,7 +29,6 @@ pytest.importorskip("playwright")
 
 from dji_metadata_embedder.geo.serve import _QuietHandler  # noqa: E402
 
-
 # A valid 1x1 transparent PNG: the stand-in for every tile and sprite
 # request, so the map lays out normally with zero external traffic.
 _STUB_PNG = base64.b64decode(

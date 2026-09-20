@@ -4,18 +4,18 @@ Test script to validate DJI advanced features like telemetry conversion,
 metadata checking, and CLI functionality.
 """
 
-import sys
-from pathlib import Path
-import tempfile
 import subprocess
+import sys
+import tempfile
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 # Add the package to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from dji_metadata_embedder.telemetry_converter import convert_to_gpx, convert_to_csv
     from dji_metadata_embedder.metadata_check import check_metadata
+    from dji_metadata_embedder.telemetry_converter import convert_to_csv, convert_to_gpx
 except ImportError as e:
     print(f"❌ Could not import DJI modules: {e}")
     print("   Try running: pip install -e .")

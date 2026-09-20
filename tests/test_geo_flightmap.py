@@ -508,9 +508,10 @@ def _ghost_track(**overrides):
 
 
 def test_geojson_pose_arrays_rounded_and_aligned():
+    from datetime import datetime
+
     from dji_metadata_embedder.geo.flightmap import flights_to_geojson
     from dji_metadata_embedder.geo.track import Track, TrackPoint
-    from datetime import datetime
 
     pts = [
         TrackPoint(lat=10.0, lon=20.0, alt=100.0, timestamp="00:00:00,000",
