@@ -78,7 +78,7 @@ def get_video_duration(mp4_path: Path) -> float:
             "-show_entries", "format=duration",
             "-of", "csv=p=0", str(mp4_path)
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
         if result.returncode == 0 and result.stdout.strip():
             return float(result.stdout.strip())
     except (subprocess.TimeoutExpired, ValueError, FileNotFoundError):
@@ -165,7 +165,7 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> dic
         
         analysis["statistics"]["total_frames"] = len(srt_timestamps)
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
         analysis["valid"] = False
         analysis["issues"].append(f"Analysis failed: {e!s}")
     
@@ -176,7 +176,7 @@ def validate_directory(directory: Path, drift_threshold: float = 1.0) -> dict[st
     """Validate all SRT/MP4/MOV pairs in a directory."""
     result: dict[str, Any] = {
         "directory": str(directory),
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().astimezone().isoformat(),
         "total_files": 0,
         "valid_pairs": 0,
         "issues": [],
@@ -222,7 +222,7 @@ def validate_directory(directory: Path, drift_threshold: float = 1.0) -> dict[st
             result["issues"].extend([f"{mp4_file.name}: {issue}" for issue in analysis["issues"]])
             result["warnings"].extend([f"{mp4_file.name}: {warning}" for warning in analysis["warnings"]])
     
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
         result["issues"].append(f"Directory validation failed: {e!s}")
     
     return result
@@ -330,7 +330,7 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> dict[str, Any]:
     except UnicodeDecodeError:
         validation["valid"] = False
         validation["issues"].append("File encoding error - not valid UTF-8")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
         validation["valid"] = False
         validation["issues"].append(f"Validation failed: {e!s}")
     
@@ -467,7 +467,7 @@ def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, st
                 if max_speed > 200:  # More than 200 m/s (720 km/h) - clearly unrealistic for drone
                     result["warnings"].append(f"Unrealistic speed detected: {max_speed*3.6:.1f} km/h")
                 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
             result["warnings"].append(f"Speed calculation failed: {e!s}")
     
     # Normalize data (for now, just copy - could implement coordinate system conversions here)

@@ -33,7 +33,11 @@ def _parse_srt_datetime(text: str) -> datetime | None:
     if not m:
         return None
     year, month, day, hour, minute, second, millis = (int(g) for g in m.groups())
-    return datetime(year, month, day, hour, minute, second, millis * 1000)
+    # Naive on purpose: SRT timestamps are the camera's wall-clock; the UTC
+    # offset is applied downstream where the flight's zone is known.
+    return datetime(  # noqa: DTZ001
+        year, month, day, hour, minute, second, millis * 1000
+    )
 
 
 def parse_utc_offset(value: str | None) -> timedelta | None:
@@ -479,7 +483,8 @@ def get_tool_versions() -> dict[str, str]:
                     test_cmd, 
                     capture_output=True, 
                     text=True, 
-                    timeout=5
+                    timeout=5,
+                    check=False,
                 )
                 if result.returncode == 0:
                     output = result.stdout or result.stderr

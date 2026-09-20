@@ -57,7 +57,7 @@ def _parse_gps_datetime(value: str) -> datetime | None:
     text = value.strip().rstrip("Z").strip()
     for fmt in ("%Y:%m:%d %H:%M:%S.%f", "%Y:%m:%d %H:%M:%S"):
         try:
-            return datetime.strptime(text, fmt)
+            return datetime.strptime(text, fmt)  # noqa: DTZ007  # naive UTC by contract, see docstring
         except ValueError:
             continue
     return None
@@ -246,7 +246,8 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
     prefix = ["-config", str(config)] if config is not None else []
     try:
         return subprocess.run(
-            [exiftool_exe(), *prefix, *args], capture_output=True, text=True
+            [exiftool_exe(), *prefix, *args], capture_output=True, text=True,
+            check=False,
         )
     except FileNotFoundError:
         raise Mp4TelemetryError(_EXIFTOOL_INSTALL_HINT) from None

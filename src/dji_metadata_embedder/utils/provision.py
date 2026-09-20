@@ -190,7 +190,8 @@ def _smoke_version(exe: Path) -> str | None:
     """Run ``exe -ver``; return the reported version or ``None``."""
     try:
         proc = subprocess.run(
-            [str(exe), "-ver"], capture_output=True, text=True, timeout=30
+            [str(exe), "-ver"], capture_output=True, text=True, timeout=30,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None

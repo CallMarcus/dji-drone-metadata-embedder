@@ -409,7 +409,8 @@ def _run_exiftool_scan(directory: Path, recursive: bool) -> list[dict]:
     args.append(str(directory))
     try:
         proc = subprocess.run(
-            args, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            args, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
         )
     except FileNotFoundError:
         raise PhotomapError(_EXIFTOOL_INSTALL_HINT) from None

@@ -117,7 +117,7 @@ def _launched_from_explorer() -> bool:
         process_ids = (ctypes.c_uint32 * 2)()
         count = ctypes.windll.kernel32.GetConsoleProcessList(process_ids, 2)
         return count <= 1
-    except Exception:  # no console at all, or a non-standard runtime
+    except Exception:  # noqa: BLE001  # ctypes console probe: no console, or a non-standard runtime
         return False
 
 
@@ -1932,7 +1932,7 @@ def doctor(
         if log_json:
             click.echo(json.dumps({"status": "success"}))
         sys.exit(ExitCode.SUCCESS)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # CLI boundary: any failure becomes a message and an exit code
         error_msg = f"Doctor check failed: {e}"
         if log_json:
             click.echo(json.dumps({"error": "doctor_failed", "message": error_msg}))
@@ -2025,7 +2025,7 @@ def validate(
         else:
             sys.exit(ExitCode.SUCCESS)
             
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # CLI boundary: any failure becomes a message and an exit code
         error_msg = f"Validation failed: {e}"
         if log_json:
             click.echo(json.dumps({"error": "validation_failed", "message": error_msg}))
@@ -2102,7 +2102,7 @@ def verify_sun(
 
     try:
         summary = summarize_sun(Path(srt), tz_offset=offset)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # CLI boundary: any failure becomes a message and an exit code
         msg = f"verify-sun failed: {e}"
         if log_json:
             click.echo(json.dumps({"error": "verify_sun_failed", "message": msg}))

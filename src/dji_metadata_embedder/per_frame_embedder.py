@@ -22,7 +22,7 @@ def embed_flight_path_ffmpeg(
         cmd.extend(["-metadata", f"location.{i}.ISO6709={tag}"])
     cmd.extend([str(output)])
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     return result.returncode == 0
 
 
@@ -41,7 +41,7 @@ def extract_frame_locations(path: Path) -> list[str]:
         "frame_tags",
         str(path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         return []
     tags = []

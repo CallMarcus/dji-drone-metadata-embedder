@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -110,7 +111,7 @@ def build_records(
         home = (pts[0].lat, pts[0].lon)
         distance = sum(
             haversine_m(a.lat, a.lon, b.lat, b.lon)
-            for a, b in zip(pts, pts[1:])
+            for a, b in pairwise(pts)
         )
         max_home = max(
             (haversine_m(home[0], home[1], p.lat, p.lon) for p in pts),
