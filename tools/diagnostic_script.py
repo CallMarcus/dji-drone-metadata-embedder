@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Diagnostic script to identify issues with DJI Metadata Embedder setup."""
 import importlib.util
 import json

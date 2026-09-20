@@ -14,10 +14,10 @@ import pytest
 
 pytest.importorskip("playwright")
 
-from playwright.sync_api import expect  # noqa: E402
+from playwright.sync_api import expect
 
-from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html  # noqa: E402
-from dji_metadata_embedder.geo.track import Track, TrackPoint  # noqa: E402
+from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 pytestmark = pytest.mark.browser
 

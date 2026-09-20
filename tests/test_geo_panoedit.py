@@ -277,9 +277,11 @@ def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path,
         pe.subprocess, "run",
         lambda args, **kw: (_ for _ in ()).throw(
             pe.subprocess.TimeoutExpired(args, kw.get("timeout", 0))))
-    with caplog.at_level("WARNING", logger=pe.logger.name):
-        with pytest.raises(pe.PanoEditError):
-            pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
+    with (
+        caplog.at_level("WARNING", logger=pe.logger.name),
+        pytest.raises(pe.PanoEditError),
+    ):
+        pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
     assert any("did not finish writing pano.jpg" in r.getMessage()
                for r in caplog.records)
 

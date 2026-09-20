@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 End-to-end integration test that processes real DJI drone footage 
 and validates the complete workflow on Windows 11.
@@ -81,7 +80,7 @@ def test_full_processing_workflow(test_dir):
     print("\n🎬 Testing full processing workflow...")
     
     # Find test files
-    test_files, source_dir = find_test_files()
+    test_files, _source_dir = find_test_files()
     if not test_files:
         print("   ❌ No test files available")
         return False
@@ -206,12 +205,12 @@ def test_telemetry_export_workflow(test_dir):
     print("\n📤 Testing telemetry export workflow...")
     
     # Find SRT file
-    test_files, source_dir = find_test_files()
+    test_files, _source_dir = find_test_files()
     if not test_files:
         print("   ❌ No test files available")
         return False
     
-    mp4_file, srt_file = test_files
+    _mp4_file, srt_file = test_files
     
     try:
         # Test GPX export

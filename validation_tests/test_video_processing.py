@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script to validate DJI video processing and metadata embedding functionality.
 Tests the core video processing pipeline with real files.

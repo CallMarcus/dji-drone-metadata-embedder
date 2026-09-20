@@ -14,7 +14,7 @@ import pytest
 
 pytest.importorskip("playwright")
 
-from .test_panoedit_editor import _make_pano, _serve  # noqa: E402
+from .test_panoedit_editor import _make_pano, _serve
 
 pytestmark = pytest.mark.browser
 

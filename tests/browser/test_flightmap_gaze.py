@@ -3,15 +3,16 @@
 import math
 import re
 from datetime import datetime, timedelta
+from itertools import pairwise
 
 import pytest
 
 pytest.importorskip("playwright")
 
-from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html  # noqa: E402
-from dji_metadata_embedder.geo.footprint import DEFAULT_LENS, fov_degrees  # noqa: E402
-from dji_metadata_embedder.geo.geometry import frustum_ground_ring  # noqa: E402
-from dji_metadata_embedder.geo.track import Track, TrackPoint  # noqa: E402
+from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html
+from dji_metadata_embedder.geo.footprint import DEFAULT_LENS, fov_degrees
+from dji_metadata_embedder.geo.geometry import frustum_ground_ring
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 pytestmark = pytest.mark.browser
 
@@ -245,7 +246,7 @@ def test_beam_is_four_continuous_rays(serve_map, page):
     assert len(props) == 4 * steps
     for r in range(4):
         ray = props[r * steps:(r + 1) * steps]
-        for a, b in zip(ray, ray[1:]):
+        for a, b in pairwise(ray):
             assert abs(a["base"] - b["hgt"]) < 1e-6, f"gap in ray {r}"
         # Terrain is off in this run, so the extrusion measures from sea level
         # and the camera end sits at raw AGL.

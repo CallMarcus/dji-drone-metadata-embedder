@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """DJI Media Metadata Presence Checker
 
 Check if video or image files already contain GPS, altitude, and creation

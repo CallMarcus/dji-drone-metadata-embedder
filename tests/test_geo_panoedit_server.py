@@ -51,7 +51,7 @@ def _post(url: str, payload: dict):
 
 
 def test_page_and_list(editor):
-    url, httpd, _ = editor
+    url, _httpd, _ = editor
     status, body = _get(url)
     assert status == 200 and b"<!DOCTYPE html" in body
     status, body = _get(url + "api/list")

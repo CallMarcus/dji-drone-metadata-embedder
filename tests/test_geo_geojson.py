@@ -92,7 +92,7 @@ def test_geojson_footprint_carries_oblique_flag():
                       gimbal_pitch=-45.0, gimbal_yaw=0.0)]
     fps = build_footprints(Track("t", pts), interval=0.0)
     gj = track_to_geojson(Track("t", pts), footprints=fps)
-    poly = [f for f in gj["features"]
-            if f["geometry"] and f["geometry"]["type"] == "Polygon"][0]
+    poly = next(f for f in gj["features"]
+            if f["geometry"] and f["geometry"]["type"] == "Polygon")
     assert poly["properties"]["oblique"] is True
     assert poly["properties"]["pitch"] == -45.0

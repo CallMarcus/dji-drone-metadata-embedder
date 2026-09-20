@@ -18,11 +18,11 @@ SQUARE = [(6.0, 49.0), (6.2, 49.0), (6.2, 49.2), (6.0, 49.2), (6.0, 49.0)]
 
 
 def _zone(**over):
-    base = dict(
-        identifier="Z1", name="Zone 1", restriction="REQ_AUTHORISATION",
-        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(120, "m", "AGL"),
-        applicability=[], polygons=[SQUARE], source=SRC, native={},
-    )
+    base = {
+        "identifier": "Z1", "name": "Zone 1", "restriction": "REQ_AUTHORISATION",
+        "lower": VerticalLimit(0, "m", "AGL"), "upper": VerticalLimit(120, "m", "AGL"),
+        "applicability": [], "polygons": [SQUARE], "source": SRC, "native": {},
+    }
     base.update(over)
     return Zone(**base)
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script to validate DJI SRT parsing functionality.
 Tests parsing of different SRT formats and data extraction.

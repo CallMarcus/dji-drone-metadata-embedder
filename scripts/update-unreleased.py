@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Update the 'Unreleased' section of CHANGELOG.md with recent conventional commits.
 

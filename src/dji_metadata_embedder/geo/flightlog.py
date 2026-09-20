@@ -24,7 +24,6 @@ from __future__ import annotations
 # Datetimes here are naive by design: LogRow carries `utc` and `local` as
 # separate fields, so the zone lives in the field name, not the value, and
 # `datetime.min` is only a sort sentinel among naive values.
-
 import csv
 import re
 from bisect import bisect_left

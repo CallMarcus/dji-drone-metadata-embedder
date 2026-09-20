@@ -353,7 +353,7 @@ def test_scan_photos_partial_failure_still_parses(monkeypatch, tmp_path):
             stdout=_json.dumps(CANNED), stderr="Error: bad.jpg", returncode=1
         ),
     )
-    points, skipped = scan_photos(tmp_path)
+    points, _skipped = scan_photos(tmp_path)
     assert [p.name for p in points] == ["church1.jpg", "church2.jpg"]
 
 

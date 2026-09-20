@@ -64,8 +64,8 @@ def test_zones_url_filters_time_zones_and_escapes_the_window():
     assert q["typeNames"] == ["uaszone"] and q["outputFormat"] == ["application/json"]
     assert q["cql_filter"] == ["type_code<>'TIME_ZONE'"]
     assert q["viewparams"] == [
-        "window_start:2026-09-16T07\\:00\\:00.000Z;"
-        "window_end:2026-09-16T09\\:00\\:00.000Z;show_planned:true"
+        ("window_start:2026-09-16T07\\:00\\:00.000Z;"
+        "window_end:2026-09-16T09\\:00\\:00.000Z;show_planned:true")
     ]
 
 

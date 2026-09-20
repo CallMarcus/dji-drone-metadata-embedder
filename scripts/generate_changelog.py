@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Generate changelog entries from conventional commit messages.
 

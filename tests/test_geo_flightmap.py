@@ -495,8 +495,8 @@ def _ghost_track(**overrides):
     from dji_metadata_embedder.geo.track import Track, TrackPoint
 
     t0 = datetime(2026, 6, 15, 12, 0, 0)
-    defaults = dict(gimbal_yaw=None, gimbal_pitch=None, rel_alt=None,
-                    focal_len=None)
+    defaults = {"gimbal_yaw": None, "gimbal_pitch": None, "rel_alt": None,
+                    "focal_len": None}
     defaults.update(overrides)
     pts = [
         TrackPoint(lat=10.0, lon=20.0 + i * 0.001, alt=100.0 + i,

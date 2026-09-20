@@ -498,7 +498,7 @@ def test_html_popup_fields_none_keeps_pano_viewer_working():
     html = photos_to_html(
         PANO_POINTS, title="t", link_base="", popup_fields=frozenset())
     data = _embedded_geojson(html)
-    pano = [f for f in data["features"] if f["properties"].get("pano")][0]
+    pano = next(f for f in data["features"] if f["properties"].get("pano"))
     # pano is type metadata and link powers the viewer — never filtered.
     assert pano["properties"]["link"]
     assert "pannellum" in html

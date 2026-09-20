@@ -27,7 +27,7 @@ import pytest
 
 pytest.importorskip("playwright")
 
-from dji_metadata_embedder.geo.serve import _QuietHandler  # noqa: E402
+from dji_metadata_embedder.geo.serve import _QuietHandler
 
 # A valid 1x1 transparent PNG: the stand-in for every tile and sprite
 # request, so the map lays out normally with zero external traffic.

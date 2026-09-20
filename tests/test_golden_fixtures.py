@@ -367,7 +367,7 @@ class TestComprehensiveValidation:
             create_golden_fixtures(output_dir)
             
             # Check that all expected directories were created
-            for sample_name in GOLDEN_SAMPLES.keys():
+            for sample_name in GOLDEN_SAMPLES:
                 sample_dir = output_dir / sample_name
                 assert sample_dir.exists()
                 assert (sample_dir / "clip.SRT").exists()
@@ -377,7 +377,7 @@ class TestComprehensiveValidation:
             edge_cases_dir = output_dir / "edge_cases"
             assert edge_cases_dir.exists()
             
-            for case_name in EDGE_CASE_SAMPLES.keys():
+            for case_name in EDGE_CASE_SAMPLES:
                 case_dir = edge_cases_dir / case_name
                 assert case_dir.exists()
                 assert (case_dir / "clip.SRT").exists()

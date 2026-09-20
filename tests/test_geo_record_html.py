@@ -28,14 +28,14 @@ ZONE = Zone(
 
 
 def _record(**over):
-    base = dict(
-        name="LUX0001", start_utc=datetime(2026, 7, 30, 12, 0),
-        end_utc=datetime(2026, 7, 30, 12, 3), duration_s=180.0,
-        takeoff=(49.615, 6.19), distance_m=350.0, max_home_m=120.0,
-        max_rel_alt_m=30.0, max_surface_m=33.5,
-        surface_note=None, max_amsl_m=303.0, time_note=None,
-        measure_note="Regulation (EU) 2019/947 ... makes no determination.",
-        airspace=AirspaceReport(
+    base = {
+        "name": "LUX0001", "start_utc": datetime(2026, 7, 30, 12, 0),
+        "end_utc": datetime(2026, 7, 30, 12, 3), "duration_s": 180.0,
+        "takeoff": (49.615, 6.19), "distance_m": 350.0, "max_home_m": 120.0,
+        "max_rel_alt_m": 30.0, "max_surface_m": 33.5,
+        "surface_note": None, "max_amsl_m": 303.0, "time_note": None,
+        "measure_note": "Regulation (EU) 2019/947 ... makes no determination.",
+        "airspace": AirspaceReport(
             findings=[ZoneFinding(
                 zone=ZONE, entered=True,
                 entry_utc=datetime(2026, 7, 30, 12, 1),
@@ -44,8 +44,8 @@ def _record(**over):
             )],
             source=SRC,
         ),
-        points=[(49.615, 6.19), (49.618, 6.19)],
-    )
+        "points": [(49.615, 6.19), (49.618, 6.19)],
+    }
     base.update(over)
     return FlightRecordData(**base)
 

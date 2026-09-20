@@ -27,12 +27,7 @@ def test_per_frame_embedder(monkeypatch, tmp_path):
         class Res:
             returncode = 0
             stdout = (
-                "\n".join(
-                    [
-                        "TAG:location.0.ISO6709=+59.1000+018.2000+0002.0/",
-                        "TAG:location.1.ISO6709=+59.2000+018.3000+0003.0/",
-                    ]
-                )
+                "TAG:location.0.ISO6709=+59.1000+018.2000+0002.0/\nTAG:location.1.ISO6709=+59.2000+018.3000+0003.0/"
                 if cmd[0] == "ffprobe"
                 else ""
             )

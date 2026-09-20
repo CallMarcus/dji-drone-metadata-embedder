@@ -28,6 +28,7 @@ from pathlib import Path
 MP4_HEADER = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42mp41"
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def create_placeholder_mp4(path: Path, size: int = 1024) -> Path:
@@ -45,7 +46,7 @@ def create_placeholder_mp4(path: Path, size: int = 1024) -> Path:
         fh.write(MP4_HEADER)
         if size > len(MP4_HEADER):
             fh.write(b"\0" * (size - len(MP4_HEADER)))
-    logging.info("Created placeholder MP4: %s", path)
+    logger.info("Created placeholder MP4: %s", path)
     return path
 
 
@@ -61,7 +62,7 @@ def create_mini_srt(path: Path) -> Path:
 """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    logging.info("Created Mini 3/4 SRT: %s", path)
+    logger.info("Created Mini 3/4 SRT: %s", path)
     return path
 
 
@@ -77,7 +78,7 @@ GPS(39.906218,116.391306,69.900) BAROMETER(91.2) HOME(39.906206,116.391400)
 """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    logging.info("Created Avata 2 SRT: %s", path)
+    logger.info("Created Avata 2 SRT: %s", path)
     return path
 
 
@@ -118,7 +119,7 @@ BAROMETER(91.2) HOME(39.906206,116.391400)
     paths.append(split_lines)
 
     for p in paths:
-        logging.info("Created edge-case SRT: %s", p)
+        logger.info("Created edge-case SRT: %s", p)
 
     return paths
 
@@ -138,7 +139,7 @@ def main() -> None:
     create_mini_srt(out_dir / "mini.srt")
     create_avata2_srt(out_dir / "avata2.srt")
     create_edge_case_srts(out_dir / "edge_cases")
-    logging.info("All test data generated in %s", out_dir)
+    logger.info("All test data generated in %s", out_dir)
 
 
 if __name__ == "__main__":
