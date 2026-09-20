@@ -124,14 +124,21 @@ def test_cli_iconset_prints_name_px_lines(capsys):
 
 def test_cli_assemble_end_to_end(tmp_path, capsys):
     publish, cli, icns = _fake_inputs(tmp_path)
-    mb.main([
-        "assemble",
-        "--publish-dir", str(publish),
-        "--cli", str(cli),
-        "--icns", str(icns),
-        "--version", "2.5.0",
-        "--out", str(tmp_path / "out"),
-    ])
+    mb.main(
+        [
+            "assemble",
+            "--publish-dir",
+            str(publish),
+            "--cli",
+            str(cli),
+            "--icns",
+            str(icns),
+            "--version",
+            "2.5.0",
+            "--out",
+            str(tmp_path / "out"),
+        ]
+    )
     out = capsys.readouterr().out.strip()
     assert out.endswith("DJI Metadata Embedder.app")
     assert (tmp_path / "out" / "DJI Metadata Embedder.app").is_dir()

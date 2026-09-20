@@ -11,19 +11,28 @@ from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 pytestmark = pytest.mark.browser
 
-TILE_DEG = 360 / 2 ** 15   # z15 tile width; DEM cliff sits at each midpoint
+TILE_DEG = 360 / 2**15  # z15 tile width; DEM cliff sits at each midpoint
 
 
-def _flight(name: str, lat: float, lon: float, agls: list[float | None],
-            step: float = 0.0006) -> Track:
+def _flight(
+    name: str, lat: float, lon: float, agls: list[float | None], step: float = 0.0006
+) -> Track:
     """Synthetic flight; ``agls[i]`` becomes point i's rel_alt (AGL)."""
     t0 = datetime(2026, 6, 15, 12, 0, 0)
-    return Track(name=name, points=[
-        TrackPoint(lat=lat, lon=lon + i * step, alt=100.0 + (a or 0),
-                   timestamp=f"00:00:{i:02d},000",
-                   utc=t0 + timedelta(seconds=i * 1.0), rel_alt=a)
-        for i, a in enumerate(agls)
-    ])
+    return Track(
+        name=name,
+        points=[
+            TrackPoint(
+                lat=lat,
+                lon=lon + i * step,
+                alt=100.0 + (a or 0),
+                timestamp=f"00:00:{i:02d},000",
+                utc=t0 + timedelta(seconds=i * 1.0),
+                rel_alt=a,
+            )
+            for i, a in enumerate(agls)
+        ],
+    )
 
 
 _PROBE_JS = """
@@ -73,25 +82,25 @@ _PRESERVE_JS = """
 def test_terrain_occludes_fill_extrusion(serve_map, page):
     """A 600 m cliff between camera and target must hide the target."""
     lat = 10.0
-    tile_lon = TILE_DEG * 1660          # an arbitrary tile's left edge
-    cam_lon = tile_lon + TILE_DEG * 0.2      # low half of this tile
-    target_lon = tile_lon + TILE_DEG * 1.2   # low half of the NEXT tile
+    tile_lon = TILE_DEG * 1660  # an arbitrary tile's left edge
+    cam_lon = tile_lon + TILE_DEG * 0.2  # low half of this tile
+    target_lon = tile_lon + TILE_DEG * 1.2  # low half of the NEXT tile
     page.add_init_script(_PRESERVE_JS)
-    html = flights_to_3d_html([_flight("DJI_0001", lat, cam_lon, [10.0] * 5)],
-                              "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", lat, cam_lon, [10.0] * 5)], "trip")
     serve_map(html, terrain_steps=(0.0, 600.0))
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.isStyleLoaded()",
-        timeout=20000)
+        "() => typeof map !== 'undefined' && map && map.isStyleLoaded()", timeout=20000
+    )
     page.evaluate(_PROBE_JS)
     page.evaluate("a => window.__probe(a[0], a[1])", [target_lon, lat])
     # Stand at 20 m in the valley and look horizontally down it.
     page.evaluate(
         "a => { map.setMaxPitch(100); map.jumpTo("
         "map.calculateCameraOptionsFromCameraLngLatAltRotation("
-        "[a[0], a[1]], 20, 90, 88, 0)); }", [cam_lon, lat])
-    page.wait_for_function("() => map.loaded() && !map.isMoving()",
-                           timeout=20000)
+        "[a[0], a[1]], 20, 90, 88, 0)); }",
+        [cam_lon, lat],
+    )
+    page.wait_for_function("() => map.loaded() && !map.isMoving()", timeout=20000)
     page.wait_for_timeout(2000)
     occluded = page.evaluate("() => window.__probeCount()")
 
@@ -110,29 +119,34 @@ def test_terrain_occludes_fill_extrusion(serve_map, page):
 
 def test_sculpture_layers_exist(serve_map, page):
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])],
-        "trip")
+        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])], "trip"
+    )
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
-    assert page.evaluate(
-        "() => map.getLayer('sculpt-0-curtain').type") == "fill-extrusion"
-    assert page.evaluate(
-        "() => map.getLayer('sculpt-0-ribbon').type") == "fill-extrusion"
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
+    assert (
+        page.evaluate("() => map.getLayer('sculpt-0-curtain').type") == "fill-extrusion"
+    )
+    assert (
+        page.evaluate("() => map.getLayer('sculpt-0-ribbon').type") == "fill-extrusion"
+    )
 
 
 def test_source_is_populated_from_the_flight(serve_map, page):
     """The planks actually reach the map source, not just the builder."""
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])],
-        "trip")
+        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])], "trip"
+    )
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     page.wait_for_function(
-        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=15000)
+        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=15000
+    )
 
 
 def test_curtain_height_tracks_agl(serve_map, page):
@@ -140,13 +154,15 @@ def test_curtain_height_tracks_agl(serve_map, page):
     html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, agls)], "trip")
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     # planksFor is called directly rather than querySourceFeatures, which
     # can return the same plank once per covering tile.
     peak = page.evaluate(
         "() => Math.max.apply(null,"
-        " planksFor(flights[0], 10).map(f => f.properties.hgt))")
+        " planksFor(flights[0], 10).map(f => f.properties.hgt))"
+    )
     # Segment AGL is the mean of its endpoints, so the tallest plank is the
     # mean of the two highest adjacent samples: (20+45)/2 and (45+30)/2 -> 37.5
     assert abs(peak - 37.5) < 0.1
@@ -155,47 +171,51 @@ def test_curtain_height_tracks_agl(serve_map, page):
 def test_ribbon_base_never_negative(serve_map, page):
     """A hover below the ribbon thickness must not compute a negative base."""
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [1.0, 2.0, 1.5, 2.5, 1.0])], "trip")
+        [_flight("DJI_0001", 10.0, 20.0, [1.0, 2.0, 1.5, 2.5, 1.0])], "trip"
+    )
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     lo = page.evaluate(
         "() => Math.min.apply(null,"
-        " planksFor(flights[0], 10).map(f => f.properties.rbase))")
+        " planksFor(flights[0], 10).map(f => f.properties.rbase))"
+    )
     assert lo == 0
 
 
 def test_flight_without_agl_gets_no_sculpture(serve_map, page):
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [None] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [None] * 5)], "trip")
     serve_map(html)
     page.wait_for_function(
         "() => typeof map !== 'undefined' && map && map.getLayer('flight-0')",
-        timeout=15000)
+        timeout=15000,
+    )
     assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')") is False
 
 
 def test_single_fix_flight_gets_no_sculpture(serve_map, page):
     """A one-point flight is a Point feature: no segments, no sculpture."""
-    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [12.0])],
-                              "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [12.0])], "trip")
     serve_map(html)
     page.wait_for_function(
         "() => typeof map !== 'undefined' && map && map.getLayer('flight-0')",
-        timeout=15000)
+        timeout=15000,
+    )
     assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')") is False
 
 
 def test_null_agl_point_breaks_the_curtain(serve_map, page):
     """A null AGL splits the curtain rather than interpolating across it."""
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0, 10.0, None, 10.0, 10.0])],
-        "trip")
+        [_flight("DJI_0001", 10.0, 20.0, [10.0, 10.0, None, 10.0, 10.0])], "trip"
+    )
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     # 4 possible segments; the two touching the null point are dropped.
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 2
 
@@ -203,36 +223,43 @@ def test_null_agl_point_breaks_the_curtain(serve_map, page):
 def test_sculpture_paint_properties_are_wired_correctly(serve_map, page):
     """Pin the actual paint expressions, not just that the layers exist."""
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])],
-        "trip")
+        [_flight("DJI_0001", 10.0, 20.0, [5.0, 20.0, 45.0, 30.0, 12.0])], "trip"
+    )
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     curtain_base = page.evaluate(
-        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-base')")
+        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-base')"
+    )
     curtain_height = page.evaluate(
-        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-height')")
+        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-height')"
+    )
     ribbon_base = page.evaluate(
-        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-base')")
+        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-base')"
+    )
     ribbon_height = page.evaluate(
-        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-height')")
+        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-height')"
+    )
     # opacity and vertical-gradient are the only two paint properties that
     # distinguish the translucent curtain from the solid ribbon: without
     # pinning them, swapping the two layers' paint would still pass every
     # other assertion in this test.
     curtain_opacity = page.evaluate(
-        "() => map.getPaintProperty("
-        "'sculpt-0-curtain', 'fill-extrusion-opacity')")
+        "() => map.getPaintProperty('sculpt-0-curtain', 'fill-extrusion-opacity')"
+    )
     curtain_gradient = page.evaluate(
         "() => map.getPaintProperty("
-        "'sculpt-0-curtain', 'fill-extrusion-vertical-gradient')")
+        "'sculpt-0-curtain', 'fill-extrusion-vertical-gradient')"
+    )
     ribbon_opacity = page.evaluate(
-        "() => map.getPaintProperty("
-        "'sculpt-0-ribbon', 'fill-extrusion-opacity')")
+        "() => map.getPaintProperty('sculpt-0-ribbon', 'fill-extrusion-opacity')"
+    )
     ribbon_gradient = page.evaluate(
         "() => map.getPaintProperty("
-        "'sculpt-0-ribbon', 'fill-extrusion-vertical-gradient')")
+        "'sculpt-0-ribbon', 'fill-extrusion-vertical-gradient')"
+    )
     assert curtain_base == 0
     assert curtain_height == ["get", "hgt"]
     assert ribbon_base == ["get", "rbase"]
@@ -243,8 +270,7 @@ def test_sculpture_paint_properties_are_wired_correctly(serve_map, page):
     assert ribbon_gradient is False
 
 
-def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
-        serve_map, page):
+def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(serve_map, page):
     """A tall segment's rbase must track hgt - 6 exactly.
 
     ``test_ribbon_base_never_negative`` uses a fixture where every segment
@@ -256,8 +282,9 @@ def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
     html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, agls)], "trip")
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map"
-        " && map.getLayer('sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     planks = page.evaluate("() => planksFor(flights[0], 10)")
     assert len(planks) == 4
     for plank in planks:
@@ -266,12 +293,12 @@ def test_ribbon_base_is_exactly_agl_minus_ribbon_thickness_when_tall(
 
 
 def test_zooming_out_widens_planks_in_metres(serve_map, page):
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
     serve_map(html)
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.getLayer("
-        "'sculpt-0-curtain')", timeout=15000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=15000,
+    )
     page.evaluate("() => map.jumpTo({zoom: 16})")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
     near = page.evaluate("() => sculpture.widthM")
@@ -291,12 +318,13 @@ def test_negative_agl_segments_produce_no_planks(serve_map, page):
     be dropped exactly like a null-AGL segment is.
     """
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0, -400.0, 10.0, 10.0, 10.0])],
-        "trip")
+        [_flight("DJI_0001", 10.0, 20.0, [10.0, -400.0, 10.0, 10.0, 10.0])], "trip"
+    )
     serve_map(html)
     page.wait_for_function(
         "() => typeof map !== 'undefined' && map && map.getLayer('flight-0')",
-        timeout=15000)
+        timeout=15000,
+    )
     # 4 possible segments; the two touching the negative-mean-AGL point
     # (indices 0-1 and 1-2) are dropped, leaving 2.
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 2
@@ -316,19 +344,21 @@ def test_height_converts_to_true_altitude_over_terrain(serve_map, page):
     # not one), so the low/high split actually falls a full tile-width east
     # of tile_lon rather than mid-tile. Start on the high side of that
     # boundary and walk east into the low side.
-    start_lon = tile_lon + TILE_DEG * 1.75          # high side
-    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    start_lon = tile_lon + TILE_DEG * 1.75  # high side
+    step = TILE_DEG * 0.12  # ~5 steps into the valley
     html = flights_to_3d_html(
-        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip"
+    )
     serve_map(html, terrain_steps=(0.0, 600.0))
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.getLayer("
-        "'sculpt-0-curtain')", timeout=20000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=20000,
+    )
     page.wait_for_function(
-        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000
+    )
     page.evaluate("() => setSculptData()")
-    hs = page.evaluate(
-        "() => planksFor(flights[0], 10).map(f => f.properties.hgt)")
+    hs = page.evaluate("() => planksFor(flights[0], 10).map(f => f.properties.hgt)")
     assert hs, "no planks built"
     # Plateau segments: ~50 m of clearance. Valley segments: ~650 m.
     assert min(hs) < 200, f"no plateau-height planks: {hs}"
@@ -345,32 +375,35 @@ def test_true_altitude_reaches_the_source(serve_map, page):
     """
     lat = 10.0
     tile_lon = TILE_DEG * 1660
-    start_lon = tile_lon + TILE_DEG * 1.75          # high side
-    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    start_lon = tile_lon + TILE_DEG * 1.75  # high side
+    step = TILE_DEG * 0.12  # ~5 steps into the valley
     html = flights_to_3d_html(
-        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip"
+    )
     serve_map(html, terrain_steps=(0.0, 600.0))
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.getLayer("
-        "'sculpt-0-curtain')", timeout=20000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=20000,
+    )
     page.wait_for_function(
-        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000
+    )
     page.evaluate("() => setSculptData()")
     hs = page.evaluate(
-        "() => map.querySourceFeatures('sculpt-0')"
-        ".map(f => f.properties.hgt)")
+        "() => map.querySourceFeatures('sculpt-0').map(f => f.properties.hgt)"
+    )
     assert hs, "no features in source"
     assert max(hs) > 500, f"true altitude did not reach the source: {hs}"
 
 
 def _vis(page, layer="sculpt-0-curtain"):
     return page.evaluate(
-        "id => map.getLayoutProperty(id, 'visibility') || 'visible'", layer)
+        "id => map.getLayoutProperty(id, 'visibility') || 'visible'", layer
+    )
 
 
 def test_global_toggle_hides_and_restores_sculpture(serve_map, page):
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
     serve_map(html)
     page.wait_for_selector("#sculpture-toggle", timeout=15000)
     assert _vis(page) == "visible"
@@ -383,8 +416,12 @@ def test_global_toggle_hides_and_restores_sculpture(serve_map, page):
 
 def test_per_flight_checkbox_hides_its_sculpture(serve_map, page):
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5),
-         _flight("DJI_0002", 11.0, 21.0, [10.0] * 5)], "trip")
+        [
+            _flight("DJI_0001", 10.0, 20.0, [10.0] * 5),
+            _flight("DJI_0002", 11.0, 21.0, [10.0] * 5),
+        ],
+        "trip",
+    )
     serve_map(html)
     page.wait_for_selector("#sculpture-toggle", timeout=15000)
     page.locator("#flights-panel input[type=checkbox]").first.uncheck()
@@ -395,8 +432,12 @@ def test_per_flight_checkbox_hides_its_sculpture(serve_map, page):
 def test_per_flight_state_survives_a_global_cycle(serve_map, page):
     """Re-enabling the sculpture must not un-hide an unchecked flight."""
     html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5),
-         _flight("DJI_0002", 11.0, 21.0, [10.0] * 5)], "trip")
+        [
+            _flight("DJI_0001", 10.0, 20.0, [10.0] * 5),
+            _flight("DJI_0002", 11.0, 21.0, [10.0] * 5),
+        ],
+        "trip",
+    )
     serve_map(html)
     page.wait_for_selector("#sculpture-toggle", timeout=15000)
     page.locator("#flights-panel input[type=checkbox]").first.uncheck()
@@ -407,16 +448,14 @@ def test_per_flight_state_survives_a_global_cycle(serve_map, page):
 
 
 def test_no_toggle_when_no_flight_has_agl(serve_map, page):
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [None] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [None] * 5)], "trip")
     serve_map(html)
     page.wait_for_selector("#flights-panel", timeout=15000)
     assert page.locator("#sculpture-toggle").count() == 0
 
 
 def test_ghost_mode_hides_sculpture_and_exit_restores_it(serve_map, page):
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
     serve_map(html)
     page.wait_for_selector("#sculpture-toggle", timeout=15000)
     assert _vis(page) == "visible"
@@ -455,29 +494,34 @@ def test_sculpt_settle_repopulates_a_wiped_source_within_budget(serve_map, page)
     # the 600 m plateau, so a warm probe there reads a non-zero elevation --
     # the same signal sculptSettle() itself uses to know it can stop
     # retrying (a genuine 0 m reading is treated as still-cold).
-    start_lon = tile_lon + TILE_DEG * 1.75          # high side (plateau)
-    step = TILE_DEG * 0.12                          # ~5 steps into the valley
+    start_lon = tile_lon + TILE_DEG * 1.75  # high side (plateau)
+    step = TILE_DEG * 0.12  # ~5 steps into the valley
     html = flights_to_3d_html(
-        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip")
+        [_flight("DJI_0001", lat, start_lon, [50.0] * 6, step=step)], "trip"
+    )
     serve_map(html, terrain_steps=(0.0, 600.0))
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.getLayer("
-        "'sculpt-0-curtain')", timeout=20000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=20000,
+    )
     page.wait_for_function(
-        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000
+    )
     page.evaluate("() => setSculptData()")
     hs_before = page.evaluate(
-        "() => map.querySourceFeatures('sculpt-0')"
-        ".map(f => f.properties.hgt)")
+        "() => map.querySourceFeatures('sculpt-0').map(f => f.properties.hgt)"
+    )
     assert hs_before and max(hs_before) > 500, (
-        f"fixture was not warm before the wipe: {hs_before}")
+        f"fixture was not warm before the wipe: {hs_before}"
+    )
 
     page.evaluate(
         "() => map.getSource('sculpt-0')"
-        ".setData({type: 'FeatureCollection', features: []})")
+        ".setData({type: 'FeatureCollection', features: []})"
+    )
     page.wait_for_function(
-        "() => map.querySourceFeatures('sculpt-0').length === 0",
-        timeout=5000)
+        "() => map.querySourceFeatures('sculpt-0').length === 0", timeout=5000
+    )
     # Close the residual race: the load-time settle's own terminal
     # setSculptData() could in principle land in the narrow window between
     # the wipe being observed as empty and sculptSettle() being called
@@ -485,8 +529,7 @@ def test_sculpt_settle_repopulates_a_wiped_source_within_budget(serve_map, page)
     # re-check zero so a stray tick like that fails loudly here instead of
     # silently repopulating the source for the wrong reason.
     page.wait_for_timeout(300)
-    assert page.evaluate(
-        "() => map.querySourceFeatures('sculpt-0').length") == 0
+    assert page.evaluate("() => map.querySourceFeatures('sculpt-0').length") == 0
 
     page.evaluate("() => sculptSettle()")
     # On this warm fixture the real rebuild lands on the settle's first
@@ -498,19 +541,20 @@ def test_sculpt_settle_repopulates_a_wiped_source_within_budget(serve_map, page)
     # rebuild arrived far too fast for the retry countdown to have been
     # needed, not merely that it happened within the loop's own ceiling.
     page.wait_for_function(
-        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=2500)
+        "() => map.querySourceFeatures('sculpt-0').length > 0", timeout=2500
+    )
     hs_after = page.evaluate(
-        "() => map.querySourceFeatures('sculpt-0')"
-        ".map(f => f.properties.hgt)")
+        "() => map.querySourceFeatures('sculpt-0').map(f => f.properties.hgt)"
+    )
     assert hs_after, "settle did not repopulate the source"
     assert max(hs_after) > 500, (
-        f"settle rebuilt without converting to true altitude: {hs_after}")
+        f"settle rebuilt without converting to true altitude: {hs_after}"
+    )
 
 
 def test_ghost_exit_respects_a_disabled_sculpture(serve_map, page):
     """Leaving ghost mode must not switch a hidden sculpture back on."""
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
     serve_map(html)
     page.wait_for_selector("#sculpture-toggle", timeout=15000)
     page.locator("#sculpture-toggle").uncheck()
@@ -566,17 +610,19 @@ def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
     # walking to offset 1.25 puts the only segment's midpoint at 1.75,
     # 0.25 inside the high band -- the same margin already proven robust
     # by that other test's own start_lon.
-    takeoff_lon = tile_lon + TILE_DEG * 2.25   # low (0 m) side
-    step = TILE_DEG * (1.25 - 2.25)            # negative: walk to the high side
+    takeoff_lon = tile_lon + TILE_DEG * 2.25  # low (0 m) side
+    step = TILE_DEG * (1.25 - 2.25)  # negative: walk to the high side
     html = flights_to_3d_html(
-        [_flight("DJI_0001", lat, takeoff_lon, [5.0, 5.0], step=step)],
-        "trip")
+        [_flight("DJI_0001", lat, takeoff_lon, [5.0, 5.0], step=step)], "trip"
+    )
     serve_map(html, terrain_steps=(0.0, 600.0))
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.getLayer("
-        "'sculpt-0-curtain')", timeout=20000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=20000,
+    )
     page.wait_for_function(
-        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000
+    )
     assert page.evaluate("() => !!map.getSource('sculpt-0')")
     assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')")
     assert page.evaluate("() => !!map.getLayer('sculpt-0-ribbon')")
@@ -590,14 +636,14 @@ def test_empty_build_still_gets_a_source_and_toggle(serve_map, page):
     # array or any DOM/panel state -- addSculpture() is self-contained.
     page.evaluate(
         "() => addSculpture("
-        "{pts: flights[0].pts, agl: flights[0].agl, color: '#ff0000'}, 9)")
+        "{pts: flights[0].pts, agl: flights[0].agl, color: '#ff0000'}, 9)"
+    )
     assert page.evaluate("() => !!map.getSource('sculpt-9')")
     assert page.evaluate("() => !!map.getLayer('sculpt-9-curtain')")
     assert page.evaluate("() => !!map.getLayer('sculpt-9-ribbon')")
 
 
-def test_empty_load_time_build_still_gets_a_source_and_the_toggle(
-        serve_map, page):
+def test_empty_load_time_build_still_gets_a_source_and_the_toggle(serve_map, page):
     """Every segment sits below takeoff, so the LOAD-TIME build is genuinely
     empty -- the case test_empty_build_still_gets_a_source_and_toggle above
     cannot reach, because its load-time build only goes empty once a direct
@@ -609,13 +655,11 @@ def test_empty_load_time_build_still_gets_a_source_and_the_toggle(
     inside map.on('load'), before buildPanel() runs. The source, both
     layers and the panel's Sculpture toggle must all survive that.
     """
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [-50.0] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [-50.0] * 5)], "trip")
     serve_map(html)
     page.wait_for_selector("#flights-panel", timeout=15000)
     assert page.evaluate("() => planksFor(flights[0], 10).length") == 0
-    assert page.evaluate(
-        "() => map.querySourceFeatures('sculpt-0').length") == 0
+    assert page.evaluate("() => map.querySourceFeatures('sculpt-0').length") == 0
     assert page.evaluate("() => !!map.getLayer('sculpt-0-curtain')")
     assert page.evaluate("() => !!map.getLayer('sculpt-0-ribbon')")
     assert page.locator("#sculpture-toggle").count() == 1
@@ -643,8 +687,7 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     can finish before the re-entry lands, so the test would stop exercising
     the interrupted-moveend path it exists to pin.
     """
-    html = flights_to_3d_html(
-        [_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
+    html = flights_to_3d_html([_flight("DJI_0001", 10.0, 20.0, [10.0] * 5)], "trip")
     serve_map(html)
     page.wait_for_selector("#sculpture-toggle", timeout=15000)
     assert _vis(page) == "visible"
@@ -663,7 +706,8 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
         "'sculpt-0-curtain', 'visibility') || 'visible';"
         " const wasMoving = map.isMoving();"
         " ghostEnter(0, 2);"
-        " return { visAfterExit, wasMoving }; }")
+        " return { visAfterExit, wasMoving }; }"
+    )
     # The restore is deferred to moveend, so it must still be hidden here.
     assert result["visAfterExit"] == "none"
     # The interleaving needs no timing luck: easeTo() has the ease running
@@ -676,8 +720,8 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     # -- ghostExit() early-returning on an already-inactive ghost, leaving
     # no ease for the re-entry to interrupt.
     assert result["wasMoving"], (
-        "ghostExit() started no ease -- there was nothing for the "
-        "re-entry to interrupt")
+        "ghostExit() started no ease -- there was nothing for the re-entry to interrupt"
+    )
     assert _vis(page) == "none"
 
     page.evaluate("() => ghostExit()")
@@ -691,8 +735,8 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
     assert page.evaluate(
         "() => ['dragPan', 'dragRotate', 'scrollZoom', 'keyboard',"
         " 'doubleClickZoom', 'touchZoomRotate']"
-        ".every(h => map[h].isEnabled())"), (
-        "camera interaction handlers were not re-enabled after settling")
+        ".every(h => map[h].isEnabled())"
+    ), "camera interaction handlers were not re-enabled after settling"
 
 
 # --- #548: the ground reference is a sample on the ground, not sample 0 ---
@@ -701,22 +745,23 @@ def test_rapid_ghost_cycle_restores_correctly(serve_map, page):
 def _serve_steps(serve_map, page, agls):
     lat = 10.0
     tile_lon = TILE_DEG * 1660
-    start_lon = tile_lon + TILE_DEG * 1.75          # high (600 m) side
-    step = TILE_DEG * 0.12                          # walks east into the valley
+    start_lon = tile_lon + TILE_DEG * 1.75  # high (600 m) side
+    step = TILE_DEG * 0.12  # walks east into the valley
     html = flights_to_3d_html(
-        [_flight("DJI_0001", lat, start_lon, agls, step=step)], "trip")
+        [_flight("DJI_0001", lat, start_lon, agls, step=step)], "trip"
+    )
     serve_map(html, terrain_steps=(0.0, 600.0))
     page.wait_for_function(
-        "() => typeof map !== 'undefined' && map && map.getLayer("
-        "'sculpt-0-curtain')", timeout=20000)
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-0-curtain')",
+        timeout=20000,
+    )
     page.wait_for_function(
-        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000)
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000
+    )
     page.evaluate("() => setSculptData()")
 
 
-def test_airborne_start_takes_the_ground_reference_from_the_landing(
-    serve_map, page
-):
+def test_airborne_start_takes_the_ground_reference_from_the_landing(serve_map, page):
     """Recording started airborne over the plateau; landed in the valley.
 
     rel_alt is relative to the real launch site (the valley floor, where
@@ -727,8 +772,7 @@ def test_airborne_start_takes_the_ground_reference_from_the_landing(
     ref = page.evaluate("() => groundRef(flights[0])")
     assert ref["idx"] == 5 and ref["estimated"] is False
     assert abs(ref["elev"]) < 1.0, ref
-    hs = page.evaluate(
-        "() => planksFor(flights[0], 10).map(f => f.properties.hgt)")
+    hs = page.evaluate("() => planksFor(flights[0], 10).map(f => f.properties.hgt)")
     assert hs, "no planks built"
     assert max(hs) < 20, f"plateau planks lifted by the wrong reference: {hs}"
 
@@ -742,9 +786,7 @@ def test_ground_start_still_wins_over_a_later_landing(serve_map, page):
     assert ref["elev"] > 500, ref
 
 
-def test_no_ground_contact_falls_back_to_sample_zero_with_a_badge(
-    serve_map, page
-):
+def test_no_ground_contact_falls_back_to_sample_zero_with_a_badge(serve_map, page):
     from playwright.sync_api import expect
 
     _serve_steps(serve_map, page, [6.0, 6.0, 6.0, 6.0, 6.0, 6.0])
@@ -752,4 +794,5 @@ def test_no_ground_contact_falls_back_to_sample_zero_with_a_badge(
     assert ref["idx"] == 0 and ref["estimated"] is True
     page.evaluate("() => ghostEnter(0, 1)")
     expect(page.locator("#ghost-badges")).to_contain_text(
-        "ground reference estimated", timeout=10000)
+        "ground reference estimated", timeout=10000
+    )

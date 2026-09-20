@@ -306,7 +306,9 @@ def scan_flights(
                         continue
                     if gimbal_from_video:
                         report = videogimbal.enrich_from_video(
-                            path, samples, name=name,
+                            path,
+                            samples,
+                            name=name,
                             extract=extract or videogimbal.extract_samples,
                         )
                         if on_video_gimbal is not None:
@@ -322,9 +324,7 @@ def scan_flights(
                 skipped.append(name)
                 continue
             entries.append(
-                _ScanEntry(
-                    track, samples[0].dt, samples[-1].dt, utc=is_video(path)
-                )
+                _ScanEntry(track, samples[0].dt, samples[-1].dt, utc=is_video(path))
             )
     finally:
         util_logger.removeFilter(tz_warnings)
@@ -518,8 +518,7 @@ def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
                 "properties": properties,
             }
         )
-    return {"type": "FeatureCollection", "redacted": redact,
-            "features": features}
+    return {"type": "FeatureCollection", "redacted": redact, "features": features}
 
 
 def write_flights_geojson(
@@ -527,7 +526,8 @@ def write_flights_geojson(
 ) -> Path:
     """Write *tracks* as GeoJSON to *output_path* and return it."""
     output_path.write_text(
-        json.dumps(flights_to_geojson(tracks, redact=redact), indent=2), encoding="utf-8"
+        json.dumps(flights_to_geojson(tracks, redact=redact), indent=2),
+        encoding="utf-8",
     )
     logger.info("GeoJSON flight map created: %s", output_path)
     return output_path
@@ -561,8 +561,7 @@ def flights_to_kml(tracks: list[Track], title: str) -> str:
             )
         else:
             desc.append(
-                f"altitude: {props['alt_min']:g} to "
-                f"{props['alt_max']:g} m (as logged)"
+                f"altitude: {props['alt_min']:g} to {props['alt_max']:g} m (as logged)"
             )
         desc.append(f"{props['points']} GPS points")
         if track.segments:

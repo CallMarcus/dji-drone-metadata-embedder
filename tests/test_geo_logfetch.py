@@ -1,4 +1,5 @@
 """Unit tests for geo/logfetch.py — no network, ever."""
+
 import csv
 import io
 import json
@@ -19,9 +20,17 @@ from dji_metadata_embedder.geo.logfetch import (
 # The header set of a real Flight Reader export (mirrors the FLIGHT_READER
 # fixture in test_geo_flightlog.py).
 FR_FIELDS = [
-    "CUSTOM.date [local]", "CUSTOM.updateTime [local]", "OSD.flyTime [s]",
-    "OSD.latitude", "OSD.longitude", "HOME.latitude", "HOME.longitude",
-    "GIMBAL.pitch", "GIMBAL.yaw", "GIMBAL.yaw [360]", "GIMBAL.roll",
+    "CUSTOM.date [local]",
+    "CUSTOM.updateTime [local]",
+    "OSD.flyTime [s]",
+    "OSD.latitude",
+    "OSD.longitude",
+    "HOME.latitude",
+    "HOME.longitude",
+    "GIMBAL.pitch",
+    "GIMBAL.yaw",
+    "GIMBAL.yaw [360]",
+    "GIMBAL.roll",
 ]
 
 
@@ -61,10 +70,15 @@ def test_select_fields_returns_none_without_a_timestamp():
 
 def test_select_fields_skips_home_and_rc_coordinates():
     fields = [
-        "HOME.latitude", "HOME.longitude", "RC.latitude",
-        "OSD.latitude", "OSD.longitude",
-        "CUSTOM.date [local]", "CUSTOM.updateTime [local]",
-        "GIMBAL.pitch", "GIMBAL.yaw",
+        "HOME.latitude",
+        "HOME.longitude",
+        "RC.latitude",
+        "OSD.latitude",
+        "OSD.longitude",
+        "CUSTOM.date [local]",
+        "CUSTOM.updateTime [local]",
+        "GIMBAL.pitch",
+        "GIMBAL.yaw",
     ]
     picked = select_fields(fields)
     assert picked is not None
@@ -79,8 +93,11 @@ def test_select_fields_requests_every_alternative_not_just_the_first():
     the fetched CSV, so a first-hit shortcut here would silently narrow
     what the paid response can carry."""
     fields = [
-        "GIMBAL.pitch", "GIMBAL.yaw", "GIMBAL.heading",
-        "CUSTOM.date [local]", "CUSTOM.updateTime [local]",
+        "GIMBAL.pitch",
+        "GIMBAL.yaw",
+        "GIMBAL.heading",
+        "CUSTOM.date [local]",
+        "CUSTOM.updateTime [local]",
     ]
     picked = select_fields(fields)
     assert picked is not None
@@ -93,18 +110,31 @@ def test_select_fields_survives_the_full_catalog_traps():
     first-hit match picks near-miss names (all live-observed 2026-07-30):
     the closest name must win, and non-aircraft GPS must be excluded."""
     catalog = [
-        "ADSB.currentLatitude", "ADSB.currentLongitude",
-        "APPGPS.latitude", "APPGPS.longitude",
-        "BATTERY.goHomeTime [s]", "BATTERY.usefulTime [s]",
-        "CUSTOM.date", "CUSTOM.date [UTC]", "CUSTOM.date [local]",
-        "CUSTOM.updateTime", "CUSTOM.updateTime [UTC]",
-        "CUSTOM.updateTime [epoch]", "CUSTOM.updateTime [local]",
-        "CUSTOM.updateTime24 [UTC]", "CUSTOM.updateTime24 [local]",
-        "GIMBAL.isPitchAtLimit", "GIMBAL.isYawAtLimit",
-        "GIMBAL.pitch", "GIMBAL.yaw",
-        "HOME.latitude", "HOME.longitude",
-        "OSD.latitude", "OSD.longitude",
-        "RTK.aircraftLatitude", "RTK.baseStationLatitude",
+        "ADSB.currentLatitude",
+        "ADSB.currentLongitude",
+        "APPGPS.latitude",
+        "APPGPS.longitude",
+        "BATTERY.goHomeTime [s]",
+        "BATTERY.usefulTime [s]",
+        "CUSTOM.date",
+        "CUSTOM.date [UTC]",
+        "CUSTOM.date [local]",
+        "CUSTOM.updateTime",
+        "CUSTOM.updateTime [UTC]",
+        "CUSTOM.updateTime [epoch]",
+        "CUSTOM.updateTime [local]",
+        "CUSTOM.updateTime24 [UTC]",
+        "CUSTOM.updateTime24 [local]",
+        "GIMBAL.isPitchAtLimit",
+        "GIMBAL.isYawAtLimit",
+        "GIMBAL.pitch",
+        "GIMBAL.yaw",
+        "HOME.latitude",
+        "HOME.longitude",
+        "OSD.latitude",
+        "OSD.longitude",
+        "RTK.aircraftLatitude",
+        "RTK.baseStationLatitude",
     ]
     picked = select_fields(catalog)
     assert picked is not None
@@ -123,8 +153,11 @@ def test_select_fields_survives_the_full_catalog_traps():
 
 def test_select_fields_finds_signed_yaw_behind_the_360_variant():
     fields = [
-        "GIMBAL.yaw [360]", "GIMBAL.yaw", "GIMBAL.pitch",
-        "CUSTOM.date [local]", "CUSTOM.updateTime [local]",
+        "GIMBAL.yaw [360]",
+        "GIMBAL.yaw",
+        "GIMBAL.pitch",
+        "CUSTOM.date [local]",
+        "CUSTOM.updateTime [local]",
     ]
     picked = select_fields(fields)
     assert picked is not None
@@ -133,8 +166,11 @@ def test_select_fields_finds_signed_yaw_behind_the_360_variant():
 
 def test_select_fields_does_not_mistake_flytime_for_the_clock():
     fields = [
-        "OSD.flyTime [s]", "CUSTOM.date [local]",
-        "CUSTOM.updateTime [local]", "GIMBAL.pitch", "GIMBAL.yaw",
+        "OSD.flyTime [s]",
+        "CUSTOM.date [local]",
+        "CUSTOM.updateTime [local]",
+        "GIMBAL.pitch",
+        "GIMBAL.yaw",
     ]
     picked = select_fields(fields)
     assert picked is not None
@@ -173,10 +209,18 @@ def _one_row_csv(headers: list[str]) -> str:
     [
         FR_FIELDS,
         FR_FIELDS + ["CUSTOM.updateTime [utc]"],
-        ["GIMBAL.pitch", "GIMBAL.heading",
-         "CUSTOM.date [local]", "CUSTOM.updateTime [local]"],
-        ["GIMBAL.pitch", "GIMBAL.yaw [360]",
-         "CUSTOM.date [local]", "CUSTOM.updateTime [local]"],
+        [
+            "GIMBAL.pitch",
+            "GIMBAL.heading",
+            "CUSTOM.date [local]",
+            "CUSTOM.updateTime [local]",
+        ],
+        [
+            "GIMBAL.pitch",
+            "GIMBAL.yaw [360]",
+            "CUSTOM.date [local]",
+            "CUSTOM.updateTime [local]",
+        ],
     ],
 )
 def test_select_fields_stays_in_sync_with_the_parser(tmp_path, headers):
@@ -188,9 +232,7 @@ def test_select_fields_stays_in_sync_with_the_parser(tmp_path, headers):
     full = tmp_path / "full.csv"
     full.write_text(_one_row_csv(headers), encoding="utf-8")
     sub = tmp_path / "picked.csv"
-    sub.write_text(
-        _one_row_csv([h for h in headers if h in picked]), encoding="utf-8"
-    )
+    sub.write_text(_one_row_csv([h for h in headers if h in picked]), encoding="utf-8")
     assert parse_flight_log(sub).rows == parse_flight_log(full).rows
     assert parse_flight_log(sub).time_base == parse_flight_log(full).time_base
     # The API may return the picked columns in any order; the parse must
@@ -242,10 +284,16 @@ CSV_BODY = (
     b'"2026-07-27","2:00:01,0 pm","59,33460","18,06325","-61,0","-9,0"\n'
 )
 
-FIELDS_BODY = json.dumps([
-    "CUSTOM.date [local]", "CUSTOM.updateTime [local]",
-    "OSD.latitude", "OSD.longitude", "GIMBAL.pitch", "GIMBAL.yaw",
-]).encode()
+FIELDS_BODY = json.dumps(
+    [
+        "CUSTOM.date [local]",
+        "CUSTOM.updateTime [local]",
+        "OSD.latitude",
+        "OSD.longitude",
+        "GIMBAL.pitch",
+        "GIMBAL.yaw",
+    ]
+).encode()
 
 
 class FakeTransport:
@@ -279,7 +327,7 @@ def test_fetch_log_happy_path_writes_the_cache(tmp_path):
     assert fields_req.get_header("Authorization") == "Bearer sk_test"
     assert post_req.full_url == "https://api.flightreader.com/v1/logs"
     assert post_req.get_method() == "POST"
-    assert b"GIMBAL.pitch" in post_req.data          # fields preselection
+    assert b"GIMBAL.pitch" in post_req.data  # fields preselection
     # One "fields" part PER name — the API silently ignores a single
     # comma-joined value and returns the full CSV (live E2E 2026-07-30).
     assert b'name="fields"\r\n\r\nGIMBAL.pitch\r\n' in post_req.data
@@ -308,8 +356,9 @@ def test_fetch_log_falls_back_to_full_csv_when_fields_are_odd(tmp_path):
 
 
 def _http_error(code, reason, body=b""):
-    return HTTPError("https://api.flightreader.com/v1/x", code, reason,
-                     None, io.BytesIO(body))
+    return HTTPError(
+        "https://api.flightreader.com/v1/x", code, reason, None, io.BytesIO(body)
+    )
 
 
 def test_401_on_fields_aborts_before_the_billable_call(tmp_path):
@@ -321,8 +370,7 @@ def test_401_on_fields_aborts_before_the_billable_call(tmp_path):
 
 def test_post_http_error_carries_status_and_provider_message(tmp_path):
     transport = FakeTransport(
-        [FIELDS_BODY, _http_error(402, "Payment Required",
-                                  b"insufficient balance")]
+        [FIELDS_BODY, _http_error(402, "Payment Required", b"insufficient balance")]
     )
     with pytest.raises(LogFetchError, match="HTTP 402.*insufficient balance"):
         fetch_log(_txt(tmp_path), "sk_test", transport=transport)

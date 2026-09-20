@@ -6,6 +6,7 @@ feature's geometry, with timed windows in ``limitedApplicability`` and the
 restriction class under ``type`` (with the Z-spelling
 ``REQ_AUTHORIZATION`` the ED-269 feeds spell with an S).
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -22,9 +23,11 @@ from dji_metadata_embedder.geo.airspace.ed318 import (
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
-    feed="test", url="https://example.invalid/zones",
+    feed="test",
+    url="https://example.invalid/zones",
     fetched="2026-08-14T12:00:00Z",
-    license="test", caveat="informational only",
+    license="test",
+    caveat="informational only",
 )
 
 
@@ -40,9 +43,9 @@ def test_parses_the_ireland_fixture():
     # Mixed datums are the Irish norm: floor AGL, ceiling AMSL, both feet.
     assert z.lower is not None and z.lower.label() == "0 ft AGL"
     assert z.upper is not None and z.upper.label() == "2500 ft AMSL"
-    assert z.applicability == []          # no windows -> always applicable
+    assert z.applicability == []  # no windows -> always applicable
     assert z.polygons[0][0] == (-8.50, 51.60)
-    assert len(z.holes) == 1              # the inner ring is a hole (#422)
+    assert len(z.holes) == 1  # the inner ring is a hole (#422)
     assert z.native["properties"]["reason"] == "AIR_TRAFFIC"
 
 
@@ -53,7 +56,7 @@ def test_z_spelling_is_normalized_at_the_provider_boundary():
     zones = parse_ed318(_ie(), SRC)
     assert zones[0].restriction == "REQ_AUTHORISATION"
     assert zones[0].native["properties"]["type"] == "REQ_AUTHORIZATION"
-    assert zones[2].restriction == "CONDITIONAL"     # others pass through
+    assert zones[2].restriction == "CONDITIONAL"  # others pass through
 
 
 def test_limited_applicability_windows_are_utc():
@@ -120,7 +123,7 @@ def test_discover_feed_url_finds_the_dated_file_on_the_page():
     # stable entry point and the current href is discovered at fetch time.
     page = (
         b'<html><a href="/docs/default-source/default-document-library/uas/'
-        b'20260804_uas_zones_ireland_v1.geojson?sfvrsn=f9d5eff3_188&amp;'
+        b"20260804_uas_zones_ireland_v1.geojson?sfvrsn=f9d5eff3_188&amp;"
         b'download=true">Download</a></html>'
     )
     url = discover_feed_url(page, "https://www.iaa.ie/x/y")
@@ -190,6 +193,7 @@ def test_point_circle_zones_become_densified_rings():
     assert len(ring) >= 32 and ring[0] == ring[-1]
     # Every ring point sits ~500 m from the published centre.
     import math
+
     for lon, lat in ring[:8]:
         dy = (lat - 58.50) * 111_320.0
         dx = (lon - 15.50) * 111_320.0 * math.cos(math.radians(58.50))
@@ -237,9 +241,7 @@ def test_non_positive_circle_radius_raises():
 
 def test_se_feed_registry_states_the_lfv_terms():
     feed = ED318_FEEDS["SE"]
-    assert feed.file_url == (
-        "https://dronechart.lfv.se/data/uas_zones_ED318.json"
-    )
+    assert feed.file_url == ("https://dronechart.lfv.se/data/uas_zones_ED318.json")
     assert "cite LFV as source" in feed.license
     assert "2026-08-19" in feed.license
     assert "schedule" in (feed.note or "")

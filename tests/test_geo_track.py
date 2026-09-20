@@ -83,7 +83,9 @@ _FIX = Path(__file__).parent / "fixtures" / "mp4_telemetry" / "air3s_g3j.json"
 def test_build_track_from_video_uses_true_utc(monkeypatch, tmp_path):
     f = tmp_path / "clip.mp4"
     f.write_bytes(b"\x00")
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
     track = build_track(f)
     assert track.name == "clip"
     assert len(track.points) == 4
@@ -95,7 +97,9 @@ def test_build_track_from_video_uses_true_utc(monkeypatch, tmp_path):
 def test_build_track_video_drop_redaction_empty(monkeypatch, tmp_path):
     f = tmp_path / "clip.mp4"
     f.write_bytes(b"\x00")
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
     track = build_track(f, redact="drop")
     assert track.points == []
 
@@ -114,6 +118,7 @@ def test_auto_detected_offset_is_recorded_too(tmp_path):
     srt.write_bytes(CLIP.read_bytes())
     import os
     from datetime import timezone
+
     mtime = datetime(2026, 5, 17, 6, 28, 30, tzinfo=timezone.utc).timestamp()
     os.utime(srt, (mtime, mtime))
     assert build_track(srt).local_offset == timedelta(hours=2)
@@ -130,10 +135,13 @@ def test_video_local_offset_is_the_explicit_one_or_unknown(monkeypatch, tmp_path
     # the user stated one, and build_track must forward it (#432 review).
     f = tmp_path / "clip.mp4"
     f.write_bytes(b"\x00")
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
     assert build_track(f).local_offset is None
-    assert build_track(f, tz_offset=timedelta(hours=3)).local_offset \
-        == timedelta(hours=3)
+    assert build_track(f, tz_offset=timedelta(hours=3)).local_offset == timedelta(
+        hours=3
+    )
 
 
 def test_drop_redaction_leaves_local_offset_unknown():

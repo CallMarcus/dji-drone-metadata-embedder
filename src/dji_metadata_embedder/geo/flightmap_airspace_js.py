@@ -64,7 +64,9 @@ function zonePopupHtml(z) {
 }
 """
 
-AIRSPACE_OVERLAY_JS = AIRSPACE_POPUP_JS + """\
+AIRSPACE_OVERLAY_JS = (
+    AIRSPACE_POPUP_JS
+    + """\
 const airspace = JSON.parse(document.getElementById('airspace-data').textContent);
 const AIRSPACE_LABEL_MIN_ZOOM = 11;
 
@@ -126,3 +128,4 @@ if (airspace.notes.length) {
   note.addTo(map);
 }
 """
+)

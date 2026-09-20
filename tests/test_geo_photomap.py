@@ -67,8 +67,16 @@ def test_parses_gps_photos_and_skips_the_rest():
 # DJI restarts file numbering per card/session, so a recursive per-location
 # archive scan collides on basenames unless names carry their subdirectory.
 _RECURSIVE = [
-    {"SourceFile": "/scan/root/north/DJI_0001.JPG", "GPSLatitude": 1.0, "GPSLongitude": 2.0},
-    {"SourceFile": "/scan/root/south/DJI_0001.JPG", "GPSLatitude": 3.0, "GPSLongitude": 4.0},
+    {
+        "SourceFile": "/scan/root/north/DJI_0001.JPG",
+        "GPSLatitude": 1.0,
+        "GPSLongitude": 2.0,
+    },
+    {
+        "SourceFile": "/scan/root/south/DJI_0001.JPG",
+        "GPSLatitude": 3.0,
+        "GPSLongitude": 4.0,
+    },
 ]
 
 
@@ -94,16 +102,26 @@ def test_relative_name_falls_back_to_basename_when_outside_root():
 def test_relative_name_normalises_backslash_separators():
     # ExifTool echoes the directory arg's separators; a Windows root uses "\".
     points, _ = points_from_exiftool_json(
-        [{"SourceFile": r"C:\scan\root/sub/DJI_0001.JPG",
-          "GPSLatitude": 1.0, "GPSLongitude": 2.0}],
+        [
+            {
+                "SourceFile": r"C:\scan\root/sub/DJI_0001.JPG",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+            }
+        ],
         root=Path(r"C:\scan\root"),
     )
     assert points[0].name == "sub/DJI_0001.JPG"
 
 
 def test_scan_photos_recursive_uses_relative_names(monkeypatch, tmp_path):
-    src = [{"SourceFile": f"{tmp_path}/a/DJI_0001.JPG",
-            "GPSLatitude": 1.0, "GPSLongitude": 2.0}]
+    src = [
+        {
+            "SourceFile": f"{tmp_path}/a/DJI_0001.JPG",
+            "GPSLatitude": 1.0,
+            "GPSLongitude": 2.0,
+        }
+    ]
     monkeypatch.setattr(
         subprocess, "run", lambda *a, **k: _Proc(stdout=jsonlib.dumps(src))
     )
@@ -120,30 +138,49 @@ def test_thumbnail_base64_prefix_is_stripped():
 
 def test_dng_previewimage_used_when_no_thumbnail():
     # DJI DNGs expose their preview as PreviewImage, not EXIF:ThumbnailImage.
-    points, _ = points_from_exiftool_json([{
-        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-        "PreviewImage": "base64:/9j/PREVIEW",
-    }])
+    points, _ = points_from_exiftool_json(
+        [
+            {
+                "SourceFile": "a.dng",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "PreviewImage": "base64:/9j/PREVIEW",
+            }
+        ]
+    )
     assert points[0].thumbnail_b64 == "/9j/PREVIEW"
 
 
 def test_thumbnail_preferred_over_preview():
     # The small EXIF thumbnail wins over the (potentially large) preview.
-    points, _ = points_from_exiftool_json([{
-        "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-        "ThumbnailImage": "base64:/9j/THUMB",
-        "PreviewImage": "base64:/9j/PREVIEW",
-    }])
+    points, _ = points_from_exiftool_json(
+        [
+            {
+                "SourceFile": "a.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ThumbnailImage": "base64:/9j/THUMB",
+                "PreviewImage": "base64:/9j/PREVIEW",
+            }
+        ]
+    )
     assert points[0].thumbnail_b64 == "/9j/THUMB"
 
 
 def test_oversized_preview_is_dropped_to_protect_budget():
     from dji_metadata_embedder.geo import photomap as pm
+
     big = "A" * (pm._MAX_PREVIEW_B64_CHARS + 4)  # valid base64, over the cap
-    points, _ = points_from_exiftool_json([{
-        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-        "PreviewImage": "base64:" + big,
-    }])
+    points, _ = points_from_exiftool_json(
+        [
+            {
+                "SourceFile": "a.dng",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "PreviewImage": "base64:" + big,
+            }
+        ]
+    )
     assert points[0].thumbnail_b64 is None
 
 
@@ -162,10 +199,16 @@ def test_oversized_preview_is_downscaled_when_pillow_available():
 
     big = _noise_jpeg_b64(2400, 1200)
     assert len(big) > pm._MAX_PREVIEW_B64_CHARS
-    points, _ = points_from_exiftool_json([{
-        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-        "PreviewImage": "base64:" + big,
-    }])
+    points, _ = points_from_exiftool_json(
+        [
+            {
+                "SourceFile": "a.dng",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "PreviewImage": "base64:" + big,
+            }
+        ]
+    )
     thumb = points[0].thumbnail_b64
     assert thumb is not None and len(thumb) < len(big)
     dims = pm._thumb_dimensions(thumb)
@@ -180,10 +223,16 @@ def test_oversized_preview_embeds_raw_when_pillow_missing(monkeypatch):
 
     monkeypatch.setattr(pm, "_pil_image", lambda: None)
     big = "A" * 400_000  # over the old 300k cap, under the raised one
-    points, _ = points_from_exiftool_json([{
-        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-        "PreviewImage": "base64:" + big,
-    }])
+    points, _ = points_from_exiftool_json(
+        [
+            {
+                "SourceFile": "a.dng",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "PreviewImage": "base64:" + big,
+            }
+        ]
+    )
     assert points[0].thumbnail_b64 == big
 
 
@@ -191,10 +240,16 @@ def test_undecodable_oversized_preview_falls_back_to_raw_embed():
     # Valid base64 that is not a decodable image: the downscale fails, and the
     # raw bytes still embed as long as they fit the cap.
     big = "A" * 400_000
-    points, _ = points_from_exiftool_json([{
-        "SourceFile": "a.dng", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-        "PreviewImage": "base64:" + big,
-    }])
+    points, _ = points_from_exiftool_json(
+        [
+            {
+                "SourceFile": "a.dng",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "PreviewImage": "base64:" + big,
+            }
+        ]
+    )
     assert points[0].thumbnail_b64 == big
 
 
@@ -212,10 +267,14 @@ def test_scan_photos_requests_preview_tag(monkeypatch, tmp_path):
 
 def test_non_base64_thumbnail_is_dropped():
     points, _ = points_from_exiftool_json(
-        [{
-            "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-            "ThumbnailImage": 'base64:]]><img src="x">',
-        }]
+        [
+            {
+                "SourceFile": "a.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ThumbnailImage": 'base64:]]><img src="x">',
+            }
+        ]
     )
     assert points[0].thumbnail_b64 is None
 
@@ -230,18 +289,30 @@ def test_missing_altitude_is_none():
 
 def test_real_zero_altitude_is_preserved_distinct_from_missing():
     points, _ = points_from_exiftool_json(
-        [{"SourceFile": "z.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-          "GPSAltitude": 0.0}]
+        [
+            {
+                "SourceFile": "z.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "GPSAltitude": 0.0,
+            }
+        ]
     )
     assert points[0].alt == 0.0
 
 
 def test_unparseable_numeric_fields_become_none():
     points, _ = points_from_exiftool_json(
-        [{
-            "SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-            "ISO": "100, 100", "ExposureTime": "n/a", "FNumber": None,
-        }]
+        [
+            {
+                "SourceFile": "a.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ISO": "100, 100",
+                "ExposureTime": "n/a",
+                "FNumber": None,
+            }
+        ]
     )
     assert points[0].iso is None
     assert points[0].exposure is None
@@ -265,8 +336,16 @@ def test_missing_sourcefile_falls_back_to_question_mark():
 
 
 def test_camera_summary_joins_available_parts():
-    p = PhotoPoint(lat=0, lon=0, alt=0, name="a.jpg", model="FC8482",
-                   iso=100, exposure=0.001, fnum=1.7)
+    p = PhotoPoint(
+        lat=0,
+        lon=0,
+        alt=0,
+        name="a.jpg",
+        model="FC8482",
+        iso=100,
+        exposure=0.001,
+        fnum=1.7,
+    )
     assert camera_summary(p) == "FC8482 · ISO 100 · 1/1000 s · f/1.7"
     bare = PhotoPoint(lat=0, lon=0, alt=0, name="a.jpg")
     assert camera_summary(bare) == ""
@@ -286,6 +365,7 @@ def test_scan_photos_builds_command_and_parses(monkeypatch, tmp_path):
         seen["args"] = args
         seen["kwargs"] = kwargs
         import json as _json
+
         return _Proc(stdout=_json.dumps(CANNED))
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -332,7 +412,8 @@ def test_scan_photos_missing_exiftool_raises_hint(monkeypatch, tmp_path):
 
 def test_scan_photos_hard_failure_raises_stderr(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        subprocess, "run",
+        subprocess,
+        "run",
         lambda *a, **k: _Proc(stdout="", stderr="boom", returncode=1),
     )
     with pytest.raises(PhotomapError, match="boom"):
@@ -347,8 +428,10 @@ def test_scan_photos_bad_json_raises(monkeypatch, tmp_path):
 
 def test_scan_photos_partial_failure_still_parses(monkeypatch, tmp_path):
     import json as _json
+
     monkeypatch.setattr(
-        subprocess, "run",
+        subprocess,
+        "run",
         lambda *a, **k: _Proc(
             stdout=_json.dumps(CANNED), stderr="Error: bad.jpg", returncode=1
         ),
@@ -415,8 +498,7 @@ def test_geojson_omits_altitude_when_missing():
 def test_kml_clamps_to_ground_when_altitude_missing():
     root = ET.fromstring(photos_to_kml(_MIXED_ALT, title="t"))
     pms = {
-        pm.find(f"{_KML_NS}name").text: pm
-        for pm in root.iter(f"{_KML_NS}Placemark")
+        pm.find(f"{_KML_NS}name").text: pm for pm in root.iter(f"{_KML_NS}Placemark")
     }
     has = pms["has_alt.jpg"].find(f"{_KML_NS}Point")
     assert has.find(f"{_KML_NS}altitudeMode").text == "absolute"
@@ -445,7 +527,8 @@ def test_kml_is_wellformed_with_placemark_per_photo():
     assert doc.find(f"{_KML_NS}name").text == "Churches & chapels"
     placemarks = doc.findall(f"{_KML_NS}Placemark")
     assert [pm.find(f"{_KML_NS}name").text for pm in placemarks] == [
-        "church1.jpg", "church2.jpg",
+        "church1.jpg",
+        "church2.jpg",
     ]
     coords = placemarks[0].find(f"{_KML_NS}Point/{_KML_NS}coordinates").text
     assert coords == "24.952222,60.170278,95.3"
@@ -453,11 +536,10 @@ def test_kml_is_wellformed_with_placemark_per_photo():
 
 def test_kml_description_embeds_thumbnail_data_uri():
     kml = photos_to_kml(_two_points(), title="t")
-    assert 'data:image/jpeg;base64,/9j/THUMB2' in kml
+    assert "data:image/jpeg;base64,/9j/THUMB2" in kml
     root = ET.fromstring(kml)
     descs = [
-        pm.find(f"{_KML_NS}description").text
-        for pm in root.iter(f"{_KML_NS}Placemark")
+        pm.find(f"{_KML_NS}description").text for pm in root.iter(f"{_KML_NS}Placemark")
     ]
     # church1 has no thumbnail: metadata only, no img tag
     assert "<img" not in descs[0] and "2026-06-15 12:30:45" in descs[0]
@@ -518,8 +600,7 @@ def test_geojson_link_base_absolute_url():
     pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg")]
     data = photos_to_geojson(pts, link_base="https://example.com/photos/")
     assert (
-        data["features"][0]["properties"]["link"]
-        == "https://example.com/photos/a.jpg"
+        data["features"][0]["properties"]["link"] == "https://example.com/photos/a.jpg"
     )
 
 
@@ -539,16 +620,28 @@ def test_geojson_link_percent_encodes_name_but_keeps_separators():
 
 def test_gpano_equirectangular_sets_is_pano():
     points, _ = points_from_exiftool_json(
-        [{"SourceFile": "p.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-          "ProjectionType": "equirectangular"}]
+        [
+            {
+                "SourceFile": "p.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ProjectionType": "equirectangular",
+            }
+        ]
     )
     assert points[0].is_pano is True
 
 
 def test_gpano_is_case_insensitive():
     points, _ = points_from_exiftool_json(
-        [{"SourceFile": "p.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-          "ProjectionType": "Equirectangular"}]
+        [
+            {
+                "SourceFile": "p.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ProjectionType": "Equirectangular",
+            }
+        ]
     )
     assert points[0].is_pano is True
 
@@ -557,10 +650,18 @@ def test_missing_or_other_projection_is_not_pano():
     points, _ = points_from_exiftool_json(
         [
             {"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0},
-            {"SourceFile": "b.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-             "ProjectionType": "cylindrical"},
-            {"SourceFile": "c.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-             "ProjectionType": 7},
+            {
+                "SourceFile": "b.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ProjectionType": "cylindrical",
+            },
+            {
+                "SourceFile": "c.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "ProjectionType": 7,
+            },
         ]
     )
     assert [p.is_pano for p in points] == [False, False, False]
@@ -606,8 +707,12 @@ def test_geojson_pano_property_with_link_base_only_on_panos():
 
 
 def _pano_entry(**extra) -> dict:
-    e = {"SourceFile": "p.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-         "ProjectionType": "equirectangular"}
+    e = {
+        "SourceFile": "p.jpg",
+        "GPSLatitude": 1.0,
+        "GPSLongitude": 2.0,
+        "ProjectionType": "equirectangular",
+    }
     e.update(extra)
     return e
 
@@ -657,11 +762,13 @@ def test_initial_view_without_pose_assumes_center_is_north():
 
 
 def test_initial_view_pitch_clamped_and_fov_sanity_checked():
-    points, _ = points_from_exiftool_json([
-        _pano_entry(InitialViewPitchDegrees=120.0),
-        _pano_entry(SourceFile="q.jpg", InitialHorizontalFOVDegrees=500.0),
-        _pano_entry(SourceFile="r.jpg", InitialHorizontalFOVDegrees=90.0),
-    ])
+    points, _ = points_from_exiftool_json(
+        [
+            _pano_entry(InitialViewPitchDegrees=120.0),
+            _pano_entry(SourceFile="q.jpg", InitialHorizontalFOVDegrees=500.0),
+            _pano_entry(SourceFile="r.jpg", InitialHorizontalFOVDegrees=90.0),
+        ]
+    )
     by_name = {p.name: p for p in points}
     assert by_name["p.jpg"].pano_pitch == 90.0
     assert by_name["q.jpg"].pano_hfov is None  # nonsense value dropped
@@ -670,8 +777,14 @@ def test_initial_view_pitch_clamped_and_fov_sanity_checked():
 
 def test_view_tags_ignored_on_non_panos():
     points, _ = points_from_exiftool_json(
-        [{"SourceFile": "a.jpg", "GPSLatitude": 1.0, "GPSLongitude": 2.0,
-          "InitialViewHeadingDegrees": 90.0}]
+        [
+            {
+                "SourceFile": "a.jpg",
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "InitialViewHeadingDegrees": 90.0,
+            }
+        ]
     )
     assert points[0].pano_yaw is None
 
@@ -690,14 +803,16 @@ def _credit_of(**tags) -> str | None:
 
 
 def test_credit_copyright_containing_artist_is_not_repeated():
-    assert _credit_of(Artist="Jane Doe",
-                      Copyright="© 2026 Jane Doe") == "© 2026 Jane Doe"
+    assert (
+        _credit_of(Artist="Jane Doe", Copyright="© 2026 Jane Doe") == "© 2026 Jane Doe"
+    )
 
 
 def test_credit_joins_distinct_copyright_and_artist():
-    assert _credit_of(Artist="Jane Doe",
-                      Copyright="All rights reserved") == \
-        "All rights reserved · Jane Doe"
+    assert (
+        _credit_of(Artist="Jane Doe", Copyright="All rights reserved")
+        == "All rights reserved · Jane Doe"
+    )
 
 
 def test_credit_single_tags_pass_through():
@@ -708,17 +823,23 @@ def test_credit_single_tags_pass_through():
 
 def test_credit_falls_back_to_xmp_dublin_core():
     # ExifTool returns XMP-dc:Creator as a list.
-    assert _credit_of(Creator=["Jane", "Joe"], Rights="© 2026") == \
-        "© 2026 · Jane, Joe"
+    assert _credit_of(Creator=["Jane", "Joe"], Rights="© 2026") == "© 2026 · Jane, Joe"
 
 
 def test_geojson_carries_view_and_credit_props():
     pts = [
-        PhotoPoint(lat=1.0, lon=2.0, alt=None, name="pano.jpg", is_pano=True,
-                   pano_yaw=-30.0, pano_pitch=10.0, pano_hfov=90.0,
-                   credit="© 2026 Jane"),
-        PhotoPoint(lat=3.0, lon=4.0, alt=None, name="flat.jpg",
-                   credit="© 2026 Jane"),
+        PhotoPoint(
+            lat=1.0,
+            lon=2.0,
+            alt=None,
+            name="pano.jpg",
+            is_pano=True,
+            pano_yaw=-30.0,
+            pano_pitch=10.0,
+            pano_hfov=90.0,
+            credit="© 2026 Jane",
+        ),
+        PhotoPoint(lat=3.0, lon=4.0, alt=None, name="flat.jpg", credit="© 2026 Jane"),
     ]
     by_name = {
         f["properties"]["name"]: f["properties"]
@@ -740,8 +861,7 @@ def test_geojson_omits_view_props_when_unset():
 
 
 def test_kml_description_includes_credit():
-    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg",
-                      credit="© 2026 <Jane>")]
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg", credit="© 2026 <Jane>")]
     kml = photos_to_kml(pts, title="t")
     root = ET.fromstring(kml)  # escaped credit keeps the XML well-formed
     desc = next(root.iter(f"{_KML_NS}Placemark")).find(f"{_KML_NS}description")
@@ -816,10 +936,16 @@ def test_jpeg_dimensions_rejects_non_jpeg_bytes():
 
 
 def test_geojson_thumbnails_carry_pixel_dimensions():
-    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg",
-                      thumbnail_b64=_tiny_jpeg_b64(240, 120))]
-    props = photos_to_geojson(pts, include_thumbnails=True)["features"][0][
-        "properties"]
+    pts = [
+        PhotoPoint(
+            lat=1.0,
+            lon=2.0,
+            alt=None,
+            name="a.jpg",
+            thumbnail_b64=_tiny_jpeg_b64(240, 120),
+        )
+    ]
+    props = photos_to_geojson(pts, include_thumbnails=True)["features"][0]["properties"]
     assert props["tw"] == 240
     assert props["th"] == 120
 
@@ -827,9 +953,7 @@ def test_geojson_thumbnails_carry_pixel_dimensions():
 def test_geojson_omits_dimensions_for_unparseable_thumb():
     # A blob that is valid base64 but not a JPEG (or not decodable at all)
     # degrades to the old behaviour: thumb present, no tw/th.
-    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg",
-                      thumbnail_b64="QUJD")]
-    props = photos_to_geojson(pts, include_thumbnails=True)["features"][0][
-        "properties"]
+    pts = [PhotoPoint(lat=1.0, lon=2.0, alt=None, name="a.jpg", thumbnail_b64="QUJD")]
+    props = photos_to_geojson(pts, include_thumbnails=True)["features"][0]["properties"]
     assert props["thumb"] == "QUJD"
     assert "tw" not in props and "th" not in props

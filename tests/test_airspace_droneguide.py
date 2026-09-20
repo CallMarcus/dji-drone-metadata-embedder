@@ -36,7 +36,10 @@ OWS = "https://map.droneguide.be/ows"
 WINDOW = (datetime(2026, 9, 16, 7, 0), datetime(2026, 9, 16, 9, 0))
 SOURCE = SourceInfo(
     feed="Belgium UAS geographical zones (Droneguide, skeyes for the BCAA)",
-    url=OWS, fetched="2026-09-16T09:29:00Z", license="test", caveat="test",
+    url=OWS,
+    fetched="2026-09-16T09:29:00Z",
+    license="test",
+    caveat="test",
 )
 
 
@@ -52,10 +55,12 @@ def test_registry_carries_the_bcaa_notices_and_permission_record():
     feed = DRONEGUIDE_FEEDS["BE"]
     assert feed.ows_url == OWS and feed.page_url == "https://map.droneguide.be/"
     assert "G26-187" in feed.license
-    for phrase in ("Not an official application of the BCAA",
-                   "official publication channels",
-                   "remains with the remote pilot and UAS operator",
-                   "publisher's evaluation"):
+    for phrase in (
+        "Not an official application of the BCAA",
+        "official publication channels",
+        "remains with the remote pilot and UAS operator",
+        "publisher's evaluation",
+    ):
         assert phrase in feed.note, phrase
 
 
@@ -64,8 +69,10 @@ def test_zones_url_filters_time_zones_and_escapes_the_window():
     assert q["typeNames"] == ["uaszone"] and q["outputFormat"] == ["application/json"]
     assert q["cql_filter"] == ["type_code<>'TIME_ZONE'"]
     assert q["viewparams"] == [
-        ("window_start:2026-09-16T07\\:00\\:00.000Z;"
-        "window_end:2026-09-16T09\\:00\\:00.000Z;show_planned:true")
+        (
+            "window_start:2026-09-16T07\\:00\\:00.000Z;"
+            "window_end:2026-09-16T09\\:00\\:00.000Z;show_planned:true"
+        )
     ]
 
 
@@ -83,15 +90,23 @@ def test_notam_url_asks_for_the_date_fields_only():
 
 
 def test_cache_name_is_per_flight_window():
-    assert cache_name("BE", WINDOW) == "droneguide-BE-20260916T070000Z-20260916T090000Z.json"
+    assert (
+        cache_name("BE", WINDOW)
+        == "droneguide-BE-20260916T070000Z-20260916T090000Z.json"
+    )
     assert cache_name("BE", None) == "droneguide-BE-nowindow.json"
 
 
 def test_build_envelope_wraps_both_bodies_and_the_window():
     env = json.loads(build_envelope(b'{"features": []}', b'{"features": []}', WINDOW))
-    assert env == {"window": ["2026-09-16T07:00:00Z", "2026-09-16T09:00:00Z"],
-                   "zones": {"features": []}, "notam": {"features": []}}
-    unwindowed = json.loads(build_envelope(b'{"features": []}', b'{"features": []}', None))
+    assert env == {
+        "window": ["2026-09-16T07:00:00Z", "2026-09-16T09:00:00Z"],
+        "zones": {"features": []},
+        "notam": {"features": []},
+    }
+    unwindowed = json.loads(
+        build_envelope(b'{"features": []}', b'{"features": []}', None)
+    )
     assert unwindowed["window"] is None
 
 
@@ -101,6 +116,7 @@ def test_build_envelope_rejects_a_non_json_body():
 
 
 # --- the parser --------------------------------------------------------------
+
 
 def test_every_fixture_row_parses_and_shared_codes_get_a_uuid_suffix():
     zones = fixture_zones()
@@ -143,10 +159,13 @@ def test_fl_999_means_unlimited_and_renders_not_stated():
 def test_notam_zones_take_their_dates_and_schedule_from_the_notam_layer():
     zones = fixture_zones()
     current = zone(zones, "G2219/26")
-    assert current.applicability == [Applicability(
-        start=datetime(2026, 9, 16, 12, 15), end=datetime(2026, 9, 20, 14, 30),
-        permanent=False,
-    )]
+    assert current.applicability == [
+        Applicability(
+            start=datetime(2026, 9, 16, 12, 15),
+            end=datetime(2026, 9, 20, 14, 30),
+            permanent=False,
+        )
+    ]
     assert current.activation == [
         "16 1215-1730, 17 1200-1730, 18 1130-1730, 19 1330-1730, 20 0945-1430"
     ]
@@ -203,19 +222,32 @@ def _first(env):
     return env["zones"]["features"][0]["properties"]
 
 
-@pytest.mark.parametrize("mutate, message", [
-    (lambda e: _first(e).__setitem__("type_code", "TIME_ZONE"), "TIME_ZONE"),
-    (lambda e: _first(e).__setitem__("code", ""), "code"),
-    (lambda e: _first(e).__setitem__("name", None), "name"),
-    (lambda e: _first(e).__setitem__("restriction", None), "restriction"),
-    (lambda e: _first(e).__setitem__("upper_limit_unit", "KM"), "unit"),
-    (lambda e: _first(e).__setitem__("upper_limit_reference", "SFC"), "reference"),
-    (lambda e: _first(e).__setitem__("upper_limit_altitude", "high"), "not a number"),
-    (lambda e: e["zones"]["features"][0].__setitem__(
-        "geometry", {"type": "Point", "coordinates": [4, 50]}), "geometry"),
-    (lambda e: e.pop("notam"), "envelope"),
-    (lambda e: e["notam"]["features"].append(dict(e["notam"]["features"][0])), "duplicate"),
-])
+@pytest.mark.parametrize(
+    "mutate, message",
+    [
+        (lambda e: _first(e).__setitem__("type_code", "TIME_ZONE"), "TIME_ZONE"),
+        (lambda e: _first(e).__setitem__("code", ""), "code"),
+        (lambda e: _first(e).__setitem__("name", None), "name"),
+        (lambda e: _first(e).__setitem__("restriction", None), "restriction"),
+        (lambda e: _first(e).__setitem__("upper_limit_unit", "KM"), "unit"),
+        (lambda e: _first(e).__setitem__("upper_limit_reference", "SFC"), "reference"),
+        (
+            lambda e: _first(e).__setitem__("upper_limit_altitude", "high"),
+            "not a number",
+        ),
+        (
+            lambda e: e["zones"]["features"][0].__setitem__(
+                "geometry", {"type": "Point", "coordinates": [4, 50]}
+            ),
+            "geometry",
+        ),
+        (lambda e: e.pop("notam"), "envelope"),
+        (
+            lambda e: e["notam"]["features"].append(dict(e["notam"]["features"][0])),
+            "duplicate",
+        ),
+    ],
+)
 def test_malformed_rows_fail_loudly(mutate, message):
     with pytest.raises(AirspaceError, match=message):
         parse_droneguide(_env(mutate), SOURCE)

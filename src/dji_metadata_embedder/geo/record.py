@@ -75,8 +75,7 @@ def _heights_above_surface(
         return None, str(exc)
     takeoff_elev = surface[0]
     heights = [
-        takeoff_elev + (p.rel_alt or 0.0) - s
-        for p, s in zip(track.points, surface)
+        takeoff_elev + (p.rel_alt or 0.0) - s for p, s in zip(track.points, surface)
     ]
     return heights, None
 
@@ -110,8 +109,7 @@ def build_records(
             duration = (end - start).total_seconds()
         home = (pts[0].lat, pts[0].lon)
         distance = sum(
-            haversine_m(a.lat, a.lon, b.lat, b.lon)
-            for a, b in pairwise(pts)
+            haversine_m(a.lat, a.lon, b.lat, b.lon) for a, b in pairwise(pts)
         )
         max_home = max(
             (haversine_m(home[0], home[1], p.lat, p.lon) for p in pts),
@@ -124,8 +122,11 @@ def build_records(
         # never depends on the airspace half. fetch_zones never raises —
         # a missing jurisdiction comes back as data.gap_reason.
         data = fetch_zones(
-            track, cache_dir, refresh=refresh,
-            transport=transport, announce=announce,
+            track,
+            cache_dir,
+            refresh=refresh,
+            transport=transport,
+            announce=announce,
         )
         heights, surface_note = _heights_above_surface(
             track, cache_dir, transport, announce

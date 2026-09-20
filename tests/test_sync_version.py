@@ -38,11 +38,9 @@ path = "src/pkg/__init__.py"
 
     (root / "src/pkg/__init__.py").write_text(f'__version__ = "{version}"\n')
     (root / "README.md").write_text(
-        f'[![Version](https://img.shields.io/badge/version-{version}-blue)][release]\n'
+        f"[![Version](https://img.shields.io/badge/version-{version}-blue)][release]\n"
     )
-    (root / "tools/bootstrap.ps1").write_text(
-        f'$fallbackVersion = "{version}"\n'
-    )
+    (root / "tools/bootstrap.ps1").write_text(f'$fallbackVersion = "{version}"\n')
     (root / "dji-embed.spec").write_text(f'__version__ = "{version}"\n')
     (root / "winget/manifest.yaml").write_text(
         f"PackageVersion: {version}\n"
@@ -104,7 +102,9 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
 
     # Release-tag links (ReleaseNotesUrl) should be bumped too, so the winget
     # manifest never ships stale release notes.
-    assert "releases/tag/v1.2.3" in (tmp_path / "winget/manifest.yaml").read_text(encoding="utf-8")
+    assert "releases/tag/v1.2.3" in (tmp_path / "winget/manifest.yaml").read_text(
+        encoding="utf-8"
+    )
 
     # Explicit check with matching version should pass
     sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
@@ -133,7 +133,7 @@ def test_sync_and_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
 
     # Introduce drift and ensure check reports the offending file
     (tmp_path / "README.md").write_text(
-        '[![Version](https://img.shields.io/badge/version-0.0.1-blue)][release]\n'
+        "[![Version](https://img.shields.io/badge/version-0.0.1-blue)][release]\n"
     )
     with pytest.raises(SystemExit):
         sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
@@ -158,4 +158,3 @@ def test_doc_version_stamp_drift_is_caught(
         sync_version.main(["1.2.3", "--check"], project_root=tmp_path)
     err = _read_stderr(capsys)
     assert "CLAUDE.md" in err
-

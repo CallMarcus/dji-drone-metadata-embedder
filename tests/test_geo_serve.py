@@ -7,7 +7,9 @@ from dji_metadata_embedder.geo.serve import _make_server, serve_directory
 
 
 def _fixture_dir(tmp_path):
-    (tmp_path / "photomap.html").write_text("<!DOCTYPE html><p>map</p>", encoding="utf-8")
+    (tmp_path / "photomap.html").write_text(
+        "<!DOCTYPE html><p>map</p>", encoding="utf-8"
+    )
     (tmp_path / "pano.jpg").write_bytes(b"\xff\xd8\xff\xdbJPEGDATA")
     return tmp_path
 
@@ -46,7 +48,9 @@ def test_make_server_is_quiet_by_default(tmp_path, capsys):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         port = server.server_address[1]
-        urllib.request.urlopen(f"http://127.0.0.1:{port}/photomap.html", timeout=5).read()
+        urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/photomap.html", timeout=5
+        ).read()
     finally:
         server.shutdown()
         server.server_close()
@@ -63,7 +67,9 @@ def test_make_server_logs_requests_when_enabled(tmp_path, capsys):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         port = server.server_address[1]
-        urllib.request.urlopen(f"http://127.0.0.1:{port}/photomap.html", timeout=5).read()
+        urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/photomap.html", timeout=5
+        ).read()
     finally:
         server.shutdown()
         server.server_close()
@@ -101,7 +107,9 @@ def test_serve_directory_open_browser_false_and_quiet(tmp_path, monkeypatch, cap
         raise KeyboardInterrupt
 
     monkeypatch.setattr(ThreadingHTTPServer, "serve_forever", fake_serve_forever)
-    serve_directory(_fixture_dir(tmp_path), "photomap.html", quiet=True, open_browser=False)
+    serve_directory(
+        _fixture_dir(tmp_path), "photomap.html", quiet=True, open_browser=False
+    )
     out = capsys.readouterr().out
     # The URL is the product of the command: printed even under quiet.
     assert "http://127.0.0.1:" in out
@@ -123,8 +131,11 @@ def test_serve_directory_bare_url_prints_only_the_url_first(
 
     monkeypatch.setattr(ThreadingHTTPServer, "serve_forever", fake_serve_forever)
     serve_directory(
-        _fixture_dir(tmp_path), "photomap.html",
-        quiet=True, open_browser=False, bare_url=True,
+        _fixture_dir(tmp_path),
+        "photomap.html",
+        quiet=True,
+        open_browser=False,
+        bare_url=True,
     )
     first = capsys.readouterr().out.splitlines()[0]
     assert first.startswith("http://127.0.0.1:")
@@ -146,8 +157,11 @@ def test_serve_directory_stops_when_stdin_closes(tmp_path, monkeypatch):
 
     def run():
         serve_directory(
-            _fixture_dir(tmp_path), "photomap.html",
-            quiet=True, open_browser=False, stop_on_stdin_eof=True,
+            _fixture_dir(tmp_path),
+            "photomap.html",
+            quiet=True,
+            open_browser=False,
+            stop_on_stdin_eof=True,
         )
         done.set()
 

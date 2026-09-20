@@ -22,7 +22,12 @@ _SRT = (
 
 def _run_cli(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-c", "from dji_metadata_embedder.cli import main; main()", *args],
+        [
+            sys.executable,
+            "-c",
+            "from dji_metadata_embedder.cli import main; main()",
+            *args,
+        ],
         capture_output=True,
         text=True,
         timeout=120,

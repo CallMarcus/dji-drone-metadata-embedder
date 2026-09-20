@@ -59,8 +59,7 @@ class DronezonerFeed:
 
 
 _CAVEAT = (
-    "UAS geographical-zone data is informational and is not an "
-    "authorization to fly."
+    "UAS geographical-zone data is informational and is not an authorization to fly."
 )
 
 DRONEZONER_FEEDS: dict[str, DronezonerFeed] = {
@@ -69,13 +68,12 @@ DRONEZONER_FEEDS: dict[str, DronezonerFeed] = {
         # The Danish-language twin of this page 404s; the English page is
         # the canonical, stable entry point.
         page_url=(
-            "https://www.en.droneregler.dk/uas-geographical-zones/"
-            "data-for-download"
+            "https://www.en.droneregler.dk/uas-geographical-zones/data-for-download"
         ),
         feed_name="Denmark drone zones (Trafikstyrelsen)",
         license=(
-            "© Trafikstyrelsen — \"Data kan frit anvendes med "
-            "kildeangivelse\" (free use with attribution, stated in the "
+            '© Trafikstyrelsen — "Data kan frit anvendes med '
+            'kildeangivelse" (free use with attribution, stated in the '
             "dataset metadata)"
         ),
         caveat=_CAVEAT,
@@ -136,9 +134,7 @@ def _buffer_m(props: dict, where: str) -> float | None:
     a site marker, not a zone. Restrictive classes must carry one."""
     lovkrav = props.get("Lovkrav")
     enhed = str(props.get("Enhed") or "").strip()
-    if isinstance(lovkrav, (int, float)) and lovkrav > 0 and enhed in (
-        "1", "1000"
-    ):
+    if isinstance(lovkrav, (int, float)) and lovkrav > 0 and enhed in ("1", "1000"):
         # Enhed "1" pairs with kilometre distances, "1000" with metres —
         # probed against the human-readable Bufferzone strings.
         return float(lovkrav) * (1000.0 if enhed == "1" else 1.0)
@@ -160,9 +156,7 @@ def _buffer_m(props: dict, where: str) -> float | None:
     )
 
 
-def _circle_ring(
-    lon: float, lat: float, radius_m: float
-) -> list[tuple[float, float]]:
+def _circle_ring(lon: float, lat: float, radius_m: float) -> list[tuple[float, float]]:
     step = 360.0 / _CIRCLE_POINTS
     ring = []
     for k in range(_CIRCLE_POINTS + 1):
@@ -208,9 +202,7 @@ def _applicability(props: dict, where: str) -> list[Applicability]:
         try:
             parsed = parsedate_to_datetime(str(raw))
         except (TypeError, ValueError) as exc:
-            raise AirspaceError(
-                f"{where}: unparseable {label} {raw!r}"
-            ) from exc
+            raise AirspaceError(f"{where}: unparseable {label} {raw!r}") from exc
         # Naive UTC, like ed269._utc: Track.utc is naive, and the
         # evaluator's window comparison must never mix awareness (#520).
         if parsed.tzinfo is not None:
@@ -262,9 +254,7 @@ def parse_dronezoner(raw: bytes, source: SourceInfo) -> list[Zone]:
         farve = str(props.get("Farve") or "").strip()
         restriction = _RESTRICTION_BY_FARVE.get(farve)
         if restriction is None:
-            raise AirspaceError(
-                f"{where}: unknown zone colour class Farve={farve!r}"
-            )
+            raise AirspaceError(f"{where}: unknown zone colour class Farve={farve!r}")
         geometry = feat.get("geometry")
         if not isinstance(geometry, dict):
             raise AirspaceError(f"{where}: missing geometry")
@@ -286,9 +276,7 @@ def parse_dronezoner(raw: bytes, source: SourceInfo) -> list[Zone]:
             polygons = [_circle_ring(lon, lat, radius_m)]
             holes = []
         else:
-            raise AirspaceError(
-                f"{where}: geometry type {gtype!r} is not supported"
-            )
+            raise AirspaceError(f"{where}: geometry type {gtype!r} is not supported")
         object_id = props.get("OBJECTID")
         if not isinstance(object_id, int):
             raise AirspaceError(f"{where}: missing OBJECTID")

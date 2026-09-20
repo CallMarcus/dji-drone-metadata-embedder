@@ -20,6 +20,7 @@ from dji_metadata_embedder.embedder import (
 
 def _fake_progress_class():
     """Minimal Progress-like class (conftest stubs Progress as object)."""
+
     class Task:
         def advance(self, _=None):
             pass
@@ -129,17 +130,13 @@ class TestProcessDirectoryNotice:
         assert "LOST" not in notices[0]
 
     def test_overwrite_mode_says_lost(self, tmp_path, monkeypatch):
-        result = self._run(
-            tmp_path, monkeypatch, streams=DJI_STREAMS, overwrite=True
-        )
+        result = self._run(tmp_path, monkeypatch, streams=DJI_STREAMS, overwrite=True)
         notices = [w for w in result["warnings"] if "djmd" in w]
         assert len(notices) == 1
         assert "LOST" in notices[0]
 
     def test_mkv_container_does_not_warn(self, tmp_path, monkeypatch):
-        result = self._run(
-            tmp_path, monkeypatch, streams=DJI_STREAMS, container="mkv"
-        )
+        result = self._run(tmp_path, monkeypatch, streams=DJI_STREAMS, container="mkv")
         assert result["processed"] == 1
         assert not [w for w in result["warnings"] if "djmd" in w]
 

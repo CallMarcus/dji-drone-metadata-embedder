@@ -5,6 +5,7 @@ the attribution strip only on pages that already have one. Both are
 single-sourced in geo/provenance.py so wording and version cannot drift
 between writers.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -26,12 +27,25 @@ from dji_metadata_embedder.geo.provenance import (
 )
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
-_TRACK = Track(name="DJI_0001", points=[
-    TrackPoint(lat=10.0, lon=20.0, alt=5.0, timestamp="00:00:00,000",
-               utc=datetime(2026, 6, 15, 12, 0, 0)),
-    TrackPoint(lat=10.001, lon=20.001, alt=6.5, timestamp="00:00:01,000",
-               utc=datetime(2026, 6, 15, 12, 1, 0)),
-])
+_TRACK = Track(
+    name="DJI_0001",
+    points=[
+        TrackPoint(
+            lat=10.0,
+            lon=20.0,
+            alt=5.0,
+            timestamp="00:00:00,000",
+            utc=datetime(2026, 6, 15, 12, 0, 0),
+        ),
+        TrackPoint(
+            lat=10.001,
+            lon=20.001,
+            alt=6.5,
+            timestamp="00:00:01,000",
+            utc=datetime(2026, 6, 15, 12, 1, 0),
+        ),
+    ],
+)
 
 _PHOTOS = [PhotoPoint(lat=60.1, lon=24.9, alt=12.0, name="photo1.jpg")]
 
@@ -49,23 +63,31 @@ def test_stamp_lands_directly_after_the_doctype():
     assert html.startswith("<!DOCTYPE html>\n" + generator_comment() + "\n")
 
 
-@pytest.mark.parametrize("build", [
-    lambda: photos_to_html(_PHOTOS, title="t"),
-    lambda: flights_to_html([_TRACK], title="t"),
-    lambda: flights_to_3d_html([_TRACK], "t"),
-    lambda: track_to_html(_TRACK),
-    lambda: build_editor_page("tok"),
-], ids=["photomap", "flightmap", "flightmap3d", "viewer", "panoedit"])
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda: photos_to_html(_PHOTOS, title="t"),
+        lambda: flights_to_html([_TRACK], title="t"),
+        lambda: flights_to_3d_html([_TRACK], "t"),
+        lambda: track_to_html(_TRACK),
+        lambda: build_editor_page("tok"),
+    ],
+    ids=["photomap", "flightmap", "flightmap3d", "viewer", "panoedit"],
+)
 def test_every_page_carries_the_generator_comment(build):
     assert generator_comment() in build()
 
 
-@pytest.mark.parametrize("build", [
-    lambda: photos_to_html(_PHOTOS, title="t"),
-    lambda: flights_to_html([_TRACK], title="t"),
-    lambda: flights_to_3d_html([_TRACK], "t"),
-    lambda: track_to_html(_TRACK),
-], ids=["photomap", "flightmap", "flightmap3d", "viewer"])
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda: photos_to_html(_PHOTOS, title="t"),
+        lambda: flights_to_html([_TRACK], title="t"),
+        lambda: flights_to_3d_html([_TRACK], "t"),
+        lambda: track_to_html(_TRACK),
+    ],
+    ids=["photomap", "flightmap", "flightmap3d", "viewer"],
+)
 def test_map_pages_credit_the_generator_in_the_attribution(build):
     html = build()
     # Leaflet pages embed the attribution through json.dumps, which

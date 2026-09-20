@@ -24,12 +24,19 @@ pytestmark = pytest.mark.browser
 
 def _flight(name: str, lat: float, lon: float, points: int) -> Track:
     t0 = datetime(2026, 6, 15, 12, 0, 0)
-    return Track(name=name, points=[
-        TrackPoint(lat=lat, lon=lon + i * 0.0006, alt=100.0 + i,
-                   timestamp=f"00:00:{i:02d},000",
-                   utc=t0 + timedelta(seconds=i * 10.0))
-        for i in range(points)
-    ])
+    return Track(
+        name=name,
+        points=[
+            TrackPoint(
+                lat=lat,
+                lon=lon + i * 0.0006,
+                alt=100.0 + i,
+                timestamp=f"00:00:{i:02d},000",
+                utc=t0 + timedelta(seconds=i * 10.0),
+            )
+            for i in range(points)
+        ],
+    )
 
 
 def test_3d_map_boots_and_lists_flights(serve_map, page):
@@ -64,7 +71,7 @@ def test_layer_panel_folds_to_one_button_and_reopens(serve_map, page):
     expect(toggle).to_have_attribute("aria-expanded", "false")
     expect(toggle).to_have_text("Layers \u25be")
     expect(rows.first).to_be_hidden()
-    assert rows.count() == 2                       # hidden, never removed
+    assert rows.count() == 2  # hidden, never removed
     assert panel.bounding_box()["width"] < open_width
 
     toggle.click()
@@ -89,9 +96,9 @@ def test_3d_toggle_hides_a_flight(serve_map, page):
     serve_map(html)
     expect(page.locator("#flights-panel")).to_be_visible(timeout=15000)
     page.locator("#flights-panel input[type=checkbox]").first.uncheck()
-    assert page.evaluate(
-        "() => map.getLayoutProperty('flight-0', 'visibility')"
-    ) == "none"
+    assert (
+        page.evaluate("() => map.getLayoutProperty('flight-0', 'visibility')") == "none"
+    )
 
 
 def test_terrain_stub_gives_real_elevation(serve_map, page):

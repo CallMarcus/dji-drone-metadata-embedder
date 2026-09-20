@@ -33,9 +33,12 @@ SOURCE = SourceInfo(
 )
 
 
-def wrap(kml: bytes, kmz_name: str = "UAS Geo zones - May_2026.kmz",
-         stamp: tuple = (2026, 5, 25, 13, 39, 0),
-         inner_name: str = "doc.kml") -> bytes:
+def wrap(
+    kml: bytes,
+    kmz_name: str = "UAS Geo zones - May_2026.kmz",
+    stamp: tuple = (2026, 5, 25, 13, 39, 0),
+    inner_name: str = "doc.kml",
+) -> bytes:
     """The live nesting: zip → kmz (itself a zip) → doc.kml, with the kmz
     member carrying the publication timestamp."""
     kmz = io.BytesIO()
@@ -63,11 +66,14 @@ KML_HEAD = (
 KML_TAIL = b"</Document></kml>"
 
 
-def placemark(name: str, rows: str, coords: str,
-              inner: str | None = None, folder: str = "Test") -> bytes:
+def placemark(
+    name: str, rows: str, coords: str, inner: str | None = None, folder: str = "Test"
+) -> bytes:
     hole = (
         f"<innerBoundaryIs><LinearRing><coordinates>{inner}</coordinates>"
-        f"</LinearRing></innerBoundaryIs>" if inner else ""
+        f"</LinearRing></innerBoundaryIs>"
+        if inner
+        else ""
     )
     desc = (
         "&lt;html&gt;&lt;body&gt;&lt;table&gt;"
@@ -89,6 +95,7 @@ SQUARE_HOLE = "14.52,46.02,0 14.58,46.02,0 14.58,46.08,0 14.52,46.08,0 14.52,46.
 
 # --- registry, discovery, unpacking, edition ---------------------------------
 
+
 def test_registry_states_the_caa_terms_and_the_populated_area_gap():
     feed = CAA_SI_FEEDS["SI"]
     assert feed.page_url == PAGE_URL
@@ -101,7 +108,7 @@ def test_discovery_finds_the_single_zip_href_and_resolves_it():
     page = (
         b'<p>Omejitve ...: <a href="https://caa-slovenia.maps.arcgis.com/x">'
         b'3D aplikacija</a>, <a href="/upload/editor/file/filef72ffaa1afe7b46.zip">'
-        b'ezyZip_maj 2026.zip</a></p>'
+        b"ezyZip_maj 2026.zip</a></p>"
     )
     assert discover_feed_url(page, PAGE_URL) == (
         "https://www.caa.si/upload/editor/file/filef72ffaa1afe7b46.zip"
@@ -111,8 +118,10 @@ def test_discovery_finds_the_single_zip_href_and_resolves_it():
 def test_discovery_fails_loudly_on_zero_or_several_zip_hrefs():
     with pytest.raises(AirspaceError, match="caa.si"):
         discover_feed_url(b"<a href='/upload/editor/file/x.pdf'>x</a>", PAGE_URL)
-    two = (b'<a href="/upload/editor/file/a.zip">a</a>'
-           b'<a href="/upload/editor/file/b.zip">b</a>')
+    two = (
+        b'<a href="/upload/editor/file/a.zip">a</a>'
+        b'<a href="/upload/editor/file/b.zip">b</a>'
+    )
     with pytest.raises(AirspaceError, match="2"):
         discover_feed_url(two, PAGE_URL)
 
@@ -139,12 +148,19 @@ def test_unpacking_errors_name_the_missing_layer():
 
 # --- the fixture: one placemark per representative folder --------------------
 
+
 def test_parses_the_nine_fixture_placemarks_with_folder_based_identifiers():
     zones = fixture_zones()
     assert [z.identifier for z in zones] == [
-        "SI-polygons-1", "SI-uas-ursiks-1", "SI-ctr-wgs-1", "SI-modelarskecone-1",
-        "SI-restricted-area-1", "SI-jek-prohibited-1", "SI-tnp-wgs-1",
-        "SI-danger-1", "SI-luka-koper-25-1",
+        "SI-polygons-1",
+        "SI-uas-ursiks-1",
+        "SI-ctr-wgs-1",
+        "SI-modelarskecone-1",
+        "SI-restricted-area-1",
+        "SI-jek-prohibited-1",
+        "SI-tnp-wgs-1",
+        "SI-danger-1",
+        "SI-luka-koper-25-1",
     ]
     for z in zones:
         assert z.lower is None and z.applicability == []
@@ -160,13 +176,25 @@ def test_prohibited_heliport_keeps_its_exceptions_and_contact_as_notes():
     assert z.name == "Heliport UKC Ljubljana"
     assert z.restriction == "PROHIBITED"
     assert z.upper is None
-    assert ("Exceptions: Approval from heliport + valid certificate for "
-            "subcategory A2") in z.notes
+    assert (
+        "Exceptions: Approval from heliport + valid certificate for subcategory A2"
+    ) in z.notes
     assert "Kontakt: heliport@kclj.si" in z.notes
     # ArcGIS export furniture never reaches the reader
-    assert not any(n.startswith(("FolderPath", "SymbolID", "PopupInfo", "FID",
-                                 "UAS_restri", "lat_dec", "lon_dec"))
-                   for n in z.notes)
+    assert not any(
+        n.startswith(
+            (
+                "FolderPath",
+                "SymbolID",
+                "PopupInfo",
+                "FID",
+                "UAS_restri",
+                "lat_dec",
+                "lon_dec",
+            )
+        )
+        for n in z.notes
+    )
     assert z.polygons[0][0] == pytest.approx((14.52056, 46.07173), abs=1e-5)
 
 
@@ -200,51 +228,80 @@ def test_restricted_area_without_a_statement_says_so_and_points_at_notam():
 def test_nuclear_plant_and_national_park_are_prohibited_in_either_case():
     zones = fixture_zones()
     assert zone(zones, "SI-jek-prohibited-1").restriction == "PROHIBITED"
-    assert zone(zones, "SI-tnp-wgs-1").restriction == "PROHIBITED"   # "prepovedano"
+    assert zone(zones, "SI-tnp-wgs-1").restriction == "PROHIBITED"  # "prepovedano"
 
 
 def test_junk_placemark_names_fall_back_to_the_popup_name_row():
     zones = fixture_zones()
-    assert zone(zones, "SI-danger-1").name == "LJD1 - Danger area"      # was "33297.328…"
-    assert zone(zones, "SI-luka-koper-25-1").name == "Luka Koper"      # was "22"
+    assert zone(zones, "SI-danger-1").name == "LJD1 - Danger area"  # was "33297.328…"
+    assert zone(zones, "SI-luka-koper-25-1").name == "Luka Koper"  # was "22"
     assert zone(zones, "SI-luka-koper-25-1").restriction == "PROHIBITED"
 
 
 # --- synthetic edge cases ----------------------------------------------------
 
+
 def test_inner_rings_become_holes():
-    kml = KML_HEAD + placemark(
-        "Hole zone", "<tr><td>Omejitev</td><td>Prepovedano</td></tr>",
-        SQUARE, inner=SQUARE_HOLE,
-    ) + KML_TAIL
+    kml = (
+        KML_HEAD
+        + placemark(
+            "Hole zone",
+            "<tr><td>Omejitev</td><td>Prepovedano</td></tr>",
+            SQUARE,
+            inner=SQUARE_HOLE,
+        )
+        + KML_TAIL
+    )
     z = parse_caa_si(wrap(kml), SOURCE)[0]
     assert len(z.polygons) == 1 and len(z.holes) == 1
     assert z.holes[0][0] == (14.52, 46.02)
 
 
 def test_an_unseen_restriction_wording_fails_loudly_naming_the_zone():
-    kml = KML_HEAD + placemark(
-        "Odd zone", "<tr><td>Omejitev</td><td>Dovoljeno s pogoji</td></tr>", SQUARE,
-    ) + KML_TAIL
+    kml = (
+        KML_HEAD
+        + placemark(
+            "Odd zone",
+            "<tr><td>Omejitev</td><td>Dovoljeno s pogoji</td></tr>",
+            SQUARE,
+        )
+        + KML_TAIL
+    )
     with pytest.raises(AirspaceError, match="Odd zone"):
         parse_caa_si(wrap(kml), SOURCE)
 
 
 def test_a_placemark_without_polygon_geometry_fails_loudly():
-    kml = KML_HEAD + (
-        b"<Folder><name>F</name><Placemark><name>Pt</name>"
-        b"<description>x</description><Point><coordinates>14.5,46.0,0"
-        b"</coordinates></Point></Placemark></Folder>"
-    ) + KML_TAIL
+    kml = (
+        KML_HEAD
+        + (
+            b"<Folder><name>F</name><Placemark><name>Pt</name>"
+            b"<description>x</description><Point><coordinates>14.5,46.0,0"
+            b"</coordinates></Point></Placemark></Folder>"
+        )
+        + KML_TAIL
+    )
     with pytest.raises(AirspaceError, match="Pt"):
         parse_caa_si(wrap(kml), SOURCE)
 
 
 def test_nested_folders_are_walked_and_indexed_per_folder():
-    inner_a = placemark("A1", "<tr><td>Omejitev</td><td>Prepovedano</td></tr>", SQUARE, folder="Inner")
-    kml = KML_HEAD + b"<Folder><name>Outer</name>" + inner_a + placemark(
-        "O1", "<tr><td>Omejitev</td><td>Prepovedano</td></tr>", SQUARE, folder="Outer"
-    ) + b"</Folder>" + KML_TAIL
+    inner_a = placemark(
+        "A1", "<tr><td>Omejitev</td><td>Prepovedano</td></tr>", SQUARE, folder="Inner"
+    )
+    kml = (
+        KML_HEAD
+        + b"<Folder><name>Outer</name>"
+        + inner_a
+        + placemark(
+            "O1",
+            "<tr><td>Omejitev</td><td>Prepovedano</td></tr>",
+            SQUARE,
+            folder="Outer",
+        )
+        + b"</Folder>"
+        + KML_TAIL
+    )
     ids = [z.identifier for z in parse_caa_si(wrap(kml), SOURCE)]
     assert sorted(ids) == ["SI-inner-1", "SI-outer-1"]
 
@@ -254,21 +311,25 @@ def test_truncated_arcgis_keys_still_classify_the_restriction():
     # restriction under the truncated export keys UAS_omej_1 / UAS_rest_1,
     # a "Name: Placemark" row and lat_dec/lon_dec furniture; the real name
     # sits under "Ime".
-    rows = ("<tr><td>Name</td><td>Placemark</td></tr>"
-            "<tr><td>FID</td><td>12</td></tr>"
-            "<tr><td>Izjeme</td><td>dovoljenje upravljalca vzletisca</td></tr>"
-            "<tr><td>Exceptions</td><td>approval from airfield operator</td></tr>"
-            "<tr><td>UAS_omej_1</td><td>Prepovedano</td></tr>"
-            "<tr><td>UAS_rest_1</td><td>Forbidden</td></tr>"
-            "<tr><td>Ime</td><td>Kamnik-Duplica</td></tr>"
-            "<tr><td>lat_dec</td><td>46,1972</td></tr>"
-            "<tr><td>lon_dec</td><td>14,5808</td></tr>")
+    rows = (
+        "<tr><td>Name</td><td>Placemark</td></tr>"
+        "<tr><td>FID</td><td>12</td></tr>"
+        "<tr><td>Izjeme</td><td>dovoljenje upravljalca vzletisca</td></tr>"
+        "<tr><td>Exceptions</td><td>approval from airfield operator</td></tr>"
+        "<tr><td>UAS_omej_1</td><td>Prepovedano</td></tr>"
+        "<tr><td>UAS_rest_1</td><td>Forbidden</td></tr>"
+        "<tr><td>Ime</td><td>Kamnik-Duplica</td></tr>"
+        "<tr><td>lat_dec</td><td>46,1972</td></tr>"
+        "<tr><td>lon_dec</td><td>14,5808</td></tr>"
+    )
     kml = KML_HEAD + placemark("Placemark", rows, SQUARE, folder="Polygons") + KML_TAIL
     z = parse_caa_si(wrap(kml), SOURCE)[0]
     assert z.restriction == "PROHIBITED"
     assert z.name == "Kamnik-Duplica"
-    assert z.notes == ["Izjeme: dovoljenje upravljalca vzletisca",
-                       "Exceptions: approval from airfield operator"]
+    assert z.notes == [
+        "Izjeme: dovoljenje upravljalca vzletisca",
+        "Exceptions: approval from airfield operator",
+    ]
 
 
 def test_no_restriction_row_and_no_notam_row_is_plainly_not_stated():
@@ -277,4 +338,3 @@ def test_no_restriction_row_and_no_notam_row_is_plainly_not_stated():
     z = parse_caa_si(wrap(kml), SOURCE)[0]
     assert z.restriction == "Restriction not stated"
     assert z.notes == ["Kontakt: a@b.si"]
-

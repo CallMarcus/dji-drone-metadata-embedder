@@ -60,9 +60,7 @@ def run_sample(name: str, tmp_path, monkeypatch):
     monkeypatch.setattr(telemetry_converter, "datetime", FixedDT)
     # Pin the tz offset so GPX output for datetime-bearing formats (air3) is
     # deterministic rather than dependent on the fixture file's mtime.
-    telemetry_converter.extract_telemetry_to_gpx(
-        srt, gpx_path, tz_offset=timedelta(0)
-    )
+    telemetry_converter.extract_telemetry_to_gpx(srt, gpx_path, tz_offset=timedelta(0))
     digest = hashlib.sha256(gpx_path.read_bytes()).hexdigest()
     assert digest == SAMPLE_HASHES[name]
 

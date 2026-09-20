@@ -28,16 +28,15 @@ GOLDEN_SAMPLES = {
         "expected_coordinates": [
             (59.0000, 18.0000, 100.0),
             (59.0001, 18.0001, 101.0),
-            (59.0002, 18.0002, 102.0)
+            (59.0002, 18.0002, 102.0),
         ],
         "expected_metadata": {
             "total_duration": 0.1,
             "frame_rate": 30,
             "has_camera_settings": True,
-            "altitude_range": (100.0, 102.0)
-        }
+            "altitude_range": (100.0, 102.0),
+        },
     },
-    
     "air3_html_extended": {
         "description": "DJI Air 3 HTML-formatted SRT with extended telemetry",
         "format_type": "html_extended",
@@ -63,17 +62,16 @@ GOLDEN_SAMPLES = {
         "expected_coordinates": [
             (59.1111, 18.2222, 105.0),
             (59.1112, 18.2223, 105.1),
-            (59.1113, 18.2224, 105.2)
+            (59.1113, 18.2224, 105.2),
         ],
         "expected_metadata": {
             "total_duration": 0.1,
             "frame_rate": 30,
             "has_timestamps": True,
             "has_counter": True,
-            "altitude_range": (105.0, 105.2)
-        }
+            "altitude_range": (105.0, 105.2),
+        },
     },
-    
     "avata2_legacy_gps": {
         "description": "DJI Avata 2 legacy GPS format with BAROMETER data",
         "format_type": "legacy_gps",
@@ -98,17 +96,16 @@ GPS(39.906220,116.391308,70.100) BAROMETER(90.9) HOME(39.906206,116.391400)
             (39.906217, 116.391305, 69.800),
             (39.906218, 116.391306, 69.900),
             (39.906219, 116.391307, 70.000),
-            (39.906220, 116.391308, 70.100)
+            (39.906220, 116.391308, 70.100),
         ],
         "expected_metadata": {
             "total_duration": 0.133,
             "frame_rate": 30,
             "has_barometer": True,
             "has_home_point": True,
-            "altitude_range": (69.8, 70.1)
-        }
+            "altitude_range": (69.8, 70.1),
+        },
     },
-    
     "m300_legacy_unit": {
         "description": "Matrice 300 / legacy-with-unit GPS format (altitude carries a unit suffix)",
         "format_type": "legacy_unit",
@@ -136,9 +133,8 @@ GPS(36.6148,-6.1122,0.2M) BAROMETER:0.5M
             "total_duration": 0.1,
             "frame_rate": 30,
             "has_unit_suffix": True,
-        }
+        },
     },
-
     "p4rtk_compact": {
         "description": "Phantom 4 RTK / P4P compact single-line format (free-standing tokens)",
         "format_type": "p4rtk_compact",
@@ -159,9 +155,8 @@ F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851746, -34.237923, 16), HOME (-58.847509
             "total_duration": 0.066,
             "frame_rate": 30,
             "has_camera_settings": True,
-        }
+        },
     },
-
     "mavic3_enterprise": {
         "description": "DJI Mavic 3 Enterprise format with RTK and extended data",
         "format_type": "mavic3_enterprise",
@@ -190,7 +185,7 @@ F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851746, -34.237923, 16), HOME (-58.847509
         "expected_coordinates": [
             (40.7589, -73.9851, 150.5),
             (40.7590, -73.9850, 151.5),
-            (40.7591, -73.9849, 152.5)
+            (40.7591, -73.9849, 152.5),
         ],
         "expected_metadata": {
             "total_duration": 0.1,
@@ -198,9 +193,9 @@ F/5.6, SS 400, ISO 100, EV 0, GPS (-58.851746, -34.237923, 16), HOME (-58.847509
             "has_rtk": True,
             "has_gimbal_data": True,
             "has_focal_length": True,
-            "altitude_range": (150.5, 152.5)
-        }
-    }
+            "altitude_range": (150.5, 152.5),
+        },
+    },
 }
 
 # Edge cases and malformed samples for robustness testing
@@ -220,9 +215,8 @@ INVALID_TIMESTAMP
         # skipping them, but a file that yields zero parseable telemetry
         # points is still reported as invalid — lenient ≠ "accept empty".
         "lenient_should_pass": False,
-        "strict_should_pass": False
+        "strict_should_pass": False,
     },
-    
     "mixed_formats": {
         "description": "SRT mixing different telemetry formats",
         "srt_content": """1
@@ -239,9 +233,8 @@ GPS(39.906217,116.391305,69.800) BAROMETER(91.2)
 """,
         "expected_warnings": ["Mixed telemetry formats detected"],
         "expected_points": 3,
-        "lenient_should_pass": True
+        "lenient_should_pass": True,
     },
-    
     "extreme_coordinates": {
         "description": "SRT with coordinates at extreme ranges",
         "srt_content": """1
@@ -254,9 +247,8 @@ GPS(39.906217,116.391305,69.800) BAROMETER(91.2)
 """,
         "expected_warnings": ["Extreme coordinate values", "Large altitude changes"],
         "expected_points": 2,
-        "lenient_should_pass": True
+        "lenient_should_pass": True,
     },
-    
     "unicode_content": {
         "description": "SRT with unicode characters and special formatting",
         "srt_content": """1
@@ -269,55 +261,69 @@ GPS(39.906217,116.391305,69.800) BAROMETER(91.2)
 """,
         "expected_points": 2,
         "expected_warnings": ["Non-ASCII characters in telemetry"],
-        "lenient_should_pass": True
-    }
+        "lenient_should_pass": True,
+    },
 }
 
 
 def create_golden_fixtures(output_dir: Path) -> None:
     """Create all golden fixture files in the specified directory."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create standard samples
     for name, sample in GOLDEN_SAMPLES.items():
         sample_dir = output_dir / name
         sample_dir.mkdir(exist_ok=True)
-        
+
         # Write SRT file
         srt_file = sample_dir / "clip.SRT"
         srt_file.write_text(sample["srt_content"], encoding="utf-8")
-        
+
         # Write metadata JSON for testing
         metadata_file = sample_dir / "expected.json"
         import json
-        metadata_file.write_text(json.dumps({
-            "description": sample["description"],
-            "format_type": sample["format_type"],
-            "expected_points": sample["expected_points"],
-            "expected_coordinates": sample["expected_coordinates"],
-            "expected_metadata": sample["expected_metadata"]
-        }, indent=2), encoding="utf-8")
-    
+
+        metadata_file.write_text(
+            json.dumps(
+                {
+                    "description": sample["description"],
+                    "format_type": sample["format_type"],
+                    "expected_points": sample["expected_points"],
+                    "expected_coordinates": sample["expected_coordinates"],
+                    "expected_metadata": sample["expected_metadata"],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
     # Create edge case samples
     edge_cases_dir = output_dir / "edge_cases"
     edge_cases_dir.mkdir(exist_ok=True)
-    
+
     for name, sample in EDGE_CASE_SAMPLES.items():
         case_dir = edge_cases_dir / name
         case_dir.mkdir(exist_ok=True)
-        
+
         srt_file = case_dir / "clip.SRT"
         srt_file.write_text(sample["srt_content"], encoding="utf-8")
-        
+
         metadata_file = case_dir / "expected.json"
         import json
-        metadata_file.write_text(json.dumps({
-            "description": sample["description"],
-            "expected_warnings": sample.get("expected_warnings", []),
-            "expected_points": sample.get("expected_points", 0),
-            "lenient_should_pass": sample.get("lenient_should_pass", True),
-            "strict_should_pass": sample.get("strict_should_pass", False)
-        }, indent=2), encoding="utf-8")
+
+        metadata_file.write_text(
+            json.dumps(
+                {
+                    "description": sample["description"],
+                    "expected_warnings": sample.get("expected_warnings", []),
+                    "expected_points": sample.get("expected_points", 0),
+                    "lenient_should_pass": sample.get("lenient_should_pass", True),
+                    "strict_should_pass": sample.get("strict_should_pass", False),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
 
 def get_sample_by_name(sample_name: str) -> dict[str, Any]:
@@ -338,25 +344,26 @@ def list_available_samples() -> list[str]:
 def validate_sample_parsing(sample_name: str, parser_func) -> dict[str, Any]:
     """Validate that a parser function correctly handles a golden sample."""
     sample = get_sample_by_name(sample_name)
-    
+
     # Create temporary SRT file
     import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.SRT', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".SRT", delete=False) as f:
         f.write(sample["srt_content"])
         temp_path = Path(f.name)
-    
+
     try:
         # Run parser
         result = parser_func(temp_path)
-        
+
         # Validate results against expectations
         validation_result = {
             "sample_name": sample_name,
             "parser_result": result,
             "validation_passed": True,
-            "validation_errors": []
+            "validation_errors": [],
         }
-        
+
         # Check expected points count
         if "expected_points" in sample:
             expected_count = sample["expected_points"]
@@ -366,15 +373,15 @@ def validate_sample_parsing(sample_name: str, parser_func) -> dict[str, Any]:
                 actual_count = result["telemetry_points"]
             else:
                 actual_count = 0
-            
+
             if actual_count != expected_count:
                 validation_result["validation_passed"] = False
                 validation_result["validation_errors"].append(
                     f"Point count mismatch: expected {expected_count}, got {actual_count}"
                 )
-        
+
         return validation_result
-        
+
     finally:
         # Clean up temp file
         temp_path.unlink()

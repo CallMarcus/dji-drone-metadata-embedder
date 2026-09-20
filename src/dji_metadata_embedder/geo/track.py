@@ -106,9 +106,9 @@ def build_track(
         return build_track_from_samples(
             path.stem, samples, redact, assume_utc=True, tz_offset=tz_offset
         )
-    mtime_utc = datetime.fromtimestamp(
-        path.stat().st_mtime, tz=timezone.utc
-    ).replace(tzinfo=None)
+    mtime_utc = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).replace(
+        tzinfo=None
+    )
     return build_track_from_samples(
         path.stem, samples, redact, tz_offset=tz_offset, mtime_utc=mtime_utc
     )
@@ -154,8 +154,7 @@ def build_track_from_samples(
         if s.dt is not None and offset is not None:
             utc = s.dt - offset
         elif mtime_utc is not None:
-            utc = mtime_utc + timedelta(
-                seconds=(_cue_seconds(s.cue) or 0.0) - base_cue)
+            utc = mtime_utc + timedelta(seconds=(_cue_seconds(s.cue) or 0.0) - base_cue)
         else:
             utc = None
         points.append(
@@ -175,6 +174,8 @@ def build_track_from_samples(
     # when the user stated one; SRT keeps the resolved (explicit or
     # auto-detected) offset, or None when nothing carried a datetime.
     return Track(
-        name=name, points=points, utc_source=utc_source,
+        name=name,
+        points=points,
+        utc_source=utc_source,
         local_offset=tz_offset if assume_utc else offset,
     )

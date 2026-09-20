@@ -1,4 +1,5 @@
 """CLI tests for flightmap --airspace (#413 PR 2)."""
+
 import io
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -73,15 +74,13 @@ def test_airspace_overlays_the_html_map(tmp_path, monkeypatch):
 def test_all_plus_airspace_fetches_once_record_hits_cache(tmp_path, monkeypatch):
     from dji_metadata_embedder.geo import record as record_mod
 
-    fake = FakeTransport([_lux_body()])          # exactly ONE network body
+    fake = FakeTransport([_lux_body()])  # exactly ONE network body
     monkeypatch.setattr(airspace_fetch, "urlopen", fake)
     # the record path resolves record.urlopen; terrain outruns the empty
     # queue and degrades to a stated note, airspace must hit the cache
     monkeypatch.setattr(record_mod, "urlopen", FakeTransport([]))
     d = _srt_dir(tmp_path)
-    result = CliRunner().invoke(
-        main, ["flightmap", str(d), "-f", "all", "--airspace"]
-    )
+    result = CliRunner().invoke(main, ["flightmap", str(d), "-f", "all", "--airspace"])
     assert result.exit_code == 0, result.output
     assert (d / "flightmap.html").exists()
     assert (d / "flight-record.html").exists()
@@ -103,9 +102,7 @@ def test_airspace_overlays_the_3d_map(tmp_path, monkeypatch):
     fake = FakeTransport([_lux_body()])
     monkeypatch.setattr(airspace_fetch, "urlopen", fake)
     d = _srt_dir(tmp_path)
-    result = CliRunner().invoke(
-        main, ["flightmap", str(d), "--airspace", "--3d"]
-    )
+    result = CliRunner().invoke(main, ["flightmap", str(d), "--airspace", "--3d"])
     assert result.exit_code == 0, result.output
     html = (d / "flightmap-3d.html").read_text(encoding="utf-8")
     assert 'id="airspace-data"' in html
@@ -143,7 +140,7 @@ def test_gap_track_still_renders_map_with_note(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "Note: PAC0001:" in result.output
     html = (d / "flightmap.html").read_text(encoding="utf-8")
-    assert 'id="airspace-data"' in html      # gap note embedded in the map
+    assert 'id="airspace-data"' in html  # gap note embedded in the map
     assert "airspace-note" in html
 
 
@@ -159,17 +156,15 @@ class _UrlRecorder:
         raise URLError("offline")
 
 
-def test_refresh_with_airspace_does_not_refetch_for_the_record(
-    tmp_path, monkeypatch
-):
+def test_refresh_with_airspace_does_not_refetch_for_the_record(tmp_path, monkeypatch):
     # #424: -f all --airspace --airspace-refresh used to refetch the feed
     # twice — once for the overlay, then again for the record, past the
     # cache the overlay had just written.
     from dji_metadata_embedder.geo import record as record_mod
 
-    fake = FakeTransport([_lux_body()])          # the overlay's refreshed fetch
+    fake = FakeTransport([_lux_body()])  # the overlay's refreshed fetch
     monkeypatch.setattr(airspace_fetch, "urlopen", fake)
-    rec_transport = _UrlRecorder()               # terrain may knock; zones must not
+    rec_transport = _UrlRecorder()  # terrain may knock; zones must not
     monkeypatch.setattr(record_mod, "urlopen", rec_transport)
     d = _srt_dir(tmp_path)
     result = CliRunner().invoke(
@@ -177,7 +172,7 @@ def test_refresh_with_airspace_does_not_refetch_for_the_record(
         ["flightmap", str(d), "-f", "all", "--airspace", "--airspace-refresh"],
     )
     assert result.exit_code == 0, result.output
-    assert fake.calls == 1                       # one refreshed fetch, overlay-side
+    assert fake.calls == 1  # one refreshed fetch, overlay-side
     # Positive form (#433 review F4): the record touched the network for
     # terrain tiles only — any zone-feed host would fail this, not just
     # the fixture's spelling.

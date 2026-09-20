@@ -10,7 +10,8 @@ real regression from a pre-existing environmental gap.
 
 ```bash
 uv sync --extra dev --extra ui
-uv run ruff check src/ tests/
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy
 uv run pytest -q
 uv run python validation_tests/run_all_tests.py   # requires FFmpeg + samples
@@ -20,7 +21,8 @@ uv run python validation_tests/run_all_tests.py   # requires FFmpeg + samples
 
 | Suite | Command | Expected result |
 |-------|---------|-----------------|
-| Lint | `uv run ruff check src/ tests/` | `All checks passed!` |
+| Lint | `uv run ruff check .` | `All checks passed!` |
+| Format | `uv run ruff format --check .` | `N files already formatted` |
 | Types | `uv run mypy` | `Success: no issues found` |
 | Unit tests | `uv run pytest -q` | **583 passed, 4 skipped** (fast, ~12 s; counts grow — treat "0 failed" as the invariant) |
 | CLI smoke | `uv run dji-embed --version` | Prints version plus availability of FFmpeg/ExifTool |
@@ -57,7 +59,8 @@ GitHub Actions workflows in `.github/workflows/`:
 - `auto-changelog.yml` – updates `CHANGELOG.md` from Conventional Commits.
 - `docs.yml` – builds the MkDocs site.
 
-If `uv run pytest -q`, `uv run ruff check`, and `uv run mypy` are green,
+If `uv run pytest -q`, `uv run ruff check`, `uv run ruff format --check`
+and `uv run mypy` are green,
 your branch matches the PR gate (plus `dotnet test` if you touched `gui/`). Run the validation suite before cutting a release or
 whenever you change parsing / FFmpeg command assembly; otherwise the unit
 tests and golden fixtures are sufficient for day-to-day development.

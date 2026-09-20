@@ -18,9 +18,7 @@ from .evaluate import evaluate
 from .fetch import AirspaceData
 from .model import M_PER_FT, Applicability, VerticalLimit
 
-_MTIME_NOTE = (
-    "times derived from file modification times, not telemetry datetimes"
-)
+_MTIME_NOTE = "times derived from file modification times, not telemetry datetimes"
 _PARTIAL_NOTE = "point timestamps are incomplete"
 
 
@@ -100,24 +98,29 @@ def zones_to_overlay_json(
                     "upper": _fmt_limit(zone.upper),
                     "upper_m": upper_m,
                     "upper_ref": upper_ref,
-                    "applicability": [
-                        _fmt_window(w) for w in zone.applicability
-                    ],
+                    "applicability": [_fmt_window(w) for w in zone.applicability],
                     "polygons": zone.polygons,
                     "holes": zone.holes,
                     # Published, unevaluated text (#503) — only when the
                     # zone carries any, so undated/plain feeds keep shape.
-                    **({"activation": list(zone.activation)}
-                       if zone.activation else {}),
+                    **(
+                        {"activation": list(zone.activation)} if zone.activation else {}
+                    ),
                     **({"notes": list(zone.notes)} if zone.notes else {}),
-                    **({"status": zone.not_active_reason}
-                       if zone.not_active_reason else {}),
+                    **(
+                        {"status": zone.not_active_reason}
+                        if zone.not_active_reason
+                        else {}
+                    ),
                     "source": {
                         "feed": zone.source.feed,
                         "license": zone.source.license,
                         "fetched": zone.source.fetched,
-                        **({"effective": zone.source.effective}
-                           if zone.source.effective else {}),
+                        **(
+                            {"effective": zone.source.effective}
+                            if zone.source.effective
+                            else {}
+                        ),
                     },
                     "entered": [],
                 }
@@ -126,14 +129,16 @@ def zones_to_overlay_json(
             if not finding.entered:
                 continue
             key = (finding.zone.source.feed, finding.zone.identifier)
-            zone_dicts[key]["entered"].append({
-                "flight": track.name,
-                "entry_utc": _fmt_utc(finding.entry_utc),
-                "exit_utc": _fmt_utc(finding.exit_utc),
-                "max_rel_alt_m": finding.max_rel_alt_m,
-                "max_amsl_m": finding.max_amsl_m,
-                "time_note": note,
-            })
+            zone_dicts[key]["entered"].append(
+                {
+                    "flight": track.name,
+                    "entry_utc": _fmt_utc(finding.entry_utc),
+                    "exit_utc": _fmt_utc(finding.exit_utc),
+                    "max_rel_alt_m": finding.max_rel_alt_m,
+                    "max_amsl_m": finding.max_amsl_m,
+                    "time_note": note,
+                }
+            )
     return {
         "zones": list(zone_dicts.values()),
         "notes": notes,

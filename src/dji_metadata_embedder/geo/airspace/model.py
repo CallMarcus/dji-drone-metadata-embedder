@@ -39,8 +39,8 @@ class VerticalLimit:
     "not stated" — never 0 (live ED-269 zones omit limits)."""
 
     value: float
-    unit: str        # "m" | "ft" | "FL", as published
-    reference: str   # "AGL" | "AMSL" | "STD"
+    unit: str  # "m" | "ft" | "FL", as published
+    reference: str  # "AGL" | "AMSL" | "STD"
 
     def label(self) -> str:
         if self.unit == "FL":
@@ -66,11 +66,11 @@ class Applicability:
 class SourceInfo:
     """Provenance of a fetched feed — the record prints all of it."""
 
-    feed: str      # human name, e.g. "FAA UAS Facility Maps"
-    url: str       # endpoint actually contacted
-    fetched: str   # ISO timestamp of the fetch (or the cached copy's)
-    license: str   # license line, printed verbatim
-    caveat: str    # the feed's own informational-only wording
+    feed: str  # human name, e.g. "FAA UAS Facility Maps"
+    url: str  # endpoint actually contacted
+    fetched: str  # ISO timestamp of the fetch (or the cached copy's)
+    license: str  # license line, printed verbatim
+    caveat: str  # the feed's own informational-only wording
     note: str | None = None  # e.g. Finland's established-zones-only limit
     # ISO date the dataset itself took effect, when the product states
     # one (the UK AIRAC cycle date in the zip filename, #502). ``fetched``

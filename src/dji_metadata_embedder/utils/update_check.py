@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 
 PYPI_PROJECT = "dji-drone-metadata-embedder"
 PYPI_URL = f"https://pypi.org/pypi/{PYPI_PROJECT}/json"
-RELEASES_URL = "https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest"
+RELEASES_URL = (
+    "https://github.com/CallMarcus/dji-drone-metadata-embedder/releases/latest"
+)
 WINGET_ID = "CallMarcus.DJIMetadataEmbedder"
 MACOS_CLI_ASSET = "dji-embed-macos-arm64.zip"
 NO_UPDATE_CHECK_ENV = "DJIEMBED_NO_UPDATE_CHECK"
@@ -64,9 +66,7 @@ def save_consent(enabled: bool) -> None:
     path = consent_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps({"online_check": enabled}) + "\n", encoding="utf-8"
-        )
+        path.write_text(json.dumps({"online_check": enabled}) + "\n", encoding="utf-8")
     except OSError:
         logger.debug("Could not persist update-check consent to %s", path)
 
@@ -256,9 +256,7 @@ def exiftool_pin_lines() -> list[str]:
     ver = exiftool_utils.exiftool_version()
     if ver is None:  # missing entirely — doctor already reports that
         return []
-    if exiftool_utils.version_key(ver) >= exiftool_utils.version_key(
-        EXIFTOOL_VERSION
-    ):
+    if exiftool_utils.version_key(ver) >= exiftool_utils.version_key(EXIFTOOL_VERSION):
         return []
     lagging = [
         model

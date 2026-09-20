@@ -22,15 +22,23 @@ from dji_metadata_embedder.geo.track import Track, TrackPoint
 pytestmark = pytest.mark.browser
 
 
-def _flight(name: str, lat: float, lon: float, points: int,
-            step_lon: float, step_s: float) -> Track:
+def _flight(
+    name: str, lat: float, lon: float, points: int, step_lon: float, step_s: float
+) -> Track:
     t0 = datetime(2026, 6, 15, 12, 0, 0)
-    return Track(name=name, points=[
-        TrackPoint(lat=lat, lon=lon + i * step_lon, alt=100.0 + i,
-                   timestamp=f"00:00:{i:02d},000",
-                   utc=t0 + timedelta(seconds=i * step_s))
-        for i in range(points)
-    ])
+    return Track(
+        name=name,
+        points=[
+            TrackPoint(
+                lat=lat,
+                lon=lon + i * step_lon,
+                alt=100.0 + i,
+                timestamp=f"00:00:{i:02d},000",
+                utc=t0 + timedelta(seconds=i * step_s),
+            )
+            for i in range(points)
+        ],
+    )
 
 
 # Flight A: 11 fixes over 100 s heading due east across ~550 m — wide enough
@@ -44,7 +52,7 @@ TRACKS = [
 HTML = flights_to_html(TRACKS, "playback e2e")
 
 # The playback dot is the only white-stroked circleMarker on the map.
-DOTS = 'document.querySelectorAll("#map path[stroke=\'#fff\']")'
+DOTS = "document.querySelectorAll(\"#map path[stroke='#fff']\")"
 
 
 def _dot_x(page) -> float:
@@ -83,7 +91,7 @@ def test_play_advances_the_dot_and_the_clock(serve_map, page):
     # rAF-driven at 1x: within a couple of real seconds the clock moves.
     expect(page.locator("#pb-time")).not_to_have_text("0:00 / 1:40")
     assert float(page.eval_on_selector("#pb-slider", "s => s.value")) > 0
-    page.click("#pb-play")   # pause
+    page.click("#pb-play")  # pause
     expect(page.locator("#pb-play")).to_have_text("▶")
 
 
@@ -119,11 +127,12 @@ def test_layer_untick_removes_that_flights_paths(serve_map, page):
 
 def test_reaching_the_end_flips_play_into_replay(serve_map, page):
     serve_map(HTML)
-    for _ in range(3):                    # 1x -> 60x
+    for _ in range(3):  # 1x -> 60x
         page.click("#pb-speed")
-    _scrub(page, 95)                      # 5 s from the end at 60x
+    _scrub(page, 95)  # 5 s from the end at 60x
     page.click("#pb-play")
     expect(page.locator("#pb-play")).to_have_text("▶")
     slider = page.locator("#pb-slider")
     assert float(slider.evaluate("s => s.value")) == float(
-        slider.evaluate("s => s.max"))
+        slider.evaluate("s => s.max")
+    )

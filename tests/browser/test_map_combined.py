@@ -32,8 +32,13 @@ def _jpeg_b64(width: int, height: int) -> str:
 
 _T0 = datetime(2026, 6, 15, 12, 0, 0)
 POINTS = [
-    PhotoPoint(lat=34.0567, lon=-84.1234, alt=95.3, name="church.jpg",
-               thumbnail_b64=_jpeg_b64(240, 120)),
+    PhotoPoint(
+        lat=34.0567,
+        lon=-84.1234,
+        alt=95.3,
+        name="church.jpg",
+        thumbnail_b64=_jpeg_b64(240, 120),
+    ),
 ]
 TRACKS = [
     # lon drifts a hair each point (not held constant): a perfectly
@@ -42,12 +47,19 @@ TRACKS = [
     # from that box), which makes Playwright's to_be_visible() report
     # the rendered, on-screen polyline as hidden. The drift is cosmetic
     # to the flight and keeps the visibility assertion honest.
-    Track(name="DJI_0001", points=[
-        TrackPoint(lat=34.0570 + i * 0.0005, lon=-84.1230 + i * 0.0001,
-                   alt=5.0 + i, timestamp=f"00:00:{i:02d},000",
-                   utc=_T0 + timedelta(seconds=30 * i))
-        for i in range(4)
-    ]),
+    Track(
+        name="DJI_0001",
+        points=[
+            TrackPoint(
+                lat=34.0570 + i * 0.0005,
+                lon=-84.1230 + i * 0.0001,
+                alt=5.0 + i,
+                timestamp=f"00:00:{i:02d},000",
+                utc=_T0 + timedelta(seconds=30 * i),
+            )
+            for i in range(4)
+        ],
+    ),
 ]
 
 HTML = mixed_to_html(POINTS, TRACKS, title="combined e2e")
@@ -75,24 +87,32 @@ def test_photo_popup_track_and_playback_share_one_page(serve_map, page):
     expect(page.locator("#pb-play")).to_be_visible()
     page.locator("#pb-play").click()
     page.wait_for_function(
-        "() => Number(document.getElementById('pb-slider').value) > 0")
+        "() => Number(document.getElementById('pb-slider').value) > 0"
+    )
 
 
 def _flight(i: int) -> Track:
-    return Track(name=f"DJI_{i:04d}", points=[
-        TrackPoint(lat=34.0570 + i * 0.002 + k * 0.0005,
-                   lon=-84.1230 + k * 0.0001, alt=5.0 + k,
-                   timestamp=f"00:00:{k:02d},000",
-                   utc=_T0 + timedelta(seconds=30 * k))
-        for k in range(3)
-    ])
+    return Track(
+        name=f"DJI_{i:04d}",
+        points=[
+            TrackPoint(
+                lat=34.0570 + i * 0.002 + k * 0.0005,
+                lon=-84.1230 + k * 0.0001,
+                alt=5.0 + k,
+                timestamp=f"00:00:{k:02d},000",
+                utc=_T0 + timedelta(seconds=30 * k),
+            )
+            for k in range(3)
+        ],
+    )
 
 
 LAYERS = ".leaflet-control-layers:not(.hover-control)"
 
 
 def test_layer_control_stays_expanded_for_a_few_flights_and_collapses_at_scale(
-        serve_map, page):
+    serve_map, page
+):
     # #515 field check: the expanded legend is right for a handful of
     # rows (photomap's rule) and a 529 px wall at 24 flights. Leaflet
     # marks the open state with -expanded; a collapsed control shows its

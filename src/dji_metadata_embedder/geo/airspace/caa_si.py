@@ -51,8 +51,7 @@ class CaaSiFeed:
 
 
 _CAVEAT = (
-    "UAS geographical-zone data is informational and is not an "
-    "authorization to fly."
+    "UAS geographical-zone data is informational and is not an authorization to fly."
 )
 
 CAA_SI_FEEDS: dict[str, CaaSiFeed] = {
@@ -82,13 +81,30 @@ _ZIP_HREF_RE = re.compile(
     r"""href=["']([^"']*/upload/editor/file/[^"']+\.zip)["']""", re.IGNORECASE
 )
 
-_ROW_RE = re.compile(r"<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
+_ROW_RE = re.compile(
+    r"<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE
+)
 _TAG_RE = re.compile(r"<[^>]+>")
 # ArcGIS/Google Earth export furniture, never a published fact.
 _FURNITURE = {
-    "folderpath", "symbolid", "altmode", "base", "clamped", "extruded",
-    "snippet", "popupinfo", "fid", "objectid", "id", "field",
-    "shape length", "shape area", "lat", "lon", "lat dec", "lon dec",
+    "folderpath",
+    "symbolid",
+    "altmode",
+    "base",
+    "clamped",
+    "extruded",
+    "snippet",
+    "popupinfo",
+    "fid",
+    "objectid",
+    "id",
+    "field",
+    "shape length",
+    "shape area",
+    "lat",
+    "lon",
+    "lat dec",
+    "lon dec",
 }
 # Name rows, in preference order, for placemarks whose own <name> is junk.
 _NAME_KEYS = ("naziv", "name", "ime", "obmocje", "letalisce", "zone", "subject")
@@ -234,8 +250,9 @@ def _is_height_key(norm: str) -> bool:
     return "visina nad tlemi" in norm or "height agl" in norm
 
 
-def _name(placemark_name: str | None, rows: list[tuple[str, str]],
-          folder: str, index: int) -> str:
+def _name(
+    placemark_name: str | None, rows: list[tuple[str, str]], folder: str, index: int
+) -> str:
     own = (placemark_name or "").strip()
     if own and not _JUNK_NAME_RE.match(own):
         return own
@@ -248,9 +265,14 @@ def _name(placemark_name: str | None, rows: list[tuple[str, str]],
     return f"{folder} {index}"
 
 
-def _coords(element: ElementTree.Element | None, ns: str, where: str
-            ) -> list[tuple[float, float]]:
-    text = element.findtext(f"{ns}LinearRing/{ns}coordinates") if element is not None else None
+def _coords(
+    element: ElementTree.Element | None, ns: str, where: str
+) -> list[tuple[float, float]]:
+    text = (
+        element.findtext(f"{ns}LinearRing/{ns}coordinates")
+        if element is not None
+        else None
+    )
     if not text or not text.strip():
         raise AirspaceError(f"{where}: ring without coordinates")
     ring: list[tuple[float, float]] = []
@@ -265,8 +287,9 @@ def _coords(element: ElementTree.Element | None, ns: str, where: str
     return ring
 
 
-def _polygons(placemark: ElementTree.Element, ns: str, where: str
-              ) -> tuple[list[list[tuple[float, float]]], list[list[tuple[float, float]]]]:
+def _polygons(
+    placemark: ElementTree.Element, ns: str, where: str
+) -> tuple[list[list[tuple[float, float]]], list[list[tuple[float, float]]]]:
     polygons: list[list[tuple[float, float]]] = []
     holes: list[list[tuple[float, float]]] = []
     for polygon in placemark.iter(f"{ns}Polygon"):
@@ -284,7 +307,9 @@ def parse_caa_si(raw_zip: bytes, source: SourceInfo) -> list[Zone]:
     try:
         root = ElementTree.fromstring(kml)
     except ElementTree.ParseError as exc:
-        raise AirspaceError(f"{source.feed}: doc.kml is not well-formed XML ({exc})") from exc
+        raise AirspaceError(
+            f"{source.feed}: doc.kml is not well-formed XML ({exc})"
+        ) from exc
     ns = root.tag[: root.tag.index("}") + 1] if root.tag.startswith("{") else ""
     zones: list[Zone] = []
     containers = list(root.iter(f"{ns}Folder"))
@@ -315,12 +340,14 @@ def parse_caa_si(raw_zip: bytes, source: SourceInfo) -> list[Zone]:
             if height is not None:
                 upper = height
             notes = [
-                f"{k}: {v}" for k, v in rows
+                f"{k}: {v}"
+                for k, v in rows
                 if _norm(k) not in _FURNITURE
                 and not _is_restriction_key(_norm(k))
                 and not _is_height_key(_norm(k))
-                and not (_norm(k) in _NAME_KEYS
-                         and (v == name or _JUNK_NAME_RE.match(v)))
+                and not (
+                    _norm(k) in _NAME_KEYS and (v == name or _JUNK_NAME_RE.match(v))
+                )
             ]
             polygons, holes = _polygons(placemark, ns, where)
             zones.append(

@@ -60,9 +60,7 @@ class JsonlProgress(NullProgress):
             # ensure_ascii: the wire format must survive any stdout encoding
             # (Windows pipes default to the locale code page, not UTF-8);
             # escapes round-trip losslessly through json.loads.
-            self._stream.write(
-                json.dumps(payload, separators=(",", ":")) + "\n"
-            )
+            self._stream.write(json.dumps(payload, separators=(",", ":")) + "\n")
             self._stream.flush()
         except (BrokenPipeError, OSError, ValueError):
             # The consumer closed the pipe (GUI cancel, `| head`) or the
@@ -74,9 +72,7 @@ class JsonlProgress(NullProgress):
                 # shutdown flush of the broken pipe cannot fail loudly
                 # (the Python docs' recommended BrokenPipeError dance).
                 try:
-                    os.dup2(
-                        os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno()
-                    )
+                    os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
                 except OSError:
                     pass
 

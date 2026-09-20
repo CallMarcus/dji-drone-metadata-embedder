@@ -149,9 +149,7 @@ class DragDropGroup(click.Group):
     no-command-line story of issue #264 stage 1.
     """
 
-    def main(
-        self, args: Sequence[str] | None = None, *pargs: Any, **extra: Any
-    ) -> Any:
+    def main(self, args: Sequence[str] | None = None, *pargs: Any, **extra: Any) -> Any:
         # args must be passed through untouched: click only applies its
         # Windows glob/~/env expansion when it receives args=None.
         argv = sys.argv[1:] if args is None else args
@@ -160,9 +158,7 @@ class DragDropGroup(click.Group):
             _dragdrop_pause()
             return None
         try:
-            return super().main(
-                None if args is None else list(args), *pargs, **extra
-            )
+            return super().main(None if args is None else list(args), *pargs, **extra)
         except SystemExit as e:
             if e.code not in (0, None):
                 # Errors on a double-click launch print into a console that
@@ -229,7 +225,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       doctor    Check system dependencies and configuration
     """
     ctx.ensure_object(dict)
-    ctx.obj['log_json'] = log_json
+    ctx.obj["log_json"] = log_json
 
 
 @contextmanager
@@ -281,7 +277,10 @@ _tile_style_option = click.option(
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "-o", "--output", type=click.Path(file_okay=False), help="Output directory (ignored if --overwrite)"
+    "-o",
+    "--output",
+    type=click.Path(file_okay=False),
+    help="Output directory (ignored if --overwrite)",
 )
 @click.option(
     "--overwrite",
@@ -344,9 +343,7 @@ def embed(
     with _jsonl_terminal(progress, "embed"):
         deps_ok, missing = check_dependencies()
         if not deps_ok:
-            raise click.ClickException(
-                f"Missing dependencies: {', '.join(missing)}"
-            )
+            raise click.ClickException(f"Missing dependencies: {', '.join(missing)}")
 
         embedder = DJIMetadataEmbedder(
             directory,
@@ -495,7 +492,11 @@ def check(
     metavar="CODE",
     help="cot only: CoT event type/affiliation code (default neutral air).",
 )
-@click.option("--footprint", is_flag=True, help="Add camera footprint polygons (geojson/kml, redact=none only)")
+@click.option(
+    "--footprint",
+    is_flag=True,
+    help="Add camera footprint polygons (geojson/kml, redact=none only)",
+)
 @click.option(
     "--footprint-interval",
     type=float,
@@ -503,7 +504,11 @@ def check(
     show_default=True,
     help="Seconds between footprint samples",
 )
-@click.option("--model", default=None, help="Drone model for the footprint FOV table (e.g. air3, mini4pro)")
+@click.option(
+    "--model",
+    default=None,
+    help="Drone model for the footprint FOV table (e.g. air3, mini4pro)",
+)
 @click.option(
     "--extract-home",
     is_flag=True,
@@ -559,28 +564,39 @@ def convert(
         def run_one(srt: Path, out: str | None) -> Path:
             if command == "gpx":
                 return extract_telemetry_to_gpx(
-                    srt, out, tz_offset=offset,
-                    extract_home=extract_home, redact=redact)
+                    srt, out, tz_offset=offset, extract_home=extract_home, redact=redact
+                )
             elif command == "csv":
                 return extract_telemetry_to_csv(
-                    srt, out, tz_offset=offset,
-                    extract_home=extract_home, redact=redact)
+                    srt, out, tz_offset=offset, extract_home=extract_home, redact=redact
+                )
             elif command == "geojson":
                 return convert_to_geojson(
-                    srt, out, redact=redact,
-                    footprint=footprint, footprint_interval=footprint_interval,
-                    model=model, extract_home=extract_home,
+                    srt,
+                    out,
+                    redact=redact,
+                    footprint=footprint,
+                    footprint_interval=footprint_interval,
+                    model=model,
+                    extract_home=extract_home,
                 )
             elif command == "kml":
                 return convert_to_kml(
-                    srt, out, redact=redact,
-                    footprint=footprint, footprint_interval=footprint_interval,
+                    srt,
+                    out,
+                    redact=redact,
+                    footprint=footprint,
+                    footprint_interval=footprint_interval,
                     model=model,
                 )
             elif command == "cot":
                 return convert_to_cot(
-                    srt, out, redact=redact, tz_offset=offset,
-                    interval=interval, cot_type=cot_type,
+                    srt,
+                    out,
+                    redact=redact,
+                    tz_offset=offset,
+                    interval=interval,
+                    cot_type=cot_type,
                 )
             else:  # html
                 return convert_to_html(srt, out, redact=redact)
@@ -625,33 +641,44 @@ def convert(
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "-o", "--output", type=click.Path(dir_okay=False),
+    "-o",
+    "--output",
+    type=click.Path(dir_okay=False),
     help="Output file; used as the base name when --format all",
 )
 @click.option(
-    "-f", "--format", "fmt",
+    "-f",
+    "--format",
+    "fmt",
     type=click.Choice(["html", "kml", "geojson", "all"], case_sensitive=False),
-    default="html", show_default=True, help="Map output format",
+    default="html",
+    show_default=True,
+    help="Map output format",
 )
 @click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
 @click.option("--title", default=None, help="Map title (default: directory name)")
 @click.option(
-    "--link-originals", is_flag=True,
+    "--link-originals",
+    is_flag=True,
     help="HTML popups link the thumbnail/filename to the original photo file "
-         "(resolves while the map stays next to the photos)",
+    "(resolves while the map stays next to the photos)",
 )
 @click.option(
-    "--link-base", default=None, metavar="PREFIX",
+    "--link-base",
+    default=None,
+    metavar="PREFIX",
     help="Folder or URL prefix for --link-originals hrefs, for when the "
-         "originals do not sit beside the HTML (e.g. photos/ or "
-         "https://example.com/photos/)",
+    "originals do not sit beside the HTML (e.g. photos/ or "
+    "https://example.com/photos/)",
 )
 @click.option(
-    "--popup-fields", default=None, metavar="LIST",
+    "--popup-fields",
+    default=None,
+    metavar="LIST",
     help="Limit what the HTML popups show: 'none' or a comma list of "
-         "name, timestamp, camera, altitude, credit (default: all of them). "
-         "Excluded details are left out of the HTML file entirely; the "
-         "original photos are untouched. Other formats are unchanged.",
+    "name, timestamp, camera, altitude, credit (default: all of them). "
+    "Excluded details are left out of the HTML file entirely; the "
+    "original photos are untouched. Other formats are unchanged.",
 )
 @click.option(
     "--redact",
@@ -663,18 +690,22 @@ def convert(
     "carry exact GPS in their EXIF.",
 )
 @click.option(
-    "--serve", "serve_map", is_flag=True,
+    "--serve",
+    "serve_map",
+    is_flag=True,
     help="After writing the map, serve its folder at a private local address "
-         "(http://127.0.0.1, this computer only) and open the browser. "
-         "Implies --link-originals. Needed for the 360° viewer, which "
-         "browsers block when the map is opened straight from disk. "
-         "With -v, each HTTP request is logged.",
+    "(http://127.0.0.1, this computer only) and open the browser. "
+    "Implies --link-originals. Needed for the 360° viewer, which "
+    "browsers block when the map is opened straight from disk. "
+    "With -v, each HTTP request is logged.",
 )
 @click.option(
-    "--pano-view-thumbs", "pano_view_thumbs", is_flag=True,
+    "--pano-view-thumbs",
+    "pano_view_thumbs",
+    is_flag=True,
     help="Render square popup thumbnails at each panorama's saved opening "
-         "view (GPano initial-view tags; set them with 'dji-embed "
-         "panoedit'). Panoramas without a saved view keep the 2:1 strip.",
+    "view (GPano initial-view tags; set them with 'dji-embed "
+    "panoedit'). Panoramas without a saved view keep the 2:1 strip.",
 )
 @_tile_style_option
 @_progress_option
@@ -824,7 +855,9 @@ def photomap(
             try:
                 if f == "html":
                     write_photos_html(
-                        points, out, map_title,
+                        points,
+                        out,
+                        map_title,
                         link_base=html_link_base,
                         popup_fields=popup_field_set,
                         tile_style=tile_style.lower(),
@@ -865,8 +898,7 @@ def _hint_gimbal_from_video(tracks: list, src: Path) -> None:
     carrying = 0
     for track in tracks:
         if any(
-            p.gimbal_yaw is not None or p.gimbal_pitch is not None
-            for p in track.points
+            p.gimbal_yaw is not None or p.gimbal_pitch is not None for p in track.points
         ):
             continue
         for name in track.segments or [track.name]:
@@ -899,35 +931,43 @@ def _unread_videos_note(names: list[str]) -> str:
         "missing. " + _EXIFTOOL_INSTALL_HINT
     )
 
+
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "-o", "--output", type=click.Path(dir_okay=False),
+    "-o",
+    "--output",
+    type=click.Path(dir_okay=False),
     help="Output file; used as the base name when --format all",
 )
 @click.option(
-    "-f", "--format", "fmt",
+    "-f",
+    "--format",
+    "fmt",
     type=click.Choice(
         ["html", "kml", "geojson", "record", "all"], case_sensitive=False
     ),
-    default="html", show_default=True,
+    default="html",
+    show_default=True,
     help="Map output format. 'record' (also written by 'all') writes a "
-         "printable flight record; building it fetches airspace data from "
-         "official feeds (FAA / ED-269) and terrain tiles from Mapterhorn. "
-         "These fetches — and --airspace's — are the command's only network "
-         "access; responses are cached beside the output.",
+    "printable flight record; building it fetches airspace data from "
+    "official feeds (FAA / ED-269) and terrain tiles from Mapterhorn. "
+    "These fetches — and --airspace's — are the command's only network "
+    "access; responses are cached beside the output.",
 )
 @click.option(
-    "--airspace-refresh", is_flag=True,
+    "--airspace-refresh",
+    is_flag=True,
     help="Refetch airspace data past the cache (-f record or --airspace).",
 )
 @click.option(
-    "--airspace", is_flag=True,
+    "--airspace",
+    is_flag=True,
     help="Overlay official airspace zones (FAA UAS Facility Maps / ED-269) "
-         "on the HTML map, flat or --3d — announced, cached network fetches, "
-         "exactly like -f record. Zones draw in one neutral style (in 3D, "
-         "published ceilings become translucent volumes); the map states "
-         "facts and makes no determination.",
+    "on the HTML map, flat or --3d — announced, cached network fetches, "
+    "exactly like -f record. Zones draw in one neutral style (in 3D, "
+    "published ceilings become translucent volumes); the map states "
+    "facts and makes no determination.",
 )
 @click.option("-r", "--recursive", is_flag=True, help="Scan subdirectories too")
 @click.option("--title", default=None, help="Map title (default: directory name)")
@@ -966,33 +1006,40 @@ def _unread_videos_note(names: list[str]) -> str:
     "map is never overwritten.",
 )
 @click.option(
-    "--link-originals", is_flag=True,
+    "--link-originals",
+    is_flag=True,
     help="Embed a link to each flight's source video, enabling the 3D map's "
-         "video crossfade. Originals still carry exact GPS in their own "
-         "metadata even when --redact fuzz coarsens the map.",
+    "video crossfade. Originals still carry exact GPS in their own "
+    "metadata even when --redact fuzz coarsens the map.",
 )
 @click.option(
-    "--link-base", default=None, metavar="PREFIX",
+    "--link-base",
+    default=None,
+    metavar="PREFIX",
     help="Folder or URL prefix for --link-originals hrefs, for when the "
-         "videos do not sit beside the map.",
+    "videos do not sit beside the map.",
 )
 @click.option(
-    "--flight-log", "flight_logs", multiple=True,
-    type=click.Path(exists=True, dir_okay=False), metavar="CSV",
+    "--flight-log",
+    "flight_logs",
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False),
+    metavar="CSV",
     help="Flight-log CSV export (Airdata, Flight Reader, ...) whose gimbal "
-         "pitch/yaw is merged into the matching flight by timestamp — for "
-         "drones whose SRT carries no gimbal data, this upgrades the 3D "
-         "map's estimated camera footprints to measurements. Repeat for "
-         "several flights. Enable the UTC timestamp and the gimbal "
-         "pitch/yaw fields in the decoder's export settings.",
+    "pitch/yaw is merged into the matching flight by timestamp — for "
+    "drones whose SRT carries no gimbal data, this upgrades the 3D "
+    "map's estimated camera footprints to measurements. Repeat for "
+    "several flights. Enable the UTC timestamp and the gimbal "
+    "pitch/yaw fields in the decoder's export settings.",
 )
 @click.option(
-    "--gimbal-from-video", is_flag=True,
+    "--gimbal-from-video",
+    is_flag=True,
     help="Read gimbal pitch/yaw from each flight's MP4 timed metadata when "
-         "the SRT carries none (Air 3S and newer), upgrading the 3D map's "
-         "estimated camera footprints to measurements. Needs ExifTool "
-         "(dji-embed doctor --install exiftool) and opens every video, "
-         "roughly 15 seconds per gigabyte. SRT values are never overwritten.",
+    "the SRT carries none (Air 3S and newer), upgrading the 3D map's "
+    "estimated camera footprints to measurements. Needs ExifTool "
+    "(dji-embed doctor --install exiftool) and opens every video, "
+    "roughly 15 seconds per gigabyte. SRT values are never overwritten.",
 )
 @_tile_style_option
 @_progress_option
@@ -1093,8 +1140,7 @@ def flightmap(
             airspace or (wants_record and not skip_record_for_redact)
         ):
             click.echo(
-                "Note: --airspace-refresh does nothing without -f record "
-                "or --airspace",
+                "Note: --airspace-refresh does nothing without -f record or --airspace",
                 err=True,
             )
         src = Path(directory)
@@ -1166,12 +1212,10 @@ def flightmap(
             else:
                 reason = report.reason or "no alignment found"
                 progress.warning(
-                    f"Flight log {log.name} did not match any flight: "
-                    f"{reason}"
+                    f"Flight log {log.name} did not match any flight: {reason}"
                 )
                 click.echo(
-                    f"Note: flight log {log.name} did not match any "
-                    f"flight: {reason}",
+                    f"Note: flight log {log.name} did not match any flight: {reason}",
                     err=True,
                 )
         if gimbal_from_video:
@@ -1186,8 +1230,7 @@ def flightmap(
                 for r in video_reports:
                     if not r.matched:
                         click.echo(
-                            f"Gimbal from video skipped for {r.name}: "
-                            f"{r.reason}",
+                            f"Gimbal from video skipped for {r.name}: {r.reason}",
                             err=True,
                         )
             if not quiet:
@@ -1232,8 +1275,10 @@ def flightmap(
         else:
             f = fmt.lower()
             default_name = (
-                "flightmap-3d.html" if three_d
-                else "flight-record.html" if f == "record"
+                "flightmap-3d.html"
+                if three_d
+                else "flight-record.html"
+                if f == "record"
                 else f"flightmap.{f}"
             )
             out = Path(output) if output else src / default_name
@@ -1265,12 +1310,17 @@ def flightmap(
                 if f == "html":
                     if three_d:
                         write_flights_3d_html(
-                            tracks, out, map_title, redact=redact.lower(),
+                            tracks,
+                            out,
+                            map_title,
+                            redact=redact.lower(),
                             airspace_json=overlay_json,
                         )
                     else:
                         write_flights_html(
-                            tracks, out, map_title,
+                            tracks,
+                            out,
+                            map_title,
                             tile_style=tile_style.lower(),
                             redact=redact.lower(),
                             airspace_json=overlay_json,
@@ -1323,14 +1373,17 @@ _FETCH_CONSENT = (
 
 @main.command(name="fetch-log")
 @click.argument(
-    "records", nargs=-1, required=True,
+    "records",
+    nargs=-1,
+    required=True,
     type=click.Path(exists=True, dir_okay=False),
 )
 @click.option(
-    "--yes", is_flag=True,
+    "--yes",
+    is_flag=True,
     help="Skip the upload consent prompt. Required with --progress jsonl, "
-         "where nothing can be prompted, so whatever drives the CLI must "
-         "obtain consent first (the desktop app does not offer fetch-log).",
+    "where nothing can be prompted, so whatever drives the CLI must "
+    "obtain consent first (the desktop app does not offer fetch-log).",
 )
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -1410,9 +1463,7 @@ def fetch_log_cmd(
                 if not progress.active:
                     click.echo(f"Wrote {out.name}")
         if failures:
-            raise click.ClickException(
-                f"{failures} of {len(pending)} records failed"
-            )
+            raise click.ClickException(f"{failures} of {len(pending)} records failed")
         progress.result(
             ok=True,
             outputs=[str(o.resolve()) for o in outputs],
@@ -1427,22 +1478,28 @@ def fetch_log_cmd(
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "--page", default="photomap.html", show_default=True, metavar="FILE",
+    "--page",
+    default="photomap.html",
+    show_default=True,
+    metavar="FILE",
     help="Map file to open, relative to DIRECTORY.",
 )
 @click.option(
-    "--no-browser", is_flag=True,
+    "--no-browser",
+    is_flag=True,
     help="Do not open the browser; just print the URL and serve.",
 )
 @click.option(
-    "--url-only", is_flag=True,
+    "--url-only",
+    is_flag=True,
     help="Print the bare URL as the first output line — a stable contract "
-         "for wrapper apps that parse it.",
+    "for wrapper apps that parse it.",
 )
 @click.option(
-    "--exit-with-stdin", is_flag=True,
+    "--exit-with-stdin",
+    is_flag=True,
     help="Stop serving when stdin closes, tying the server's lifetime to "
-         "the app that started it.",
+    "the app that started it.",
 )
 @click.option("-v", "--verbose", is_flag=True, help="Log each HTTP request")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
@@ -1484,7 +1541,9 @@ def serve(
 @main.command(name="map")
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "-o", "--output", type=click.Path(dir_okay=False),
+    "-o",
+    "--output",
+    type=click.Path(dir_okay=False),
     help="Output HTML file (default: map.html inside the folder)",
 )
 @click.option(
@@ -1496,11 +1555,13 @@ def serve(
     "before writing. Original files still carry exact GPS.",
 )
 @click.option(
-    "--serve", "serve_map", is_flag=True,
+    "--serve",
+    "serve_map",
+    is_flag=True,
     help="After writing the map, serve its folder at a private local address "
-         "(http://127.0.0.1, this computer only) and open the browser. "
-         "Links each pin to its original photo and enables the 360° viewer, "
-         "which browsers block on maps opened straight from disk.",
+    "(http://127.0.0.1, this computer only) and open the browser. "
+    "Links each pin to its original photo and enables the 360° viewer, "
+    "which browsers block on maps opened straight from disk.",
 )
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
@@ -1598,6 +1659,7 @@ def map_cmd(
                 PanorenderUnavailable,
                 apply_view_thumbnails,
             )
+
             try:
                 replaced = apply_view_thumbnails(points, src)
             except PanorenderUnavailable:
@@ -1623,18 +1685,12 @@ def map_cmd(
         if not quiet:
             parts = []
             if points:
-                more = (
-                    f" ({len(photo_skipped)} without GPS)"
-                    if photo_skipped else ""
-                )
+                more = f" ({len(photo_skipped)} without GPS)" if photo_skipped else ""
                 parts.append(
                     f"{len(points)} photo{'s' if len(points) != 1 else ''}{more}"
                 )
             if tracks:
-                more = (
-                    f" ({len(srt_skipped)} without telemetry)"
-                    if srt_skipped else ""
-                )
+                more = f" ({len(srt_skipped)} without telemetry)" if srt_skipped else ""
                 parts.append(
                     f"{len(tracks)} flight{'s' if len(tracks) != 1 else ''}{more}"
                 )
@@ -1649,8 +1705,12 @@ def map_cmd(
             )
         try:
             write_mixed_html(
-                points, tracks, out, src.resolve().name,
-                link_base=link_base, redact=redact.lower(),
+                points,
+                tracks,
+                out,
+                src.resolve().name,
+                link_base=link_base,
+                redact=redact.lower(),
             )
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
@@ -1669,42 +1729,59 @@ def map_cmd(
 
 @main.command()
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
-@click.option("-r", "--recursive", is_flag=True,
-              help="Include panoramas in subfolders.")
-@click.option("--port", type=int, default=0, show_default="random",
-              help="Local port to serve the editor on.")
-@click.option("--no-browser", is_flag=True,
-              help="Do not open the browser; just print the URL and serve.")
 @click.option(
-    "--url-only", is_flag=True,
+    "-r", "--recursive", is_flag=True, help="Include panoramas in subfolders."
+)
+@click.option(
+    "--port",
+    type=int,
+    default=0,
+    show_default="random",
+    help="Local port to serve the editor on.",
+)
+@click.option(
+    "--no-browser",
+    is_flag=True,
+    help="Do not open the browser; just print the URL and serve.",
+)
+@click.option(
+    "--url-only",
+    is_flag=True,
     help="Print the bare URL as the first output line — a stable contract "
-         "for wrapper apps that parse it.",
+    "for wrapper apps that parse it.",
 )
 @click.option(
-    "--exit-with-stdin", is_flag=True,
+    "--exit-with-stdin",
+    is_flag=True,
     help="Stop serving when stdin closes, tying the server's lifetime to "
-         "the app that started it.",
+    "the app that started it.",
 )
 @click.option(
-    "--max-width", type=click.IntRange(min=0), default=DEFAULT_MAX_SERVE_WIDTH,
-    show_default=True, metavar="PIXELS",
+    "--max-width",
+    type=click.IntRange(min=0),
+    default=DEFAULT_MAX_SERVE_WIDTH,
+    show_default=True,
+    metavar="PIXELS",
     help="Show panoramas wider than this downscaled to it (0 serves every "
-         "file at full size; values below 512 are raised to 512). Older "
-         "graphics hardware fails to display very large panoramas; the "
-         "files themselves are never modified.",
+    "file at full size; values below 512 are raised to 512). Older "
+    "graphics hardware fails to display very large panoramas; the "
+    "files themselves are never modified.",
 )
 @click.option(
-    "--no-backup", is_flag=True,
+    "--no-backup",
+    is_flag=True,
     help="Write views straight into the files instead of keeping a "
-         "<name>_original copy beside each edited panorama. The tags are "
-         "re-editable and never touch the image data, but without backups "
-         "a save that goes wrong cannot be undone.",
+    "<name>_original copy beside each edited panorama. The tags are "
+    "re-editable and never touch the image data, but without backups "
+    "a save that goes wrong cannot be undone.",
 )
 @click.option(
-    "--clean-backups", "clean", is_flag=True,
+    "--clean-backups",
+    "clean",
+    is_flag=True,
     help="Delete the <name>_original copies left by earlier edits — only "
-         "where the edited file still exists beside them — then exit "
-         "without opening the editor. Honours -r/--recursive.",
+    "where the edited file still exists beside them — then exit "
+    "without opening the editor. Honours -r/--recursive.",
 )
 def panoedit(
     directory: str,
@@ -1896,7 +1973,7 @@ def doctor(
     progress_mode: str | None,
 ) -> None:
     """Show system information and verify dependencies."""
-    log_json = ctx.obj.get('log_json', False)
+    log_json = ctx.obj.get("log_json", False)
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
@@ -1913,9 +1990,7 @@ def doctor(
         with _jsonl_terminal(progress, "doctor"):
             if install_tool == "exiftool":
                 exe = provision_exiftool(force=force)
-                click.echo(
-                    f"ExifTool {EXIFTOOL_VERSION} installed: {exe}", err=True
-                )
+                click.echo(f"ExifTool {EXIFTOOL_VERSION} installed: {exe}", err=True)
             summary = _doctor_summary()
             summary["update_check"] = update_check.machine_report(online)
             for tool, info in summary["tools"].items():
@@ -1978,7 +2053,7 @@ def validate(
     progress = make_progress(progress_mode)
     if progress.active:
         quiet = True  # stdout belongs to the JSONL events
-    log_json = ctx.obj.get('log_json', False)
+    log_json = ctx.obj.get("log_json", False)
     setup_logging(verbose, quiet, log_json)
 
     if progress.active:
@@ -2000,8 +2075,7 @@ def validate(
         from .core.validator import validate_directory
 
         validation_result = validate_directory(
-            Path(directory),
-            drift_threshold=drift_threshold
+            Path(directory), drift_threshold=drift_threshold
         )
 
         if format == "json" or log_json:
@@ -2012,19 +2086,19 @@ def validate(
             click.echo(f"Files processed: {validation_result.get('total_files', 0)}")
             click.echo(f"Valid pairs: {validation_result.get('valid_pairs', 0)}")
             click.echo(f"Issues found: {len(validation_result.get('issues', []))}")
-            
+
             # ASCII marker: legacy Windows consoles (cp1252/cp437) cannot
             # encode emoji, and the resulting UnicodeEncodeError would be
             # swallowed below and rebranded "Validation failed" (#477).
-            for issue in validation_result.get('issues', []):
+            for issue in validation_result.get("issues", []):
                 click.echo(f"  [!] {issue}")
-        
+
         # Exit with appropriate code
-        if validation_result.get('issues'):
+        if validation_result.get("issues"):
             sys.exit(ExitCode.VALIDATION_ERROR)
         else:
             sys.exit(ExitCode.SUCCESS)
-            
+
     except Exception as e:  # noqa: BLE001  # CLI boundary: any failure becomes a message and an exit code
         error_msg = f"Validation failed: {e}"
         if log_json:

@@ -93,9 +93,7 @@ def test_bare_directory_photos_only(monkeypatch, tmp_path):
     assert opened == [out.resolve().as_uri()]
 
 
-def test_bare_directory_photomap_failure_still_opens_flightmap(
-    monkeypatch, tmp_path
-):
+def test_bare_directory_photomap_failure_still_opens_flightmap(monkeypatch, tmp_path):
     opened = _capture_browser(monkeypatch)
     _mock_photo_scan(monkeypatch, error=PhotomapError("exiftool not found"))
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
@@ -107,9 +105,7 @@ def test_bare_directory_photomap_failure_still_opens_flightmap(
     assert "exiftool not found" in res.output
 
 
-def test_bare_directory_without_photos_never_runs_exiftool(
-    monkeypatch, tmp_path
-):
+def test_bare_directory_without_photos_never_runs_exiftool(monkeypatch, tmp_path):
     _capture_browser(monkeypatch)
     _mock_photo_scan(monkeypatch, error=AssertionError("must not be called"))
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
@@ -117,9 +113,7 @@ def test_bare_directory_without_photos_never_runs_exiftool(
     assert res.exit_code == 0, res.output
 
 
-def test_bare_directory_with_nothing_mappable_is_clean_error(
-    monkeypatch, tmp_path
-):
+def test_bare_directory_with_nothing_mappable_is_clean_error(monkeypatch, tmp_path):
     opened = _capture_browser(monkeypatch)
     res = CliRunner().invoke(main, [str(tmp_path)])
     assert res.exit_code != 0
@@ -134,9 +128,7 @@ def test_multiple_dragged_directories_each_get_a_map(monkeypatch, tmp_path):
         d = tmp_path / name
         d.mkdir()
         (d / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
-    res = CliRunner().invoke(
-        main, [str(tmp_path / "trip1"), str(tmp_path / "trip2")]
-    )
+    res = CliRunner().invoke(main, [str(tmp_path / "trip1"), str(tmp_path / "trip2")])
     assert res.exit_code == 0, res.output
     assert (tmp_path / "trip1" / "flightmap.html").exists()
     assert (tmp_path / "trip2" / "flightmap.html").exists()
@@ -193,9 +185,7 @@ def test_directory_with_options_gets_guidance(tmp_path):
     assert "No such command" not in res.output
 
 
-def test_partial_failure_exits_nonzero_but_still_opens_good_map(
-    monkeypatch, tmp_path
-):
+def test_partial_failure_exits_nonzero_but_still_opens_good_map(monkeypatch, tmp_path):
     opened = _capture_browser(monkeypatch)
     good = tmp_path / "good"
     good.mkdir()
@@ -230,9 +220,7 @@ def test_unfrozen_no_args_still_shows_help():
     assert "Usage:" in res.output
 
 
-def test_frozen_double_click_error_pauses_before_window_closes(
-    monkeypatch, tmp_path
-):
+def test_frozen_double_click_error_pauses_before_window_closes(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(cli, "_launched_from_explorer", lambda: True)
     paused = []

@@ -17,17 +17,25 @@ from dji_metadata_embedder.utilities import TelemetrySample
 
 def _srt(cue: str, yaw=None, pitch=None) -> TelemetrySample:
     return TelemetrySample(
-        lat=10.0, lon=20.0, alt=5.0, cue=cue,
+        lat=10.0,
+        lon=20.0,
+        alt=5.0,
+        cue=cue,
         dt=datetime(2026, 8, 15, 14, 23, 33),
-        gimbal_yaw=yaw, gimbal_pitch=pitch,
+        gimbal_yaw=yaw,
+        gimbal_pitch=pitch,
     )
 
 
 def _djmd(cue: str, yaw: float, pitch: float) -> TelemetrySample:
     return TelemetrySample(
-        lat=10.0, lon=20.0, alt=5.0, cue=cue,
+        lat=10.0,
+        lon=20.0,
+        alt=5.0,
+        cue=cue,
         dt=datetime(2026, 8, 15, 12, 23, 33),
-        gimbal_yaw=yaw, gimbal_pitch=pitch,
+        gimbal_yaw=yaw,
+        gimbal_pitch=pitch,
     )
 
 

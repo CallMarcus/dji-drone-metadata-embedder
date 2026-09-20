@@ -105,9 +105,13 @@ def select_fields(available: list[str]) -> list[str] | None:
                 hits.add(slot)
                 if hit not in picked:
                     picked.append(hit)
-    has_time = "epoch" in hits or "utc" in hits or "datetime" in hits or (
-        "utc_date" in hits and "utc_time" in hits
-    ) or ("date" in hits and "time" in hits)
+    has_time = (
+        "epoch" in hits
+        or "utc" in hits
+        or "datetime" in hits
+        or ("utc_date" in hits and "utc_time" in hits)
+        or ("date" in hits and "time" in hits)
+    )
     if "pitch" not in hits or "yaw" not in hits or not has_time:
         return None
     return picked
@@ -163,8 +167,7 @@ def _list_fields(key: str, transport) -> list[str]:
     except HTTPError as exc:
         if exc.code == 401:
             raise LogFetchError(
-                "the API rejected the key (HTTP 401) — check "
-                "FLIGHTREADER_API_KEY"
+                "the API rejected the key (HTTP 401) — check FLIGHTREADER_API_KEY"
             ) from exc
         logger.info("GET /v1/fields failed (%s); requesting the full CSV", exc)
         return []
@@ -173,9 +176,7 @@ def _list_fields(key: str, transport) -> list[str]:
         return []
 
 
-def _post_log(
-    txt: Path, key: str, fields: list[str] | None, transport
-) -> bytes:
+def _post_log(txt: Path, key: str, fields: list[str] | None, transport) -> bytes:
     """``POST /v1/logs`` (billable): upload *txt*, return the CSV bytes."""
     form = [("fields", f) for f in fields] if fields else []
     body, content_type = _multipart(txt.name, txt.read_bytes(), form)
@@ -235,7 +236,6 @@ def fetch_log(txt: Path, key: str, *, transport=urlopen) -> Path:
         parse_flight_log(out)
     except FlightLogError as exc:
         raise LogFetchError(
-            f"{out.name} was fetched and kept, but cannot drive the "
-            f"merge: {exc}"
+            f"{out.name} was fetched and kept, but cannot drive the merge: {exc}"
         ) from exc
     return out

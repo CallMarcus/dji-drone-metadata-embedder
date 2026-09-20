@@ -101,6 +101,8 @@ def test_single_point_has_no_route():
 def test_track_to_cot_requires_utc():
     # build_track always sets utc; a hand-built point without it must raise a
     # clear error rather than fail cryptically deep in serialization.
-    track = Track(name="t", points=[TrackPoint(lat=0.0, lon=0.0, alt=0.0, timestamp="")])
+    track = Track(
+        name="t", points=[TrackPoint(lat=0.0, lon=0.0, alt=0.0, timestamp="")]
+    )
     with pytest.raises(ValueError, match="utc"):
         track_to_cot(track)

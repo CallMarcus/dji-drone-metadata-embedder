@@ -16,23 +16,39 @@ from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 pytestmark = pytest.mark.browser
 
-TILE_DEG = 360 / 2 ** 15   # z15 tile width; the DEM cliff sits at each midpoint
+TILE_DEG = 360 / 2**15  # z15 tile width; the DEM cliff sits at each midpoint
 
 
-def _flight(name: str, lat: float, lon: float, agls: list[float | None], *,
-            yaws: list[float | None] | None = None,
-            pitches: list[float | None] | None = None,
-            focal: float | None = None, step: float = 0.0006) -> Track:
+def _flight(
+    name: str,
+    lat: float,
+    lon: float,
+    agls: list[float | None],
+    *,
+    yaws: list[float | None] | None = None,
+    pitches: list[float | None] | None = None,
+    focal: float | None = None,
+    step: float = 0.0006,
+) -> Track:
     """Synthetic flight: ``agls[i]`` is point i's rel_alt, one sample a second."""
     t0 = datetime(2026, 6, 15, 12, 0, 0)
-    return Track(name=name, points=[
-        TrackPoint(lat=lat, lon=lon + i * step, alt=100.0 + (a or 0),
-                   timestamp=f"00:00:{i:02d},000",
-                   utc=t0 + timedelta(seconds=i), rel_alt=a, focal_len=focal,
-                   gimbal_yaw=None if yaws is None else yaws[i],
-                   gimbal_pitch=None if pitches is None else pitches[i])
-        for i, a in enumerate(agls)
-    ])
+    return Track(
+        name=name,
+        points=[
+            TrackPoint(
+                lat=lat,
+                lon=lon + i * step,
+                alt=100.0 + (a or 0),
+                timestamp=f"00:00:{i:02d},000",
+                utc=t0 + timedelta(seconds=i),
+                rel_alt=a,
+                focal_len=focal,
+                gimbal_yaw=None if yaws is None else yaws[i],
+                gimbal_pitch=None if pitches is None else pitches[i],
+            )
+            for i, a in enumerate(agls)
+        ],
+    )
 
 
 def _ready(page):
@@ -43,8 +59,15 @@ def test_gaze_ring_matches_the_python_projection(serve_map, page):
     """The JS port must agree with geometry.frustum_ground_ring corner by
     corner. This is the only thing standing between a hand-ported projection
     and silent drift from the Python that ships in --footprint exports."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
-                    yaws=[35.0] * 3, pitches=[-40.0] * 3, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 3,
+        yaws=[35.0] * 3,
+        pitches=[-40.0] * 3,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     got = page.evaluate("() => gazeRing(flights[0], 1)")
@@ -56,8 +79,7 @@ def test_gaze_ring_matches_the_python_projection(serve_map, page):
     hfov = page.evaluate("() => flights[0].hfov")
     vfov = page.evaluate("() => flights[0].vfov")
     lon, lat = page.evaluate("() => flights[0].pts[1].slice(0, 2)")
-    expected = frustum_ground_ring(lat, lon, 50.0, 35.0, -40.0, hfov, vfov,
-                                   8.0 * 50.0)
+    expected = frustum_ground_ring(lat, lon, 50.0, 35.0, -40.0, hfov, vfov, 8.0 * 50.0)
     assert len(got["ring"]) == len(expected) == 5
     for (gx, gy), (ex, ey) in zip(got["ring"], expected):
         assert abs(gx - ex) < 1e-9, f"lon {gx} != {ex}"
@@ -67,8 +89,15 @@ def test_gaze_ring_matches_the_python_projection(serve_map, page):
 def test_gaze_ring_clamps_a_near_horizon_frame(serve_map, page):
     """A 2-degree down-tilt would reach the horizon; the ring must stay inside
     8 x AGL, matching MAX_RANGE_AGL_FACTOR."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
-                    yaws=[0.0] * 3, pitches=[-2.0] * 3, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 3,
+        yaws=[0.0] * 3,
+        pitches=[-2.0] * 3,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     got = page.evaluate("() => gazeRing(flights[0], 1)")
@@ -85,8 +114,15 @@ def test_gaze_ring_clamps_a_near_horizon_frame(serve_map, page):
 
 
 def test_no_ring_without_altitude(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [None, None, None],
-                    yaws=[0.0] * 3, pitches=[-45.0] * 3, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [None, None, None],
+        yaws=[0.0] * 3,
+        pitches=[-45.0] * 3,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     got = page.evaluate("() => gazeRing(flights[0], 1)")
@@ -97,8 +133,15 @@ def test_no_ring_without_altitude(serve_map, page):
 def test_no_ring_above_the_horizon(serve_map, page):
     """footprint.py skips a frame whose camera is at or above the horizon; so
     must the viewer, rather than drawing a trapezoid to the clamp distance."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
-                    yaws=[0.0] * 3, pitches=[5.0] * 3, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 3,
+        yaws=[0.0] * 3,
+        pitches=[5.0] * 3,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     got = page.evaluate("() => gazeRing(flights[0], 1)")
@@ -107,14 +150,13 @@ def test_no_ring_above_the_horizon(serve_map, page):
 
 
 def test_missing_attitude_is_estimated_not_hidden(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3)   # no gimbal, no focal
+    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3)  # no gimbal, no focal
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     got = page.evaluate("() => gazeRing(flights[0], 1)")
     assert got["ring"] is not None
     assert got["estimated"] is True
-    assert set(got["estNotes"]) == {"no gimbal pitch", "no gimbal yaw",
-                                    "assumed lens"}
+    assert set(got["estNotes"]) == {"no gimbal pitch", "no gimbal yaw", "assumed lens"}
     # The estimate must be the SAME down-tilt the cockpit assumes, or the two
     # views disagree in one frame.
     assert page.evaluate("() => GHOST_EST_PITCH") == -30
@@ -135,65 +177,100 @@ def _wait_patch(page, present: bool):
     flake."""
     page.wait_for_function(
         "(want) => (map.querySourceFeatures('gaze').length > 0) === want",
-        arg=present, timeout=5000)
+        arg=present,
+        timeout=5000,
+    )
 
 
 def test_patch_renders_at_the_projected_ring(serve_map, page):
     """queryRenderedFeatures at the ring's centre must hit gaze-fill: the patch
     has to be drawn where the projection says, not merely added as data."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
-                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 5,
+        yaws=[90.0] * 5,
+        pitches=[-50.0] * 5,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
-    _wait_patch(page, True)      # present before play is ever pressed
+    _wait_patch(page, True)  # present before play is ever pressed
     hit = page.evaluate(
         "() => { const r = gazeRing(flights[0], pb.sample).ring;"
         " const c = r.slice(0, 4).reduce("
         "   (a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4], [0, 0]);"
         " const q = map.project(c);"
         " return map.queryRenderedFeatures([q.x, q.y],"
-        "                                  {layers: ['gaze-fill']}).length; }")
+        "                                  {layers: ['gaze-fill']}).length; }"
+    )
     assert hit > 0, "no gaze-fill under the ring centre"
     off = page.evaluate(
         "() => map.queryRenderedFeatures([2, 2],"
-        "                                {layers: ['gaze-fill']}).length")
+        "                                {layers: ['gaze-fill']}).length"
+    )
     assert off == 0, "gaze-fill covers a corner of the viewport it should not"
 
 
 def test_patch_clears_above_the_horizon(serve_map, page):
     """A second the camera spent above the horizon must empty the source and
     say why, not freeze on the previous ring."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
-                    yaws=[0.0] * 4, pitches=[-45.0, -45.0, 10.0, 10.0],
-                    focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 4,
+        yaws=[0.0] * 4,
+        pitches=[-45.0, -45.0, 10.0, 10.0],
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _wait_patch(page, True)
     page.evaluate("() => { pb.t = 3; pbRender(); }")
     _wait_patch(page, False)
-    assert page.evaluate("() => document.getElementById('pb-note')"
-                         ".textContent") == "camera above horizon"
+    assert (
+        page.evaluate("() => document.getElementById('pb-note').textContent")
+        == "camera above horizon"
+    )
 
 
 def test_patch_clears_without_altitude(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0, 50.0, None, None],
-                    yaws=[0.0] * 4, pitches=[-45.0] * 4, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0, 50.0, None, None],
+        yaws=[0.0] * 4,
+        pitches=[-45.0] * 4,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
-    _wait_patch(page, True)      # present before the seek, or "cleared" is
-                                  # meaningless -- its sibling above asserts
-                                  # this too
+    _wait_patch(page, True)  # present before the seek, or "cleared" is
+    # meaningless -- its sibling above asserts
+    # this too
     page.evaluate("() => { pb.t = 3; pbRender(); }")
     _wait_patch(page, False)
-    assert page.evaluate("() => document.getElementById('pb-note')"
-                         ".textContent") == "no altitude"
+    assert (
+        page.evaluate("() => document.getElementById('pb-note').textContent")
+        == "no altitude"
+    )
 
 
 def test_a_flight_without_agl_is_playable_with_no_gaze(serve_map, page):
     """An SRT format that carries no rel_alt at all: the clock still runs, and
     the patch is simply never drawn (spec section 8)."""
-    track = _flight("DJI_0001", 10.0, 20.0, [None] * 5,
-                    yaws=[0.0] * 5, pitches=[-45.0] * 5, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [None] * 5,
+        yaws=[0.0] * 5,
+        pitches=[-45.0] * 5,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     assert page.locator("#playback").count() == 1
@@ -207,9 +284,15 @@ def test_edge_dash_flips_both_ways(serve_map, page):
     """The dashed edge marks an estimated ring. The reset direction matters as
     much as the set: a null that failed to restore the default would leave
     every later ring looking estimated."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
-                    yaws=[0.0, 0.0, None, None],
-                    pitches=[-45.0, -45.0, -45.0, -45.0], focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 4,
+        yaws=[0.0, 0.0, None, None],
+        pitches=[-45.0, -45.0, -45.0, -45.0],
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     dash = "() => map.getPaintProperty('gaze-edge', 'line-dasharray')"
@@ -224,28 +307,36 @@ def test_note_names_the_estimate(serve_map, page):
     track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4)
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
-    note = page.evaluate("() => document.getElementById('pb-note')"
-                         ".textContent")
+    note = page.evaluate("() => document.getElementById('pb-note').textContent")
     assert note.startswith("estimated footprint")
     assert "no gimbal pitch" in note
 
 
-_BEAM_JS = ("() => beamFor(flights[0], pb.sample,"
-            " gazeRing(flights[0], pb.sample).ring).map(f => f.properties)")
+_BEAM_JS = (
+    "() => beamFor(flights[0], pb.sample,"
+    " gazeRing(flights[0], pb.sample).ring).map(f => f.properties)"
+)
 
 
 def test_beam_is_four_continuous_rays(serve_map, page):
     """Four corner rays of 16 prisms each, and neighbours must share the
     boundary height -- otherwise the silhouette is a ladder with gaps."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
-                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 5,
+        yaws=[90.0] * 5,
+        pitches=[-50.0] * 5,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     steps = page.evaluate("() => GAZE_BEAM_STEPS")
     props = page.evaluate(_BEAM_JS)
     assert len(props) == 4 * steps
     for r in range(4):
-        ray = props[r * steps:(r + 1) * steps]
+        ray = props[r * steps : (r + 1) * steps]
         for a, b in pairwise(ray):
             assert abs(a["base"] - b["hgt"]) < 1e-6, f"gap in ray {r}"
         # Terrain is off in this run, so the extrusion measures from sea level
@@ -262,8 +353,15 @@ def test_beam_heights_survive_the_elevation_conversion(serve_map, page):
     the identical h(s) = (A - E_cam)(1 - s) -- see beamFor's own comment.
     test_beam_stops_at_a_cliff is the test that would actually catch that
     defect, on a DEM where the two formulas diverge.)"""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
-                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 5,
+        yaws=[90.0] * 5,
+        pitches=[-50.0] * 5,
+        focal=24.0,
+    )
     html = flights_to_3d_html([track], "trip")
     serve_map(html, terrain_stub=100.0)
     _ready(page)
@@ -271,13 +369,13 @@ def test_beam_heights_survive_the_elevation_conversion(serve_map, page):
     # comes back as 100.00000000000182, never exactly 100 -- compare with a
     # tolerance rather than equality.
     page.wait_for_function(
-        "() => Math.abs(terrainElevAt(map.getCenter()) - 100) < 1e-6",
-        timeout=15000)
+        "() => Math.abs(terrainElevAt(map.getCenter()) - 100) < 1e-6", timeout=15000
+    )
     page.evaluate("() => renderGaze()")
     props = page.evaluate(_BEAM_JS)
     steps = page.evaluate("() => GAZE_BEAM_STEPS")
     for r in range(4):
-        ray = props[r * steps:(r + 1) * steps]
+        ray = props[r * steps : (r + 1) * steps]
         assert abs(ray[0]["hgt"] - 50.0) < 0.5
         assert abs(ray[-1]["base"]) < 1e-6
 
@@ -306,17 +404,24 @@ def test_beam_stops_at_a_cliff(serve_map, page):
     # general). Derive the midpoint on the z14 grid directly.
     parent = 2 * TILE_DEG
     cliff = -180 + math.floor((20.0 + 180) / parent) * parent + TILE_DEG
-    lon = cliff - TILE_DEG * 0.05      # ~60 m west of the wall
-    track = _flight("DJI_0001", 10.0, lon, [50.0] * 5,
-                    yaws=[90.0] * 5, pitches=[-20.0] * 5, focal=24.0,
-                    step=0.0)
+    lon = cliff - TILE_DEG * 0.05  # ~60 m west of the wall
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        lon,
+        [50.0] * 5,
+        yaws=[90.0] * 5,
+        pitches=[-20.0] * 5,
+        focal=24.0,
+        step=0.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"), terrain_steps=(50.0, 650.0))
     _ready(page)
     # 50 (not 0) is the unambiguous "loaded" signal on the low side: 0 is
     # indistinguishable from a cold tile (terrainElevAt's own contract).
     page.wait_for_function(
-        "() => Math.abs(terrainElevAt(map.getCenter()) - 50) < 1e-6",
-        timeout=15000)
+        "() => Math.abs(terrainElevAt(map.getCenter()) - 50) < 1e-6", timeout=15000
+    )
     page.evaluate("() => renderGaze()")
     props = page.evaluate(_BEAM_JS)
     steps = page.evaluate("() => GAZE_BEAM_STEPS")
@@ -324,7 +429,8 @@ def test_beam_stops_at_a_cliff(serve_map, page):
     dropped = 4 * steps - len(props)
     assert dropped >= 8, (
         f"only {dropped} of {4 * steps} prisms dropped at the wall -- the "
-        "geometry is degenerate and this test proves little")
+        "geometry is degenerate and this test proves little"
+    )
     # Exercises the Math.max(0, ...) clamp on base: the prism straddling the
     # wall has a lower boundary height around -34 m in this fixture, and
     # fill-extrusion-base has a style-spec minimum of 0. Without the clamp
@@ -341,16 +447,19 @@ def test_beam_stops_at_a_cliff(serve_map, page):
         "() => beamFor(flights[0], pb.sample,"
         " gazeRing(flights[0], pb.sample).ring).map(f => {"
         "   const r = f.geometry.coordinates[0];"
-        "   return r.slice(0, 4).reduce((a, p) => a + p[0] / 4, 0); })")
+        "   return r.slice(0, 4).reduce((a, p) => a + p[0] / 4, 0); })"
+    )
     ray_len_deg = page.evaluate(
         "() => { const r = gazeRing(flights[0], pb.sample).ring;"
         " return Math.max(...r.slice(0, 4).map(p => p[0]))"
-        "      - flights[0].pts[pb.sample][0]; }")
+        "      - flights[0].pts[pb.sample][0]; }"
+    )
     slack = ray_len_deg / steps * 0.5
     beyond = [c for c in centroids if c > cliff + slack]
     assert not beyond, (
         f"{len(beyond)} prisms sit past the wall at {cliff:.6f}: "
-        f"{[round(c, 6) for c in beyond[:5]]}")
+        f"{[round(c, 6) for c in beyond[:5]]}"
+    )
 
 
 # Capture what renderGaze() actually hands the beam source. querySourceFeatures
@@ -379,8 +488,15 @@ def test_render_reuses_the_ring_cache(serve_map, page):
     memoised the identical values -- two sources for the same rings. One
     computation, shared: re-rendering a sample must cost zero new projections,
     and playback pre-warms the cache the click lookup later scans."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
-                    yaws=[90.0] * 3, pitches=[-45.0] * 3, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 3,
+        yaws=[90.0] * 3,
+        pitches=[-45.0] * 3,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     counts = page.evaluate(
@@ -394,7 +510,8 @@ def test_render_reuses_the_ring_cache(serve_map, page):
           renderGaze();
           gazeRing = orig;
           return { first: first, second: n - first };
-        }""")
+        }"""
+    )
     assert counts["first"] >= 1
     assert counts["second"] == 0, "renderGaze recomputed a memoised ring"
 
@@ -405,8 +522,15 @@ def test_beam_rebuilds_are_throttled_while_playing(serve_map, page):
     on lookups alone. While the clock free-runs, beam rebuilds are
     wall-clock throttled; every paused render (step, scrub, and pbPause
     itself) rebuilds exactly, so any resting state shows the true beam."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-45.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-45.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     counts = page.evaluate(
@@ -432,7 +556,8 @@ def test_beam_rebuilds_are_throttled_while_playing(serve_map, page):
           beamFor = orig;
           return { first: first, second: second, third: third,
                    fourth: fourth, fifth: fifth };
-        }""")
+        }"""
+    )
     assert counts["first"] == 1
     assert counts["second"] == 0, "a free-running rebuild dodged the throttle"
     assert counts["third"] == 1, "a paused render must rebuild exactly"
@@ -446,8 +571,15 @@ def test_beam_survives_a_cold_mid_ray_dem_sample(serve_map, page):
     fall back to takeoff-relative agl*(1-s) among terrain-relative
     neighbours -- kinking the ray upward at exactly that boundary. The
     missing surface sample must be estimated from its known neighbours."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 3,
-                    yaws=[90.0] * 3, pitches=[-45.0] * 3, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 3,
+        yaws=[90.0] * 3,
+        pitches=[-45.0] * 3,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     steps = page.evaluate("() => GAZE_BEAM_STEPS")
@@ -467,8 +599,10 @@ def test_beam_survives_a_cold_mid_ray_dem_sample(serve_map, page):
           };
           const ring = [corner, corner, corner, corner, corner];
           return beamFor(fl, 0, ring).map(f => f.properties.hgt);
-        }""", steps)
-    assert len(hgts) == steps * 4          # no prism skipped, four rays
+        }""",
+        steps,
+    )
+    assert len(hgts) == steps * 4  # no prism skipped, four rays
     # The two prisms sharing the cold boundary. With agl=50 the ray runs
     # 150 m down to 100 m; over the ridge its true clearance is ~13.1 m and
     # ~10 m here. The old fallback put the shared boundary at agl*(1-s)=25 m.
@@ -478,8 +612,15 @@ def test_beam_survives_a_cold_mid_ray_dem_sample(serve_map, page):
 
 
 def test_beam_width_tracks_zoom(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 5,
-                    yaws=[90.0] * 5, pitches=[-50.0] * 5, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 5,
+        yaws=[90.0] * 5,
+        pitches=[-50.0] * 5,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
 
@@ -489,12 +630,13 @@ def test_beam_width_tracks_zoom(serve_map, page):
         return page.evaluate(
             "() => { const r = window.__lastBeam"
             ".features[0].geometry.coordinates[0];"
-            " return Math.hypot(r[0][0] - r[3][0], r[0][1] - r[3][1]); }")
+            " return Math.hypot(r[0][0] - r[3][0], r[0][1] - r[3][1]); }"
+        )
 
     page.evaluate("() => map.jumpTo({zoom: 16})")
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
     page.evaluate(_BEAM_SPY_JS)
-    page.evaluate("() => renderGaze()")      # seed the spy with a known build
+    page.evaluate("() => renderGaze()")  # seed the spy with a known build
     near = page.evaluate("() => sculptWidthM()")
     near_beam = _beam_width()
     page.evaluate("() => { window.__beamSets = 0; map.jumpTo({zoom: 11}); }")
@@ -518,8 +660,10 @@ def test_beam_width_tracks_zoom(serve_map, page):
 
 def _click_at(page, lng, lat):
     """Click the map canvas at a geographic point."""
-    pt = page.evaluate("([lng, lat]) => { const p = map.project([lng, lat]);"
-                       " return [p.x, p.y]; }", [lng, lat])
+    pt = page.evaluate(
+        "([lng, lat]) => { const p = map.project([lng, lat]); return [p.x, p.y]; }",
+        [lng, lat],
+    )
     page.mouse.click(pt[0], pt[1])
 
 
@@ -549,26 +693,37 @@ def _click_inside_ring(page, sample: int):
         " const c = r.slice(0, 4).reduce("
         "   (a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4], [0, 0]);"
         " return [c[0] + (r[0][0] - c[0]) * 0.5,"
-        "         c[1] + (r[0][1] - c[1]) * 0.5]; }", sample)
+        "         c[1] + (r[0][1] - c[1]) * 0.5]; }",
+        sample,
+    )
     page.evaluate("(p) => map.jumpTo({center: p, zoom: 17})", pt)
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
-    px = page.evaluate(
-        "(p) => { const q = map.project(p); return [q.x, q.y]; }", pt)
+    px = page.evaluate("(p) => { const q = map.project(p); return [q.x, q.y]; }", pt)
     on_line = page.evaluate(
         "([x, y]) => map.queryRenderedFeatures([x, y],"
         " {layers: flights.map(f => f.id).filter(id => map.getLayer(id))})"
-        ".length", px)
+        ".length",
+        px,
+    )
     assert on_line == 0, (
         "click point sits on the flight line, so gazeLookup would bail and "
-        "this test would prove nothing")
+        "this test would prove nothing"
+    )
     page.mouse.click(px[0], px[1])
     return pt
 
 
 def test_clicking_inside_a_footprint_lists_the_passes(serve_map, page):
     """The provenance question: which seconds filmed this ground?"""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_inside_ring(page, 2)
@@ -578,12 +733,20 @@ def test_clicking_inside_a_footprint_lists_the_passes(serve_map, page):
     assert "in frame" in text
     assert page.locator(".gaze-pass").count() >= 1
     page.wait_for_function(
-        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000
+    )
 
 
 def test_clicking_empty_ground_says_so(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     # Centre the map on the empty point rather than guessing an offset that
@@ -597,16 +760,19 @@ def test_clicking_empty_ground_says_so(serve_map, page):
     empty = [20.0015, 10.003]
     page.evaluate("(p) => map.jumpTo({center: p, zoom: 17})", empty)
     page.wait_for_function("() => !map.isMoving()", timeout=15000)
-    px = page.evaluate(
-        "(p) => { const q = map.project(p); return [q.x, q.y]; }", empty)
-    size = page.evaluate("() => [map.getCanvas().clientWidth,"
-                         " map.getCanvas().clientHeight]")
+    px = page.evaluate("(p) => { const q = map.project(p); return [q.x, q.y]; }", empty)
+    size = page.evaluate(
+        "() => [map.getCanvas().clientWidth, map.getCanvas().clientHeight]"
+    )
     assert 0 <= px[0] <= size[0] and 0 <= px[1] <= size[1], (
-        f"click point {px} is outside the {size} viewport; no click would fire")
+        f"click point {px} is outside the {size} viewport; no click would fire"
+    )
     page.mouse.click(px[0], px[1])
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
-    assert "No footprint on this map covers this spot" in \
-        page.locator(".maplibregl-popup").inner_text()
+    assert (
+        "No footprint on this map covers this spot"
+        in page.locator(".maplibregl-popup").inner_text()
+    )
     assert page.locator(".gaze-pass").count() == 0
     # Nothing was skipped in this fixture (one flight, shown, with agl), so
     # the honesty line must not appear -- it would be noise on the common
@@ -615,8 +781,15 @@ def test_clicking_empty_ground_says_so(serve_map, page):
 
 
 def test_a_pass_button_seeks_and_plays(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_inside_ring(page, 4)
@@ -650,16 +823,24 @@ def _pass_label_reconciles(page):
     assert end - start == header_secs, (
         f"label {label!r} spans {end - start} s but the header counts "
         f"{header_secs} s -- the label ends at the last sample instead of "
-        f"the end of its interval")
+        f"the end of its interval"
+    )
 
 
 def test_pass_label_spans_the_counted_seconds(serve_map, page):
     """#389: a multi-sample pass read '6 s' beside a five-second range."""
     # Samples ~22 m apart so neighbouring footprints overlap the click point
     # and the pass genuinely covers several samples.
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0,
-                    step=0.0002)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+        step=0.0002,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     pt = _click_inside_ring(page, 2)
@@ -668,7 +849,9 @@ def test_pass_label_spans_the_counted_seconds(serve_map, page):
     # silently degrades into the single-sample one.
     span = page.evaluate(
         "(p) => { const ps = gazePasses(flights[0], {lng: p[0], lat: p[1]});"
-        " return ps.length === 1 ? ps[0].i1 - ps[0].i0 : -1; }", pt)
+        " return ps.length === 1 ? ps[0].i1 - ps[0].i0 : -1; }",
+        pt,
+    )
     assert span >= 1, f"expected one multi-sample pass, got span {span}"
     _pass_label_reconciles(page)
 
@@ -678,16 +861,24 @@ def test_single_sample_pass_label_has_duration(serve_map, page):
     as no duration at all."""
     # A None gap isolates sample 0: its neighbour has no ring, and the later
     # samples are too far east for their footprints to reach the click point.
-    track = _flight("DJI_0001", 10.0, 20.0,
-                    [50.0, None, 50.0, 50.0, 50.0, 50.0],
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0, None, 50.0, 50.0, 50.0, 50.0],
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     pt = _click_inside_ring(page, 0)
     page.wait_for_selector(".gaze-pass", timeout=5000)
     span = page.evaluate(
         "(p) => { const ps = gazePasses(flights[0], {lng: p[0], lat: p[1]});"
-        " return ps.length === 1 ? ps[0].i1 - ps[0].i0 : -1; }", pt)
+        " return ps.length === 1 ? ps[0].i1 - ps[0].i0 : -1; }",
+        pt,
+    )
     assert span == 0, f"expected one single-sample pass, got span {span}"
     _pass_label_reconciles(page)
 
@@ -706,9 +897,16 @@ def test_pass_list_caps_at_gaze_max_passes(serve_map, page):
     n = 30
     agls = [50.0 if i % 2 == 0 else None for i in range(n)]
     real_hits = sum(1 for a in agls if a is not None)
-    track = _flight("DJI_0001", 10.0, 20.0, agls,
-                    yaws=[90.0] * n, pitches=[-90.0] * n, focal=24.0,
-                    step=0.0)                       # hover: all rings coincide
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        agls,
+        yaws=[90.0] * n,
+        pitches=[-90.0] * n,
+        focal=24.0,
+        step=0.0,
+    )  # hover: all rings coincide
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     max_passes = page.evaluate("() => GAZE_MAX_PASSES")
@@ -722,8 +920,15 @@ def test_pass_list_caps_at_gaze_max_passes(serve_map, page):
 
 
 def test_highlight_clears_when_the_popup_closes(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_inside_ring(page, 2)
@@ -733,11 +938,12 @@ def test_highlight_clears_when_the_popup_closes(serve_map, page):
     # gaze-hits had been empty all along -- "empty at the end" proves nothing
     # if it was never populated.
     page.wait_for_function(
-        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000
+    )
     page.click(".maplibregl-popup-close-button")
     page.wait_for_function(
-        "() => map.querySourceFeatures('gaze-hits').length === 0",
-        timeout=5000)
+        "() => map.querySourceFeatures('gaze-hits').length === 0", timeout=5000
+    )
 
 
 def test_two_consecutive_lookups_leave_a_highlight(serve_map, page):
@@ -767,9 +973,16 @@ def test_two_consecutive_lookups_leave_a_highlight(serve_map, page):
     metres wide at zoom 17) nowhere near each other on screen.
     """
     n = 10
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * n,
-                    yaws=[90.0] * n, pitches=[-90.0] * n, focal=24.0,
-                    step=0.004)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * n,
+        yaws=[90.0] * n,
+        pitches=[-90.0] * n,
+        focal=24.0,
+        step=0.004,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_inside_ring(page, 1)
@@ -777,9 +990,11 @@ def test_two_consecutive_lookups_leave_a_highlight(serve_map, page):
     _click_inside_ring(page, 8)
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
     assert page.locator(".maplibregl-popup").count() == 1, (
-        "the first popup did not close on the second click")
+        "the first popup did not close on the second click"
+    )
     page.wait_for_function(
-        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000
+    )
 
 
 def test_estimated_badge_covers_every_matched_sample(serve_map, page):
@@ -800,20 +1015,29 @@ def test_estimated_badge_covers_every_matched_sample(serve_map, page):
     Combined with a hover (step=0), every ring covers the same ground, so one
     click matches both a real and an estimated sample.
     """
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
-                    yaws=[90.0, 90.0, 90.0, 90.0],
-                    pitches=[-30.0, None, None, None], focal=24.0,
-                    step=0.0)                       # hover: all rings coincide
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 4,
+        yaws=[90.0, 90.0, 90.0, 90.0],
+        pitches=[-30.0, None, None, None],
+        focal=24.0,
+        step=0.0,
+    )  # hover: all rings coincide
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     est = page.evaluate(
-        "() => [0, 1, 2, 3].map(i => gazeRing(flights[0], i).estimated)")
+        "() => [0, 1, 2, 3].map(i => gazeRing(flights[0], i).estimated)"
+    )
     assert est == [False, True, True, True], (
-        f"fixture does not mix real and estimated attitude: {est}")
+        f"fixture does not mix real and estimated attitude: {est}"
+    )
     _click_inside_ring(page, 0)
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
     assert page.locator(".gaze-est").count() == 1, (
-        "no estimated warning, though matched samples were extrapolated")
+        "no estimated warning, though matched samples were extrapolated"
+    )
     # Yaw is real throughout this fixture (only pitch is dropped), so the
     # badge's reason must name pitch specifically -- not the old hardcoded
     # "no gimbal data", which would be true here by coincidence and would
@@ -826,22 +1050,36 @@ def test_estimated_badge_covers_every_matched_sample(serve_map, page):
 
 def test_no_estimated_badge_when_every_sample_is_real(serve_map, page):
     """The mirror: a warning that always fires teaches users to ignore it."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
-                    yaws=[90.0] * 4, pitches=[-90.0] * 4, focal=24.0,
-                    step=0.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 4,
+        yaws=[90.0] * 4,
+        pitches=[-90.0] * 4,
+        focal=24.0,
+        step=0.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_inside_ring(page, 2)
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
-    assert page.locator(".gaze-pass").count() >= 1   # the lookup really ran
+    assert page.locator(".gaze-pass").count() >= 1  # the lookup really ran
     assert page.locator(".gaze-est").count() == 0
 
 
 def test_clicking_the_track_still_opens_the_flight_popup(serve_map, page):
     """The flight line owns its own popup with View from here; the lookup must
     not fire a second popup on top of it."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_at(page, *page.evaluate("() => flights[0].pts[3].slice(0, 2)"))
@@ -855,8 +1093,15 @@ def test_fuzzed_positions_get_no_gaze_but_keep_playback(serve_map, page):
     """A footprint projected from a coordinate moved ~100 m is a confident
     claim about ground that was never filmed. --footprint already refuses
     redacted exports; so does the viewer."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip", redact="fuzz"))
     _ready(page)
     for layer in ("gaze-fill", "gaze-edge", "beam-ray", "gaze-hits-line"):
@@ -875,8 +1120,15 @@ def test_fuzzed_positions_get_no_gaze_but_keep_playback(serve_map, page):
 
 
 def test_hiding_the_flight_hides_its_gaze(serve_map, page):
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     vis = "(id) => map.getLayoutProperty(id, 'visibility') || 'visible'"
@@ -897,21 +1149,38 @@ def test_switching_the_picker_reapplies_gaze_visibility(serve_map, page):
     fix, pbRecolour() (called from the picker's own change handler) leaves
     the layers exactly as hiding A set them, and B's gaze looks dead even
     though B is visible."""
-    a = _flight("DJI_0001", 10.0, 20.0, [50.0] * 4,
-                yaws=[90.0] * 4, pitches=[-45.0] * 4, focal=24.0)
-    b = _flight("DJI_0002", 10.01, 20.0, [50.0] * 4,
-                yaws=[90.0] * 4, pitches=[-45.0] * 4, focal=24.0)
+    a = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 4,
+        yaws=[90.0] * 4,
+        pitches=[-45.0] * 4,
+        focal=24.0,
+    )
+    b = _flight(
+        "DJI_0002",
+        10.01,
+        20.0,
+        [50.0] * 4,
+        yaws=[90.0] * 4,
+        pitches=[-45.0] * 4,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([a, b], "trip"))
     _ready(page)
     vis = "(id) => map.getLayoutProperty(id, 'visibility') || 'visible'"
     assert page.evaluate("() => pb.run.name") == "DJI_0001"
     page.locator("#flights-panel input[type=checkbox]").first.uncheck()
     assert page.evaluate(vis, "gaze-fill") == "none"
-    page.evaluate("() => { const s = document.getElementById('pb-flight');"
-                 " s.value = '1'; s.dispatchEvent(new Event('change')); }")
+    page.evaluate(
+        "() => { const s = document.getElementById('pb-flight');"
+        " s.value = '1'; s.dispatchEvent(new Event('change')); }"
+    )
     assert page.evaluate("() => pb.run.name") == "DJI_0002"
     assert page.evaluate(vis, "gaze-fill") == "visible", (
-        "gaze-fill stayed 'none' after switching to a shown flight")
+        "gaze-fill stayed 'none' after switching to a shown flight"
+    )
     assert page.evaluate(vis, "gaze-edge") == "visible"
     assert page.evaluate(vis, "gaze-cursor-dot") == "visible"
 
@@ -926,17 +1195,25 @@ def test_hiding_any_flight_clears_an_onscreen_highlight(serve_map, page):
     highlight outright rather than trying to work out which of its passes
     still belong to a shown flight. It can always be reopened by clicking
     the spot again."""
-    track = _flight("DJI_0001", 10.0, 20.0, [50.0] * 6,
-                    yaws=[90.0] * 6, pitches=[-90.0] * 6, focal=24.0)
+    track = _flight(
+        "DJI_0001",
+        10.0,
+        20.0,
+        [50.0] * 6,
+        yaws=[90.0] * 6,
+        pitches=[-90.0] * 6,
+        focal=24.0,
+    )
     serve_map(flights_to_3d_html([track], "trip"))
     _ready(page)
     _click_inside_ring(page, 2)
     page.wait_for_selector(".maplibregl-popup", timeout=5000)
     page.wait_for_function(
-        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000)
+        "() => map.querySourceFeatures('gaze-hits').length > 0", timeout=5000
+    )
     page.locator("#flights-panel input[type=checkbox]").first.uncheck()
     # GeoJSON source tiles build asynchronously (see _wait_patch above), so
     # wait rather than sampling the instant after setData.
     page.wait_for_function(
-        "() => map.querySourceFeatures('gaze-hits').length === 0",
-        timeout=5000)
+        "() => map.querySourceFeatures('gaze-hits').length === 0", timeout=5000
+    )

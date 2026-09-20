@@ -58,8 +58,11 @@ def test_geojson_includes_footprint_polygons():
     track = build_track(samples / "air3" / "clip.SRT")
     fps = build_footprints(track, interval=0.0)
     gj = track_to_geojson(track, footprints=fps)
-    polys = [f for f in gj["features"]
-             if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    polys = [
+        f
+        for f in gj["features"]
+        if f["geometry"] and f["geometry"]["type"] == "Polygon"
+    ]
     assert polys, "expected at least one footprint polygon"
     assert polys[0]["properties"]["kind"] == "footprint"
     assert "agl" in polys[0]["properties"]
@@ -74,8 +77,11 @@ def test_geojson_without_footprints_unchanged():
     samples = Path(__file__).resolve().parents[1] / "samples"
     track = build_track(samples / "air3" / "clip.SRT")
     gj = track_to_geojson(track)
-    assert not [f for f in gj["features"]
-                if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    assert not [
+        f
+        for f in gj["features"]
+        if f["geometry"] and f["geometry"]["type"] == "Polygon"
+    ]
 
 
 def test_geojson_footprint_carries_oblique_flag():
@@ -87,12 +93,24 @@ def test_geojson_footprint_carries_oblique_flag():
     from dji_metadata_embedder.geo.geojson import track_to_geojson
     from dji_metadata_embedder.geo.track import Track, TrackPoint
 
-    pts = [TrackPoint(lat=0.0, lon=0.0, alt=100.0, timestamp="0",
-                      utc=datetime(2026, 1, 1), rel_alt=100.0,
-                      gimbal_pitch=-45.0, gimbal_yaw=0.0)]
+    pts = [
+        TrackPoint(
+            lat=0.0,
+            lon=0.0,
+            alt=100.0,
+            timestamp="0",
+            utc=datetime(2026, 1, 1),
+            rel_alt=100.0,
+            gimbal_pitch=-45.0,
+            gimbal_yaw=0.0,
+        )
+    ]
     fps = build_footprints(Track("t", pts), interval=0.0)
     gj = track_to_geojson(Track("t", pts), footprints=fps)
-    poly = next(f for f in gj["features"]
-            if f["geometry"] and f["geometry"]["type"] == "Polygon")
+    poly = next(
+        f
+        for f in gj["features"]
+        if f["geometry"] and f["geometry"]["type"] == "Polygon"
+    )
     assert poly["properties"]["oblique"] is True
     assert poly["properties"]["pitch"] == -45.0

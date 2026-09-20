@@ -4,6 +4,7 @@ The authoritative product is an AIXM 5.1 BasicMessage inside a zip with
 its own SHA-256 sidecar, published per AIRAC cycle with dated filenames;
 the current AND next cycle are both listed, so discovery is date-aware.
 """
+
 import hashlib
 import io
 import math
@@ -24,9 +25,11 @@ from dji_metadata_embedder.geo.airspace.aixm51 import (
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
-    feed="test", url="https://example.invalid/datasets",
+    feed="test",
+    url="https://example.invalid/datasets",
     fetched="2026-08-15T12:00:00Z",
-    license="test", caveat="informational only",
+    license="test",
+    caveat="informational only",
 )
 
 PAGE = (
@@ -65,8 +68,12 @@ def test_discovery_never_picks_the_kml_product():
         discover_feed_url(kml_only, BASE, today=date(2026, 8, 15))
 
 
-def _zip(xml: bytes, *, sha: str | None = None,
-         xml_name: str = "EG_UAS_FR_DS_AREA1_FULL_20260806.xml") -> bytes:
+def _zip(
+    xml: bytes,
+    *,
+    sha: str | None = None,
+    xml_name: str = "EG_UAS_FR_DS_AREA1_FULL_20260806.xml",
+) -> bytes:
     digest = sha if sha is not None else hashlib.sha256(xml).hexdigest()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -122,10 +129,20 @@ def _dist_m(a: tuple[float, float], b: tuple[float, float]) -> float:
 def test_parses_the_fixture_and_maps_uk_type_codes():
     zones = parse_aixm51(_gb(), SRC)
     assert [z.identifier for z in zones] == [
-        "EGTEST1", "EGD901", "EGP901", "EGD902", "EGD903", "EGD904",
+        "EGTEST1",
+        "EGD901",
+        "EGP901",
+        "EGD902",
+        "EGD903",
+        "EGD904",
     ]
     assert [z.restriction for z in zones] == [
-        "RESTRICTED", "DANGER", "PROHIBITED", "DANGER", "DANGER", "DANGER",
+        "RESTRICTED",
+        "DANGER",
+        "PROHIBITED",
+        "DANGER",
+        "DANGER",
+        "DANGER",
     ]
     # FRZ/RPZ is the most drone-meaningful bit of the dataset — it rides
     # in the display name; zones without a localType stay untouched.
@@ -146,7 +163,7 @@ def test_vertical_limits_map_sfc_msl_std_and_units():
 
 def test_fl999_upper_is_the_unlimited_sentinel_never_a_number():
     danger = parse_aixm51(_gb(), SRC)[1]
-    assert danger.upper is None                # renders "not stated"
+    assert danger.upper is None  # renders "not stated"
     assert danger.lower is not None and danger.lower.label() == "FL 50"
 
 
@@ -156,8 +173,7 @@ def test_activation_rides_in_native_and_never_becomes_applicability():
     zones = parse_aixm51(_gb(), SRC)
     assert all(z.applicability == [] for z in zones)
     act = zones[0].native["activation"]
-    assert act == [{"status": "AVBL_FOR_ACTIVATION",
-                    "notes": ["Mon-Sat SR to SS."]}]
+    assert act == [{"status": "AVBL_FOR_ACTIVATION", "notes": ["Mon-Sat SR to SS."]}]
     assert zones[0].native["type"] == "R"
     assert zones[0].native["localType"] == "RPZ"
 
@@ -168,9 +184,7 @@ def test_activation_is_also_rendered_as_published_text_lines():
     # part-time danger area can say so in the popup and the record.
     # Still no applicability (the evaluator never sees these).
     zones = parse_aixm51(_gb(), SRC)
-    assert zones[0].activation == [
-        "available for activation — Mon-Sat SR to SS."
-    ]
+    assert zones[0].activation == ["available for activation — Mon-Sat SR to SS."]
     assert all(z.activation == [] for z in zones[1:])
     assert all(z.applicability == [] for z in zones)
 
@@ -178,14 +192,16 @@ def test_activation_is_also_rendered_as_published_text_lines():
 def test_activation_status_codes_read_as_words_and_unknowns_pass_through():
     from dji_metadata_embedder.geo.airspace.aixm51 import _activation_lines
 
-    assert _activation_lines([
-        {"status": "ACTIVE", "notes": ["H24."]},
-        {"status": "AVBL_FOR_ACTIVATION", "notes": []},
-        {"status": "INTERMITTENT", "notes": ["a", "b"]},
-        {"status": None, "notes": ["schedule only"]},
-        {"status": "SOME_NEW_CODE", "notes": []},
-        {"status": None, "notes": []},
-    ]) == [
+    assert _activation_lines(
+        [
+            {"status": "ACTIVE", "notes": ["H24."]},
+            {"status": "AVBL_FOR_ACTIVATION", "notes": []},
+            {"status": "INTERMITTENT", "notes": ["a", "b"]},
+            {"status": None, "notes": ["schedule only"]},
+            {"status": "SOME_NEW_CODE", "notes": []},
+            {"status": None, "notes": []},
+        ]
+    ) == [
         "active — H24.",
         "available for activation",
         "intermittent — a; b",
@@ -197,7 +213,7 @@ def test_activation_status_codes_read_as_words_and_unknowns_pass_through():
 def test_coordinates_come_out_lon_lat_and_rings_close():
     zones = parse_aixm51(_gb(), SRC)
     square = zones[2].polygons[0]
-    assert square[0] == (-0.5, 51.5)            # file says "51.5 -0.5"
+    assert square[0] == (-0.5, 51.5)  # file says "51.5 -0.5"
     assert square[0] == square[-1]
     for z in zones:
         assert z.polygons[0][0] == z.polygons[0][-1]
@@ -207,12 +223,12 @@ def test_coordinates_come_out_lon_lat_and_rings_close():
 def test_circles_and_arcs_densify_at_the_published_radius():
     zones = parse_aixm51(_gb(), SRC)
     circle = zones[1].polygons[0]
-    assert len(circle) == 129                    # 128 points + closure
+    assert len(circle) == 129  # 128 points + closure
     centre = (-1.5, 51.2)
     for p in circle:
         assert abs(_dist_m(p, centre) - 2 * 1852) < 5
     arc_ring = zones[0].polygons[0]
-    assert len(arc_ring) > 30                    # ~32 arc points + corners
+    assert len(arc_ring) > 30  # ~32 arc points + corners
     arc_centre = (-1.0, 51.0)
     on_arc = [p for p in arc_ring if abs(_dist_m(p, arc_centre) - 1852) < 5]
     assert len(on_arc) >= 30
@@ -220,7 +236,7 @@ def test_circles_and_arcs_densify_at_the_published_radius():
 
 def test_a_border_reference_is_spliced_forward_and_reversed():
     zones = parse_aixm51(_gb(), SRC)
-    mid = (0.005, 52.01)                         # the coast's middle vertex
+    mid = (0.005, 52.01)  # the coast's middle vertex
     # The GeoBorder polyline has a fourth tail vertex past the ring's far
     # neighbouring endpoint; a ring must trim to its own stretch, not
     # splice the whole coastline.
@@ -250,8 +266,9 @@ def test_an_unknown_radius_unit_raises():
 def test_an_unknown_vertical_reference_raises():
     with pytest.raises(AirspaceError, match="SFC/MSL/STD"):
         parse_aixm51(
-            _mutated(">MSL</aixm:upperLimitReference>",
-                     ">W84</aixm:upperLimitReference>"),
+            _mutated(
+                ">MSL</aixm:upperLimitReference>", ">W84</aixm:upperLimitReference>"
+            ),
             SRC,
         )
 
@@ -259,8 +276,10 @@ def test_an_unknown_vertical_reference_raises():
 def test_fl_without_std_raises():
     with pytest.raises(AirspaceError, match="pairs"):
         parse_aixm51(
-            _mutated('<aixm:lowerLimit uom="FL">50</aixm:lowerLimit>',
-                     '<aixm:lowerLimit uom="FT">50</aixm:lowerLimit>'),
+            _mutated(
+                '<aixm:lowerLimit uom="FL">50</aixm:lowerLimit>',
+                '<aixm:lowerLimit uom="FT">50</aixm:lowerLimit>',
+            ),
             SRC,
         )
 
@@ -268,8 +287,10 @@ def test_fl_without_std_raises():
 def test_an_unresolvable_border_reference_raises():
     with pytest.raises(AirspaceError, match="GeoBorder"):
         parse_aixm51(
-            _mutated('href="urn:uuid:99999999-9999-9999-9999-999999999999"',
-                     'href="urn:uuid:00000000-0000-0000-0000-000000000000"'),
+            _mutated(
+                'href="urn:uuid:99999999-9999-9999-9999-999999999999"',
+                'href="urn:uuid:00000000-0000-0000-0000-000000000000"',
+            ),
             SRC,
         )
 
@@ -278,15 +299,13 @@ def test_a_discontinuous_ring_raises():
     # Move the straight segment's start ~3 km off the arc's end: junction
     # tolerance is 160 m.
     with pytest.raises(AirspaceError, match="EGTEST1"):
-        parse_aixm51(
-            _mutated("50.9999970 -0.9735822", "50.9700000 -0.9735822"), SRC
-        )
+        parse_aixm51(_mutated("50.9999970 -0.9735822", "50.9700000 -0.9735822"), SRC)
 
 
 def test_an_unsupported_segment_type_raises():
-    broken = _mutated(
-        "<gml:LineStringSegment>", "<gml:CubicSpline>"
-    ).replace(b"</gml:LineStringSegment>", b"</gml:CubicSpline>")
+    broken = _mutated("<gml:LineStringSegment>", "<gml:CubicSpline>").replace(
+        b"</gml:LineStringSegment>", b"</gml:CubicSpline>"
+    )
     with pytest.raises(AirspaceError, match="CubicSpline"):
         parse_aixm51(broken, SRC)
 
@@ -321,8 +340,8 @@ def test_the_direction_search_flips_a_wrong_shorter_sweep():
     zones = parse_aixm51(_gb(), SRC)
     flip = next(z for z in zones if z.identifier == "EGD904")
     ring = flip.polygons[0]
-    assert any(lat < 52.99 for _, lat in ring)      # southern bulge chosen
-    assert all(lat < 53.0145 for _, lat in ring)    # never above the top edge
+    assert any(lat < 52.99 for _, lat in ring)  # southern bulge chosen
+    assert all(lat < 53.0145 for _, lat in ring)  # never above the top edge
 
 
 def test_multiple_time_slices_invalidate_the_document():
@@ -345,7 +364,7 @@ def test_a_modest_closure_gap_is_an_implied_closure_not_an_error():
     # within the closure cap, so the ring closes by appending the start.
     no_close = _mutated(
         '<gml:pointProperty><aixm:Point gml:id="a3p5">'
-        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>',
+        "<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>",
         "",
     )
     zone = parse_aixm51(no_close, SRC)[2]
@@ -355,7 +374,7 @@ def test_a_modest_closure_gap_is_an_implied_closure_not_an_error():
 def test_a_truncated_ring_is_an_error_not_a_silent_bridge():
     torn = _mutated(
         '<gml:pointProperty><aixm:Point gml:id="a3p5">'
-        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>',
+        "<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>",
         "",
     ).replace(b">51.48 -0.5<", b">51.9 -0.5<")
     with pytest.raises(AirspaceError, match="truncated"):
@@ -374,15 +393,15 @@ def test_a_zero_extent_export_noop_segment_is_dropped():
     # It must not trip the junction check or distort the ring.
     anchor = (
         '<gml:pointProperty><aixm:Point gml:id="a3p5">'
-        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>'
+        "<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>"
     )
     degenerate = anchor + (
-        '</gml:GeodesicString>'
+        "</gml:GeodesicString>"
         '<gml:GeodesicString interpolation="geodesic">'
         '<gml:pointProperty><aixm:Point gml:id="a3d1">'
-        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>'
+        "<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>"
         '<gml:pointProperty><aixm:Point gml:id="a3d2">'
-        '<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>'
+        "<gml:pos>51.5 -0.5</gml:pos></aixm:Point></gml:pointProperty>"
     )
     zones = parse_aixm51(_mutated(anchor, degenerate), SRC)
     baseline = parse_aixm51(_gb(), SRC)

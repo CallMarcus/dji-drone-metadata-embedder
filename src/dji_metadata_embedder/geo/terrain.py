@@ -101,9 +101,7 @@ def surface_elevations(
                 img = Image.open(tile_path).convert("RGB")
             except OSError as exc:
                 tile_path.unlink(missing_ok=True)
-                raise TerrainUnavailable(
-                    f"terrain tile did not decode: {exc}"
-                ) from exc
+                raise TerrainUnavailable(f"terrain tile did not decode: {exc}") from exc
             tiles[(x, y)] = img
         px, py = _pixel_of(lat, lon, x, y)
         r, g, b = tiles[(x, y)].getpixel((px, py))  # type: ignore[attr-defined]

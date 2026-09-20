@@ -1,4 +1,5 @@
 """FAA UASFM provider tests (#413): bbox hygiene, paging, normalization."""
+
 import io
 import json
 from pathlib import Path
@@ -16,8 +17,11 @@ from dji_metadata_embedder.geo.airspace.arcgis_faa import (
 
 FIXTURE = Path(__file__).parent.parent / "samples" / "airspace" / "faa-uasfm.json"
 SRC = SourceInfo(
-    feed="FAA UAS Facility Maps", url=FAA_QUERY_URL,
-    fetched="2026-07-30T12:00:00Z", license="US Gov", caveat="informational",
+    feed="FAA UAS Facility Maps",
+    url=FAA_QUERY_URL,
+    fetched="2026-07-30T12:00:00Z",
+    license="US Gov",
+    caveat="informational",
 )
 
 
@@ -122,18 +126,22 @@ def test_interior_rings_parse_into_holes():
     # (#422 review).
     outer = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]
     hole = [[0.2, 0.2], [0.4, 0.2], [0.4, 0.4], [0.2, 0.4], [0.2, 0.2]]
-    page = json.dumps({
-        "type": "FeatureCollection",
-        "features": [{
-            "properties": {"CEILING": 400, "OBJECTID": 7},
-            "geometry": {"type": "Polygon", "coordinates": [outer, hole]},
-        }],
-    }).encode()
+    page = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "properties": {"CEILING": 400, "OBJECTID": 7},
+                    "geometry": {"type": "Polygon", "coordinates": [outer, hole]},
+                }
+            ],
+        }
+    ).encode()
     (zone,) = parse_faa([page], SRC)
-    assert zone.polygons == [[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0),
-                              (0.0, 0.0)]]
-    assert zone.holes == [[(0.2, 0.2), (0.4, 0.2), (0.4, 0.4), (0.2, 0.4),
-                           (0.2, 0.2)]]
+    assert zone.polygons == [
+        [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)]
+    ]
+    assert zone.holes == [[(0.2, 0.2), (0.4, 0.2), (0.4, 0.4), (0.2, 0.4), (0.2, 0.2)]]
 
 
 def _objectid_less_page(x, ceiling=400, objectid_null=False):
@@ -141,13 +149,17 @@ def _objectid_less_page(x, ceiling=400, objectid_null=False):
     props = {"CEILING": ceiling}
     if objectid_null:
         props["OBJECTID"] = None
-    return json.dumps({
-        "type": "FeatureCollection",
-        "features": [{
-            "properties": props,
-            "geometry": {"type": "Polygon", "coordinates": [outer]},
-        }],
-    }).encode()
+    return json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "properties": props,
+                    "geometry": {"type": "Polygon", "coordinates": [outer]},
+                }
+            ],
+        }
+    ).encode()
 
 
 def test_objectid_less_cells_get_distinct_identifiers_across_pages():

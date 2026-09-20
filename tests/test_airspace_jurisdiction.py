@@ -1,4 +1,5 @@
 """Jurisdiction-from-track tests (#413): flight-relevant, never guessed."""
+
 from dji_metadata_embedder.geo.airspace.jurisdiction import resolve_jurisdiction
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
@@ -6,7 +7,9 @@ from dji_metadata_embedder.geo.track import Track, TrackPoint
 def _track(*coords):
     return Track(
         name="t",
-        points=[TrackPoint(lat=la, lon=lo, alt=100, timestamp="c") for la, lo in coords],
+        points=[
+            TrackPoint(lat=la, lon=lo, alt=100, timestamp="c") for la, lo in coords
+        ],
     )
 
 
@@ -195,7 +198,7 @@ def test_a_dundalk_flight_gaps_as_a_border_band():
 
 
 def test_the_no_provider_message_names_ireland():
-    r = resolve_jurisdiction(_track((48.85, 2.35)))   # Paris
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert r.jurisdiction is None
     assert "Ireland" in (r.gap_reason or "")
 
@@ -280,7 +283,7 @@ def test_calais_gaps_instead_of_resolving_gb():
 
 
 def test_the_no_provider_message_names_the_uk():
-    r = resolve_jurisdiction(_track((48.85, 2.35)))   # Paris
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert "the UK" in (r.gap_reason or "")
 
 
@@ -426,7 +429,6 @@ def test_transtrand_resolves_se_now_the_hull_reaches_the_whole_core():
     assert r.jurisdiction is not None and r.jurisdiction.code == "SE"
 
 
-
 def test_a_tallinn_flight_resolves_to_ee_with_the_eu_measure():
     r = resolve_jurisdiction(_track((59.44, 24.75)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
@@ -514,6 +516,7 @@ def test_the_gulf_coast_overlap_band_resolves_ee_via_its_core():
 # --- Slovenia (#565): land borders on every side, 51/51 Nominatim probes
 # 2026-09-05 (scratch script si_nominatim.py) -------------------------------
 
+
 def test_a_ljubljana_flight_resolves_to_si_with_the_eu_measure():
     r = resolve_jurisdiction(_track((46.05, 14.51)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "SI"
@@ -523,9 +526,17 @@ def test_a_ljubljana_flight_resolves_to_si_with_the_eu_measure():
 def test_slovenian_cities_resolve_through_their_cores():
     # Kranj, Bled, Celje, Velenje, Maribor, Ptuj, Novo Mesto, Postojna,
     # Murska Sobota: one core each, all >=8 km from the nearest border.
-    for lat, lon in ((46.24, 14.36), (46.37, 14.11), (46.23, 15.26), (46.36, 15.11),
-                     (46.55, 15.65), (46.42, 15.87), (45.80, 15.17), (45.77, 14.21),
-                     (46.66, 16.16)):
+    for lat, lon in (
+        (46.24, 14.36),
+        (46.37, 14.11),
+        (46.23, 15.26),
+        (46.36, 15.11),
+        (46.55, 15.65),
+        (46.42, 15.87),
+        (45.80, 15.17),
+        (45.77, 14.21),
+        (46.66, 16.16),
+    ):
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is not None and r.jurisdiction.code == "SI", (lat, lon)
 
@@ -535,8 +546,16 @@ def test_slovenian_border_towns_gap_as_a_border_band():
     # Brežice (Croatia), Lendava (Hungary/Croatia), Metlika (Croatia),
     # Dravograd (Austria), Gornja Radgona (Austria, Mura bridge): inside the
     # hull, outside every core, so honestly a band rather than a verdict.
-    for lat, lon in ((45.55, 13.73), (45.96, 13.65), (46.43, 14.07), (45.90, 15.59),
-                     (46.56, 16.45), (45.65, 15.32), (46.59, 15.02), (46.68, 15.99)):
+    for lat, lon in (
+        (45.55, 13.73),
+        (45.96, 13.65),
+        (46.43, 14.07),
+        (45.90, 15.59),
+        (46.56, 16.45),
+        (45.65, 15.32),
+        (46.59, 15.02),
+        (46.68, 15.99),
+    ):
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is None, (lat, lon)
         assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
@@ -545,9 +564,18 @@ def test_slovenian_border_towns_gap_as_a_border_band():
 def test_neighbouring_cities_never_resolve_to_si():
     # Trieste, Gorizia, Villach, Klagenfurt, Bad Radkersburg, Čakovec,
     # Varaždin, Krapina, Zagreb, Umag: foreign, some inside the SI hull.
-    for lat, lon in ((45.65, 13.77), (45.94, 13.62), (46.61, 13.85), (46.62, 14.31),
-                     (46.69, 15.99), (46.39, 16.43), (46.31, 16.34), (46.16, 15.87),
-                     (45.81, 15.98), (45.43, 13.52)):
+    for lat, lon in (
+        (45.65, 13.77),
+        (45.94, 13.62),
+        (46.61, 13.85),
+        (46.62, 14.31),
+        (46.69, 15.99),
+        (46.39, 16.43),
+        (46.31, 16.34),
+        (46.16, 15.87),
+        (45.81, 15.98),
+        (45.43, 13.52),
+    ):
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is None or r.jurisdiction.code != "SI", (lat, lon)
 
@@ -558,9 +586,9 @@ def test_the_no_provider_message_lists_slovenia():
     assert r.gap_reason is not None and "Slovenia" in r.gap_reason
 
 
-
 # --- Belgium (#562): land borders on three sides, sea on the fourth; 60/60
 # Nominatim probes 2026-09-16 (scratch script be_nominatim.py) --------------
+
 
 def test_a_brussels_flight_resolves_to_be_with_the_eu_measure():
     r = resolve_jurisdiction(_track((50.85, 4.35)))
@@ -571,9 +599,18 @@ def test_a_brussels_flight_resolves_to_be_with_the_eu_measure():
 def test_belgian_cities_resolve_through_their_cores():
     # Ostend, Bruges, Ghent, Antwerp, Leuven, Charleroi, Namur, Mons,
     # Hasselt, Liège: one core each, every edge >=7 km from a border.
-    for lat, lon in ((51.23, 2.92), (51.21, 3.22), (51.05, 3.72), (51.22, 4.40),
-                     (50.88, 4.70), (50.41, 4.44), (50.47, 4.87), (50.45, 3.95),
-                     (50.93, 5.34), (50.63, 5.57)):
+    for lat, lon in (
+        (51.23, 2.92),
+        (51.21, 3.22),
+        (51.05, 3.72),
+        (51.22, 4.40),
+        (50.88, 4.70),
+        (50.41, 4.44),
+        (50.47, 4.87),
+        (50.45, 3.95),
+        (50.93, 5.34),
+        (50.63, 5.57),
+    ):
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is not None and r.jurisdiction.code == "BE", (lat, lon)
 
@@ -582,8 +619,15 @@ def test_belgian_border_towns_gap_as_a_border_band():
     # Kortrijk and Ieper (France), Turnhout (Netherlands), Marche-en-Famenne
     # and Dinant (Givet salient), Arlon (Luxembourg), Eupen (Germany): inside
     # the hull, outside every core.
-    for lat, lon in ((50.83, 3.27), (50.85, 2.89), (51.32, 4.94), (50.23, 5.34),
-                     (50.26, 4.91), (49.68, 5.82), (50.63, 6.03)):
+    for lat, lon in (
+        (50.83, 3.27),
+        (50.85, 2.89),
+        (51.32, 4.94),
+        (50.23, 5.34),
+        (50.26, 4.91),
+        (49.68, 5.82),
+        (50.63, 6.03),
+    ):
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is None, (lat, lon)
         assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
@@ -592,9 +636,20 @@ def test_belgian_border_towns_gap_as_a_border_band():
 def test_neighbouring_cities_never_resolve_to_be():
     # Lille, Dunkirk, Valenciennes, Givet, Breda, Roosendaal, Terneuzen,
     # Sas van Gent, Eindhoven, Maastricht, Aachen, Luxembourg City.
-    for lat, lon in ((50.63, 3.06), (51.03, 2.38), (50.36, 3.52), (50.14, 4.83),
-                     (51.59, 4.78), (51.53, 4.47), (51.33, 3.83), (51.23, 3.80),
-                     (51.44, 5.47), (50.85, 5.69), (50.78, 6.08), (49.61, 6.13)):
+    for lat, lon in (
+        (50.63, 3.06),
+        (51.03, 2.38),
+        (50.36, 3.52),
+        (50.14, 4.83),
+        (51.59, 4.78),
+        (51.53, 4.47),
+        (51.33, 3.83),
+        (51.23, 3.80),
+        (51.44, 5.47),
+        (50.85, 5.69),
+        (50.78, 6.08),
+        (49.61, 6.13),
+    ):
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is None or r.jurisdiction.code != "BE", (lat, lon)
 

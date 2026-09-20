@@ -5,6 +5,7 @@ the file's saved opening values beside them, so a view can be lined up
 deliberately (e.g. matching headings across panos taken from the same spot)
 instead of eyeballed.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -19,21 +20,28 @@ from .test_panoedit_editor import _make_pano, _serve
 pytestmark = pytest.mark.browser
 
 needs_exiftool = pytest.mark.skipif(
-    shutil.which("exiftool") is None, reason="ExifTool not installed")
+    shutil.which("exiftool") is None, reason="ExifTool not installed"
+)
 
 
 @needs_exiftool
-def test_readout_shows_saved_values_beside_live_ones(
-        tmp_path, page, monkeypatch):
+def test_readout_shows_saved_values_beside_live_ones(tmp_path, page, monkeypatch):
     monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
     pano = tmp_path / "saved.jpg"
     _make_pano(pano, pose=10.0)
     subprocess.run(
-        ["exiftool", "-overwrite_original", "-n",
-         "-XMP-GPano:InitialViewHeadingDegrees=40",
-         "-XMP-GPano:InitialViewPitchDegrees=-5",
-         "-XMP-GPano:InitialHorizontalFOVDegrees=90", str(pano)],
-        check=True, capture_output=True)
+        [
+            "exiftool",
+            "-overwrite_original",
+            "-n",
+            "-XMP-GPano:InitialViewHeadingDegrees=40",
+            "-XMP-GPano:InitialViewPitchDegrees=-5",
+            "-XMP-GPano:InitialHorizontalFOVDegrees=90",
+            str(pano),
+        ],
+        check=True,
+        capture_output=True,
+    )
     httpd, url = _serve(tmp_path, page)
     try:
         page.goto(url)

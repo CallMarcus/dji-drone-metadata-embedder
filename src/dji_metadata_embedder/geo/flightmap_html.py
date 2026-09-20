@@ -136,8 +136,12 @@ _AIRSPACE_CSS = """  .airspace-note { background: rgba(255,255,255,.85);
 
 
 def flights_to_html(
-    tracks: list[Track], title: str, *, tile_style: str = DEFAULT_TILE_STYLE,
-    redact: str = "none", airspace_json: dict | None = None
+    tracks: list[Track],
+    title: str,
+    *,
+    tile_style: str = DEFAULT_TILE_STYLE,
+    redact: str = "none",
+    airspace_json: dict | None = None,
 ) -> str:
     """Return a complete self-contained HTML flight map.
 
@@ -156,24 +160,25 @@ def flights_to_html(
     if airspace_json is not None:
         adata = json.dumps(airspace_json).replace("<", "\\u003c")
         airspace_block = (
-            '\n<script type="application/json" id="airspace-data">\n'
-            f"{adata}\n</script>"
+            f'\n<script type="application/json" id="airspace-data">\n{adata}\n</script>'
         )
         airspace_css = _AIRSPACE_CSS
         airspace_js = AIRSPACE_OVERLAY_JS
-    return stamp(_TEMPLATE.format(
-        title=escape(title),
-        leaflet=_LEAFLET_VERSION,
-        css_sri=_LEAFLET_CSS_SRI,
-        js_sri=_LEAFLET_JS_SRI,
-        data=data,
-        airspace_block=airspace_block,
-        airspace_css=airspace_css,
-        app_js=_APP_JS.replace("__TILE_LAYER__", tile_layer_js(tile_style))
-        .replace("__SHARED_JS__", FLIGHT_POPUP_JS)
-        .replace("__AIRSPACE_JS__", airspace_js)
-        .replace("__PLAYBACK_JS__", PLAYBACK_JS),
-    ))
+    return stamp(
+        _TEMPLATE.format(
+            title=escape(title),
+            leaflet=_LEAFLET_VERSION,
+            css_sri=_LEAFLET_CSS_SRI,
+            js_sri=_LEAFLET_JS_SRI,
+            data=data,
+            airspace_block=airspace_block,
+            airspace_css=airspace_css,
+            app_js=_APP_JS.replace("__TILE_LAYER__", tile_layer_js(tile_style))
+            .replace("__SHARED_JS__", FLIGHT_POPUP_JS)
+            .replace("__AIRSPACE_JS__", airspace_js)
+            .replace("__PLAYBACK_JS__", PLAYBACK_JS),
+        )
+    )
 
 
 def write_flights_html(
@@ -188,7 +193,11 @@ def write_flights_html(
     """Write *tracks* as an HTML map to *output_path* and return it."""
     output_path.write_text(
         flights_to_html(
-            tracks, title, tile_style=tile_style, redact=redact, airspace_json=airspace_json
+            tracks,
+            title,
+            tile_style=tile_style,
+            redact=redact,
+            airspace_json=airspace_json,
         ),
         encoding="utf-8",
     )

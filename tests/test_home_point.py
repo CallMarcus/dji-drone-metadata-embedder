@@ -43,7 +43,9 @@ def test_redact_home_drop():
 
 
 def test_redact_home_fuzz_rounds_to_3dp():
-    assert redact_home(Home(1.23456, 2.34567, 10.12345), "fuzz") == Home(1.235, 2.346, 10.123)
+    assert redact_home(Home(1.23456, 2.34567, 10.12345), "fuzz") == Home(
+        1.235, 2.346, 10.123
+    )
 
 
 def test_redact_home_none_passthrough():
@@ -56,15 +58,23 @@ def test_redact_home_handles_none_input():
 
 
 def test_apply_redaction_drops_home():
-    tel = {"gps_coords": [(1.0, 2.0)], "first_gps": (1.0, 2.0), "avg_gps": (1.0, 2.0),
-           "home": Home(1.23456, 2.34567, 10.0)}
+    tel = {
+        "gps_coords": [(1.0, 2.0)],
+        "first_gps": (1.0, 2.0),
+        "avg_gps": (1.0, 2.0),
+        "home": Home(1.23456, 2.34567, 10.0),
+    }
     apply_redaction(tel, "drop")
     assert tel["home"] is None
 
 
 def test_apply_redaction_fuzzes_home():
-    tel = {"gps_coords": [(1.0, 2.0)], "first_gps": (1.0, 2.0), "avg_gps": (1.0, 2.0),
-           "home": Home(1.23456, 2.34567, 10.0)}
+    tel = {
+        "gps_coords": [(1.0, 2.0)],
+        "first_gps": (1.0, 2.0),
+        "avg_gps": (1.0, 2.0),
+        "home": Home(1.23456, 2.34567, 10.0),
+    }
     apply_redaction(tel, "fuzz")
     assert tel["home"] == Home(1.235, 2.346, 10.0)
 
@@ -104,8 +114,10 @@ def test_parse_extracts_home_when_flag_on(tmp_path):
 
 def test_parse_home_none_when_flag_on_but_absent(tmp_path):
     srt = tmp_path / "f.SRT"
-    srt.write_text(SRT_BLOCK.replace("HOME(39.906206,116.391400) D=5.2m H=1.5m ", ""),
-                   encoding="utf-8")
+    srt.write_text(
+        SRT_BLOCK.replace("HOME(39.906206,116.391400) D=5.2m H=1.5m ", ""),
+        encoding="utf-8",
+    )
     tel = _embedder(tmp_path, extract_home=True).parse_dji_srt(srt)
     assert tel["home"] is None
 
@@ -142,7 +154,9 @@ def test_gpx_home_waypoint_when_flag_on(tmp_path):
 def test_gpx_home_dropped_under_redact(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GPX_SRT, encoding="utf-8")
-    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True, redact="drop")
+    out = extract_telemetry_to_gpx(
+        srt, tmp_path / "f.gpx", extract_home=True, redact="drop"
+    )
     assert "<wpt" not in out.read_text(encoding="utf-8")
 
 
@@ -171,7 +185,9 @@ def test_csv_home_columns_when_flag_on(tmp_path):
 def test_csv_home_dropped_under_redact(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GPX_SRT, encoding="utf-8")
-    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True, redact="drop")
+    out = extract_telemetry_to_csv(
+        srt, tmp_path / "f.csv", extract_home=True, redact="drop"
+    )
     rows = _read_csv(out)
     assert rows[0]["home_lat"] == ""
 
@@ -208,7 +224,9 @@ def test_geojson_home_feature_when_flag_on(tmp_path):
 def test_geojson_home_dropped_under_redact(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GEO_SRT, encoding="utf-8")
-    out = convert_to_geojson(srt, tmp_path / "f.geojson", extract_home=True, redact="drop")
+    out = convert_to_geojson(
+        srt, tmp_path / "f.geojson", extract_home=True, redact="drop"
+    )
     assert _home_features(out) == []
 
 
@@ -222,7 +240,9 @@ def test_convert_gpx_home_end_to_end(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GPX_SRT, encoding="utf-8")
     out = tmp_path / "f.gpx"
-    res = CliRunner().invoke(main, ["convert", "gpx", str(srt), "-o", str(out), "--extract-home"])
+    res = CliRunner().invoke(
+        main, ["convert", "gpx", str(srt), "-o", str(out), "--extract-home"]
+    )
     assert res.exit_code == 0
     assert "<name>HOME</name>" in out.read_text(encoding="utf-8")
 
@@ -251,14 +271,18 @@ def test_flag_off_no_home_anywhere(tmp_path):
 def test_gpx_home_fuzz_rounds_coords(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GPX_SRT, encoding="utf-8")
-    out = extract_telemetry_to_gpx(srt, tmp_path / "f.gpx", extract_home=True, redact="fuzz")
+    out = extract_telemetry_to_gpx(
+        srt, tmp_path / "f.gpx", extract_home=True, redact="fuzz"
+    )
     assert '<wpt lat="39.906" lon="116.391">' in out.read_text(encoding="utf-8")
 
 
 def test_csv_home_fuzz_rounds_coords(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GPX_SRT, encoding="utf-8")
-    out = extract_telemetry_to_csv(srt, tmp_path / "f.csv", extract_home=True, redact="fuzz")
+    out = extract_telemetry_to_csv(
+        srt, tmp_path / "f.csv", extract_home=True, redact="fuzz"
+    )
     rows = _read_csv(out)
     assert rows[0]["home_lat"] == "39.906"
     assert rows[0]["home_lon"] == "116.391"
@@ -267,7 +291,9 @@ def test_csv_home_fuzz_rounds_coords(tmp_path):
 def test_geojson_home_fuzz_rounds_coords(tmp_path):
     srt = tmp_path / "f.SRT"
     srt.write_text(GPX_SRT, encoding="utf-8")
-    out = convert_to_geojson(srt, tmp_path / "f.geojson", extract_home=True, redact="fuzz")
+    out = convert_to_geojson(
+        srt, tmp_path / "f.geojson", extract_home=True, redact="fuzz"
+    )
     assert _home_features(out)[0]["geometry"]["coordinates"] == [116.391, 39.906]
 
 

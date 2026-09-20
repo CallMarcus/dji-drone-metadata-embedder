@@ -12,7 +12,9 @@ from dji_metadata_embedder.geo.track import TrackPoint
 
 def _p(lat, lon, secs):
     base = datetime(2026, 1, 1, 0, 0, 0)
-    return TrackPoint(lat=lat, lon=lon, alt=0.0, timestamp="", utc=base + timedelta(seconds=secs))
+    return TrackPoint(
+        lat=lat, lon=lon, alt=0.0, timestamp="", utc=base + timedelta(seconds=secs)
+    )
 
 
 def test_haversine_known_distance():
@@ -28,7 +30,9 @@ def test_downsample_keeps_first_and_last():
     pts = [_p(0.0, 0.0, s) for s in (0, 1, 2, 3, 4)]
     kept = downsample_by_time(pts, 2.0)
     # First, one >=2s later, and the final point.
-    assert [round((point_utc(p) - point_utc(pts[0])).total_seconds()) for p in kept] == [0, 2, 4]
+    assert [
+        round((point_utc(p) - point_utc(pts[0])).total_seconds()) for p in kept
+    ] == [0, 2, 4]
 
 
 # Oblique view-frustum ground projection (#265). The 45-degree-pitch cases
@@ -49,6 +53,7 @@ def _ring_en(ring):
 
 def test_frustum_nadir_matches_rectangle():
     from dji_metadata_embedder.geo.geometry import frustum_ground_ring
+
     ring = frustum_ground_ring(0.0, 0.0, 100.0, 0.0, -90.0, HFOV, VFOV, 10000.0)
     assert len(ring) == 5 and ring[0] == ring[-1]
     en = _ring_en(ring)
@@ -58,6 +63,7 @@ def test_frustum_nadir_matches_rectangle():
 
 def test_frustum_oblique_45_exact_trapezoid():
     from dji_metadata_embedder.geo.geometry import frustum_ground_ring
+
     ring = frustum_ground_ring(0.0, 0.0, 100.0, 0.0, -45.0, HFOV, VFOV, 10000.0)
     en = _ring_en(ring)
     norths = sorted(n for _, n in en)
@@ -73,6 +79,7 @@ def test_frustum_oblique_45_exact_trapezoid():
 
 def test_frustum_clamps_rays_at_or_above_horizon():
     from dji_metadata_embedder.geo.geometry import frustum_ground_ring
+
     # Pitch -20 deg puts the top frustum corners ~9.4 deg ABOVE the horizon:
     # they never meet the ground, so they clamp to max_range along their
     # azimuth instead of shooting to infinity.
@@ -84,6 +91,7 @@ def test_frustum_clamps_rays_at_or_above_horizon():
 
 def test_frustum_caps_finite_but_distant_corners():
     from dji_metadata_embedder.geo.geometry import frustum_ground_ring
+
     # At -45 deg everything hits the ground, but a 200 m cap still binds the
     # 357 m far corners.
     ring = frustum_ground_ring(0.0, 0.0, 100.0, 0.0, -45.0, HFOV, VFOV, 200.0)
@@ -93,8 +101,11 @@ def test_frustum_caps_finite_but_distant_corners():
 
 def test_frustum_rotates_with_heading():
     from dji_metadata_embedder.geo.geometry import frustum_ground_ring
+
     north = frustum_ground_ring(0.0, 0.0, 100.0, 0.0, -45.0, HFOV, VFOV, 1000.0)
     east = frustum_ground_ring(0.0, 0.0, 100.0, 90.0, -45.0, HFOV, VFOV, 1000.0)
     # Heading east moves the far edge from +north onto +east.
-    assert abs(max(n for _, n in _ring_en(north)) -
-               max(e for e, _ in _ring_en(east))) < 1e-6
+    assert (
+        abs(max(n for _, n in _ring_en(north)) - max(e for e, _ in _ring_en(east)))
+        < 1e-6
+    )

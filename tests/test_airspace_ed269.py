@@ -1,4 +1,5 @@
 """ED-269 parser tests (#413) against the real-shape fixtures."""
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -10,8 +11,11 @@ from dji_metadata_embedder.geo.airspace.ed269 import ED269_FEEDS, parse_ed269
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
-    feed="test", url="https://example.invalid/zones", fetched="2026-07-30T12:00:00Z",
-    license="CC0", caveat="informational only",
+    feed="test",
+    url="https://example.invalid/zones",
+    fetched="2026-07-30T12:00:00Z",
+    license="CC0",
+    caveat="informational only",
 )
 
 
@@ -94,9 +98,15 @@ def test_matching_restated_limits_merge_both_geometry_entries_polygons():
     data = _lu_data()
     zone = data["features"][0]
     second = json.loads(json.dumps(zone["geometry"][0]))
-    second["horizontalProjection"]["coordinates"] = [[
-        [7.0, 50.0], [7.1, 50.0], [7.1, 50.1], [7.0, 50.1], [7.0, 50.0],
-    ]]
+    second["horizontalProjection"]["coordinates"] = [
+        [
+            [7.0, 50.0],
+            [7.1, 50.0],
+            [7.1, 50.1],
+            [7.0, 50.1],
+            [7.0, 50.0],
+        ]
+    ]
     zone["geometry"].append(second)
     zones = parse_ed269(json.dumps(data).encode(), SRC)
     parsed = next(z for z in zones if z.identifier == "LU-P-001")
@@ -160,7 +170,10 @@ def _ch_data() -> dict:
 def test_parses_the_switzerland_fixture():
     zones = parse_ed269(_ch(), SRC, no_ceiling_m=99999)
     assert [z.identifier for z in zones] == [
-        "CH-GT9990", "CH-AGL-NOCAP", "CH-ZH-120", "CH-MV-2VOL",
+        "CH-GT9990",
+        "CH-AGL-NOCAP",
+        "CH-ZH-120",
+        "CH-MV-2VOL",
     ]
     assert all(z.restriction == "REQ_AUTHORISATION" for z in zones)
 

@@ -15,10 +15,10 @@ def test_python_version():
     print("🐍 Testing Python version...")
     version = sys.version_info
     print(f"   Python {version.major}.{version.minor}.{version.micro}")
-    
+
     if version < (3, 10):
         raise RuntimeError("❌ Python 3.10+ required")
-    
+
     print("   ✅ Python version OK")
     return True
 
@@ -52,46 +52,47 @@ def test_package_importable():
 def test_dependencies():
     """Test that required dependencies are installed."""
     print("\n📚 Testing Python dependencies...")
-    
+
     dependencies = {
-        'rich': '✅ Rich (progress bars/UI)',
-        'ffmpeg': '✅ FFmpeg-python (video processing)',
-        'piexif': '✅ Piexif (EXIF metadata)'
+        "rich": "✅ Rich (progress bars/UI)",
+        "ffmpeg": "✅ FFmpeg-python (video processing)",
+        "piexif": "✅ Piexif (EXIF metadata)",
     }
-    
+
     missing = []
     for dep_name, success_msg in dependencies.items():
         try:
-            importlib.import_module(dep_name.replace('-', '_'))
+            importlib.import_module(dep_name.replace("-", "_"))
             print(f"   {success_msg}")
         except ImportError:
             missing.append(dep_name)
             print(f"   ❌ {dep_name} not found")
-    
+
     if missing:
         print("\n   📝 Install missing dependencies with:")
         print(f"   pip install {' '.join(missing)}")
         return False
-    
+
     return True
 
 
 def test_external_tools():
     """Test that external tools (FFmpeg, ExifTool) are available."""
     print("\n🔧 Testing external tools...")
-    
+
     tools = {
-        'ffmpeg': 'FFmpeg (required for video processing)',
-        'exiftool': 'ExifTool (optional, for additional metadata)'
+        "ffmpeg": "FFmpeg (required for video processing)",
+        "exiftool": "ExifTool (optional, for additional metadata)",
     }
-    
+
     available = {}
     for tool, description in tools.items():
         try:
-            result = subprocess.run([tool, '-version'], 
-                                  capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                [tool, "-version"], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
-                version_line = result.stdout.split('\n')[0]
+                version_line = result.stdout.split("\n")[0]
                 print(f"   ✅ {description}")
                 print(f"      {version_line}")
                 available[tool] = True
@@ -101,24 +102,25 @@ def test_external_tools():
         except (FileNotFoundError, subprocess.TimeoutExpired):
             print(f"   ❌ {tool} not found in PATH")
             available[tool] = False
-    
-    if not available.get('ffmpeg'):
+
+    if not available.get("ffmpeg"):
         print("\n   ⚠️  FFmpeg is required! Install instructions:")
         print("      1. Download from https://www.gyan.dev/ffmpeg/builds/")
         print("      2. Extract to C:\\ffmpeg")
         print("      3. Add C:\\ffmpeg\\bin to PATH")
         print("      4. Restart command prompt")
-    
-    return available.get('ffmpeg', False)
+
+    return available.get("ffmpeg", False)
 
 
 def test_cli_command():
     """Test that the CLI command is available."""
     print("\n⚡ Testing CLI command...")
-    
+
     try:
-        result = subprocess.run(['dji-embed', '--help'], 
-                              capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            ["dji-embed", "--help"], capture_output=True, text=True, timeout=10
+        )
         if result.returncode == 0:
             print("   ✅ dji-embed command available")
             return True
@@ -136,12 +138,12 @@ def test_cli_command():
 def test_sample_data():
     """Test that sample data is available."""
     print("\n📂 Testing sample data...")
-    
+
     samples_dir = Path(__file__).parent.parent / "samples"
     drone_footage_dir = Path("C:/Claude/DroneFootage")
-    
+
     sample_found = False
-    
+
     # Check repo samples
     if samples_dir.exists():
         for model_dir in samples_dir.iterdir():
@@ -150,19 +152,21 @@ def test_sample_data():
                 if srt_files:
                     print(f"   ✅ Sample data found: {model_dir.name}")
                     sample_found = True
-    
+
     # Check DroneFootage directory
     if drone_footage_dir.exists():
         srt_files = list(drone_footage_dir.glob("*.SRT"))
         mp4_files = list(drone_footage_dir.glob("*.MP4"))
         if srt_files and mp4_files:
-            print(f"   ✅ Real drone footage found: {len(mp4_files)} videos, {len(srt_files)} SRT files")
+            print(
+                f"   ✅ Real drone footage found: {len(mp4_files)} videos, {len(srt_files)} SRT files"
+            )
             sample_found = True
-    
+
     if not sample_found:
         print("   ⚠️  No sample data found")
         print("      Place DJI MP4 + SRT files in C:/Claude/DroneFootage for testing")
-    
+
     return sample_found
 
 
@@ -170,7 +174,7 @@ def run_all_tests():
     """Run all validation tests."""
     print("🚁 DJI Metadata Embedder - Installation Validation")
     print("=" * 60)
-    
+
     tests = [
         ("Python Version", test_python_version),
         ("Package Import", test_package_importable),
@@ -179,7 +183,7 @@ def run_all_tests():
         ("CLI Command", test_cli_command),
         ("Sample Data", test_sample_data),
     ]
-    
+
     results = {}
     for test_name, test_func in tests:
         try:
@@ -187,21 +191,21 @@ def run_all_tests():
         except Exception as e:
             print(f"   ❌ {test_name} failed: {e}")
             results[test_name] = False
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("📊 VALIDATION SUMMARY")
     print("=" * 60)
-    
+
     passed = sum(results.values())
     total = len(results)
-    
+
     for test_name, passed in results.items():
         status = "✅ PASS" if passed else "❌ FAIL"
         print(f"   {status} {test_name}")
-    
+
     print(f"\n🎯 Overall: {passed}/{total} tests passed")
-    
+
     if passed == total:
         print("🎉 All validations passed! Your installation is ready.")
         return True

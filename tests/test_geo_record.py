@@ -1,4 +1,5 @@
 """Record content-model tests (#413): three-label heights, honest notes."""
+
 import io
 from datetime import datetime
 from pathlib import Path
@@ -35,8 +36,14 @@ class FakeTransport:
 
 def _lux_track():
     pts = [
-        TrackPoint(lat=49.615 + i * 0.001, lon=6.19, alt=300 + i, timestamp="c",
-                   utc=datetime(2026, 7, 30, 12, i), rel_alt=10.0 * i)
+        TrackPoint(
+            lat=49.615 + i * 0.001,
+            lon=6.19,
+            alt=300 + i,
+            timestamp="c",
+            utc=datetime(2026, 7, 30, 12, i),
+            rel_alt=10.0 * i,
+        )
         for i in range(4)
     ]
     return Track(name="LUX0001", points=pts)
@@ -82,10 +89,19 @@ def test_a_gap_jurisdiction_still_yields_the_logbook_half(tmp_path, monkeypatch)
 
     # Oslo: deliberately outside every hull (Sweden's starts at 10.9E), so
     # this stays a no-provider gap now that Swedish flights resolve (#510).
-    pts = [TrackPoint(lat=59.91, lon=10.75, alt=50, timestamp="c",
-                      utc=datetime(2026, 7, 30, 12, 0), rel_alt=20)]
-    rec = build_records([Track(name="NOR", points=pts)], cache_dir=tmp_path,
-                        transport=no_network)[0]
+    pts = [
+        TrackPoint(
+            lat=59.91,
+            lon=10.75,
+            alt=50,
+            timestamp="c",
+            utc=datetime(2026, 7, 30, 12, 0),
+            rel_alt=20,
+        )
+    ]
+    rec = build_records(
+        [Track(name="NOR", points=pts)], cache_dir=tmp_path, transport=no_network
+    )[0]
     assert rec.airspace.gap_reason is not None
     assert rec.measure_note is None  # no borrowed framing
     assert rec.max_rel_alt_m == 20
@@ -101,16 +117,19 @@ def test_a_zero_point_track_yields_no_record_and_an_announce(tmp_path):
         announce=announced.append,
     )
     assert [r.name for r in recs] == ["LUX0001"]
-    assert any(
-        "EMPTY0001" in msg and "no GPS points" in msg for msg in announced
-    )
+    assert any("EMPTY0001" in msg and "no GPS points" in msg for msg in announced)
 
 
 def test_partial_utc_leaves_time_fields_unstated(tmp_path):
     pts = [
-        TrackPoint(lat=49.615 + i * 0.001, lon=6.19, alt=300 + i, timestamp="c",
-                   utc=None if i == 1 else datetime(2026, 7, 30, 12, i),
-                   rel_alt=10.0 * i)
+        TrackPoint(
+            lat=49.615 + i * 0.001,
+            lon=6.19,
+            alt=300 + i,
+            timestamp="c",
+            utc=None if i == 1 else datetime(2026, 7, 30, 12, i),
+            rel_alt=10.0 * i,
+        )
         for i in range(3)
     ]
     fake = FakeTransport([(FIXTURES / "ed269-lu.json").read_bytes()])
@@ -124,19 +143,32 @@ def test_partial_utc_leaves_time_fields_unstated(tmp_path):
 
 
 def test_mtime_synthesized_utc_is_labelled():
-    samples = [TelemetrySample(cue="00:00:01,000 --> 00:00:02,000", dt=None,
-                               lat=49.6, lon=6.2, alt=100, rel_alt=10)]
-    t = build_track_from_samples("x", samples,
-                                 mtime_utc=datetime(2026, 7, 30, 12, 0))
+    samples = [
+        TelemetrySample(
+            cue="00:00:01,000 --> 00:00:02,000",
+            dt=None,
+            lat=49.6,
+            lon=6.2,
+            alt=100,
+            rel_alt=10,
+        )
+    ]
+    t = build_track_from_samples("x", samples, mtime_utc=datetime(2026, 7, 30, 12, 0))
     assert t.utc_source == "mtime"
 
 
 def test_telemetry_utc_is_labelled_as_such():
-    samples = [TelemetrySample(cue="00:00:01,000 --> 00:00:02,000",
-                               dt=datetime(2026, 7, 30, 14, 0),
-                               lat=49.6, lon=6.2, alt=100, rel_alt=10)]
-    t = build_track_from_samples("x", samples,
-                                 mtime_utc=datetime(2026, 7, 30, 12, 0))
+    samples = [
+        TelemetrySample(
+            cue="00:00:01,000 --> 00:00:02,000",
+            dt=datetime(2026, 7, 30, 14, 0),
+            lat=49.6,
+            lon=6.2,
+            alt=100,
+            rel_alt=10,
+        )
+    ]
+    t = build_track_from_samples("x", samples, mtime_utc=datetime(2026, 7, 30, 12, 0))
     assert t.utc_source == "telemetry"
 
 

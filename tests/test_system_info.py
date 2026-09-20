@@ -21,5 +21,11 @@ def test_system_architecture():
 
 def test_system_summary_contains_keys():
     summary = system_info.get_system_summary()
-    for key in ("windows_version", "python_version", "python_path", "architecture", "admin"):
+    for key in (
+        "windows_version",
+        "python_version",
+        "python_path",
+        "architecture",
+        "admin",
+    ):
         assert key in summary

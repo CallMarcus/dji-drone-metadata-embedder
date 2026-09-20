@@ -58,16 +58,13 @@ class Ed318Feed:
 
 
 _CAVEAT = (
-    "UAS geographical-zone data is informational and is not an "
-    "authorization to fly."
+    "UAS geographical-zone data is informational and is not an authorization to fly."
 )
 
 ED318_FEEDS: dict[str, Ed318Feed] = {
     "IE": Ed318Feed(
         code="IE",
-        page_url=(
-            "https://www.iaa.ie/general-aviation/drones/uas-geographic-zones"
-        ),
+        page_url=("https://www.iaa.ie/general-aviation/drones/uas-geographic-zones"),
         feed_name="Ireland UAS geographical zones (ED-318, IAA)",
         license=(
             "© Irish Aviation Authority (iaa.ie), official published "
@@ -76,10 +73,7 @@ ED318_FEEDS: dict[str, Ed318Feed] = {
         caveat=_CAVEAT,
         # The IAA page's own wording, preserved verbatim in spirit: the
         # published file is a reference product, not a navigation source.
-        note=(
-            "IAA publication note: reference only — not to be used for "
-            "navigation."
-        ),
+        note=("IAA publication note: reference only — not to be used for navigation."),
     ),
     "SE": Ed318Feed(
         code="SE",
@@ -126,9 +120,7 @@ def _limit(layer: dict, side: str, unit: str, where: str) -> VerticalLimit | Non
         return None  # "not stated" — never 0
     ref = layer.get(f"{side}Reference")
     if ref not in ("AGL", "AMSL"):
-        raise AirspaceError(
-            f"{where}: {side}Reference is {ref!r}, expected AGL/AMSL"
-        )
+        raise AirspaceError(f"{where}: {side}Reference is {ref!r}, expected AGL/AMSL")
     if not isinstance(value, (int, float)):
         raise AirspaceError(f"{where}: {side} limit {value!r} is not a number")
     return VerticalLimit(float(value), unit, ref)
@@ -195,9 +187,7 @@ def _rings(
     return polygons, holes
 
 
-def _point_circle(
-    geometry: dict, ident: str, where: str
-) -> list[tuple[float, float]]:
+def _point_circle(geometry: dict, ident: str, where: str) -> list[tuple[float, float]]:
     """A Point zone's densified ring from its ED-318 Circle extent.
 
     The profile publishes point zones as centre + ``extent`` of
@@ -298,7 +288,8 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
                 applicability.append(
                     Applicability(
                         start=iso_utc(start, f"{where}: startDateTime")
-                        if start else None,
+                        if start
+                        else None,
                         end=iso_utc(end, f"{where}: endDateTime") if end else None,
                         permanent=False,
                     )

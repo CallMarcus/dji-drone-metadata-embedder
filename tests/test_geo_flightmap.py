@@ -68,8 +68,11 @@ def test_scan_flights_recursive_labels_include_subdir(tmp_path):
 
 
 def test_scan_flights_fuzz_coarsens_coordinates(tmp_path):
-    _write(tmp_path, "DJI_0001.SRT", _bracket_srt((10.123456, 20.654321, 5.0),
-                                                  (10.123999, 20.654999, 6.0)))
+    _write(
+        tmp_path,
+        "DJI_0001.SRT",
+        _bracket_srt((10.123456, 20.654321, 5.0), (10.123999, 20.654999, 6.0)),
+    )
     tracks, _ = scan_flights(tmp_path, redact="fuzz")
     p = tracks[0].points[0]
     assert (p.lat, p.lon) == (10.123, 20.654)
@@ -77,15 +80,29 @@ def test_scan_flights_fuzz_coarsens_coordinates(tmp_path):
 
 def _tracks() -> list[Track]:
     return [
-        Track(name="DJI_0001", points=[
-            TrackPoint(lat=10.0, lon=20.0, alt=5.0, timestamp="00:00:00,000",
-                       utc=datetime(2026, 6, 15, 12, 0, 0)),
-            TrackPoint(lat=10.001, lon=20.001, alt=6.5, timestamp="00:00:01,000",
-                       utc=datetime(2026, 6, 15, 12, 4, 3)),
-        ]),
-        Track(name="one_fix", points=[
-            TrackPoint(lat=12.0, lon=22.0, alt=9.0, timestamp="00:00:00,000")
-        ]),
+        Track(
+            name="DJI_0001",
+            points=[
+                TrackPoint(
+                    lat=10.0,
+                    lon=20.0,
+                    alt=5.0,
+                    timestamp="00:00:00,000",
+                    utc=datetime(2026, 6, 15, 12, 0, 0),
+                ),
+                TrackPoint(
+                    lat=10.001,
+                    lon=20.001,
+                    alt=6.5,
+                    timestamp="00:00:01,000",
+                    utc=datetime(2026, 6, 15, 12, 4, 3),
+                ),
+            ],
+        ),
+        Track(
+            name="one_fix",
+            points=[TrackPoint(lat=12.0, lon=22.0, alt=9.0, timestamp="00:00:00,000")],
+        ),
     ]
 
 
@@ -114,21 +131,32 @@ def test_flights_to_geojson_embeds_relative_times_from_utc():
 
 
 def test_times_fall_back_to_cue_seconds_without_utc():
-    track = Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:01,000"),
-        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:03,500"),
-    ])
+    track = Track(
+        name="f",
+        points=[
+            TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:01,000"),
+            TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:03,500"),
+        ],
+    )
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert props["times_s"] == [0.0, 2.5]
 
 
 def test_times_use_cues_when_any_utc_missing():
     # Mixed UTC availability must not mix two time bases inside one flight.
-    track = Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000",
-                   utc=datetime(2026, 6, 15, 12, 0, 0)),
-        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:02,000"),
-    ])
+    track = Track(
+        name="f",
+        points=[
+            TrackPoint(
+                lat=1.0,
+                lon=2.0,
+                alt=3.0,
+                timestamp="00:00:00,000",
+                utc=datetime(2026, 6, 15, 12, 0, 0),
+            ),
+            TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:02,000"),
+        ],
+    )
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert props["times_s"] == [0.0, 2.0]
 
@@ -142,15 +170,21 @@ def test_times_survive_a_segment_boundary_without_utc():
     # UTC — but flights_to_geojson is public API and video-built points
     # carry utc=None, so the contract must hold here.)
     def pt(cue: str, seg: int) -> TrackPoint:
-        return TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp=cue,
-                          segment=seg)
+        return TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp=cue, segment=seg)
 
-    track = Track(name="f", segments=["DJI_0001", "DJI_0002"], points=[
-        pt("00:00:00,000", 0), pt("00:00:01,000", 0),
-        pt("00:00:02,000", 0), pt("00:00:03,000", 0),
-        pt("00:00:00,000", 1), pt("00:00:01,000", 1),
-        pt("00:00:02,000", 1),
-    ])
+    track = Track(
+        name="f",
+        segments=["DJI_0001", "DJI_0002"],
+        points=[
+            pt("00:00:00,000", 0),
+            pt("00:00:01,000", 0),
+            pt("00:00:02,000", 0),
+            pt("00:00:03,000", 0),
+            pt("00:00:00,000", 1),
+            pt("00:00:01,000", 1),
+            pt("00:00:02,000", 1),
+        ],
+    )
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert props["times_s"] == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
 
@@ -159,13 +193,19 @@ def test_segment_boundary_advances_by_the_observed_cadence():
     # The gap between the files is unknowable without UTC; the honest filler
     # is the flight's own sample spacing, not a hardcoded second.
     def pt(cue: str, seg: int) -> TrackPoint:
-        return TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp=cue,
-                          segment=seg)
+        return TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp=cue, segment=seg)
 
-    track = Track(name="f", segments=["DJI_0001", "DJI_0002"], points=[
-        pt("00:00:00,000", 0), pt("00:00:00,500", 0), pt("00:00:01,000", 0),
-        pt("00:00:00,000", 1), pt("00:00:00,500", 1),
-    ])
+    track = Track(
+        name="f",
+        segments=["DJI_0001", "DJI_0002"],
+        points=[
+            pt("00:00:00,000", 0),
+            pt("00:00:00,500", 0),
+            pt("00:00:01,000", 0),
+            pt("00:00:00,000", 1),
+            pt("00:00:00,500", 1),
+        ],
+    )
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert props["times_s"] == [0.0, 0.5, 1.0, 1.5, 2.0]
 
@@ -173,11 +213,14 @@ def test_segment_boundary_advances_by_the_observed_cadence():
 def test_times_clamped_monotonic():
     # A cue that jumps backwards (corrupt SRT) must not run the animation
     # backwards; the offending sample pins to the previous time.
-    track = Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:05,000"),
-        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:04,000"),
-        TrackPoint(lat=1.002, lon=2.002, alt=5.0, timestamp="00:00:06,000"),
-    ])
+    track = Track(
+        name="f",
+        points=[
+            TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:05,000"),
+            TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:04,000"),
+            TrackPoint(lat=1.002, lon=2.002, alt=5.0, timestamp="00:00:06,000"),
+        ],
+    )
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert props["times_s"] == [0.0, 0.0, 1.0]
 
@@ -193,8 +236,12 @@ def test_flights_to_kml_one_placemark_per_flight():
 
 
 def test_flights_to_kml_escapes_names():
-    tracks = [Track(name="a<b&c", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")])]
+    tracks = [
+        Track(
+            name="a<b&c",
+            points=[TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")],
+        )
+    ]
     kml = flights_to_kml(tracks, title="t<&>")
     assert "a<b&c" not in kml
     assert "a&lt;b&amp;c" in kml
@@ -204,12 +251,17 @@ def test_flights_to_kml_escapes_names():
 def test_flight_properties_prefer_relative_height():
     # DJI's abs_alt reference is unreliable (can sit far below sea level), so
     # when the format carries rel_alt the popup fields use height-above-takeoff.
-    track = Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
-                   rel_alt=1.2),
-        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
-                   rel_alt=96.4),
-    ])
+    track = Track(
+        name="f",
+        points=[
+            TrackPoint(
+                lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000", rel_alt=1.2
+            ),
+            TrackPoint(
+                lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000", rel_alt=96.4
+            ),
+        ],
+    )
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert (props["height_min"], props["height_max"]) == (1.2, 96.4)
     # abs alt stays available for GeoJSON consumers
@@ -222,22 +274,30 @@ def test_flight_properties_without_rel_alt_have_no_height():
 
 
 def test_kml_relative_height_preferred_and_readable():
-    track = Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
-                   rel_alt=1.2),
-        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
-                   rel_alt=96.4),
-    ])
+    track = Track(
+        name="f",
+        points=[
+            TrackPoint(
+                lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000", rel_alt=1.2
+            ),
+            TrackPoint(
+                lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000", rel_alt=96.4
+            ),
+        ],
+    )
     kml = flights_to_kml([track], title="t")
     assert "height: 1.2 to 96.4 m above takeoff" in kml
 
 
 def test_kml_negative_altitude_range_readable():
     # Without rel_alt the abs range must not render as "-125.6--66.8 m".
-    track = Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000"),
-        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000"),
-    ])
+    track = Track(
+        name="f",
+        points=[
+            TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000"),
+            TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000"),
+        ],
+    )
     kml = flights_to_kml([track], title="t")
     assert "altitude: -125.6 to -66.8 m (as logged)" in kml
     assert "--" not in kml.split("<description>")[1].split("</description>")[0]
@@ -267,12 +327,15 @@ def _dt_srt(start: datetime, coords: list[tuple[float, float, float]]) -> str:
 
 T0 = datetime(2026, 6, 15, 12, 0, 0)
 # Segment A ends at T0+2s / (34.00002, -84); B resumes 1 s later ~1 m away.
-SEG_A = _dt_srt(T0, [(34.0, -84.0, 100.0), (34.00001, -84.0, 101.0),
-                     (34.00002, -84.0, 102.0)])
-SEG_B = _dt_srt(T0 + timedelta(seconds=3),
-                [(34.00003, -84.0, 103.0), (34.00004, -84.0, 104.0)])
-SEG_C = _dt_srt(T0 + timedelta(seconds=5),
-                [(34.00005, -84.0, 105.0), (34.00006, -84.0, 106.0)])
+SEG_A = _dt_srt(
+    T0, [(34.0, -84.0, 100.0), (34.00001, -84.0, 101.0), (34.00002, -84.0, 102.0)]
+)
+SEG_B = _dt_srt(
+    T0 + timedelta(seconds=3), [(34.00003, -84.0, 103.0), (34.00004, -84.0, 104.0)]
+)
+SEG_C = _dt_srt(
+    T0 + timedelta(seconds=5), [(34.00005, -84.0, 105.0), (34.00006, -84.0, 106.0)]
+)
 
 
 def test_join_chains_size_split_segments(tmp_path):
@@ -308,8 +371,9 @@ def test_join_skips_nonconsecutive_file_numbers(tmp_path):
 
 
 def test_no_join_when_time_gap_exceeds_threshold(tmp_path):
-    late = _dt_srt(T0 + timedelta(minutes=10), [(34.00003, -84.0, 103.0),
-                                                (34.00004, -84.0, 104.0)])
+    late = _dt_srt(
+        T0 + timedelta(minutes=10), [(34.00003, -84.0, 103.0), (34.00004, -84.0, 104.0)]
+    )
     _write(tmp_path, "DJI_0001.SRT", SEG_A)
     _write(tmp_path, "DJI_0002.SRT", late)
     tracks, _ = scan_flights(tmp_path)
@@ -318,8 +382,9 @@ def test_no_join_when_time_gap_exceeds_threshold(tmp_path):
 
 
 def test_no_join_when_position_jumps(tmp_path):
-    far = _dt_srt(T0 + timedelta(seconds=3), [(34.1, -84.0, 103.0),
-                                              (34.10001, -84.0, 104.0)])  # ~11 km
+    far = _dt_srt(
+        T0 + timedelta(seconds=3), [(34.1, -84.0, 103.0), (34.10001, -84.0, 104.0)]
+    )  # ~11 km
     _write(tmp_path, "DJI_0001.SRT", SEG_A)
     _write(tmp_path, "DJI_0002.SRT", far)
     tracks, _ = scan_flights(tmp_path)
@@ -359,9 +424,14 @@ def test_no_join_across_srt_and_video_clock_conventions(tmp_path, monkeypatch):
     _write(tmp_path, "DJI_0001.SRT", SEG_A)
     (tmp_path / "P2690514.MP4").write_bytes(b"")
     video_sample = TelemetrySample(
-        lat=34.00003, lon=-84.0, alt=103.0, cue="00:00:00,000",
+        lat=34.00003,
+        lon=-84.0,
+        alt=103.0,
+        cue="00:00:00,000",
         dt=T0 + timedelta(seconds=4),
-        rel_alt=40.0, gimbal_yaw=40.0, gimbal_pitch=-88.0,
+        rel_alt=40.0,
+        gimbal_yaw=40.0,
+        gimbal_pitch=-88.0,
     )
     tracks, skipped = scan_flights(
         tmp_path,
@@ -423,19 +493,22 @@ def test_scan_flights_decimates_to_one_point_per_second(tmp_path):
     tracks, _ = scan_flights(tmp_path)
     pts = tracks[0].points
     assert len(pts) <= 7
-    assert pts[0].lat == 34.0                       # first fix kept verbatim
-    assert pts[-1].lat == 34.0 + 149 * 1e-6         # last fix kept verbatim
+    assert pts[0].lat == 34.0  # first fix kept verbatim
+    assert pts[-1].lat == 34.0 + 149 * 1e-6  # last fix kept verbatim
 
 
 def test_decimation_does_not_break_split_joining(tmp_path):
     # Continuity is checked on raw boundary points before decimation.
     _write(tmp_path, "DJI_0001.SRT", _hz30_srt(T0, 2.0))
-    _write(tmp_path, "DJI_0002.SRT",
-           _hz30_srt(T0 + timedelta(seconds=2), 2.0, lat0=34.0 + 60 * 1e-6))
+    _write(
+        tmp_path,
+        "DJI_0002.SRT",
+        _hz30_srt(T0 + timedelta(seconds=2), 2.0, lat0=34.0 + 60 * 1e-6),
+    )
     tracks, _ = scan_flights(tmp_path)
     assert len(tracks) == 1
     assert tracks[0].segments == ["DJI_0001", "DJI_0002"]
-    assert len(tracks[0].points) <= 8               # ~4 s at 1 Hz + endpoints
+    assert len(tracks[0].points) <= 8  # ~4 s at 1 Hz + endpoints
 
 
 # mtime far outside any recording window (2000-01-01 UTC) so timezone
@@ -455,15 +528,18 @@ def test_scan_flights_aggregates_tz_detection_warnings(tmp_path, caplog):
     # Three distinct flights (hours apart, so never joined), all with mtimes
     # a zip transfer rewrote: one summary warning, not one per file.
     for i in range(3):
-        srt = _dt_srt(T0 + timedelta(hours=2 * i),
-                      [(10.0 + i, 20.0, 5.0), (10.001 + i, 20.0, 6.0)])
+        srt = _dt_srt(
+            T0 + timedelta(hours=2 * i),
+            [(10.0 + i, 20.0, 5.0), (10.001 + i, 20.0, 6.0)],
+        )
         path = _write(tmp_path, f"DJI_000{i + 1}.SRT", srt)
         os.utime(path, (_BOGUS_MTIME, _BOGUS_MTIME))
     with caplog.at_level(logging.WARNING):
         tracks, _ = scan_flights(tmp_path)
     assert len(tracks) == 3
     tz_warnings = [
-        r.message for r in caplog.records
+        r.message
+        for r in caplog.records
         if "Timezone auto-detection failed" in r.message
     ]
     assert len(tz_warnings) == 1
@@ -495,13 +571,22 @@ def _ghost_track(**overrides):
     from dji_metadata_embedder.geo.track import Track, TrackPoint
 
     t0 = datetime(2026, 6, 15, 12, 0, 0)
-    defaults = {"gimbal_yaw": None, "gimbal_pitch": None, "rel_alt": None,
-                    "focal_len": None}
+    defaults = {
+        "gimbal_yaw": None,
+        "gimbal_pitch": None,
+        "rel_alt": None,
+        "focal_len": None,
+    }
     defaults.update(overrides)
     pts = [
-        TrackPoint(lat=10.0, lon=20.0 + i * 0.001, alt=100.0 + i,
-                   timestamp=f"00:00:{i:02d},000",
-                   utc=t0 + timedelta(seconds=float(i)), **defaults)
+        TrackPoint(
+            lat=10.0,
+            lon=20.0 + i * 0.001,
+            alt=100.0 + i,
+            timestamp=f"00:00:{i:02d},000",
+            utc=t0 + timedelta(seconds=float(i)),
+            **defaults,
+        )
         for i in range(3)
     ]
     return Track(name="GHOST", points=pts)
@@ -514,12 +599,26 @@ def test_geojson_pose_arrays_rounded_and_aligned():
     from dji_metadata_embedder.geo.track import Track, TrackPoint
 
     pts = [
-        TrackPoint(lat=10.0, lon=20.0, alt=100.0, timestamp="00:00:00,000",
-                   utc=datetime(2026, 6, 15, 12, 0, 0),
-                   gimbal_yaw=90.0, gimbal_pitch=-60.0, rel_alt=50.0),
-        TrackPoint(lat=10.0, lon=20.001, alt=101.0, timestamp="00:00:01,000",
-                   utc=datetime(2026, 6, 15, 12, 0, 1),
-                   gimbal_yaw=91.56, gimbal_pitch=None, rel_alt=51.234),
+        TrackPoint(
+            lat=10.0,
+            lon=20.0,
+            alt=100.0,
+            timestamp="00:00:00,000",
+            utc=datetime(2026, 6, 15, 12, 0, 0),
+            gimbal_yaw=90.0,
+            gimbal_pitch=-60.0,
+            rel_alt=50.0,
+        ),
+        TrackPoint(
+            lat=10.0,
+            lon=20.001,
+            alt=101.0,
+            timestamp="00:00:01,000",
+            utc=datetime(2026, 6, 15, 12, 0, 1),
+            gimbal_yaw=91.56,
+            gimbal_pitch=None,
+            rel_alt=51.234,
+        ),
     ]
     fc = flights_to_geojson([Track(name="GHOST", points=pts)])
     props = fc["features"][0]["properties"]
@@ -572,10 +671,7 @@ def test_geojson_hfov_from_median_focal():
 
 def test_geojson_redacted_property():
     assert flights_to_geojson([_ghost_track()])["redacted"] == "none"
-    assert (
-        flights_to_geojson([_ghost_track()], redact="fuzz")["redacted"]
-        == "fuzz"
-    )
+    assert flights_to_geojson([_ghost_track()], redact="fuzz")["redacted"] == "fuzz"
 
 
 def test_write_flights_geojson_threads_redact(tmp_path):
@@ -665,7 +761,7 @@ def test_geojson_cue_s_is_the_in_file_offset():
     assert props["media"] == ["DJI_0001.MP4"]
     assert len(props["cue_s"]) == len(track.points)
     assert props["cue_s"][0] == 0.0
-    assert "seg_i" not in props          # single segment: omitted
+    assert "seg_i" not in props  # single segment: omitted
 
 
 def test_cue_seconds_refuses_an_unparseable_cue():
@@ -696,7 +792,7 @@ def test_geojson_seg_i_emitted_only_when_split():
 
     track = _ghost_track()
     track.media = ["a.MP4", "b.MP4"]
-    for p in track.points[len(track.points) // 2:]:
+    for p in track.points[len(track.points) // 2 :]:
         p.segment = 1
     props = flights_to_geojson([track])["features"][0]["properties"]
     assert set(props["seg_i"]) == {0, 1}
@@ -743,8 +839,13 @@ def _djmd_sample(cue: str, yaw: float, pitch: float):
     from dji_metadata_embedder.utilities import TelemetrySample
 
     return TelemetrySample(
-        lat=10.0, lon=20.0, alt=5.0, cue=cue, dt=None,
-        gimbal_yaw=yaw, gimbal_pitch=pitch,
+        lat=10.0,
+        lon=20.0,
+        alt=5.0,
+        cue=cue,
+        dt=None,
+        gimbal_yaw=yaw,
+        gimbal_pitch=pitch,
     )
 
 
@@ -752,7 +853,9 @@ def test_scan_flights_gimbal_from_video_fills_points_and_reports(tmp_path, monke
     monkeypatch.setattr(
         "dji_metadata_embedder.geo.videogimbal.exiftool_available", lambda: True
     )
-    _write(tmp_path, "DJI_0001.SRT", _bracket_srt((10.0, 20.0, 5.0), (10.001, 20.001, 6.0)))
+    _write(
+        tmp_path, "DJI_0001.SRT", _bracket_srt((10.0, 20.0, 5.0), (10.001, 20.001, 6.0))
+    )
     (tmp_path / "DJI_0001.MP4").write_bytes(b"")
     reports = []
     fake = lambda p: [  # noqa: E731
@@ -764,11 +867,14 @@ def test_scan_flights_gimbal_from_video_fills_points_and_reports(tmp_path, monke
     )
     assert skipped == []
     assert [(p.gimbal_yaw, p.gimbal_pitch) for p in tracks[0].points] == [
-        (90.0, -30.0), (91.0, -31.0)
+        (90.0, -30.0),
+        (91.0, -31.0),
     ]
     assert len(reports) == 1
     assert (reports[0].name, reports[0].video, reports[0].matched) == (
-        "DJI_0001", "DJI_0001.MP4", 2
+        "DJI_0001",
+        "DJI_0001.MP4",
+        2,
     )
 
 
@@ -788,8 +894,14 @@ def test_scan_flights_without_the_flag_never_touches_videos(tmp_path):
 def _video_sample(cue, dt):
     """A sidecar-less video sample: UTC dt, altitude, AGL and camera pose."""
     return TelemetrySample(
-        lat=48.0, lon=-122.0, alt=70.0, cue=cue, dt=dt,
-        rel_alt=40.0, gimbal_yaw=40.0, gimbal_pitch=-88.0,
+        lat=48.0,
+        lon=-122.0,
+        alt=70.0,
+        cue=cue,
+        dt=dt,
+        rel_alt=40.0,
+        gimbal_yaw=40.0,
+        gimbal_pitch=-88.0,
     )
 
 
@@ -815,7 +927,9 @@ def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(
     assert skipped == []
 
 
-def test_scan_flights_tz_offset_sets_local_offset_for_a_video_track(tmp_path, monkeypatch):
+def test_scan_flights_tz_offset_sets_local_offset_for_a_video_track(
+    tmp_path, monkeypatch
+):
     # --tz-offset cannot shift an already-UTC video sample, but it should
     # still land on the track so the flight record can print local times.
     monkeypatch.setattr(fm, "exiftool_available", lambda: True)
@@ -857,7 +971,9 @@ def test_scan_flights_does_not_probe_videos_that_have_an_srt(tmp_path, monkeypat
     assert [t.name for t in tracks] == ["DJI_0001"]
 
 
-def test_scan_flights_reports_unread_videos_when_exiftool_is_missing(tmp_path, monkeypatch):
+def test_scan_flights_reports_unread_videos_when_exiftool_is_missing(
+    tmp_path, monkeypatch
+):
     monkeypatch.setattr(fm, "exiftool_available", lambda: False)
     _write(tmp_path, "DJI_0001.SRT", FLIGHT_A)
     (tmp_path / "P2690514.MP4").write_bytes(b"")
@@ -882,7 +998,9 @@ def test_scan_flights_counts_videos_in_the_progress_total(tmp_path, monkeypatch)
     scan_flights(
         tmp_path,
         probe_video=lambda p: "parrot:videometadata3",
-        extract=lambda p: [_video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56))],
+        extract=lambda p: [
+            _video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56))
+        ],
         on_file=lambda i, n, name: seen.append((i, n, name)),
     )
     assert seen == [(1, 2, "DJI_0001"), (2, 2, "P2690514")]
@@ -920,6 +1038,8 @@ def test_scan_flights_recursive_labels_videos_with_their_subdir(tmp_path, monkey
         tmp_path,
         recursive=True,
         probe_video=lambda p: "parrot:videometadata3",
-        extract=lambda p: [_video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56))],
+        extract=lambda p: [
+            _video_sample("00:00:00,000", datetime(2025, 9, 22, 21, 27, 56))
+        ],
     )
     assert [t.name for t in tracks] == ["day1/P2690514"]

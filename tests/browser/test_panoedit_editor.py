@@ -1,6 +1,7 @@
 """End-to-end editor test: a real panoedit server, real exiftool writes,
 headless Chromium driving the page. Waits are on renderedness
 (window.__panoReady), never on element existence."""
+
 from __future__ import annotations
 
 import shutil
@@ -19,7 +20,8 @@ from dji_metadata_embedder.geo.panoedit_html import build_editor_page
 from .conftest import _ASSET_RE, _fetch_asset
 
 needs_exiftool = pytest.mark.skipif(
-    shutil.which("exiftool") is None, reason="ExifTool not installed")
+    shutil.which("exiftool") is None, reason="ExifTool not installed"
+)
 
 
 def _make_pano(path, pose: float, size=(256, 128), crop_tags=False) -> None:
@@ -29,19 +31,25 @@ def _make_pano(path, pose: float, size=(256, 128), crop_tags=False) -> None:
         for y in range(h // 2):
             im.putpixel((x, y), (200, 60, 30))
     im.save(path, "JPEG")
-    tags = ["-XMP-GPano:ProjectionType=equirectangular",
-            f"-XMP-GPano:PoseHeadingDegrees={pose}"]
+    tags = [
+        "-XMP-GPano:ProjectionType=equirectangular",
+        f"-XMP-GPano:PoseHeadingDegrees={pose}",
+    ]
     if crop_tags:
         # The full set Pannellum needs before it will read any of it —
         # including the pose that becomes the viewer's north offset.
-        tags += [f"-XMP-GPano:FullPanoWidthPixels={w}",
-                 f"-XMP-GPano:CroppedAreaImageWidthPixels={w}",
-                 f"-XMP-GPano:FullPanoHeightPixels={h}",
-                 f"-XMP-GPano:CroppedAreaImageHeightPixels={h}",
-                 "-XMP-GPano:CroppedAreaTopPixels=0"]
+        tags += [
+            f"-XMP-GPano:FullPanoWidthPixels={w}",
+            f"-XMP-GPano:CroppedAreaImageWidthPixels={w}",
+            f"-XMP-GPano:FullPanoHeightPixels={h}",
+            f"-XMP-GPano:CroppedAreaImageHeightPixels={h}",
+            "-XMP-GPano:CroppedAreaTopPixels=0",
+        ]
     subprocess.run(
         ["exiftool", "-overwrite_original", *tags, str(path)],
-        check=True, capture_output=True)
+        check=True,
+        capture_output=True,
+    )
 
 
 def _serve(tmp_path, page, **kwargs):
@@ -49,16 +57,16 @@ def _serve(tmp_path, page, **kwargs):
     httpd, url = pe.make_editor_server(tmp_path, **kwargs)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
 
-    assets = {u: _fetch_asset(u, sri)
-              for u, sri in _ASSET_RE.findall(build_editor_page("x"))}
+    assets = {
+        u: _fetch_asset(u, sri) for u, sri in _ASSET_RE.findall(build_editor_page("x"))
+    }
 
     def route(r):
         u = r.request.url
         if u.startswith("http://127.0.0.1"):
             return r.continue_()
         if u in assets:
-            ctype = ("text/css" if u.endswith(".css")
-                     else "application/javascript")
+            ctype = "text/css" if u.endswith(".css") else "application/javascript"
             return r.fulfill(path=str(assets[u]), content_type=ctype)
         return r.abort()
 
@@ -93,8 +101,8 @@ def test_edit_save_advance_and_reopen(editor, page):
     page.mouse.move(cx - 200, cy, steps=10)
     page.mouse.up()
     page.wait_for_function(
-        "!document.querySelector('#readout').innerText.includes"
-        "('Heading 90.0')")
+        "!document.querySelector('#readout').innerText.includes('Heading 90.0')"
+    )
     heading_line = page.inner_text("#readout")
 
     with page.expect_response("**/api/save") as resp_info:
@@ -103,16 +111,24 @@ def test_edit_save_advance_and_reopen(editor, page):
 
     # Auto-advance to b.jpg, and the tags landed on disk for a.jpg.
     page.wait_for_function(
-        "document.querySelector('#readout').innerText.includes('b.jpg')")
+        "document.querySelector('#readout').innerText.includes('b.jpg')"
+    )
     out = subprocess.run(
-        ["exiftool", "-json", "-n",
-         "-XMP-GPano:InitialViewHeadingDegrees",
-         "-XMP-GPano:InitialHorizontalFOVDegrees",
-         str(folder / "a.jpg")],
-        check=True, capture_output=True, text=True).stdout
+        [
+            "exiftool",
+            "-json",
+            "-n",
+            "-XMP-GPano:InitialViewHeadingDegrees",
+            "-XMP-GPano:InitialHorizontalFOVDegrees",
+            str(folder / "a.jpg"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
     assert "InitialViewHeadingDegrees" in out
     assert "InitialHorizontalFOVDegrees" in out
-    assert (folder / "a.jpg_original").exists()   # backup kept
+    assert (folder / "a.jpg_original").exists()  # backup kept
 
     # Reload: a.jpg reopens at the saved heading (round-trip through
     # _pano_view on the server side). Compare as floats: the value
@@ -120,8 +136,7 @@ def test_edit_save_advance_and_reopen(editor, page):
     page.goto(url)
     page.wait_for_function("window.__panoReady === true")
     saved = float(heading_line.split("Heading ")[1].split("°")[0])
-    shown = float(
-        page.inner_text("#readout").split("Heading ")[1].split("°")[0])
+    shown = float(page.inner_text("#readout").split("Heading ")[1].split("°")[0])
     assert shown == pytest.approx(saved, abs=0.2)
 
 
@@ -132,8 +147,7 @@ def test_oversized_panorama_is_served_downscaled(tmp_path, page, monkeypatch):
     # the panorama's angular extent and its north offset, so if the
     # re-encode dropped it, the saved view would be wrong.
     monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
-    _make_pano(tmp_path / "wide.jpg", pose=90.0, size=(1200, 600),
-               crop_tags=True)
+    _make_pano(tmp_path / "wide.jpg", pose=90.0, size=(1200, 600), crop_tags=True)
     original = (tmp_path / "wide.jpg").read_bytes()
     httpd, url = _serve(tmp_path, page, max_width=600)
     try:
@@ -146,7 +160,8 @@ def test_oversized_panorama_is_served_downscaled(tmp_path, page, monkeypatch):
                  im.onload = () => res([im.naturalWidth, im.naturalHeight]);
                  im.onerror = rej;
                  im.src = "/img/0";
-               })""")
+               })"""
+        )
         assert served == [600, 300]
         # Pose 90 survived the re-encode as Pannellum's north offset.
         assert page.evaluate("window.__viewer.getNorthOffset()") == 90
@@ -166,11 +181,18 @@ def test_reset_and_compare_against_the_saved_view(tmp_path, page, monkeypatch):
     pano = tmp_path / "saved.jpg"
     _make_pano(pano, pose=0.0)
     subprocess.run(
-        ["exiftool", "-overwrite_original", "-n",
-         "-XMP-GPano:InitialViewHeadingDegrees=40",
-         "-XMP-GPano:InitialViewPitchDegrees=0",
-         "-XMP-GPano:InitialHorizontalFOVDegrees=90", str(pano)],
-        check=True, capture_output=True)
+        [
+            "exiftool",
+            "-overwrite_original",
+            "-n",
+            "-XMP-GPano:InitialViewHeadingDegrees=40",
+            "-XMP-GPano:InitialViewPitchDegrees=0",
+            "-XMP-GPano:InitialHorizontalFOVDegrees=90",
+            str(pano),
+        ],
+        check=True,
+        capture_output=True,
+    )
     before = pano.read_bytes()
     httpd, url = _serve(tmp_path, page)
     try:
@@ -188,31 +210,26 @@ def test_reset_and_compare_against_the_saved_view(tmp_path, page, monkeypatch):
             page.mouse.up()
 
         drag(-160)
-        page.wait_for_function(
-            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) > 5")
+        page.wait_for_function(f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) > 5")
         composed = page.evaluate("window.__viewer.getYaw()")
 
         # Compare: the saved view comes back, and saving is refused while
         # it is on screen (that write would change nothing).
         page.keyboard.press("c")
-        page.wait_for_function(
-            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) < 1")
+        page.wait_for_function(f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) < 1")
         assert page.locator("#save").is_disabled()
         assert "saved view" in page.inner_text("#readout")
 
         # ...and back to the composed view, with saving live again.
         page.keyboard.press("c")
-        page.wait_for_function(
-            f"Math.abs(window.__viewer.getYaw() - {composed}) < 1")
+        page.wait_for_function(f"Math.abs(window.__viewer.getYaw() - {composed}) < 1")
         assert page.locator("#save").is_enabled()
 
         # Reset: back to the opening view, still with nothing written.
         drag(-160)
-        page.wait_for_function(
-            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) > 5")
+        page.wait_for_function(f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) > 5")
         page.keyboard.press("Escape")
-        page.wait_for_function(
-            f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) < 1")
+        page.wait_for_function(f"Math.abs(window.__viewer.getYaw() - {saved_yaw}) < 1")
     finally:
         httpd.shutdown()
     assert pano.read_bytes() == before
@@ -230,8 +247,7 @@ def test_compare_is_off_for_files_with_no_saved_view(editor, page):
 
 
 @needs_exiftool
-def test_navigation_is_blocked_while_a_save_is_in_flight(
-        tmp_path, page, monkeypatch):
+def test_navigation_is_blocked_while_a_save_is_in_flight(tmp_path, page, monkeypatch):
     # Review finding: `save()` used the post-await `idx`, and N was live
     # during the save, so a save that landed after navigating wrote its
     # answer onto a different file's entry — leaving the second panorama
@@ -252,16 +268,18 @@ def test_navigation_is_blocked_while_a_save_is_in_flight(
         page.wait_for_function("window.__panoReady === true")
         page.click("#save")
         page.wait_for_function(
-            "document.querySelector('#status').innerText.includes('Saving')")
-        page.keyboard.press("n")            # ignored: the save owns a.jpg
+            "document.querySelector('#status').innerText.includes('Saving')"
+        )
+        page.keyboard.press("n")  # ignored: the save owns a.jpg
         assert "a.jpg" in page.inner_text("#readout")
         release.set()
         # The save advances to b.jpg itself, and b.jpg is still b.jpg.
         page.wait_for_function(
-            "document.querySelector('#readout').innerText.includes('b.jpg')")
+            "document.querySelector('#readout').innerText.includes('b.jpg')"
+        )
         names = page.evaluate(
-            "Array.from(document.querySelectorAll('.chip'))"
-            ".map(c => c.textContent)")
+            "Array.from(document.querySelectorAll('.chip')).map(c => c.textContent)"
+        )
         assert names == ["a.jpg", "b.jpg"]
     finally:
         release.set()
@@ -270,7 +288,8 @@ def test_navigation_is_blocked_while_a_save_is_in_flight(
 
 @needs_exiftool
 def test_zooming_while_comparing_returns_control_to_the_user(
-        tmp_path, page, monkeypatch):
+    tmp_path, page, monkeypatch
+):
     # Review finding: only mousedown/touchstart retired the comparison, so
     # a wheel zoom left Save disabled on a view the user had visibly
     # changed, with only a small line of text to explain it.
@@ -278,11 +297,18 @@ def test_zooming_while_comparing_returns_control_to_the_user(
     pano = tmp_path / "saved.jpg"
     _make_pano(pano, pose=0.0)
     subprocess.run(
-        ["exiftool", "-overwrite_original", "-n",
-         "-XMP-GPano:InitialViewHeadingDegrees=40",
-         "-XMP-GPano:InitialViewPitchDegrees=0",
-         "-XMP-GPano:InitialHorizontalFOVDegrees=90", str(pano)],
-        check=True, capture_output=True)
+        [
+            "exiftool",
+            "-overwrite_original",
+            "-n",
+            "-XMP-GPano:InitialViewHeadingDegrees=40",
+            "-XMP-GPano:InitialViewPitchDegrees=0",
+            "-XMP-GPano:InitialHorizontalFOVDegrees=90",
+            str(pano),
+        ],
+        check=True,
+        capture_output=True,
+    )
     httpd, url = _serve(tmp_path, page)
     try:
         page.goto(url)
@@ -290,11 +316,9 @@ def test_zooming_while_comparing_returns_control_to_the_user(
         page.keyboard.press("c")
         page.wait_for_function("document.querySelector('#save').disabled")
         box = page.locator("#viewer").bounding_box()
-        page.mouse.move(box["x"] + box["width"] / 2,
-                        box["y"] + box["height"] / 2)
-        page.mouse.wheel(0, -300)           # zoom: no mousedown anywhere
-        page.wait_for_function(
-            "!document.querySelector('#save').disabled")
+        page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        page.mouse.wheel(0, -300)  # zoom: no mousedown anywhere
+        page.wait_for_function("!document.querySelector('#save').disabled")
         assert "saved view" not in page.inner_text("#readout")
     finally:
         httpd.shutdown()
@@ -315,15 +339,16 @@ def test_save_timeout_frees_the_button(tmp_path, page, monkeypatch):
     monkeypatch.setattr(pe, "write_initial_view", stalls)
     httpd, url = _serve(tmp_path, page)
     # Same page, with the backstop pulled in so the test is seconds long.
-    httpd.pano_page = build_editor_page(
-        httpd.pano_token, save_timeout_ms=800).encode("utf-8")
+    httpd.pano_page = build_editor_page(httpd.pano_token, save_timeout_ms=800).encode(
+        "utf-8"
+    )
     try:
         page.goto(url)
         page.wait_for_function("window.__panoReady === true")
         page.click("#save")
         page.wait_for_function(
-            "document.querySelector('#status').innerText"
-            ".includes('Save timed out')")
+            "document.querySelector('#status').innerText.includes('Save timed out')"
+        )
         assert page.locator("#save").is_enabled()
     finally:
         httpd.shutdown()
@@ -342,14 +367,23 @@ def test_no_backup_save_leaves_no_original_copy(tmp_path, page, monkeypatch):
         assert "no backup" in page.inner_text("#note")
         page.keyboard.press("Enter")
         page.wait_for_function(
-            "document.getElementById('status').textContent.includes('Saved')")
+            "document.getElementById('status').textContent.includes('Saved')"
+        )
     finally:
         httpd.shutdown()
     assert not (tmp_path / "a.jpg_original").exists()
     out = subprocess.run(
-        ["exiftool", "-n", "-XMP-GPano:InitialViewHeadingDegrees",
-         str(tmp_path / "a.jpg")], capture_output=True, text=True, check=True)
-    assert "Initial View Heading" in out.stdout   # the write still landed
+        [
+            "exiftool",
+            "-n",
+            "-XMP-GPano:InitialViewHeadingDegrees",
+            str(tmp_path / "a.jpg"),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "Initial View Heading" in out.stdout  # the write still landed
 
 
 @needs_exiftool
@@ -363,14 +397,13 @@ def test_wheel_zoom_moves_half_a_pannellum_step(editor, page):
     page.wait_for_function("window.__panoReady === true")
     before = page.evaluate("window.__viewer.getHfov()")
     box = page.locator("#viewer").bounding_box()
-    page.mouse.move(box["x"] + box["width"] / 2,
-                    box["y"] + box["height"] / 2)
-    page.mouse.wheel(0, 120)            # one notch out
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    page.mouse.wheel(0, 120)  # one notch out
     page.wait_for_function(
-        f"Math.abs(window.__viewer.getHfov() - {before + 2.5}) < 0.01")
-    page.mouse.wheel(0, -120)           # one notch back in
-    page.wait_for_function(
-        f"Math.abs(window.__viewer.getHfov() - {before}) < 0.01")
+        f"Math.abs(window.__viewer.getHfov() - {before + 2.5}) < 0.01"
+    )
+    page.mouse.wheel(0, -120)  # one notch back in
+    page.wait_for_function(f"Math.abs(window.__viewer.getHfov() - {before}) < 0.01")
 
 
 @needs_exiftool
@@ -389,11 +422,11 @@ def test_strip_arrows_page_through_many_panoramas(tmp_path, page, monkeypatch):
         assert page.locator(".chip").count() == 40
         start = strip.evaluate("el => el.scrollLeft")
         page.locator("#stripfwd").click()
-        page.wait_for_function(
-            f"document.getElementById('strip').scrollLeft > {start}")
+        page.wait_for_function(f"document.getElementById('strip').scrollLeft > {start}")
         page.locator("#stripback").click()
         page.wait_for_function(
-            f"document.getElementById('strip').scrollLeft <= {start}")
+            f"document.getElementById('strip').scrollLeft <= {start}"
+        )
         # Jumping to the last file drags its chip into the viewport.
         page.evaluate("navigate(39)")
         page.wait_for_function("window.__panoReady === true")
@@ -402,6 +435,7 @@ def test_strip_arrows_page_through_many_panoramas(tmp_path, page, monkeypatch):
             " const c = document.querySelector('.chip.active');"
             " const sr = s.getBoundingClientRect();"
             " const cr = c.getBoundingClientRect();"
-            " return cr.left >= sr.left && cr.right <= sr.right; }")
+            " return cr.left >= sr.left && cr.right <= sr.right; }"
+        )
     finally:
         httpd.shutdown()

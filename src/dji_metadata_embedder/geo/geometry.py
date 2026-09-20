@@ -43,25 +43,25 @@ def frustum_ground_ring(
     tan_h = math.tan(math.radians(hfov_deg) / 2)
     tan_v = math.tan(math.radians(vfov_deg) / 2)
     fwd_n, fwd_z = math.cos(th), math.sin(th)  # optical axis, pre-yaw
-    up_n, up_z = -math.sin(th), math.cos(th)   # camera-up, pre-yaw
+    up_n, up_z = -math.sin(th), math.cos(th)  # camera-up, pre-yaw
     psi = math.radians(heading_deg)
     cos_p, sin_p = math.cos(psi), math.sin(psi)
     m_per_deg_lon = M_PER_DEG_LAT * max(math.cos(math.radians(lat)), 1e-6)
 
     ring: list[tuple[float, float]] = []
     for sh, sv in ((-1, 1), (1, 1), (1, -1), (-1, -1)):
-        de = sh * tan_h                        # east component, pre-yaw
+        de = sh * tan_h  # east component, pre-yaw
         dn = fwd_n + sv * tan_v * up_n
         dz = fwd_z + sv * tan_v * up_z
         horiz = math.hypot(de, dn)
         if dz < 0:
             dist = min(agl / -dz * horiz, max_range_m)
         else:
-            dist = max_range_m                 # ray at/above the horizon
+            dist = max_range_m  # ray at/above the horizon
         if horiz > 1e-12:
             east0, north0 = de / horiz * dist, dn / horiz * dist
         else:
-            east0, north0 = 0.0, 0.0           # ray straight down
+            east0, north0 = 0.0, 0.0  # ray straight down
         east = east0 * cos_p + north0 * sin_p
         north = -east0 * sin_p + north0 * cos_p
         ring.append((lon + east / m_per_deg_lon, lat + north / M_PER_DEG_LAT))

@@ -104,7 +104,10 @@ def _read_cache(body_path: Path) -> tuple[bytes, str, str | None] | None:
 
 
 def _write_cache(
-    body_path: Path, body: bytes, url: str, fetched: str,
+    body_path: Path,
+    body: bytes,
+    url: str,
+    fetched: str,
     effective: str | None,
 ) -> None:
     body_path.parent.mkdir(parents=True, exist_ok=True)
@@ -267,9 +270,9 @@ def fetch_zones(
             announce(f"Fetching {feed_name} from {host}...")
             if code == "US":
                 pages = fetch_faa_pages(_bbox(track), transport)
-                body = json.dumps(
-                    {"pages": [json.loads(p) for p in pages]}
-                ).encode("utf-8")
+                body = json.dumps({"pages": [json.loads(p) for p in pages]}).encode(
+                    "utf-8"
+                )
             elif code in ED269_FEEDS:
                 body = _fetch_url(url, transport)
             elif code in ED318_FEEDS:
@@ -283,9 +286,7 @@ def fetch_zones(
                 effective = ed318_effective(body)
             elif code in DRONEZONER_FEEDS:
                 page = _fetch_url(url, transport)
-                body = _fetch_url(
-                    discover_dronezoner_url(page, url), transport
-                )
+                body = _fetch_url(discover_dronezoner_url(page, url), transport)
             elif code in EANS_FEEDS:
                 body = _fetch_url(url, transport)
             elif code in CAA_SI_FEEDS:
@@ -308,17 +309,19 @@ def fetch_zones(
             from_cache = False
 
         source = SourceInfo(
-            feed=feed_name, url=url, fetched=fetched,
-            license=license_line, caveat=caveat, note=note,
+            feed=feed_name,
+            url=url,
+            fetched=fetched,
+            license=license_line,
+            caveat=caveat,
+            note=note,
             effective=effective,
         )
         zones = parse_body(body, source)
         if from_cache:
             # Only claim the cache was usable once it has actually
             # parsed — an announce made before this point could be a lie.
-            announce(
-                f"Using cached {feed_name} from {fetched} ({body_path})"
-            )
+            announce(f"Using cached {feed_name} from {fetched} ({body_path})")
         else:
             # Cache only what parsed (#518): a maintenance page served
             # with HTTP 200 must never become the body every later run
@@ -329,22 +332,21 @@ def fetch_zones(
         if stale is not None:
             body, fetched, effective = stale
             source = SourceInfo(
-                feed=feed_name, url=url, fetched=fetched,
-                license=license_line, caveat=caveat, note=note,
+                feed=feed_name,
+                url=url,
+                fetched=fetched,
+                license=license_line,
+                caveat=caveat,
+                note=note,
                 effective=effective,
             )
             try:
                 zones = parse_body(body, source)
             except AirspaceError as exc2:
-                return AirspaceData(
-                    gap_reason=f"airspace data unavailable: {exc2}"
-                )
+                return AirspaceData(gap_reason=f"airspace data unavailable: {exc2}")
             # Only claim the cache was usable once it has actually parsed —
             # an announce made before this point could be a lie.
-            announce(
-                f"Fetch failed ({exc}); using cached {feed_name} "
-                f"from {fetched}"
-            )
+            announce(f"Fetch failed ({exc}); using cached {feed_name} from {fetched}")
             return AirspaceData(zones=zones, source=source, from_cache=True)
         reason = f"airspace data unavailable: {exc}"
         if cached is not None:

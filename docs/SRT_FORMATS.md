@@ -208,13 +208,16 @@ To add support for a new DJI model's SRT format:
 
 ```python
 # New format: |LAT:59.302335|LON:18.203059|ALT:132.86|
-new_format_match = re.search(r'\|LAT:([+-]?\d+\.?\d*)\|LON:([+-]?\d+\.?\d*)\|ALT:([+-]?\d+\.?\d*)\|', telemetry_line)
+new_format_match = re.search(
+    r"\|LAT:([+-]?\d+\.?\d*)\|LON:([+-]?\d+\.?\d*)\|ALT:([+-]?\d+\.?\d*)\|",
+    telemetry_line,
+)
 if new_format_match:
     lat = float(new_format_match.group(1))
     lon = float(new_format_match.group(2))
     alt = float(new_format_match.group(3))
-    telemetry_data['gps_coords'].append((lat, lon))
-    telemetry_data['altitudes'].append(alt)
+    telemetry_data["gps_coords"].append((lat, lon))
+    telemetry_data["altitudes"].append(alt)
 ```
 
 ## Known Model-Format Mappings

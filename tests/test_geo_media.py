@@ -6,8 +6,10 @@ from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 
 def _track(name: str, segments: list[str] | None = None) -> Track:
-    t = Track(name=name, points=[
-        TrackPoint(lat=10.0, lon=20.0, alt=100.0, timestamp="00:00:00,000")])
+    t = Track(
+        name=name,
+        points=[TrackPoint(lat=10.0, lon=20.0, alt=100.0, timestamp="00:00:00,000")],
+    )
     t.segments = segments
     return t
 
@@ -70,5 +72,6 @@ def test_link_base_prefixes_every_href(tmp_path):
 
 def test_link_href_percent_encodes_segments_but_not_separators():
     assert link_href("a b/c#d.MP4", "") == "a%20b/c%23d.MP4"
-    assert link_href("x.MP4", "https://example.test/v") == \
-        "https://example.test/v/x.MP4"
+    assert (
+        link_href("x.MP4", "https://example.test/v") == "https://example.test/v/x.MP4"
+    )

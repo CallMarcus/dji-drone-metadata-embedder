@@ -52,9 +52,7 @@ def _find_video(root: Path, name: str) -> str | None:
     return found.relative_to(root).as_posix() if found else None
 
 
-def resolve_media(
-    tracks: list[Track], root: Path, base: str | None = None
-) -> None:
+def resolve_media(tracks: list[Track], root: Path, base: str | None = None) -> None:
     """Fill ``Track.media`` with one href per segment, in segment order.
 
     A segment whose video is missing contributes ``None`` and **keeps its

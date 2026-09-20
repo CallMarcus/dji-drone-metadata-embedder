@@ -1,4 +1,5 @@
 """Normalized airspace model (#413): shared by both providers and the evaluator."""
+
 from dji_metadata_embedder.geo.airspace.model import VerticalLimit
 
 

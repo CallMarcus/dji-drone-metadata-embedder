@@ -6,16 +6,32 @@ from dji_metadata_embedder.geo.flightmap_html import flights_to_html, write_flig
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 TRACKS = [
-    Track(name="DJI_0001", points=[
-        TrackPoint(lat=10.0, lon=20.0, alt=5.0, timestamp="00:00:00,000",
-                   utc=datetime(2026, 6, 15, 12, 0, 0)),
-        TrackPoint(lat=10.001, lon=20.001, alt=6.5, timestamp="00:00:01,000",
-                   utc=datetime(2026, 6, 15, 12, 1, 0)),
-    ]),
-    Track(name="DJI_0002", points=[
-        TrackPoint(lat=11.0, lon=21.0, alt=7.0, timestamp="00:00:00,000"),
-        TrackPoint(lat=11.001, lon=21.001, alt=8.0, timestamp="00:00:01,000"),
-    ]),
+    Track(
+        name="DJI_0001",
+        points=[
+            TrackPoint(
+                lat=10.0,
+                lon=20.0,
+                alt=5.0,
+                timestamp="00:00:00,000",
+                utc=datetime(2026, 6, 15, 12, 0, 0),
+            ),
+            TrackPoint(
+                lat=10.001,
+                lon=20.001,
+                alt=6.5,
+                timestamp="00:00:01,000",
+                utc=datetime(2026, 6, 15, 12, 1, 0),
+            ),
+        ],
+    ),
+    Track(
+        name="DJI_0002",
+        points=[
+            TrackPoint(lat=11.0, lon=21.0, alt=7.0, timestamp="00:00:00,000"),
+            TrackPoint(lat=11.001, lon=21.001, alt=8.0, timestamp="00:00:01,000"),
+        ],
+    ),
 ]
 
 _DATA_RE = re.compile(
@@ -49,8 +65,12 @@ def test_html_is_self_contained_document_with_pinned_libs():
 
 
 def test_html_escapes_script_close_in_data():
-    evil = [Track(name="x</script>y", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")])]
+    evil = [
+        Track(
+            name="x</script>y",
+            points=[TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")],
+        )
+    ]
     html = flights_to_html(evil, title="t")
     data_block = _DATA_RE.search(html).group(1)
     assert "</script>" not in data_block.lower()
@@ -66,10 +86,16 @@ def test_html_popup_js_escapes_text_fields():
 
 
 def test_html_embeds_segments_for_joined_flights():
-    joined = [Track(name="DJI_0001", segments=["DJI_0001", "DJI_0002"], points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000"),
-        TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:01,000"),
-    ])]
+    joined = [
+        Track(
+            name="DJI_0001",
+            segments=["DJI_0001", "DJI_0002"],
+            points=[
+                TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000"),
+                TrackPoint(lat=1.001, lon=2.001, alt=4.0, timestamp="00:00:01,000"),
+            ],
+        )
+    ]
     html = flights_to_html(joined, title="t")
     props = _embedded_geojson(html)["features"][0]["properties"]
     assert props["segments"] == ["DJI_0001", "DJI_0002"]
@@ -93,12 +119,23 @@ def test_html_popup_prefers_relative_height_and_readable_ranges():
 
 
 def test_html_embeds_height_properties_from_rel_alt():
-    tracks = [Track(name="f", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000",
-                   rel_alt=1.2),
-        TrackPoint(lat=1.001, lon=2.001, alt=-66.8, timestamp="00:00:01,000",
-                   rel_alt=96.4),
-    ])]
+    tracks = [
+        Track(
+            name="f",
+            points=[
+                TrackPoint(
+                    lat=1.0, lon=2.0, alt=-125.6, timestamp="00:00:00,000", rel_alt=1.2
+                ),
+                TrackPoint(
+                    lat=1.001,
+                    lon=2.001,
+                    alt=-66.8,
+                    timestamp="00:00:01,000",
+                    rel_alt=96.4,
+                ),
+            ],
+        )
+    ]
     props = _embedded_geojson(flights_to_html(tracks, title="t"))["features"][0][
         "properties"
     ]
@@ -140,8 +177,8 @@ def test_html_has_playback_control_without_new_dependencies():
 
 def test_html_playback_has_flight_selector():
     html = flights_to_html(TRACKS, title="t")
-    assert "pb-flight" in html          # the flight <select> in the playback bar
-    assert "All flights" in html        # opt-in #267 compare mode
+    assert "pb-flight" in html  # the flight <select> in the playback bar
+    assert "All flights" in html  # opt-in #267 compare mode
 
 
 def test_html_playback_scopes_to_selected_flight():
@@ -203,23 +240,43 @@ def test_html_alternate_tile_style_swaps_provider():
 
 def _mini_track(name="F1"):
     from dji_metadata_embedder.geo.track import Track, TrackPoint
-    return Track(name=name, points=[
-        TrackPoint(lat=49.6, lon=6.1, alt=300.0, timestamp="00:00:00"),
-        TrackPoint(lat=49.61, lon=6.11, alt=310.0, timestamp="00:00:01"),
-    ])
+
+    return Track(
+        name=name,
+        points=[
+            TrackPoint(lat=49.6, lon=6.1, alt=300.0, timestamp="00:00:00"),
+            TrackPoint(lat=49.61, lon=6.11, alt=310.0, timestamp="00:00:01"),
+        ],
+    )
 
 
 _OVERLAY = {
-    "zones": [{
-        "id": "LU-1", "name": "Test zone", "restriction": "PROHIBITED",
-        "lower": None, "upper": "120 m AGL", "applicability": [],
-        "polygons": [[(6.0, 49.5), (6.2, 49.5), (6.2, 49.7), (6.0, 49.5)]],
-        "source": {"feed": "Feed", "license": "CC0", "fetched": "2026-07-30T10:00:00Z"},
-        "entered": [{"flight": "F1", "entry_utc": "2026-07-30 12:00:00 UTC",
-                     "exit_utc": "2026-07-30 12:00:02 UTC",
-                     "max_rel_alt_m": 80.0, "max_amsl_m": 300.0,
-                     "time_note": None}],
-    }],
+    "zones": [
+        {
+            "id": "LU-1",
+            "name": "Test zone",
+            "restriction": "PROHIBITED",
+            "lower": None,
+            "upper": "120 m AGL",
+            "applicability": [],
+            "polygons": [[(6.0, 49.5), (6.2, 49.5), (6.2, 49.7), (6.0, 49.5)]],
+            "source": {
+                "feed": "Feed",
+                "license": "CC0",
+                "fetched": "2026-07-30T10:00:00Z",
+            },
+            "entered": [
+                {
+                    "flight": "F1",
+                    "entry_utc": "2026-07-30 12:00:00 UTC",
+                    "exit_utc": "2026-07-30 12:00:02 UTC",
+                    "max_rel_alt_m": 80.0,
+                    "max_amsl_m": 300.0,
+                    "time_note": None,
+                }
+            ],
+        }
+    ],
     "notes": ["Airspace: Feed, fetched 2026-07-30T10:00:00Z"],
     "covered": True,
 }
@@ -227,6 +284,7 @@ _OVERLAY = {
 
 def test_no_airspace_json_means_no_airspace_bytes():
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+
     html = flights_to_html([_mini_track()], "t")
     assert "airspace" not in html.lower()
 
@@ -236,6 +294,7 @@ def test_airspace_popup_renders_activation_text_as_published_not_evaluated():
     # verbatim, labelled as published information the record did not
     # evaluate — and nothing at all for zones without it.
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+
     html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
     assert "if (z.activation && z.activation.length)" in html
     assert "activation (published, not evaluated): " in html
@@ -247,6 +306,7 @@ def test_airspace_popup_renders_published_notes_not_evaluated():
     # contacts, reasons) verbatim, labelled as published information the
     # record did not evaluate, and nothing at all for zones without it.
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+
     html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
     assert "if (z.notes && z.notes.length)" in html
     assert "published, not evaluated: " in html
@@ -255,6 +315,7 @@ def test_airspace_popup_renders_published_notes_not_evaluated():
 
 def test_airspace_json_embeds_block_layer_and_note():
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+
     html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
     assert 'id="airspace-data"' in html
     assert "Airspace zones" in html
@@ -266,6 +327,7 @@ def test_airspace_popup_states_the_edition_date_only_when_published():
     # #502: the popup JS renders "effective <date>" from the zone's
     # source block when present and nothing when the feed is undated.
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+
     html = flights_to_html([_mini_track()], "t", airspace_json=_OVERLAY)
     assert "if (z.source.effective) html += `<br>effective " in html
     assert "`<br>fetched ${esc(z.source.fetched)}`" in html
@@ -273,6 +335,7 @@ def test_airspace_popup_states_the_edition_date_only_when_published():
 
 def test_airspace_json_escapes_script_breakout():
     from dji_metadata_embedder.geo.flightmap_html import flights_to_html
+
     evil = dict(_OVERLAY)
     evil["notes"] = ["</script><script>alert(1)</script>"]
     html = flights_to_html([_mini_track()], "t", airspace_json=evil)

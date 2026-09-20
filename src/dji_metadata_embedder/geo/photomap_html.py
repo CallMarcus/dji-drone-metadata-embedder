@@ -200,35 +200,36 @@ def photos_to_html(
     ``tile_style`` (issue #311): a :data:`~.tiles.TILE_STYLES` key selecting
     the basemap drawn under the markers.
     """
-    geojson = photos_to_geojson(
-        points, include_thumbnails=True, link_base=link_base
-    )
+    geojson = photos_to_geojson(points, include_thumbnails=True, link_base=link_base)
     if popup_fields is not None:
         _apply_popup_fields(geojson, popup_fields)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
     pano_enabled = link_base is not None and any(p.is_pano for p in points)
-    return stamp(_TEMPLATE.format(
-        title=escape(title),
-        leaflet=_LEAFLET_VERSION,
-        leaflet_css_sri=_LEAFLET_CSS_SRI,
-        leaflet_js_sri=_LEAFLET_JS_SRI,
-        cluster=CLUSTER_VERSION,
-        cluster_css_sri=CLUSTER_CSS_SRI,
-        cluster_default_css_sri=CLUSTER_DEFAULT_CSS_SRI,
-        cluster_js_sri=CLUSTER_JS_SRI,
-        photo_css=PHOTO_CSS,
-        data=data,
-        pano_head=PANO_HEAD if pano_enabled else "",
-        pano_overlay=PANO_OVERLAY if pano_enabled else "",
-        pano_scripts=PANO_SCRIPT if pano_enabled else "",
-        app_js=(
-            _APP_JS.replace("__PHOTO_LAYER__", PHOTO_LAYER_JS)
-            .replace("__HOVER_CONTROL__", HOVER_CONTROL_JS)
-            + (PANO_JS if pano_enabled else "")
-        ).replace("__TILE_LAYER__", tile_layer_js(tile_style)),
-    ))
+    return stamp(
+        _TEMPLATE.format(
+            title=escape(title),
+            leaflet=_LEAFLET_VERSION,
+            leaflet_css_sri=_LEAFLET_CSS_SRI,
+            leaflet_js_sri=_LEAFLET_JS_SRI,
+            cluster=CLUSTER_VERSION,
+            cluster_css_sri=CLUSTER_CSS_SRI,
+            cluster_default_css_sri=CLUSTER_DEFAULT_CSS_SRI,
+            cluster_js_sri=CLUSTER_JS_SRI,
+            photo_css=PHOTO_CSS,
+            data=data,
+            pano_head=PANO_HEAD if pano_enabled else "",
+            pano_overlay=PANO_OVERLAY if pano_enabled else "",
+            pano_scripts=PANO_SCRIPT if pano_enabled else "",
+            app_js=(
+                _APP_JS.replace("__PHOTO_LAYER__", PHOTO_LAYER_JS).replace(
+                    "__HOVER_CONTROL__", HOVER_CONTROL_JS
+                )
+                + (PANO_JS if pano_enabled else "")
+            ).replace("__TILE_LAYER__", tile_layer_js(tile_style)),
+        )
+    )
 
 
 def write_photos_html(
@@ -243,7 +244,10 @@ def write_photos_html(
     """Write *points* as an HTML map to *output_path* and return it."""
     output_path.write_text(
         photos_to_html(
-            points, title, link_base=link_base, popup_fields=popup_fields,
+            points,
+            title,
+            link_base=link_base,
+            popup_fields=popup_fields,
             tile_style=tile_style,
         ),
         encoding="utf-8",

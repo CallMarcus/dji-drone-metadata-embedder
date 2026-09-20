@@ -79,9 +79,9 @@ def quat_to_heading_pitch(quat: str) -> tuple[float, float]:
     if len(parts) != 4:
         raise ValueError(f"expected four quaternion components, got {quat!r}")
     w, x, y, z = (float(part) for part in parts)
-    heading = math.degrees(
-        math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
-    ) % 360.0
+    heading = (
+        math.degrees(math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))) % 360.0
+    )
     sin_pitch = max(-1.0, min(1.0, 2 * (w * y - z * x)))
     pitch = math.degrees(math.asin(sin_pitch))
     return heading, pitch
@@ -246,7 +246,9 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
     prefix = ["-config", str(config)] if config is not None else []
     try:
         return subprocess.run(
-            [exiftool_exe(), *prefix, *args], capture_output=True, text=True,
+            [exiftool_exe(), *prefix, *args],
+            capture_output=True,
+            text=True,
             check=False,
         )
     except FileNotFoundError:
@@ -257,14 +259,19 @@ def _run_exiftool_json(path: Path) -> list:
     """Run the embedded-metadata extraction and return parsed JSON (one element)."""
     proc = _run(
         [
-            "-ee", "-j", "-g3", "-n",
-            "-api", "LargeFileSupport=1",
+            "-ee",
+            "-j",
+            "-g3",
+            "-n",
+            "-api",
+            "LargeFileSupport=1",
             # QuickTime CreateDate is UTC by spec. A stream without its own
             # wall-clock time (Parrot) gets GPSDateTime synthesised as
             # CreateDate + SampleTime, and without this option ExifTool
             # shifts it by the machine's local zone (#323). DJI protobuf
             # streams carry GPSDateTime themselves and are unaffected.
-            "-api", "QuickTimeUTC=1",
+            "-api",
+            "QuickTimeUTC=1",
             str(path),
         ]
     )
@@ -275,7 +282,9 @@ def _run_exiftool_json(path: Path) -> list:
     try:
         return json.loads(proc.stdout) if proc.stdout.strip() else []
     except json.JSONDecodeError as exc:
-        raise Mp4TelemetryError(f"Could not parse ExifTool JSON for {path.name}: {exc}") from exc
+        raise Mp4TelemetryError(
+            f"Could not parse ExifTool JSON for {path.name}: {exc}"
+        ) from exc
 
 
 def probe(path: Path) -> str | None:
@@ -289,8 +298,13 @@ def probe(path: Path) -> str | None:
     """
     proc = _run(
         [
-            "-s", "-api", "LargeFileSupport=1",
-            "-MetaFormat", "-MetaType", "-Category", str(path),
+            "-s",
+            "-api",
+            "LargeFileSupport=1",
+            "-MetaFormat",
+            "-MetaType",
+            "-Category",
+            str(path),
         ]
     )
     out = proc.stdout

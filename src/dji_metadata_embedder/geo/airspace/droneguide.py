@@ -56,8 +56,7 @@ class DroneguideFeed:
 
 
 _CAVEAT = (
-    "UAS geographical-zone data is informational and is not an "
-    "authorization to fly."
+    "UAS geographical-zone data is informational and is not an authorization to fly."
 )
 
 NO_TIMESTAMPS_NOTE = (
@@ -96,8 +95,12 @@ DRONEGUIDE_FEEDS: dict[str, DroneguideFeed] = {
     ),
 }
 
-_WFS = {"service": "WFS", "version": "2.0.0", "request": "GetFeature",
-        "outputFormat": "application/json"}
+_WFS = {
+    "service": "WFS",
+    "version": "2.0.0",
+    "request": "GetFeature",
+    "outputFormat": "application/json",
+}
 _NOTAM_FIELDS = (
     "identification,start_date,end_date,scheduling,selection_code,location,fir"
 )
@@ -143,9 +146,7 @@ def _json_body(body: bytes, what: str) -> object:
     try:
         return json.loads(body.decode("utf-8-sig"))
     except (ValueError, UnicodeDecodeError) as exc:
-        raise AirspaceError(
-            f"Droneguide {what} response is not JSON ({exc})"
-        ) from exc
+        raise AirspaceError(f"Droneguide {what} response is not JSON ({exc})") from exc
 
 
 def build_envelope(
@@ -154,9 +155,9 @@ def build_envelope(
     """One cacheable document holding both responses and the window they
     were asked for, so cached and fresh bodies parse identically."""
     doc = {
-        "window": None if window is None else [
-            d.strftime("%Y-%m-%dT%H:%M:%SZ") for d in window
-        ],
+        "window": None
+        if window is None
+        else [d.strftime("%Y-%m-%dT%H:%M:%SZ") for d in window],
         "zones": _json_body(zones_body, "zones"),
         "notam": _json_body(notam_body, "notam"),
     }
@@ -194,9 +195,7 @@ def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
     unit_raw = props.get(f"{side}_limit_unit")
     unit = _UNITS.get(str(unit_raw))
     if unit is None:
-        raise AirspaceError(
-            f"{where}: {side} limit unit {unit_raw!r} is not F/M/FL"
-        )
+        raise AirspaceError(f"{where}: {side} limit unit {unit_raw!r} is not F/M/FL")
     if unit == "FL":
         # A flight level is a pressure datum whatever the row says (38 live
         # NOTAM rows publish "FL 75 GND"); the row's own reference stays in
@@ -273,9 +272,7 @@ def parse_droneguide(raw: bytes, source: SourceInfo) -> list[Zone]:
     except (ValueError, UnicodeDecodeError) as exc:
         raise AirspaceError(f"{feed}: cache/response is not JSON ({exc})") from exc
     if not isinstance(env, dict) or not {"window", "zones", "notam"} <= env.keys():
-        raise AirspaceError(
-            f"{feed}: not a Droneguide envelope (window/zones/notam)"
-        )
+        raise AirspaceError(f"{feed}: not a Droneguide envelope (window/zones/notam)")
     windowed = env["window"] is not None
     notams = _notam_index(env["notam"], feed)
 
@@ -336,11 +333,13 @@ def parse_droneguide(raw: bytes, source: SourceInfo) -> list[Zone]:
                 native["notam"] = row
                 start = row.get("start_date")
                 end = row.get("end_date")
-                applicability.append(Applicability(
-                    start=iso_utc(start, f"{where}: start_date") if start else None,
-                    end=iso_utc(end, f"{where}: end_date") if end else None,
-                    permanent=False,
-                ))
+                applicability.append(
+                    Applicability(
+                        start=iso_utc(start, f"{where}: start_date") if start else None,
+                        end=iso_utc(end, f"{where}: end_date") if end else None,
+                        permanent=False,
+                    )
+                )
                 if row.get("scheduling"):
                     activation.append(str(row["scheduling"]))
                 tag = " ".join(
@@ -350,12 +349,24 @@ def parse_droneguide(raw: bytes, source: SourceInfo) -> list[Zone]:
                     notes.append(f"NOTAM {tag}")
         not_active = (
             NOT_ACTIVE_REASON
-            if windowed and props.get("active_within_window") == 1 else None
+            if windowed and props.get("active_within_window") == 1
+            else None
         )
-        zones.append(Zone(
-            identifier=ident, name=name, restriction=restriction,
-            lower=lower, upper=upper, applicability=applicability,
-            polygons=polygons, holes=holes, source=source, native=native,
-            activation=activation, notes=notes, not_active_reason=not_active,
-        ))
+        zones.append(
+            Zone(
+                identifier=ident,
+                name=name,
+                restriction=restriction,
+                lower=lower,
+                upper=upper,
+                applicability=applicability,
+                polygons=polygons,
+                holes=holes,
+                source=source,
+                native=native,
+                activation=activation,
+                notes=notes,
+                not_active_reason=not_active,
+            )
+        )
     return zones

@@ -1100,7 +1100,9 @@ __AIRSPACE_3D_JS__
 
 
 def flights_to_3d_html(
-    tracks: list[Track], title: str, redact: str = "none",
+    tracks: list[Track],
+    title: str,
+    redact: str = "none",
     airspace_json: dict | None = None,
 ) -> str:
     """Return a complete 3D-terrain HTML flight map (draped tracks).
@@ -1117,8 +1119,7 @@ def flights_to_3d_html(
     if airspace_json is not None:
         adata = json.dumps(airspace_json).replace("<", "\\u003c")
         airspace_block = (
-            '\n<script type="application/json" id="airspace-data">\n'
-            f"{adata}\n</script>"
+            f'\n<script type="application/json" id="airspace-data">\n{adata}\n</script>'
         )
         airspace_js = AIRSPACE_3D_JS
     app_js = (
@@ -1129,26 +1130,29 @@ def flights_to_3d_html(
         .replace("__MAPTERHORN__", _MAPTERHORN_TILEJSON)
         .replace("__CREDIT__", attribution_credit())
     )
-    return stamp(_TEMPLATE.format(
-        title=escape(title),
-        maplibre=_MAPLIBRE_VERSION,
-        css_sri=_MAPLIBRE_CSS_SRI,
-        js_sri=_MAPLIBRE_JS_SRI,
-        data=data,
-        airspace_block=airspace_block,
-        app_js=app_js,
-    ))
+    return stamp(
+        _TEMPLATE.format(
+            title=escape(title),
+            maplibre=_MAPLIBRE_VERSION,
+            css_sri=_MAPLIBRE_CSS_SRI,
+            js_sri=_MAPLIBRE_JS_SRI,
+            data=data,
+            airspace_block=airspace_block,
+            app_js=app_js,
+        )
+    )
 
 
 def write_flights_3d_html(
-    tracks: list[Track], output_path: Path, title: str, redact: str = "none",
+    tracks: list[Track],
+    output_path: Path,
+    title: str,
+    redact: str = "none",
     airspace_json: dict | None = None,
 ) -> Path:
     """Write *tracks* as a 3D HTML map to *output_path* and return it."""
     output_path.write_text(
-        flights_to_3d_html(
-            tracks, title, redact=redact, airspace_json=airspace_json
-        ),
+        flights_to_3d_html(tracks, title, redact=redact, airspace_json=airspace_json),
         encoding="utf-8",
     )
     logger.info("3D HTML flight map created: %s", output_path)

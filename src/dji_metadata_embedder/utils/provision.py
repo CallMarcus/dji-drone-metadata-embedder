@@ -72,11 +72,15 @@ def tools_dir() -> Path:
         return Path(env)
     system = platform.system()
     if system == "Windows":
-        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
+        base = Path(
+            os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        )
     elif system == "Darwin":
         base = Path.home() / "Library" / "Application Support"
     else:
-        base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
+        base = Path(
+            os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+        )
     return base / "dji-embed" / "tools"
 
 
@@ -175,10 +179,7 @@ def _install_unix(archive: Path, install_dir: Path) -> Path:
             if not script.exists():
                 raise ProvisionError("exiftool script not found in archive")
             script.chmod(
-                script.stat().st_mode
-                | stat.S_IXUSR
-                | stat.S_IXGRP
-                | stat.S_IXOTH
+                script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
             )
             if install_dir.exists():
                 shutil.rmtree(install_dir)
@@ -190,7 +191,10 @@ def _smoke_version(exe: Path) -> str | None:
     """Run ``exe -ver``; return the reported version or ``None``."""
     try:
         proc = subprocess.run(
-            [str(exe), "-ver"], capture_output=True, text=True, timeout=30,
+            [str(exe), "-ver"],
+            capture_output=True,
+            text=True,
+            timeout=30,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):

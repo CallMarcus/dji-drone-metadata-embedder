@@ -7,20 +7,40 @@ from dji_metadata_embedder.geo.photomap import PhotoPoint
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 POINTS = [
-    PhotoPoint(lat=60.17, lon=24.95, alt=95.3, name="church.jpg",
-               timestamp="2026-06-15 12:30:45", model="FC8482",
-               thumbnail_b64="/9j/THUMB1"),
-    PhotoPoint(lat=60.18, lon=24.96, alt=None, name="sphere.jpg",
-               is_pano=True, pano_yaw=45.0),
+    PhotoPoint(
+        lat=60.17,
+        lon=24.95,
+        alt=95.3,
+        name="church.jpg",
+        timestamp="2026-06-15 12:30:45",
+        model="FC8482",
+        thumbnail_b64="/9j/THUMB1",
+    ),
+    PhotoPoint(
+        lat=60.18, lon=24.96, alt=None, name="sphere.jpg", is_pano=True, pano_yaw=45.0
+    ),
 ]
 
 TRACKS = [
-    Track(name="DJI_0001", points=[
-        TrackPoint(lat=60.19, lon=24.97, alt=5.0, timestamp="00:00:00,000",
-                   utc=datetime(2026, 6, 15, 12, 0, 0)),
-        TrackPoint(lat=60.191, lon=24.971, alt=6.5, timestamp="00:00:01,000",
-                   utc=datetime(2026, 6, 15, 12, 1, 0)),
-    ]),
+    Track(
+        name="DJI_0001",
+        points=[
+            TrackPoint(
+                lat=60.19,
+                lon=24.97,
+                alt=5.0,
+                timestamp="00:00:00,000",
+                utc=datetime(2026, 6, 15, 12, 0, 0),
+            ),
+            TrackPoint(
+                lat=60.191,
+                lon=24.971,
+                alt=6.5,
+                timestamp="00:00:01,000",
+                utc=datetime(2026, 6, 15, 12, 1, 0),
+            ),
+        ],
+    ),
 ]
 
 
@@ -52,10 +72,12 @@ def test_mixed_geojson_links_are_opt_in():
 
 
 def test_mixed_geojson_single_type_folders():
-    assert [f["properties"]["type"]
-            for f in mixed_to_geojson(POINTS, [])["features"]] == ["photo", "pano"]
-    assert [f["properties"]["type"]
-            for f in mixed_to_geojson([], TRACKS)["features"]] == ["track"]
+    assert [
+        f["properties"]["type"] for f in mixed_to_geojson(POINTS, [])["features"]
+    ] == ["photo", "pano"]
+    assert [
+        f["properties"]["type"] for f in mixed_to_geojson([], TRACKS)["features"]
+    ] == ["track"]
 
 
 _DATA_RE = re.compile(
@@ -89,9 +111,14 @@ def test_html_is_pinned_and_stamped():
 
 def test_html_carries_both_apps():
     html = mixed_to_html(POINTS, TRACKS, title="t")
-    for marker in ("buildPopup", "photoCluster",       # photo side
-                   "popupHtml", "pb-play", "PALETTE",  # flight side + playback
-                   "360° panoramas"):                  # merged layer control
+    for marker in (
+        "buildPopup",
+        "photoCluster",  # photo side
+        "popupHtml",
+        "pb-play",
+        "PALETTE",  # flight side + playback
+        "360° panoramas",
+    ):  # merged layer control
         assert marker in html
 
 
@@ -104,8 +131,12 @@ def test_html_pano_viewer_is_link_gated():
 
 
 def test_html_escapes_script_close_in_data():
-    evil = [Track(name="x</script>y", points=[
-        TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")])]
+    evil = [
+        Track(
+            name="x</script>y",
+            points=[TrackPoint(lat=1.0, lon=2.0, alt=3.0, timestamp="00:00:00,000")],
+        )
+    ]
     html = mixed_to_html([], evil, title="t")
     data_block = _DATA_RE.search(html).group(1)
     assert "</script>" not in data_block.lower()
@@ -132,7 +163,7 @@ def test_html_gates_the_hover_toggle_on_photo_or_pano_pins():
     # must not be emitted; allMarkers holds both photo and pano markers.
     html = mixed_to_html(POINTS, TRACKS, title="t")
     gate = html.index("if (allMarkers.length) {")
-    assert gate < html.index("id=\"hover-toggle\"")
+    assert gate < html.index('id="hover-toggle"')
     assert gate > html.index("L.control.layers(null, allOverlays")
 
 
@@ -151,5 +182,6 @@ def test_html_substitutions_are_complete():
 
 def test_write_mixed_html(tmp_path):
     from dji_metadata_embedder.geo.map_html import write_mixed_html
+
     out = write_mixed_html(POINTS, TRACKS, tmp_path / "map.html", "t")
     assert out.read_text(encoding="utf-8").lstrip().startswith("<!DOCTYPE html>")

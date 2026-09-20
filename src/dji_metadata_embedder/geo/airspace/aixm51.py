@@ -64,8 +64,7 @@ class Aixm51Feed:
 
 
 _CAVEAT = (
-    "UAS flight-restriction data is informational and is not an "
-    "authorization to fly."
+    "UAS flight-restriction data is informational and is not an authorization to fly."
 )
 
 AIXM_FEEDS: dict[str, Aixm51Feed] = {
@@ -100,9 +99,7 @@ _ZIP_HREF_RE = re.compile(
 )
 
 
-def discover_feed_url(
-    page: bytes, page_url: str, *, today: date
-) -> tuple[str, str]:
+def discover_feed_url(page: bytes, page_url: str, *, today: date) -> tuple[str, str]:
     """The currently-effective dataset zip URL from the datasets page,
     with the cycle's effective date as ISO ``YYYY-MM-DD`` (#502).
 
@@ -110,9 +107,7 @@ def discover_feed_url(
     newest listed date that is not in the future wins; a page listing
     only future cycles falls back to the oldest one."""
     dated: list[tuple[date, str]] = []
-    for href, ymd in _ZIP_HREF_RE.findall(
-        page.decode("utf-8", errors="replace")
-    ):
+    for href, ymd in _ZIP_HREF_RE.findall(page.decode("utf-8", errors="replace")):
         try:
             effective = datetime.strptime(ymd, "%Y%m%d").date()  # noqa: DTZ007  # calendar date only
         except ValueError:
@@ -143,8 +138,7 @@ def extract_xml(zip_bytes: bytes) -> bytes:
         xml_names = [n for n in names if _XML_MEMBER_RE.search(n)]
         if len(xml_names) != 1:
             raise AirspaceError(
-                f"expected one dataset XML in the archive, found "
-                f"{len(xml_names)}"
+                f"expected one dataset XML in the archive, found {len(xml_names)}"
             )
         body = archive.read(xml_names[0])
         sha_names = [n for n in names if n.endswith(".sha256")]
@@ -211,8 +205,7 @@ def _destination(origin: LatLon, bearing_deg: float, dist_m: float) -> LatLon:
     d = dist_m / _gaussian_radius_m(origin[0])
     br = math.radians(bearing_deg)
     lat2 = math.asin(
-        math.sin(lat1) * math.cos(d)
-        + math.cos(lat1) * math.sin(d) * math.cos(br)
+        math.sin(lat1) * math.cos(d) + math.cos(lat1) * math.sin(d) * math.cos(br)
     )
     lon2 = lon1 + math.atan2(
         math.sin(br) * math.sin(d) * math.cos(lat1),
@@ -235,9 +228,7 @@ def _pos(el: ElementTree.Element, where: str) -> LatLon:
     try:
         lat, lon = (float(p) for p in parts)
     except ValueError as exc:
-        raise AirspaceError(
-            f"{where}: malformed gml:pos {el.text!r}"
-        ) from exc
+        raise AirspaceError(f"{where}: malformed gml:pos {el.text!r}") from exc
     return lat, lon  # EPSG::4326 URN axis order: latitude first
 
 
@@ -245,9 +236,7 @@ def _point_run(seg: ElementTree.Element, where: str) -> list[LatLon]:
     return [_pos(p, where) for p in seg.iter(f"{_GML}pos")]
 
 
-def _centre_radius(
-    seg: ElementTree.Element, where: str
-) -> tuple[LatLon, float]:
+def _centre_radius(seg: ElementTree.Element, where: str) -> tuple[LatLon, float]:
     pos = seg.find(f"{_GML}pointProperty/{_AIXM}Point/{_GML}pos")
     if pos is None:
         raise AirspaceError(f"{where}: arc/circle has no centre point")
@@ -275,15 +264,10 @@ def _angle(seg: ElementTree.Element, name: str, where: str) -> float:
 def _circle(seg: ElementTree.Element, where: str) -> list[LatLon]:
     centre, r = _centre_radius(seg, where)
     step = 360.0 / _CIRCLE_POINTS
-    return [
-        _destination(centre, k * step, r)
-        for k in range(_CIRCLE_POINTS + 1)
-    ]
+    return [_destination(centre, k * step, r) for k in range(_CIRCLE_POINTS + 1)]
 
 
-def _arc(
-    seg: ElementTree.Element, clockwise: bool, where: str
-) -> list[LatLon]:
+def _arc(seg: ElementTree.Element, clockwise: bool, where: str) -> list[LatLon]:
     centre, r = _centre_radius(seg, where)
     start = _angle(seg, "startAngle", where)
     end = _angle(seg, "endAngle", where)
@@ -311,18 +295,14 @@ def _ring_pieces(
         if href is not None:
             uuid = href.removeprefix("urn:uuid:")
             if uuid not in borders:
-                raise AirspaceError(
-                    f"{where}: unresolvable GeoBorder reference {href}"
-                )
+                raise AirspaceError(f"{where}: unresolvable GeoBorder reference {href}")
             pieces.append(("border", borders[uuid]))
             continue
         segments = member.find(f"{_GML}Curve/{_GML}segments")
         if segments is None:
             raise AirspaceError(f"{where}: curve member has no segments")
         for seg in segments:
-            if seg.tag in (
-                f"{_GML}GeodesicString", f"{_GML}LineStringSegment"
-            ):
+            if seg.tag in (f"{_GML}GeodesicString", f"{_GML}LineStringSegment"):
                 points = _point_run(seg, where)
                 if len(set(points)) <= 1:
                     # A zero-length "closing" segment: some real zones
@@ -340,8 +320,7 @@ def _ring_pieces(
                 pieces.append(("arc", seg))
             else:
                 raise AirspaceError(
-                    f"{where}: unsupported curve segment "
-                    f"{seg.tag.rpartition('}')[2]}"
+                    f"{where}: unsupported curve segment {seg.tag.rpartition('}')[2]}"
                 )
     return pieces
 
@@ -368,9 +347,7 @@ def _trailing_point(piece: _Piece, where: str) -> LatLon:
     return payload[-1]
 
 
-def _assemble(
-    pieces: list[_Piece], arc_dirs: list[bool], where: str
-) -> list[LatLon]:
+def _assemble(pieces: list[_Piece], arc_dirs: list[bool], where: str) -> list[LatLon]:
     pts: list[LatLon] = []
     arc_i = 0
     for i, (kind, payload) in enumerate(pieces):
@@ -388,12 +365,8 @@ def _assemble(
                 # A GeoBorder curve is the full coastline/river polyline;
                 # a ring only follows the stretch BETWEEN its neighbouring
                 # segments' endpoints, not the whole thing.
-                prev_pt = _trailing_point(
-                    pieces[(i - 1) % len(pieces)], where
-                )
-                next_pt = _leading_point(
-                    pieces[(i + 1) % len(pieces)], where
-                )
+                prev_pt = _trailing_point(pieces[(i - 1) % len(pieces)], where)
+                next_pt = _leading_point(pieces[(i + 1) % len(pieces)], where)
                 start_idx = min(
                     range(len(border)),
                     key=lambda j: _dist_m(border[j], prev_pt),
@@ -412,9 +385,7 @@ def _assemble(
         if pts:
             gap = _dist_m(pts[-1], run[0])
             if gap > _JUNCTION_M:
-                raise AirspaceError(
-                    f"{where}: ring is discontinuous ({gap:.0f} m gap)"
-                )
+                raise AirspaceError(f"{where}: ring is discontinuous ({gap:.0f} m gap)")
             run = run[1:]  # snap the junction
         pts.extend(run)
     if len(pts) < 3:
@@ -426,8 +397,7 @@ def _assemble(
         pts.append(pts[0])  # GML Ring closure may be implied
     else:
         raise AirspaceError(
-            f"{where}: ring closure gap is {gap:.0f} m — the ring looks "
-            "truncated"
+            f"{where}: ring closure gap is {gap:.0f} m — the ring looks truncated"
         )
     return pts
 
@@ -436,9 +406,7 @@ def _crosses(p1: LatLon, p2: LatLon, p3: LatLon, p4: LatLon) -> bool:
     def ccw(a: LatLon, b: LatLon, c: LatLon) -> bool:
         return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
 
-    return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(
-        p1, p2, p4
-    )
+    return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
 
 
 def _self_intersects(ring: list[LatLon]) -> bool:
@@ -476,9 +444,7 @@ def _ring_points(
         pts = _assemble(pieces, list(combo), where)
         if not _self_intersects(pts):
             return pts
-    raise AirspaceError(
-        f"{where}: no arc interpretation yields a simple ring"
-    )
+    raise AirspaceError(f"{where}: no arc interpretation yields a simple ring")
 
 
 # --- zones ----------------------------------------------------------------
@@ -488,27 +454,18 @@ _LIMIT_REFS = {"SFC": "AGL", "MSL": "AMSL", "STD": "STD"}
 _LIMIT_UNITS = {"FT": "ft", "M": "m", "FL": "FL"}
 
 
-def _limit(
-    vol: ElementTree.Element, side: str, where: str
-) -> VerticalLimit | None:
+def _limit(vol: ElementTree.Element, side: str, where: str) -> VerticalLimit | None:
     el = vol.find(f"{_AIXM}{side}Limit")
-    if (
-        el is None
-        or el.get(f"{_XSI}nil") == "true"
-        or not (el.text or "").strip()
-    ):
+    if el is None or el.get(f"{_XSI}nil") == "true" or not (el.text or "").strip():
         return None  # "not stated" — never 0
     uom = (el.get("uom") or "").upper()
     if uom not in _LIMIT_UNITS:
-        raise AirspaceError(
-            f"{where}: unsupported {side} limit unit {uom!r}"
-        )
+        raise AirspaceError(f"{where}: unsupported {side} limit unit {uom!r}")
     ref_el = vol.find(f"{_AIXM}{side}LimitReference")
     ref_raw = (ref_el.text or "").strip() if ref_el is not None else ""
     if ref_raw not in _LIMIT_REFS:
         raise AirspaceError(
-            f"{where}: {side} limit reference {ref_raw!r} is not "
-            "SFC/MSL/STD"
+            f"{where}: {side} limit reference {ref_raw!r} is not SFC/MSL/STD"
         )
     if (uom == "FL") != (ref_raw == "STD"):
         raise AirspaceError(f"{where}: {side} limit pairs {uom} with {ref_raw}")
@@ -546,9 +503,7 @@ def _activation_lines(activations: list[dict]) -> list[str]:
     return lines
 
 
-def _native(
-    ts: ElementTree.Element, type_code: str, local_type: str
-) -> dict:
+def _native(ts: ElementTree.Element, type_code: str, local_type: str) -> dict:
     activations = []
     for act in ts.findall(f"{_AIXM}activation/{_AIXM}AirspaceActivation"):
         notes = [
@@ -556,10 +511,12 @@ def _native(
             for n in act.iter(f"{_AIXM}note")
             if (n.text or "").strip()
         ]
-        activations.append({
-            "status": (act.findtext(f"{_AIXM}status") or "").strip() or None,
-            "notes": notes,
-        })
+        activations.append(
+            {
+                "status": (act.findtext(f"{_AIXM}status") or "").strip() or None,
+                "notes": notes,
+            }
+        )
     return {
         "type": type_code,
         "localType": local_type or None,
@@ -572,9 +529,7 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
     # The scan below is byte-wise; a UTF-16/32 body would slip past it.
     # The dataset is UTF-8, so any BOM or NUL in the prologue is refused.
     if raw[:1] in (b"\xff", b"\xfe") or b"\x00" in raw[:4096]:
-        raise AirspaceError(
-            f"{source.feed}: refusing non-UTF-8 XML encoding"
-        )
+        raise AirspaceError(f"{source.feed}: refusing non-UTF-8 XML encoding")
     # The dataset never declares a DTD; refusing them up front closes
     # the stdlib parser's entity-expansion/XXE surface without a
     # defusedxml dependency (whose core defence is exactly this).
@@ -585,19 +540,14 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
     try:
         root = ElementTree.fromstring(raw)
     except ElementTree.ParseError as exc:
-        raise AirspaceError(
-            f"{source.feed}: feed is not XML ({exc})"
-        ) from exc
+        raise AirspaceError(f"{source.feed}: feed is not XML ({exc})") from exc
     borders: dict[str, list[LatLon]] = {}
     for gb in root.iter(f"{_AIXM}GeoBorder"):
         ident = (gb.findtext(f"{_GML}identifier") or "").strip()
         if not ident:
-            raise AirspaceError(
-                f"{source.feed}: GeoBorder without identifier"
-            )
+            raise AirspaceError(f"{source.feed}: GeoBorder without identifier")
         borders[ident] = [
-            _pos(p, f"{source.feed}: GeoBorder {ident}")
-            for p in gb.iter(f"{_GML}pos")
+            _pos(p, f"{source.feed}: GeoBorder {ident}") for p in gb.iter(f"{_GML}pos")
         ]
     zones: list[Zone] = []
     for i, asp in enumerate(root.iter(f"{_AIXM}Airspace")):
@@ -614,9 +564,7 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
         where = f"{where} ({designator})"
         type_code = (ts.findtext(f"{_AIXM}type") or "").strip()
         if type_code not in _TYPES:
-            raise AirspaceError(
-                f"{where}: airspace type {type_code!r} is not P/R/D"
-            )
+            raise AirspaceError(f"{where}: airspace type {type_code!r} is not P/R/D")
         name = (ts.findtext(f"{_AIXM}name") or "").strip() or designator
         local_type = (ts.findtext(f"{_AIXM}localType") or "").strip()
         if local_type in ("FRZ", "RPZ"):
@@ -627,12 +575,9 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
         )
         if len(components) != 1:
             raise AirspaceError(
-                f"{where}: expected one geometry component, found "
-                f"{len(components)}"
+                f"{where}: expected one geometry component, found {len(components)}"
             )
-        vol = components[0].find(
-            f"{_AIXM}theAirspaceVolume/{_AIXM}AirspaceVolume"
-        )
+        vol = components[0].find(f"{_AIXM}theAirspaceVolume/{_AIXM}AirspaceVolume")
         if vol is None:
             raise AirspaceError(f"{where}: missing airspace volume")
         lower = _limit(vol, "lower", where)
@@ -657,10 +602,9 @@ def parse_aixm51(raw: bytes, source: SourceInfo) -> list[Zone]:
         for interior in patches[0].findall(f"{_GML}interior"):
             inner = interior.find(f"{_GML}Ring")
             if inner is not None:
-                holes.append([
-                    (lon, lat)
-                    for lat, lon in _ring_points(inner, borders, where)
-                ])
+                holes.append(
+                    [(lon, lat) for lat, lon in _ring_points(inner, borders, where)]
+                )
         native = _native(ts, type_code, local_type)
         zones.append(
             Zone(
