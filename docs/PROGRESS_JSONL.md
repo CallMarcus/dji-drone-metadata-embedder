@@ -123,9 +123,13 @@ field, never by arrival order.
 ### `doctor`
 - No `progress` events. One `warning` per missing tool (`item` = tool
   name). `outputs` is empty. `summary`: `{"ok": bool, "tools":
-  {"ffmpeg": {"present": bool}, "exiftool": {"present": bool, "version",
-  "source", "path", "decode"}}, "system": {...}}` — the exiftool extras
-  appear only when it is present and its version is readable.
+  {"ffmpeg": {"present": bool, "version", "path"}, "exiftool": {"present":
+  bool, "version", "source", "path", "decode"}}, "system": {...}}` — the
+  extras appear only when the tool is present and its version is readable.
+  `ffmpeg.version` is the token from the `-version` banner as the packager
+  wrote it (`9.0.2`, `9.0.2-essentials_build-www.gyan.dev`, ...) and
+  `ffmpeg.path` is the executable that resolved, so a machine reading it can
+  tell which of several installed copies will run (#579).
 - Missing dependencies are a report, not a crash: `"ok": false` with exit
   code 0 (same reading rule as `embed`).
 - `summary.update_check` (#319): `{"consent": true|false|null,

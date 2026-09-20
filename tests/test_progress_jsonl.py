@@ -499,11 +499,15 @@ def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
 def _patch_doctor_env(monkeypatch, *, ffmpeg=True, exiftool=True):
     from dji_metadata_embedder import cli
     from dji_metadata_embedder.utils import exiftool as exiftool_utils
+    from dji_metadata_embedder.utils import ffmpeg as ffmpeg_utils
 
     missing = [
         t for t, ok in (("ffmpeg", ffmpeg), ("exiftool", exiftool)) if not ok
     ]
     monkeypatch.setattr(cli, "check_dependencies", lambda: (not missing, missing))
+    if ffmpeg:
+        monkeypatch.setattr(ffmpeg_utils, "ffmpeg_version", lambda: "9.0.2")
+        monkeypatch.setattr(ffmpeg_utils, "ffmpeg_exe", lambda: "/usr/bin/ffmpeg")
     if exiftool:
         monkeypatch.setattr(exiftool_utils, "exiftool_version", lambda: "13.30")
         monkeypatch.setattr(exiftool_utils, "exiftool_source", lambda: "path")
@@ -529,6 +533,26 @@ def test_doctor_jsonl_all_present(monkeypatch):
     assert tools["ffmpeg"]["present"] is True
     assert tools["exiftool"]["present"] is True
     assert tools["exiftool"]["version"] == "13.30"
+
+
+def test_doctor_jsonl_reports_ffmpeg_version_and_path(monkeypatch):
+    # #579: the Setup page renders `version` when present, so the ffmpeg
+    # entry carries it (and the resolved path) exactly like exiftool's.
+    _patch_doctor_env(monkeypatch)
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl"])
+    assert res.exit_code == 0, res.output
+    tools = _events(res.stdout)[-1]["summary"]["tools"]
+    assert tools["ffmpeg"] == {
+        "present": True, "version": "9.0.2", "path": "/usr/bin/ffmpeg",
+    }
+
+
+def test_doctor_jsonl_missing_ffmpeg_carries_no_version(monkeypatch):
+    _patch_doctor_env(monkeypatch, ffmpeg=False)
+    res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl"])
+    assert res.exit_code == 0, res.output
+    tools = _events(res.stdout)[-1]["summary"]["tools"]
+    assert tools["ffmpeg"] == {"present": False}
 
 
 def test_doctor_jsonl_missing_tool_warns_but_exits_zero(monkeypatch):

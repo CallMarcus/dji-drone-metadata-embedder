@@ -29,6 +29,39 @@ def test_run_doctor_reports_exiftool_version_and_capability(monkeypatch, caplog)
     assert "dji-embed doctor --install exiftool" in text
 
 
+def test_run_doctor_reports_ffmpeg_version_and_path(monkeypatch, caplog):
+    # #579: the ffmpeg line used to say only FOUND, which cannot tell a
+    # bundled 8.1.2 from a bootstrap 9.0.2 sitting earlier on PATH.
+    monkeypatch.setattr(
+        "dji_metadata_embedder.utilities.check_dependencies",
+        lambda: (True, []),
+    )
+    monkeypatch.setattr(
+        "dji_metadata_embedder.utils.ffmpeg.ffmpeg_version",
+        lambda: "9.0.2-essentials_build-www.gyan.dev",
+    )
+    monkeypatch.setattr(
+        "dji_metadata_embedder.utils.ffmpeg.ffmpeg_exe",
+        lambda: "/opt/ff/bin/ffmpeg",
+    )
+    with caplog.at_level(logging.INFO):
+        embedder.run_doctor()
+    assert (
+        "ffmpeg: FOUND 9.0.2-essentials_build-www.gyan.dev (/opt/ff/bin/ffmpeg)"
+        in caplog.text
+    )
+
+
+def test_run_doctor_missing_ffmpeg_still_reports(monkeypatch, caplog):
+    monkeypatch.setattr(
+        "dji_metadata_embedder.utilities.check_dependencies",
+        lambda: (False, ["ffmpeg"]),
+    )
+    with caplog.at_level(logging.INFO):
+        embedder.run_doctor()
+    assert "ffmpeg: MISSING" in caplog.text
+
+
 def test_run_doctor_missing_exiftool_still_reports(monkeypatch, caplog):
     monkeypatch.setattr(
         "dji_metadata_embedder.utilities.check_dependencies",

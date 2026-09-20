@@ -919,7 +919,16 @@ def run_doctor(online: bool | None = None) -> None:
     logger.info("Dependency check:")
     deps_ok, missing = check_dependencies()
 
-    logger.info("  ffmpeg: %s", "FOUND" if "ffmpeg" not in missing else "MISSING")
+    if "ffmpeg" not in missing:
+        from .utils import ffmpeg as ffmpeg_utils
+
+        ver = ffmpeg_utils.ffmpeg_version()
+        if ver:
+            logger.info("  ffmpeg: FOUND %s (%s)", ver, ffmpeg_utils.ffmpeg_exe())
+        else:
+            logger.info("  ffmpeg: FOUND")
+    else:
+        logger.info("  ffmpeg: MISSING")
     if "exiftool" not in missing:
         from .utils import exiftool as exiftool_utils
 
