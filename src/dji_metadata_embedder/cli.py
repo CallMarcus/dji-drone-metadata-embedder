@@ -1836,6 +1836,7 @@ def dragdrop(ctx: click.Context, paths: tuple[str, ...]) -> None:
 def _doctor_summary() -> dict:
     """Structured equivalent of run_doctor's report for --progress jsonl."""
     from .utils import exiftool as exiftool_utils
+    from .utils import ffmpeg as ffmpeg_utils
     from .utils.system_info import get_system_summary
 
     deps_ok, missing = check_dependencies()
@@ -1843,6 +1844,10 @@ def _doctor_summary() -> dict:
         "ffmpeg": {"present": "ffmpeg" not in missing},
         "exiftool": {"present": "exiftool" not in missing},
     }
+    if tools["ffmpeg"]["present"]:
+        version = ffmpeg_utils.ffmpeg_version()
+        if version:
+            tools["ffmpeg"].update(version=version, path=ffmpeg_utils.ffmpeg_exe())
     if tools["exiftool"]["present"]:
         version = exiftool_utils.exiftool_version()
         if version:
