@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Master validation script for DJI Metadata Embedder on Windows 11.
 Runs all validation tests and provides comprehensive system validation.

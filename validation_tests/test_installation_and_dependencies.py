@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script to validate DJI Metadata Embedder installation and dependencies on Windows 11.
 Run this first to ensure everything is properly set up.

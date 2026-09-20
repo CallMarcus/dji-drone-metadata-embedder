@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script to validate DJI advanced features like telemetry conversion,
 metadata checking, and CLI functionality.

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 End-to-end integration test that processes real DJI drone footage 
 and validates the complete workflow on Windows 11.
