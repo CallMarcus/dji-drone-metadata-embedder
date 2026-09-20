@@ -1,0 +1,4 @@
+# Whole-tree reformats. GitHub and `git blame --ignore-revs-file` skip these
+# so blame shows who wrote a line, not who reformatted it.
+# Adoption of ruff format (PR #585)
+1bdd98f1e0d7a341b536f21d4f103548dac86953
