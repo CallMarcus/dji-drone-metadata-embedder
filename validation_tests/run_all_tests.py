@@ -4,8 +4,8 @@ Master validation script for DJI Metadata Embedder on Windows 11.
 Runs all validation tests and provides comprehensive system validation.
 """
 
-import sys
 import subprocess
+import sys
 import time
 from pathlib import Path
 

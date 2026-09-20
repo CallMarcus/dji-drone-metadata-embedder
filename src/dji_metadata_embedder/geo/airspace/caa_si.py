@@ -82,7 +82,7 @@ _ZIP_HREF_RE = re.compile(
     r"""href=["']([^"']*/upload/editor/file/[^"']+\.zip)["']""", re.IGNORECASE
 )
 
-_ROW_RE = re.compile(r"<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>", re.S | re.I)
+_ROW_RE = re.compile(r"<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
 # ArcGIS/Google Earth export furniture, never a published fact.
 _FURNITURE = {

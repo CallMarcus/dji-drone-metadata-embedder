@@ -6,72 +6,73 @@ import json
 import os
 import sys
 import webbrowser
-import click
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import click
+
 from . import __version__
 from .embedder import DJIMetadataEmbedder, run_doctor
-from .utils.provision import EXIFTOOL_VERSION, provision_exiftool
-from .metadata_check import check_metadata, media_files_in
-from .telemetry_converter import (
-    extract_telemetry_to_gpx,
-    extract_telemetry_to_csv,
-    parse_utc_offset,
-    summarize_sun,
-)
 from .geo import (
     DEFAULT_TILE_STYLE,
     TILE_STYLES,
-    convert_to_geojson,
-    convert_to_kml,
-    convert_to_html,
-    convert_to_cot,
     PhotomapError,
+    convert_to_cot,
+    convert_to_geojson,
+    convert_to_html,
+    convert_to_kml,
     folder_has_photos,
+    parse_popup_fields,
     redact_photo_points,
     scan_flights,
     scan_photos,
     serve_directory,
+    write_flights_3d_html,
     write_flights_geojson,
     write_flights_html,
-    write_flights_3d_html,
     write_flights_kml,
     write_mixed_html,
     write_photos_geojson,
-    parse_popup_fields,
     write_photos_html,
     write_photos_kml,
 )
 from .geo.airspace import fetch as airspace_fetch
+from .geo.airspace.overlay import zones_to_overlay_json
+from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
+from .geo.logfetch import LogFetchError, cache_path, fetch_log
+from .geo.media import find_video_path, resolve_media
 from .geo.panoedit import (
     DEFAULT_MAX_SERVE_WIDTH,
     PanoEditError,
     clean_backups,
     run_editor,
 )
-from .geo.airspace.overlay import zones_to_overlay_json
-from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
-from .geo.logfetch import LogFetchError, cache_path, fetch_log
-from .geo.media import find_video_path, resolve_media
+from .geo.record import build_records
+from .geo.record_html import write_flight_record
 from .geo.videogimbal import (
     VideoGimbalReport,
     VideoGimbalUnavailable,
     schema_carries_gimbal,
 )
-from .geo.record import build_records
-from .geo.record_html import write_flight_record
+from .metadata_check import check_metadata, media_files_in
 from .mp4_telemetry import _EXIFTOOL_INSTALL_HINT, Mp4TelemetryError, probe
-from .utils.exiftool import exiftool_available
 from .progress import NullProgress, make_progress
+from .telemetry_converter import (
+    extract_telemetry_to_csv,
+    extract_telemetry_to_gpx,
+    parse_utc_offset,
+    summarize_sun,
+)
 from .utilities import (
     check_dependencies,
+    get_tool_versions,
     make_logging_nonblocking,
     setup_logging,
-    get_tool_versions,
 )
+from .utils.exiftool import exiftool_available
+from .utils.provision import EXIFTOOL_VERSION, provision_exiftool
 
 
 # Exit codes for consistent CLI behavior

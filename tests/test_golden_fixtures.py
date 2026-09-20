@@ -4,20 +4,21 @@ This test validates parser robustness across different DJI drone formats
 and edge cases, implementing M3 milestone requirement #137.
 """
 
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-from dji_metadata_embedder.utilities import parse_telemetry_points
+import pytest
+
 from dji_metadata_embedder.core.validator import (
-    validate_srt_format,
     normalize_telemetry_units,
     validate_directory,
+    validate_srt_format,
 )
+from dji_metadata_embedder.utilities import parse_telemetry_points
 from tests.fixtures.golden_srt_samples import (
-    GOLDEN_SAMPLES, 
     EDGE_CASE_SAMPLES,
-    create_golden_fixtures
+    GOLDEN_SAMPLES,
+    create_golden_fixtures,
 )
 
 

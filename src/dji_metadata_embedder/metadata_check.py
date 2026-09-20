@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional
-import logging
 
 from rich.progress import Progress
+
 from .utilities import setup_logging
 
 CHECK = "\u2705"  # green check mark
@@ -24,7 +24,7 @@ CROSS = "\u274c"  # red cross
 logger = logging.getLogger(__name__)
 
 
-def run_ffprobe(path: Path) -> Optional[Dict]:
+def run_ffprobe(path: Path) -> dict | None:
     """Return ffprobe JSON output for the media file or ``None`` on failure."""
     cmd = [
         "ffprobe",
@@ -43,7 +43,7 @@ def run_ffprobe(path: Path) -> Optional[Dict]:
         return None
 
 
-def run_exiftool(path: Path) -> Optional[Dict]:
+def run_exiftool(path: Path) -> dict | None:
     """Return exiftool JSON output for the file or ``None`` on failure."""
     cmd = ["exiftool", "-j", str(path)]
     try:
@@ -54,7 +54,7 @@ def run_exiftool(path: Path) -> Optional[Dict]:
         return None
 
 
-def check_file(path: Path) -> Dict[str, bool]:
+def check_file(path: Path) -> dict[str, bool]:
     """Check a single media file for GPS, altitude, creation time and embedded telemetry (DJI djmd/dbgi or Parrot mett)."""
     ffprobe_data = run_ffprobe(path) or {}
     exif_data = run_exiftool(path) or {}
@@ -88,7 +88,7 @@ def check_file(path: Path) -> Dict[str, bool]:
     }
 
 
-def check_metadata(path: str | Path) -> Dict[str, bool]:
+def check_metadata(path: str | Path) -> dict[str, bool]:
     """Public helper to check a media file for DJI metadata."""
     file_path = Path(path)
     if not file_path.exists():

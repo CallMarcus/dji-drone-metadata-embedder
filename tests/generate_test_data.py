@@ -24,8 +24,6 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
-from typing import List
-
 
 MP4_HEADER = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42mp41"
 
@@ -83,10 +81,10 @@ GPS(39.906218,116.391306,69.900) BAROMETER(91.2) HOME(39.906206,116.391400)
     return path
 
 
-def create_edge_case_srts(directory: Path) -> List[Path]:
+def create_edge_case_srts(directory: Path) -> list[Path]:
     """Generate SRT files with problematic formatting for parser testing."""
     directory.mkdir(parents=True, exist_ok=True)
-    paths: List[Path] = []
+    paths: list[Path] = []
 
     missing_gps = directory / "missing_gps.srt"
     missing_gps.write_text(

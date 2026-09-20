@@ -6,7 +6,7 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from rich.progress import Progress
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _TEMP_SUFFIX = ".tmp"
 
 
-def _ffprobe_duration(path: Path) -> Optional[float]:
+def _ffprobe_duration(path: Path) -> float | None:
     """Return media duration in seconds via ffprobe, or None if unreadable."""
     try:
         result = subprocess.run(
@@ -183,9 +183,9 @@ class DJIMetadataEmbedder:
     def __init__(
         self,
         directory: str,
-        output_dir: Optional[str] = None,
+        output_dir: str | None = None,
         overwrite: bool = False,
-        dat_path: Optional[str] = None,
+        dat_path: str | None = None,
         dat_autoscan: bool = False,
         redact: str = "none",
         time_offset: float = 0.0,
@@ -217,9 +217,9 @@ class DJIMetadataEmbedder:
         # mux the same-basename sidecar into the output (issue #246).
         self.audio_sidecar = audio_sidecar
 
-    def parse_dji_srt(self, srt_path: Path) -> Dict[str, Any]:
+    def parse_dji_srt(self, srt_path: Path) -> dict[str, Any]:
         """Parse DJI SRT file and extract telemetry data."""
-        telemetry_data: Dict[str, Any] = {
+        telemetry_data: dict[str, Any] = {
             "gps_coords": [],
             "altitudes": [],
             "rel_altitudes": [],
@@ -456,9 +456,9 @@ class DJIMetadataEmbedder:
         self,
         video_path: Path,
         srt_path: Path,
-        telemetry: Dict[str, Any],
+        telemetry: dict[str, Any],
         output_path: Path,
-        audio_path: Optional[Path] = None,
+        audio_path: Path | None = None,
     ) -> bool:
         """Embed SRT as subtitle track and add metadata using ffmpeg.
 
@@ -562,7 +562,7 @@ class DJIMetadataEmbedder:
             return False
 
     def embed_metadata_exiftool(
-        self, video_path: Path, telemetry: Dict[str, Any]
+        self, video_path: Path, telemetry: dict[str, Any]
     ) -> bool:
         """Use exiftool to embed GPS metadata (alternative/additional method)."""
         import os
@@ -603,7 +603,7 @@ class DJIMetadataEmbedder:
             return False
 
     @staticmethod
-    def _find_dat_log(video_path: Path, warnings: list[str]) -> Optional[Path]:
+    def _find_dat_log(video_path: Path, warnings: list[str]) -> Path | None:
         """Locate the DAT log named after *video_path* for --dat-auto.
 
         Exact ``<video>.DAT`` (either case) wins; otherwise name-prefix
@@ -641,7 +641,7 @@ class DJIMetadataEmbedder:
         self,
         use_exiftool: bool = False,
         on_progress: Callable[[int, int, str], None] | None = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Process all MP4/SRT pairs in the directory.
 
         ``on_progress(index, total, name)`` is called (1-based) as each video
@@ -655,7 +655,7 @@ class DJIMetadataEmbedder:
         video_files = discover_video_files(self.directory)
 
         # Initialize result structure
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "processed": 0,
             "total_files": len(video_files),
             "warnings": [],

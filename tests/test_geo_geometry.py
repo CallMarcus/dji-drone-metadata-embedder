@@ -2,9 +2,9 @@ import math
 from datetime import datetime, timedelta
 
 from dji_metadata_embedder.geo.geometry import (
+    downsample_by_time,
     haversine_m,
     initial_bearing_deg,
-    downsample_by_time,
     point_utc,
 )
 from dji_metadata_embedder.geo.track import TrackPoint

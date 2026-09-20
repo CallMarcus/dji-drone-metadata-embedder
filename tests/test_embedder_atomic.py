@@ -11,8 +11,8 @@ import pytest
 
 from dji_metadata_embedder.embedder import (
     _TEMP_SUFFIX,
-    _validate_embedded_output,
     DJIMetadataEmbedder,
+    _validate_embedded_output,
 )
 
 

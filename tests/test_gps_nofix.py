@@ -12,7 +12,7 @@ from pathlib import Path
 
 from dji_metadata_embedder import DJIMetadataEmbedder
 from dji_metadata_embedder.telemetry_converter import extract_telemetry_to_gpx
-from dji_metadata_embedder.utilities import parse_telemetry_points, is_gps_fix
+from dji_metadata_embedder.utilities import is_gps_fix, parse_telemetry_points
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
 NOFIX_CLIP = SAMPLES / "neo2" / "clip_nogps.SRT"

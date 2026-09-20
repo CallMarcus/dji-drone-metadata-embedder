@@ -272,8 +272,8 @@ def test_a_flight_level_ceiling_renders_flat_in_3d_not_100_metres():
     # FL is a pressure datum: converting it to a map height would be
     # false precision, and the ft-else-metres branch would draw a
     # 100 m-tall volume for FL 100.
-    from dji_metadata_embedder.geo.airspace.overlay import _upper_numeric
     from dji_metadata_embedder.geo.airspace.model import VerticalLimit
+    from dji_metadata_embedder.geo.airspace.overlay import _upper_numeric
     assert _upper_numeric(VerticalLimit(100.0, "FL", "STD")) == (None, None)
 
 

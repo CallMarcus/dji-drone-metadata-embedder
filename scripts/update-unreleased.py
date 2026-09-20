@@ -13,10 +13,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 from generate_changelog import (
-    get_commits_since_tag, 
-    get_latest_release_tag,
     generate_changelog_section,
-    update_changelog_file
+    get_commits_since_tag,
+    get_latest_release_tag,
+    update_changelog_file,
 )
 
 

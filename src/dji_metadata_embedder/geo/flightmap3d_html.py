@@ -28,8 +28,8 @@ from pathlib import Path
 from .flightmap import flights_to_geojson
 from .flightmap3d_airspace_js import AIRSPACE_3D_JS
 from .flightmap3d_gaze_js import GAZE_JS
-from .provenance import attribution_credit, stamp
 from .flightmap_js import FLIGHT_POPUP_JS
+from .provenance import attribution_credit, stamp
 from .track import Track
 
 logger = logging.getLogger(__name__)

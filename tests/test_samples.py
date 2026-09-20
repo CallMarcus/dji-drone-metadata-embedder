@@ -1,10 +1,10 @@
-from pathlib import Path
+import base64
 import hashlib
 import subprocess
-import base64
+from pathlib import Path
 
-from dji_metadata_embedder.per_frame_embedder import embed_flight_path_ffmpeg
 from dji_metadata_embedder import telemetry_converter
+from dji_metadata_embedder.per_frame_embedder import embed_flight_path_ffmpeg
 from dji_metadata_embedder.utilities import parse_telemetry_points
 
 SAMPLE_HASHES = {

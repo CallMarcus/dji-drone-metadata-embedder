@@ -328,11 +328,11 @@ def test_the_direction_search_flips_a_wrong_shorter_sweep():
 def test_multiple_time_slices_invalidate_the_document():
     text = _gb().decode("utf-8")
     a2_match = re.search(
-        r'<aixm:Airspace gml:id="a2">.*?</aixm:Airspace>', text, re.S
+        r'<aixm:Airspace gml:id="a2">.*?</aixm:Airspace>', text, re.DOTALL
     )
     assert a2_match is not None
     a2 = a2_match.group(0)
-    ts_match = re.search(r"<aixm:timeSlice>.*?</aixm:timeSlice>", a2, re.S)
+    ts_match = re.search(r"<aixm:timeSlice>.*?</aixm:timeSlice>", a2, re.DOTALL)
     assert ts_match is not None
     ts = ts_match.group(0)
     broken = text.replace(a2, a2.replace(ts, ts + ts))

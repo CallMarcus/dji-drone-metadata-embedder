@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
-from typing import List
 
 
 def _load_module():
@@ -24,7 +23,7 @@ def _load_module():
     return module
 
 
-def _patch_tags(monkeypatch, module, tags: List[str]) -> None:
+def _patch_tags(monkeypatch, module, tags: list[str]) -> None:
     """Replace run_git_command so the tag list lookup returns *tags*."""
     def fake(args):
         # `tag --list --sort=-version:refname` — return the canned list.

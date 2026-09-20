@@ -4,9 +4,9 @@ Test script to validate DJI Metadata Embedder installation and dependencies on W
 Run this first to ensure everything is properly set up.
 """
 
+import importlib
 import subprocess
 import sys
-import importlib
 from importlib import util
 from pathlib import Path
 
@@ -33,8 +33,8 @@ def test_package_importable():
             raise ImportError("dji_metadata_embedder not found")
 
         from dji_metadata_embedder import DJIMetadataEmbedder
-        from dji_metadata_embedder.telemetry_converter import convert_to_gpx
         from dji_metadata_embedder.metadata_check import check_metadata
+        from dji_metadata_embedder.telemetry_converter import convert_to_gpx
 
         _ = (DJIMetadataEmbedder, convert_to_gpx, check_metadata)
 

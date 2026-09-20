@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from dji_metadata_embedder.geo.track import Track, TrackPoint
 from dji_metadata_embedder.geo.cot import track_to_cot
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 _BASE = datetime(2024, 7, 2, 22, 31, 0)
 

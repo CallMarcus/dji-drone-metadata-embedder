@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Diagnostic script to identify issues with DJI Metadata Embedder setup."""
-import sys
-import subprocess
-import json
 import importlib.util
-from pathlib import Path
+import json
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 
 
 class DiagnosticTool:

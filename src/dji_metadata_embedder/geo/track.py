@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from ..utilities import TelemetrySample, load_samples, redact_coords, resolve_utc_offset
 from ..mp4_telemetry import is_video
+from ..utilities import TelemetrySample, load_samples, redact_coords, resolve_utc_offset
 
 
 @dataclass

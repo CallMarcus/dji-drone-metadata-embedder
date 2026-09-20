@@ -4,10 +4,10 @@ Test script to validate DJI video processing and metadata embedding functionalit
 Tests the core video processing pipeline with real files.
 """
 
-import sys
-from pathlib import Path
 import json
+import sys
 import tempfile
+from pathlib import Path
 
 # Add the package to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent))

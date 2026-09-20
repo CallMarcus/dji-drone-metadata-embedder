@@ -1,11 +1,10 @@
 """Validation module for SRT/MP4/MOV pairs and drift analysis."""
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
 import re
 from datetime import datetime
-
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 _TIMESTAMP_RE = re.compile(r"^(\d+):(\d{1,2}):(\d{1,2})(?:[.,](\d+))?$")
 
 
-def _timestamp_to_seconds(timestamp: str) -> Optional[float]:
+def _timestamp_to_seconds(timestamp: str) -> float | None:
     """Parse an SRT-style ``HH:MM:SS[,.]mmm`` timestamp into seconds.
 
     Returns ``None`` for empty or unparseable input so callers can skip pairs
@@ -41,7 +40,7 @@ class Validator:
         return Path(file_path).exists()
 
 
-def parse_srt_timestamps(srt_path: Path) -> List[Tuple[float, str]]:
+def parse_srt_timestamps(srt_path: Path) -> list[tuple[float, str]]:
     """Extract timestamps from SRT file.
     
     Returns list of (timestamp_seconds, timecode_string) tuples.
@@ -87,9 +86,9 @@ def get_video_duration(mp4_path: Path) -> float:
     return 0.0
 
 
-def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> Dict[str, Any]:
+def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> dict[str, Any]:
     """Analyze timing drift between SRT and MP4 files."""
-    analysis: Dict[str, Any] = {
+    analysis: dict[str, Any] = {
         "srt_file": str(srt_path),
         "mp4_file": str(mp4_path),
         "valid": True,
@@ -168,14 +167,14 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> Dic
         
     except Exception as e:
         analysis["valid"] = False
-        analysis["issues"].append(f"Analysis failed: {str(e)}")
+        analysis["issues"].append(f"Analysis failed: {e!s}")
     
     return analysis
 
 
-def validate_directory(directory: Path, drift_threshold: float = 1.0) -> Dict[str, Any]:
+def validate_directory(directory: Path, drift_threshold: float = 1.0) -> dict[str, Any]:
     """Validate all SRT/MP4/MOV pairs in a directory."""
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "directory": str(directory),
         "timestamp": datetime.now().isoformat(),
         "total_files": 0,
@@ -224,17 +223,17 @@ def validate_directory(directory: Path, drift_threshold: float = 1.0) -> Dict[st
             result["warnings"].extend([f"{mp4_file.name}: {warning}" for warning in analysis["warnings"]])
     
     except Exception as e:
-        result["issues"].append(f"Directory validation failed: {str(e)}")
+        result["issues"].append(f"Directory validation failed: {e!s}")
     
     return result
 
 
-def validate_srt_format(srt_path: Path, lenient: bool = True) -> Dict[str, Any]:
+def validate_srt_format(srt_path: Path, lenient: bool = True) -> dict[str, Any]:
     """Validate SRT file format and extract telemetry with warnings.
     
     This implements the lenient parser mode for M3 milestone.
     """
-    validation: Dict[str, Any] = {
+    validation: dict[str, Any] = {
         "file": str(srt_path),
         "valid": True,
         "format_detected": "unknown",
@@ -333,17 +332,17 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> Dict[str, Any]:
         validation["issues"].append("File encoding error - not valid UTF-8")
     except Exception as e:
         validation["valid"] = False
-        validation["issues"].append(f"Validation failed: {str(e)}")
+        validation["issues"].append(f"Validation failed: {e!s}")
     
     return validation
 
 
-def normalize_telemetry_units(telemetry_data: List[Tuple[float, float, float, str]], strict: bool = False) -> Dict[str, Any]:
+def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, str]], strict: bool = False) -> dict[str, Any]:
     """Normalize and validate telemetry units with sanity checks.
     
     This implements unit normalization and sanity checks for M3 milestone (#139).
     """
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "original_count": len(telemetry_data),
         "normalized_count": 0,
         "issues": [],
@@ -469,7 +468,7 @@ def normalize_telemetry_units(telemetry_data: List[Tuple[float, float, float, st
                     result["warnings"].append(f"Unrealistic speed detected: {max_speed*3.6:.1f} km/h")
                 
         except Exception as e:
-            result["warnings"].append(f"Speed calculation failed: {str(e)}")
+            result["warnings"].append(f"Speed calculation failed: {e!s}")
     
     # Normalize data (for now, just copy - could implement coordinate system conversions here)
     result["normalized_data"] = telemetry_data.copy()

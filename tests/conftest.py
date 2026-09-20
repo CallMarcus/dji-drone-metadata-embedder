@@ -45,12 +45,12 @@ if "rich" not in sys.modules:
             # tests in test_progress_jsonl.py and test_cli_logging.py.
             super().__init__(console.file if console is not None else None)
 
-    setattr(progress, "Progress", _StubProgress)
-    setattr(logging_mod, "RichHandler", _StubRichHandler)
-    setattr(console_mod, "Console", _StubConsole)
-    setattr(rich, "progress", progress)
-    setattr(rich, "logging", logging_mod)
-    setattr(rich, "console", console_mod)
+    progress.Progress = _StubProgress
+    logging_mod.RichHandler = _StubRichHandler
+    console_mod.Console = _StubConsole
+    rich.progress = progress
+    rich.logging = logging_mod
+    rich.console = console_mod
     sys.modules["rich"] = rich
     sys.modules["rich.progress"] = progress
     sys.modules["rich.logging"] = logging_mod

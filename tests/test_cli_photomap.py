@@ -444,7 +444,7 @@ def test_pano_view_thumbs_flag_replaces_thumbnails(monkeypatch, tmp_path):
         points[0].thumbnail_b64 = "dmlldw=="
         points[0].thumb_is_view = True
         return 1
-    import dji_metadata_embedder.geo.panorender as panorender
+    from dji_metadata_embedder.geo import panorender
     monkeypatch.setattr(panorender, "apply_view_thumbnails", fake_apply)
 
     result = CliRunner().invoke(cli_mod.main, [
@@ -468,7 +468,7 @@ def test_no_flag_no_render(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_mod, "scan_photos",
                         lambda d, recursive=False: ([pano], []))
     called = []
-    import dji_metadata_embedder.geo.panorender as panorender
+    from dji_metadata_embedder.geo import panorender
     monkeypatch.setattr(panorender, "apply_view_thumbnails",
                         lambda pts, root: called.append(1))
     result = CliRunner().invoke(cli_mod.main, [

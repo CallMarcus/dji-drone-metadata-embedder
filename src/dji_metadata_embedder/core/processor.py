@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 
 class Processor:
@@ -17,4 +17,3 @@ class Processor:
         for _file in self.input_files:
             # Placeholder for actual processing logic
             _ = _file  # avoid unused variable warning
-            pass

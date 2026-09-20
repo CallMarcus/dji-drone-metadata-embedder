@@ -11,10 +11,10 @@ import json
 import logging
 from pathlib import Path
 
+from ..mp4_telemetry import is_video
+from ..utilities import Home, parse_home, redact_home
 from .footprint import Footprint, build_footprints, lens_for
 from .track import Track, build_track
-from ..utilities import Home, parse_home, redact_home
-from ..mp4_telemetry import is_video
 
 logger = logging.getLogger(__name__)
 

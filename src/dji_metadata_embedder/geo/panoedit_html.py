@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import json
 
-from .provenance import stamp
 from .photomap_js import (
     PANNELLUM_CSS_SRI,
     PANNELLUM_JS_SRI,
     PANNELLUM_VERSION,
 )
+from .provenance import stamp
 
 # The page's own backstop for a save request that never returns. Must
 # outlast both of the server's ExifTool timeouts (panoedit._WRITE_TIMEOUT,

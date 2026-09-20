@@ -193,7 +193,6 @@ def test_exiftool_version_is_cached_and_optional(monkeypatch):
 
     def fake_version():
         calls.append(1)
-        return None
 
     monkeypatch.setattr(pe, "exiftool_version", fake_version)
     monkeypatch.setattr(pe, "_version_cache", [])

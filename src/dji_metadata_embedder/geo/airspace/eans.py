@@ -31,8 +31,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from .model import iso_utc
-from .model import Applicability, AirspaceError, SourceInfo, VerticalLimit, Zone
+from .model import (
+    AirspaceError,
+    Applicability,
+    SourceInfo,
+    VerticalLimit,
+    Zone,
+    iso_utc,
+)
 
 
 @dataclass(frozen=True)

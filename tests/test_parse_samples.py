@@ -2,8 +2,8 @@ from datetime import datetime
 from pathlib import Path
 
 from dji_metadata_embedder.utilities import (
-    parse_telemetry_samples,
     parse_telemetry_points,
+    parse_telemetry_samples,
 )
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"

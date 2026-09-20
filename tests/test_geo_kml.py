@@ -29,9 +29,10 @@ def test_convert_to_kml_writes_file(tmp_path):
 
 def test_kml_includes_footprint_folder():
     from pathlib import Path
-    from dji_metadata_embedder.geo.track import build_track
+
     from dji_metadata_embedder.geo.footprint import build_footprints
     from dji_metadata_embedder.geo.kml import track_to_kml
+    from dji_metadata_embedder.geo.track import build_track
 
     samples = Path(__file__).resolve().parents[1] / "samples"
     track = build_track(samples / "air3" / "clip.SRT")
@@ -44,8 +45,9 @@ def test_kml_includes_footprint_folder():
 
 def test_kml_without_footprints_has_no_folder():
     from pathlib import Path
-    from dji_metadata_embedder.geo.track import build_track
+
     from dji_metadata_embedder.geo.kml import track_to_kml
+    from dji_metadata_embedder.geo.track import build_track
 
     samples = Path(__file__).resolve().parents[1] / "samples"
     track = build_track(samples / "air3" / "clip.SRT")

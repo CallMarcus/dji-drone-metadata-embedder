@@ -1,12 +1,11 @@
 import subprocess
 from pathlib import Path
-from typing import List, Tuple
 
-from .utilities import parse_telemetry_points, iso6709
+from .utilities import iso6709, parse_telemetry_points
 
 
 def embed_flight_path_ffmpeg(
-    video: Path, points: List[Tuple[float, float, float, str]], output: Path
+    video: Path, points: list[tuple[float, float, float, str]], output: Path
 ) -> bool:
     """Embed per-frame GPS points using FFmpeg. Returns True on success."""
     cmd = [
@@ -32,7 +31,7 @@ def embed_flight_path(video: Path, srt: Path, output: Path) -> bool:
     return embed_flight_path_ffmpeg(video, points, output)
 
 
-def extract_frame_locations(path: Path) -> List[str]:
+def extract_frame_locations(path: Path) -> list[str]:
     """Return list of ISO6709 strings extracted via ffprobe frame tags."""
     cmd = [
         "ffprobe",

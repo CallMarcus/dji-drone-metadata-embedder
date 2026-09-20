@@ -10,8 +10,8 @@ import pytest
 from PIL import Image
 
 from dji_metadata_embedder.geo.photomap import (
-    PhotoPoint,
     PhotomapError,
+    PhotoPoint,
     camera_summary,
     format_exposure,
     photos_to_geojson,

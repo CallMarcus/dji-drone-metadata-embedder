@@ -18,8 +18,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-
 
 # Conventional commit type mappings to changelog sections
 COMMIT_TYPE_MAPPING = {
@@ -48,7 +46,7 @@ BREAKING_INDICATORS = [
 ]
 
 
-def run_git_command(args: List[str]) -> str:
+def run_git_command(args: list[str]) -> str:
     """Run a git command and return output."""
     try:
         result = subprocess.run(
@@ -63,7 +61,7 @@ def run_git_command(args: List[str]) -> str:
         sys.exit(1)
 
 
-def parse_conventional_commit(commit_line: str) -> Optional[Dict]:
+def parse_conventional_commit(commit_line: str) -> dict | None:
     """Parse a conventional commit message."""
     # Split hash and message
     parts = commit_line.split(" ", 1)
@@ -100,7 +98,7 @@ def parse_conventional_commit(commit_line: str) -> Optional[Dict]:
     }
 
 
-def get_commits_since_tag(since_tag: Optional[str] = None) -> List[Dict]:
+def get_commits_since_tag(since_tag: str | None = None) -> list[dict]:
     """Get commits since a specific tag or all if no tag provided."""
     if since_tag:
         # Get commits since the tag
@@ -128,7 +126,7 @@ def get_commits_since_tag(since_tag: Optional[str] = None) -> List[Dict]:
     return commits
 
 
-def get_latest_release_tag(exclude: Optional[str] = None) -> Optional[str]:
+def get_latest_release_tag(exclude: str | None = None) -> str | None:
     """Get the latest release tag, optionally skipping a specific version.
 
     When the workflow runs after a tag push, the tag we just published is the
@@ -161,7 +159,7 @@ def get_latest_release_tag(exclude: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def group_commits_by_type(commits: List[Dict]) -> Dict[str, List[Dict]]:
+def group_commits_by_type(commits: list[dict]) -> dict[str, list[dict]]:
     """Group commits by their type (feat -> Added, fix -> Fixed, etc.)."""
     grouped = {}
     
@@ -177,7 +175,7 @@ def group_commits_by_type(commits: List[Dict]) -> Dict[str, List[Dict]]:
     return grouped
 
 
-def format_changelog_entry(commit: Dict) -> str:
+def format_changelog_entry(commit: dict) -> str:
     """Format a single commit as a changelog entry."""
     description = commit["description"]
     
@@ -201,7 +199,7 @@ def format_changelog_entry(commit: Dict) -> str:
     return entry
 
 
-def generate_changelog_section(commits: List[Dict], version: str = "Unreleased") -> str:
+def generate_changelog_section(commits: list[dict], version: str = "Unreleased") -> str:
     """Generate a complete changelog section."""
     if not commits:
         return ""

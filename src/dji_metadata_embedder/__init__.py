@@ -4,19 +4,19 @@ __version__ = "2.16.0"
 
 # Import check to ensure files were moved correctly
 try:
+    from .cli import main
+    from .dat_parser import parse_v13 as parse_dat_v13
     from .embedder import DJIMetadataEmbedder, run_doctor
     from .per_frame_embedder import embed_flight_path, extract_frame_locations
-    from .dat_parser import parse_v13 as parse_dat_v13
-    from .cli import main
 
     __all__ = [
-        "__version__",
-        "main",
         "DJIMetadataEmbedder",
-        "run_doctor",
+        "__version__",
         "embed_flight_path",
         "extract_frame_locations",
+        "main",
         "parse_dat_v13",
+        "run_doctor",
     ]
 except ImportError as e:  # noqa: BLE001
     import warnings

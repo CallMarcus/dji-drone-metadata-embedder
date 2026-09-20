@@ -4,21 +4,21 @@ End-to-end integration test that processes real DJI drone footage
 and validates the complete workflow on Windows 11.
 """
 
-import sys
-from pathlib import Path
 import json
-import tempfile
 import shutil
 import subprocess
+import sys
+import tempfile
 import time
+from pathlib import Path
 
 # Add the package to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from dji_metadata_embedder.embedder import DJIMetadataEmbedder
+    from dji_metadata_embedder.telemetry_converter import convert_to_csv, convert_to_gpx
     from dji_metadata_embedder.utilities import check_dependencies
-    from dji_metadata_embedder.telemetry_converter import convert_to_gpx, convert_to_csv
 except ImportError as e:
     print(f"❌ Could not import DJI modules: {e}")
     print("   Try running: pip install -e .")
