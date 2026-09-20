@@ -73,7 +73,9 @@ test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
 - **PRs:** one issue/feature per PR, conventional-commit title, reference
   the issue (`Closes #N`).
 - **Style:** PEP 8 via ruff, type hints on new functions, comment every
-  non-obvious regex.
+  non-obvious regex. The rule set is ruff's default plus the E/F rules
+  listed in `pyproject.toml`; a `noqa` always carries the reason on the
+  same line (`# noqa: BLE001  # why`), never a bare code.
 
 ## Invariants — do not break these
 

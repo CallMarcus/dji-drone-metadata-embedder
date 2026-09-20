@@ -96,11 +96,30 @@ include = [
 ]
 
 [tool.ruff.lint]
-# Pin the rule set explicitly. Until ruff 0.16 the implicit default was
-# E4/E7/E9/F; 0.16 widened the defaults to a much larger "recommended"
-# set (DTZ, BLE, PL*, UP*, RUF*, ...) which flagged ~500 sites here. Pin
-# the historical default so upgrades change behaviour only when we say so.
-select = ["E4", "E7", "E9", "F"]
+# ruff 0.16's default ("recommended") set, adopted deliberately (#561), plus
+# the eighteen E/F rules that 0.16 dropped from its defaults and the old
+# E4/E7/E9/F pin still caught. The defaults are a curated subset within
+# each family (13 of the PL rules, 3 of the S rules, one D rule), so a
+# family-level `select` cannot reproduce them and a 413-code list would
+# rot. Stability comes from the ruff pin in the dev extra instead: a bump
+# arrives as a PR that must pass CI, so any new rule is a reviewed
+# decision, never a side effect of an upgrade.
+extend-select = [
+    "E401", "E402", "E701", "E702", "E703", "E711", "E712", "E713", "E714",
+    "E721", "E731", "E741", "E742", "E743",
+    "F403", "F405", "F406", "F722",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Fixture timestamps are naive wall-clock values by design (they mirror
+# what the SRT and flight-log parsers hand back); test doubles and probes
+# catch everything and call subprocess without caring about `check`.
+"tests/**" = ["DTZ", "BLE001", "PLW1510"]
+"validation_tests/**" = ["BLE001", "PLW1510"]
+# Maintainer helpers: best-effort git probes, a local date in a changelog
+# heading, and a diagnostic script that reads return codes itself.
+"scripts/**" = ["BLE001", "DTZ005", "S110"]
+"tools/**" = ["PLW1510", "DTZ005"]
 
 [tool.mypy]
 python_version = "3.10"

@@ -18,7 +18,7 @@ try:
         "parse_dat_v13",
         "run_doctor",
     ]
-except ImportError as e:  # noqa: BLE001
+except ImportError as e:
     import warnings
 
     warnings.warn(f"Some modules could not be imported: {e}")

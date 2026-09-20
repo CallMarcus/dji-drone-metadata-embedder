@@ -357,7 +357,7 @@ def test_check_dependencies_finds_provisioned_exiftool(monkeypatch, tmp_path):
     exe.write_text("stub")
     monkeypatch.setattr(utilities.subprocess, "run", fake_run)
 
-    ok, missing = utilities.check_dependencies()
+    _ok, missing = utilities.check_dependencies()
     assert "exiftool" not in missing
 
 

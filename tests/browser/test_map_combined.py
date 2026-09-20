@@ -14,12 +14,12 @@ from datetime import datetime, timedelta
 import pytest
 
 pytest.importorskip("playwright")
-from PIL import Image  # noqa: E402
-from playwright.sync_api import expect  # noqa: E402
+from PIL import Image
+from playwright.sync_api import expect
 
-from dji_metadata_embedder.geo.map_html import mixed_to_html  # noqa: E402
-from dji_metadata_embedder.geo.photomap import PhotoPoint  # noqa: E402
-from dji_metadata_embedder.geo.track import Track, TrackPoint  # noqa: E402
+from dji_metadata_embedder.geo.map_html import mixed_to_html
+from dji_metadata_embedder.geo.photomap import PhotoPoint
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 pytestmark = pytest.mark.browser
 

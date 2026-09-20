@@ -6,10 +6,10 @@ import pytest
 
 pytest.importorskip("playwright")
 
-from playwright.sync_api import expect  # noqa: E402
+from playwright.sync_api import expect
 
-from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html  # noqa: E402
-from dji_metadata_embedder.geo.track import Track, TrackPoint  # noqa: E402
+from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 pytestmark = pytest.mark.browser
 
@@ -161,8 +161,8 @@ def test_long_airspace_notes_wrap_inside_a_capped_panel(serve_map, page):
     html = flights_to_3d_html(
         [_flight()], "t",
         airspace_json=_overlay([_zone()], notes=[
-            "Airspace: Sweden UAS geographical zones (ED-318, LFV), "
-            "fetched 2026-08-22T12:44:39Z", long_note]))
+            ("Airspace: Sweden UAS geographical zones (ED-318, LFV), "
+            "fetched 2026-08-22T12:44:39Z"), long_note]))
     page.set_viewport_size({"width": 1600, "height": 900})
     serve_map(html, terrain_stub=100.0)
     _wait_layers(page)

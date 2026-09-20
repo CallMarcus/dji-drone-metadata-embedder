@@ -33,7 +33,7 @@ def test_mixed_geojson_tags_every_feature_by_type():
 
 def test_mixed_geojson_keeps_photo_thumbnails_and_track_playback():
     data = mixed_to_geojson(POINTS, TRACKS)
-    photo, pano, track = data["features"]
+    photo, _pano, track = data["features"]
     assert photo["properties"]["thumb"] == "/9j/THUMB1"
     assert track["geometry"]["type"] == "LineString"
     assert track["properties"]["times_s"] == [0.0, 60.0]

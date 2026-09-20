@@ -11,12 +11,12 @@ import time
 import pytest
 
 pytest.importorskip("playwright")
-from PIL import Image  # noqa: E402
+from PIL import Image
 
-from dji_metadata_embedder.geo import panoedit as pe  # noqa: E402
-from dji_metadata_embedder.geo.panoedit_html import build_editor_page  # noqa: E402
+from dji_metadata_embedder.geo import panoedit as pe
+from dji_metadata_embedder.geo.panoedit_html import build_editor_page
 
-from .conftest import _ASSET_RE, _fetch_asset  # noqa: E402
+from .conftest import _ASSET_RE, _fetch_asset
 
 needs_exiftool = pytest.mark.skipif(
     shutil.which("exiftool") is None, reason="ExifTool not installed")
