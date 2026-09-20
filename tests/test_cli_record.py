@@ -1,4 +1,5 @@
 """CLI tests for flightmap -f record (#413). Uses the repo SRT samples."""
+
 import io
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -94,9 +95,7 @@ def test_all_under_redact_skips_the_record_with_a_note(tmp_path):
 
 def test_3d_and_record_conflict(tmp_path):
     d = _srt_dir(tmp_path)
-    result = CliRunner().invoke(
-        main, ["flightmap", str(d), "-f", "record", "--3d"]
-    )
+    result = CliRunner().invoke(main, ["flightmap", str(d), "-f", "record", "--3d"])
     assert result.exit_code != 0
 
 
@@ -117,7 +116,12 @@ def test_airspace_refresh_with_all_and_redact_warns(tmp_path):
     result = CliRunner().invoke(
         main,
         [
-            "flightmap", str(d), "-f", "all", "--redact", "fuzz",
+            "flightmap",
+            str(d),
+            "-f",
+            "all",
+            "--redact",
+            "fuzz",
             "--airspace-refresh",
         ],
     )

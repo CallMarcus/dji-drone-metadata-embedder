@@ -44,11 +44,11 @@ TARGET_PATTERNS: dict[Path, tuple[str, str]] = {
     ),
     Path("tools/bootstrap.ps1"): (
         r"\$fallbackVersion\s*=\s*\"(?P<ver>\d+\.\d+\.\d+)\"",
-        "$fallbackVersion = \"{version}\"",
+        '$fallbackVersion = "{version}"',
     ),
     Path("dji-embed.spec"): (
         r"__version__\s*=\s*\"(?P<ver>\d+\.\d+\.\d+)\"",
-        "__version__ = \"{version}\"",
+        '__version__ = "{version}"',
     ),
     # "Current version" stamps in docs. These are prose/markdown version
     # claims that previously drifted every release because nothing updated
@@ -118,7 +118,9 @@ def _update_targets(version: str, root: Path) -> None:
     """Update all known target files to ``version``."""
 
     # update version file
-    _replace_in_file(_version_file(root), VERSION_RE.pattern, f'__version__ = "{version}"')
+    _replace_in_file(
+        _version_file(root), VERSION_RE.pattern, f'__version__ = "{version}"'
+    )
 
     for rel_path, (pattern, template) in TARGET_PATTERNS.items():
         path = root / rel_path
@@ -132,20 +134,28 @@ def _update_targets(version: str, root: Path) -> None:
         yml_files = list(winget_dir.rglob("*.yml"))
         yaml_files = list(winget_dir.rglob("*.yaml"))
         for manifest in yml_files + yaml_files:
-            _replace_in_file(manifest, r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", f"PackageVersion: {version}")
+            _replace_in_file(
+                manifest,
+                r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)",
+                f"PackageVersion: {version}",
+            )
             # Keep release-tag links (e.g. ReleaseNotesUrl) pointing at the
             # current version so the manifest never ships stale release notes.
-            _replace_in_file(manifest, r"(releases/tag/v)(?P<ver>\d+\.\d+\.\d+)", rf"\g<1>{version}")
+            _replace_in_file(
+                manifest, r"(releases/tag/v)(?P<ver>\d+\.\d+\.\d+)", rf"\g<1>{version}"
+            )
 
         # Update installer URL version references in installer manifests
         # (rglob: the desktop package set lives in winget/desktop/)
-        installer_files = list(winget_dir.rglob("*.installer.yaml")) + list(winget_dir.rglob("*.installer.yml"))
+        installer_files = list(winget_dir.rglob("*.installer.yaml")) + list(
+            winget_dir.rglob("*.installer.yml")
+        )
         for installer_file in installer_files:
             # Update download URLs that contain version numbers
             _replace_in_file(
                 installer_file,
                 r"(https://github\.com/[^/]+/[^/]+/releases/download/v)(?P<ver>\d+\.\d+\.\d+)/",
-                rf"\g<1>{version}/"
+                rf"\g<1>{version}/",
             )
             # The desktop installer asset carries the version in its
             # filename too (dji-metadata-embedder-setup-X.Y.Z.exe)
@@ -180,10 +190,12 @@ def _check_targets(version: str, root: Path) -> bool:
 
     winget_dir = root / "winget"
     if winget_dir.exists():
-        manifest_files = list(winget_dir.rglob("*.yml")) + list(winget_dir.rglob("*.yaml"))
+        manifest_files = list(winget_dir.rglob("*.yml")) + list(
+            winget_dir.rglob("*.yaml")
+        )
         for manifest in manifest_files:
             text = manifest.read_text(encoding="utf-8")
-            
+
             # Check PackageVersion field
             match = re.search(r"(?m)^PackageVersion:\s*(?P<ver>\d+\.\d+\.\d+)", text)
             if not match or match.group("ver") != version:
@@ -196,10 +208,15 @@ def _check_targets(version: str, root: Path) -> bool:
 
             # For installer manifests, also check download URL versions
             if ".installer." in manifest.name:
-                url_match = re.search(r"https://github\.com/[^/]+/[^/]+/releases/download/v(?P<ver>\d+\.\d+\.\d+)/", text)
+                url_match = re.search(
+                    r"https://github\.com/[^/]+/[^/]+/releases/download/v(?P<ver>\d+\.\d+\.\d+)/",
+                    text,
+                )
                 if url_match and url_match.group("ver") != version:
                     mismatches.append(manifest)
-                setup_match = re.search(r"dji-metadata-embedder-setup-(?P<ver>\d+\.\d+\.\d+)\.exe", text)
+                setup_match = re.search(
+                    r"dji-metadata-embedder-setup-(?P<ver>\d+\.\d+\.\d+)\.exe", text
+                )
                 if setup_match and setup_match.group("ver") != version:
                     mismatches.append(manifest)
 
@@ -258,4 +275,3 @@ def main(argv: list[str] | None = None, project_root: Path | None = None) -> Non
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     main()
-

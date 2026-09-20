@@ -37,7 +37,6 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "coverage==7.16.0",
-    "black==26.5.1",
     "ruff==0.16.5",
     "mypy==2.3.1",
     "jsonschema==4.26.0",
@@ -94,6 +93,11 @@ include = [
     "/README.md",
     "/LICENSE",
 ]
+
+# Formatting is `ruff format` (black-compatible style, 88 columns, the
+# defaults). CI runs `ruff format --check .`; the whole-tree reformat that
+# introduced it is listed in .git-blame-ignore-revs.
+[tool.ruff.format]
 
 [tool.ruff.lint]
 # ruff 0.16's default ("recommended") set, adopted deliberately (#561), plus

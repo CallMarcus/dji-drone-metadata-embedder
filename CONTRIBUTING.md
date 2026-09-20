@@ -98,30 +98,30 @@ The project supports major DJI models (Mini 3/4 Pro, Air 3, Avata 2, Mavic 3 Ent
 def parse_new_model_format(telemetry_line: str) -> Dict[str, Any]:
     """
     Parse DJI NewModel SRT format.
-    
+
     Expected format: |LAT:59.302335|LON:18.203059|ALT:132.86|
-    
+
     Args:
         telemetry_line: Single line of telemetry data from SRT
-        
+
     Returns:
         Dictionary with extracted GPS and altitude values
-        
+
     Raises:
         ValueError: If line format is not recognized
     """
     # Pattern explanation: |KEY:value| format with decimal numbers
-    pattern = r'\|LAT:([+-]?\d+\.?\d*)\|LON:([+-]?\d+\.?\d*)\|ALT:([+-]?\d+\.?\d*)\|'
+    pattern = r"\|LAT:([+-]?\d+\.?\d*)\|LON:([+-]?\d+\.?\d*)\|ALT:([+-]?\d+\.?\d*)\|"
     match = re.search(pattern, telemetry_line)
-    
+
     if match:
         return {
-            'latitude': float(match.group(1)),
-            'longitude': float(match.group(2)),
-            'altitude': float(match.group(3)),
-            'format_detected': 'newmodel_pipe'
+            "latitude": float(match.group(1)),
+            "longitude": float(match.group(2)),
+            "altitude": float(match.group(3)),
+            "format_detected": "newmodel_pipe",
         }
-    
+
     return {}
 ```
 

@@ -17,22 +17,21 @@ from datetime import datetime
 def _julian_day(when_utc: datetime) -> float:
     """Julian Day for a UTC datetime (proleptic Gregorian)."""
     year, month = when_utc.year, when_utc.month
-    day = when_utc.day + (
-        when_utc.hour
-        + (when_utc.minute + (when_utc.second + when_utc.microsecond / 1e6) / 60) / 60
-    ) / 24
+    day = (
+        when_utc.day
+        + (
+            when_utc.hour
+            + (when_utc.minute + (when_utc.second + when_utc.microsecond / 1e6) / 60)
+            / 60
+        )
+        / 24
+    )
     if month <= 2:
         year -= 1
         month += 12
     a = year // 100
     b = 2 - a + a // 4
-    return (
-        int(365.25 * (year + 4716))
-        + int(30.6001 * (month + 1))
-        + day
-        + b
-        - 1524.5
-    )
+    return int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + b - 1524.5
 
 
 def sun_position(lat: float, lon: float, when_utc: datetime) -> tuple[float, float]:
@@ -63,7 +62,9 @@ def sun_position(lat: float, lon: float, when_utc: datetime) -> tuple[float, flo
     lam = true_long - 0.00569 - 0.00478 * math.sin(math.radians(omega))
 
     # Obliquity of the ecliptic (corrected) and solar declination.
-    obliq0 = 23 + (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60
+    obliq0 = (
+        23 + (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60
+    )
     obliq = obliq0 + 0.00256 * math.cos(math.radians(omega))
     decl = math.degrees(
         math.asin(math.sin(math.radians(obliq)) * math.sin(math.radians(lam)))
@@ -91,7 +92,9 @@ def sun_position(lat: float, lon: float, when_utc: datetime) -> tuple[float, flo
     ha = tst / 4.0 - 180.0
 
     latr, declr, har = math.radians(lat), math.radians(decl), math.radians(ha)
-    cos_zenith = math.sin(latr) * math.sin(declr) + math.cos(latr) * math.cos(declr) * math.cos(har)
+    cos_zenith = math.sin(latr) * math.sin(declr) + math.cos(latr) * math.cos(
+        declr
+    ) * math.cos(har)
     cos_zenith = max(-1.0, min(1.0, cos_zenith))
     zenith = math.acos(cos_zenith)
     elevation = 90.0 - math.degrees(zenith)

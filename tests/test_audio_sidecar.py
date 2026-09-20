@@ -24,6 +24,7 @@ def _minimal_telemetry() -> dict:
 
 def _fake_progress_class():
     """Minimal Progress-like class (conftest stubs Progress as object)."""
+
     class Task:
         def advance(self, _=None):
             pass
@@ -71,7 +72,9 @@ class TestEmbedMetadataFfmpegAudio:
 
         monkeypatch.setattr(subprocess, "run", fake_run)
 
-        embedder = DJIMetadataEmbedder(str(tmp_path), output_dir=str(tmp_path / "processed"))
+        embedder = DJIMetadataEmbedder(
+            str(tmp_path), output_dir=str(tmp_path / "processed")
+        )
         ok = embedder.embed_metadata_ffmpeg(
             video, srt, _minimal_telemetry(), out, audio_path=audio
         )
@@ -111,7 +114,9 @@ class TestEmbedMetadataFfmpegAudio:
 
         monkeypatch.setattr(subprocess, "run", fake_run)
 
-        embedder = DJIMetadataEmbedder(str(tmp_path), output_dir=str(tmp_path / "processed"))
+        embedder = DJIMetadataEmbedder(
+            str(tmp_path), output_dir=str(tmp_path / "processed")
+        )
         embedder.embed_metadata_ffmpeg(video, srt, _minimal_telemetry(), out)
 
         cmd = captured[0]
@@ -137,7 +142,9 @@ def _make_run_capture(captured: list, durations: dict | None = None):
         if cmd and "ffprobe" in str(cmd[0]).lower():
             name = Path(cmd[-1]).name
             value = durations.get(name, 10.0)
-            return type("R", (), {"returncode": 0, "stdout": f"{value}\n", "stderr": ""})()
+            return type(
+                "R", (), {"returncode": 0, "stdout": f"{value}\n", "stderr": ""}
+            )()
         return ok
 
     return fake_run
@@ -236,9 +243,7 @@ class TestProcessDirectoryAudioSidecar:
             "DJI_20240101_123456.mp4": 60.0,
             "DJI_20240101_123456.m4a": 10.0,
         }
-        monkeypatch.setattr(
-            subprocess, "run", _make_run_capture(captured, durations)
-        )
+        monkeypatch.setattr(subprocess, "run", _make_run_capture(captured, durations))
         monkeypatch.setattr(
             "dji_metadata_embedder.embedder.Progress", _fake_progress_class()
         )
@@ -251,9 +256,9 @@ class TestProcessDirectoryAudioSidecar:
         cmd = captured[0]
         inputs = [cmd[i + 1] for i, tok in enumerate(cmd) if tok == "-i"]
         assert str(audio) in inputs, "audio should still be muxed despite mismatch"
-        assert any(
-            "duration" in w.lower() for w in result["warnings"]
-        ), f"expected a duration-mismatch warning, got {result['warnings']}"
+        assert any("duration" in w.lower() for w in result["warnings"]), (
+            f"expected a duration-mismatch warning, got {result['warnings']}"
+        )
 
     def test_small_duration_gap_within_tolerance_does_not_warn(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -266,9 +271,7 @@ class TestProcessDirectoryAudioSidecar:
             "DJI_20240101_123456.mp4": 60.0,
             "DJI_20240101_123456.m4a": 58.5,
         }
-        monkeypatch.setattr(
-            subprocess, "run", _make_run_capture(captured, durations)
-        )
+        monkeypatch.setattr(subprocess, "run", _make_run_capture(captured, durations))
         monkeypatch.setattr(
             "dji_metadata_embedder.embedder.Progress", _fake_progress_class()
         )
@@ -278,9 +281,9 @@ class TestProcessDirectoryAudioSidecar:
         )
         result = embedder.process_directory(use_exiftool=False)
 
-        assert not any(
-            "sidecar duration" in w.lower() for w in result["warnings"]
-        ), f"did not expect a sidecar duration warning, got {result['warnings']}"
+        assert not any("sidecar duration" in w.lower() for w in result["warnings"]), (
+            f"did not expect a sidecar duration warning, got {result['warnings']}"
+        )
 
     def test_duration_tolerance_scales_with_clip_length(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -293,9 +296,7 @@ class TestProcessDirectoryAudioSidecar:
             "DJI_20240101_123456.mp4": 300.0,
             "DJI_20240101_123456.m4a": 292.0,
         }
-        monkeypatch.setattr(
-            subprocess, "run", _make_run_capture(captured, durations)
-        )
+        monkeypatch.setattr(subprocess, "run", _make_run_capture(captured, durations))
         monkeypatch.setattr(
             "dji_metadata_embedder.embedder.Progress", _fake_progress_class()
         )
@@ -305,9 +306,9 @@ class TestProcessDirectoryAudioSidecar:
         )
         result = embedder.process_directory(use_exiftool=False)
 
-        assert not any(
-            "sidecar duration" in w.lower() for w in result["warnings"]
-        ), f"did not expect a sidecar duration warning, got {result['warnings']}"
+        assert not any("sidecar duration" in w.lower() for w in result["warnings"]), (
+            f"did not expect a sidecar duration warning, got {result['warnings']}"
+        )
 
 
 class TestCliAudioSidecarFlag:

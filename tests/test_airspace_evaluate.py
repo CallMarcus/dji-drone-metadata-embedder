@@ -1,4 +1,5 @@
 """Evaluator tests (#413): pure geometry + windows + dwell maxima."""
+
 from datetime import datetime
 
 from dji_metadata_embedder.geo.airspace import (
@@ -11,17 +12,26 @@ from dji_metadata_embedder.geo.airspace.evaluate import evaluate, point_in_ring
 from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 SRC = SourceInfo(
-    feed="test", url="u", fetched="2026-07-30T12:00:00Z",
-    license="CC0", caveat="informational",
+    feed="test",
+    url="u",
+    fetched="2026-07-30T12:00:00Z",
+    license="CC0",
+    caveat="informational",
 )
 SQUARE = [(6.0, 49.0), (6.2, 49.0), (6.2, 49.2), (6.0, 49.2), (6.0, 49.0)]
 
 
 def _zone(**over):
     base = {
-        "identifier": "Z1", "name": "Zone 1", "restriction": "REQ_AUTHORISATION",
-        "lower": VerticalLimit(0, "m", "AGL"), "upper": VerticalLimit(120, "m", "AGL"),
-        "applicability": [], "polygons": [SQUARE], "source": SRC, "native": {},
+        "identifier": "Z1",
+        "name": "Zone 1",
+        "restriction": "REQ_AUTHORISATION",
+        "lower": VerticalLimit(0, "m", "AGL"),
+        "upper": VerticalLimit(120, "m", "AGL"),
+        "applicability": [],
+        "polygons": [SQUARE],
+        "source": SRC,
+        "native": {},
     }
     base.update(over)
     return Zone(**base)
@@ -29,8 +39,12 @@ def _zone(**over):
 
 def _pt(lat, lon, minute, rel=50.0, alt=300.0):
     return TrackPoint(
-        lat=lat, lon=lon, alt=alt, timestamp="c",
-        utc=datetime(2026, 7, 30, 12, minute), rel_alt=rel,
+        lat=lat,
+        lon=lon,
+        alt=alt,
+        timestamp="c",
+        utc=datetime(2026, 7, 30, 12, minute),
+        rel_alt=rel,
     )
 
 
@@ -40,12 +54,15 @@ def test_point_in_ring_basics():
 
 
 def test_an_entered_zone_carries_entry_exit_and_dwell_maxima():
-    track = Track(name="t", points=[
-        _pt(48.9, 6.1, 0, rel=10, alt=250),   # outside
-        _pt(49.1, 6.1, 1, rel=80, alt=330),   # inside
-        _pt(49.15, 6.1, 2, rel=95, alt=345),  # inside, the maxima
-        _pt(49.3, 6.1, 3, rel=120, alt=370),  # outside again (higher, ignored)
-    ])
+    track = Track(
+        name="t",
+        points=[
+            _pt(48.9, 6.1, 0, rel=10, alt=250),  # outside
+            _pt(49.1, 6.1, 1, rel=80, alt=330),  # inside
+            _pt(49.15, 6.1, 2, rel=95, alt=345),  # inside, the maxima
+            _pt(49.3, 6.1, 3, rel=120, alt=370),  # outside again (higher, ignored)
+        ],
+    )
     report = evaluate(track, [_zone()], surface_heights_m=[12.0, 81.0, 96.5, 130.0])
     f = report.findings[0]
     assert f.entered
@@ -63,9 +80,12 @@ def test_a_missed_zone_reports_not_entered():
 
 
 def test_zones_outside_the_flight_window_land_in_not_applicable():
-    later = _zone(identifier="Z2", applicability=[
-        Applicability(datetime(2026, 8, 1, 6), datetime(2026, 8, 1, 18), False)
-    ])
+    later = _zone(
+        identifier="Z2",
+        applicability=[
+            Applicability(datetime(2026, 8, 1, 6), datetime(2026, 8, 1, 18), False)
+        ],
+    )
     track = Track(name="t", points=[_pt(49.1, 6.1, 0)])
     report = evaluate(track, [_zone(), later], surface_heights_m=None)
     assert [f.zone.identifier for f in report.findings] == ["Z1"]
@@ -73,17 +93,19 @@ def test_zones_outside_the_flight_window_land_in_not_applicable():
 
 
 def test_a_window_overlapping_the_flight_stays_applicable():
-    overlapping = _zone(applicability=[
-        Applicability(datetime(2026, 7, 30, 11), datetime(2026, 7, 30, 13), False)
-    ])
+    overlapping = _zone(
+        applicability=[
+            Applicability(datetime(2026, 7, 30, 11), datetime(2026, 7, 30, 13), False)
+        ]
+    )
     track = Track(name="t", points=[_pt(49.1, 6.1, 0)])
     assert evaluate(track, [overlapping], surface_heights_m=None).findings
 
 
 def test_missing_point_utc_keeps_timed_zones_visible():
-    timed = _zone(applicability=[
-        Applicability(datetime(2030, 1, 1), datetime(2030, 1, 2), False)
-    ])
+    timed = _zone(
+        applicability=[Applicability(datetime(2030, 1, 1), datetime(2030, 1, 2), False)]
+    )
     p = TrackPoint(lat=49.1, lon=6.1, alt=300, timestamp="c", utc=None)
     report = evaluate(Track(name="t", points=[p]), [timed], surface_heights_m=None)
     assert report.findings  # shown, never hidden, when time is uncertain
@@ -92,10 +114,13 @@ def test_missing_point_utc_keeps_timed_zones_visible():
 def test_a_zero_dwell_maximum_is_not_overwritten_by_a_lower_negative_value():
     # regression: `max(x or float("-inf"), ...)` treats a true 0.0 max as
     # falsy and lets a later, lower value overwrite it.
-    track = Track(name="t", points=[
-        _pt(49.1, 6.1, 0, rel=0.0, alt=0.0),
-        _pt(49.1, 6.1, 1, rel=-5.0, alt=-5.0),
-    ])
+    track = Track(
+        name="t",
+        points=[
+            _pt(49.1, 6.1, 0, rel=0.0, alt=0.0),
+            _pt(49.1, 6.1, 1, rel=-5.0, alt=-5.0),
+        ],
+    )
     report = evaluate(track, [_zone()], surface_heights_m=[0.0, -5.0])
     f = report.findings[0]
     assert f.max_rel_alt_m == 0.0
@@ -104,12 +129,15 @@ def test_a_zero_dwell_maximum_is_not_overwritten_by_a_lower_negative_value():
 
 
 def test_reentering_a_zone_reports_one_spanning_entry_exit_window():
-    track = Track(name="t", points=[
-        _pt(49.1, 6.1, 0, rel=10, alt=300),   # enters
-        _pt(49.1, 6.1, 1, rel=20, alt=310),   # still inside
-        _pt(48.5, 5.0, 2, rel=999, alt=999),  # outside (higher, excluded)
-        _pt(49.1, 6.1, 4, rel=30, alt=320),   # re-enters
-    ])
+    track = Track(
+        name="t",
+        points=[
+            _pt(49.1, 6.1, 0, rel=10, alt=300),  # enters
+            _pt(49.1, 6.1, 1, rel=20, alt=310),  # still inside
+            _pt(48.5, 5.0, 2, rel=999, alt=999),  # outside (higher, excluded)
+            _pt(49.1, 6.1, 4, rel=30, alt=320),  # re-enters
+        ],
+    )
     report = evaluate(track, [_zone()], surface_heights_m=None)
     f = report.findings[0]
     assert f.entry_utc == datetime(2026, 7, 30, 12, 0)
@@ -132,8 +160,7 @@ def test_mismatched_surface_heights_length_raises():
 # parity across a flat ring list was rejected in review: it under-reports
 # for overlapping same-limit volumes, the direction a record must never
 # fail in.
-HOLE = [(6.05, 49.05), (6.15, 49.05), (6.15, 49.15), (6.05, 49.15),
-        (6.05, 49.05)]
+HOLE = [(6.05, 49.05), (6.15, 49.05), (6.15, 49.15), (6.05, 49.15), (6.05, 49.05)]
 
 
 def test_a_point_inside_an_interior_ring_is_not_entered():
@@ -160,8 +187,7 @@ def test_two_disjoint_polygons_both_count_as_the_zone():
 def test_a_point_inside_two_overlapping_volumes_is_entered():
     # Review regression pin: a zone published as overlapping same-limit
     # volumes must not cancel itself out for a point in the overlap.
-    overlapping = [(6.1, 49.1), (6.3, 49.1), (6.3, 49.3), (6.1, 49.3),
-                   (6.1, 49.1)]
+    overlapping = [(6.1, 49.1), (6.3, 49.1), (6.3, 49.3), (6.1, 49.3), (6.1, 49.1)]
     z = _zone(polygons=[SQUARE, overlapping])
     track = Track(name="t", points=[_pt(49.15, 6.15, 0)])  # in both
     assert evaluate(track, [z], surface_heights_m=None).findings[0].entered
@@ -190,12 +216,16 @@ def test_track_window_is_public_and_needs_every_point_timed():
 
     timed = Track(name="t", points=[_pt(49.1, 6.1, 0), _pt(49.1, 6.1, 5)])
     assert track_window(timed) == (
-        datetime(2026, 7, 30, 12, 0), datetime(2026, 7, 30, 12, 5)
+        datetime(2026, 7, 30, 12, 0),
+        datetime(2026, 7, 30, 12, 5),
     )
-    untimed = Track(name="t", points=[
-        _pt(49.1, 6.1, 0),
-        TrackPoint(lat=49.1, lon=6.1, alt=300, timestamp="c"),
-    ])
+    untimed = Track(
+        name="t",
+        points=[
+            _pt(49.1, 6.1, 0),
+            TrackPoint(lat=49.1, lon=6.1, alt=300, timestamp="c"),
+        ],
+    )
     assert track_window(untimed) is None
 
 
@@ -204,13 +234,21 @@ def test_not_applicable_lists_only_zones_the_flight_was_inside():
     # force during the flight; "not applicable" is a statement about THIS
     # flight, so only zones the track actually entered are listed.
     far_square = [(7.0, 50.0), (7.2, 50.0), (7.2, 50.2), (7.0, 50.2), (7.0, 50.0)]
-    timed_out_far = _zone(identifier="FAR", polygons=[far_square], applicability=[
-        Applicability(datetime(2026, 8, 1, 6), datetime(2026, 8, 1, 18), False)
-    ])
-    inactive_far = _zone(identifier="FAR2", polygons=[far_square],
-                         not_active_reason="not active (publisher's evaluation)")
-    inactive_here = _zone(identifier="HERE",
-                          not_active_reason="not active (publisher's evaluation)")
+    timed_out_far = _zone(
+        identifier="FAR",
+        polygons=[far_square],
+        applicability=[
+            Applicability(datetime(2026, 8, 1, 6), datetime(2026, 8, 1, 18), False)
+        ],
+    )
+    inactive_far = _zone(
+        identifier="FAR2",
+        polygons=[far_square],
+        not_active_reason="not active (publisher's evaluation)",
+    )
+    inactive_here = _zone(
+        identifier="HERE", not_active_reason="not active (publisher's evaluation)"
+    )
     track = Track(name="t", points=[_pt(49.1, 6.1, 0), _pt(49.1, 6.1, 5)])
     report = evaluate(track, [timed_out_far, inactive_far, inactive_here])
     assert report.findings == []

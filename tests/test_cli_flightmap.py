@@ -61,8 +61,9 @@ def test_flightmap_all_formats_share_base_name(tmp_path):
 
 
 def test_flightmap_recursive_scans_subdirectories(tmp_path):
-    _folder(tmp_path, {"session1/DJI_0001.SRT": FLIGHT_A,
-                       "session2/DJI_0001.SRT": FLIGHT_B})
+    _folder(
+        tmp_path, {"session1/DJI_0001.SRT": FLIGHT_A, "session2/DJI_0001.SRT": FLIGHT_B}
+    )
     res = CliRunner().invoke(main, ["flightmap", str(tmp_path)])
     assert res.exit_code != 0  # non-recursive scan finds nothing
     res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "-r"])
@@ -167,9 +168,7 @@ def test_flightmap_tz_offset_option_sets_start_times(tmp_path):
 
 def test_flightmap_invalid_tz_offset_is_clean_error(tmp_path):
     _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
-    res = CliRunner().invoke(
-        main, ["flightmap", str(tmp_path), "--tz-offset", "nope"]
-    )
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--tz-offset", "nope"])
     assert res.exit_code != 0
     assert "Invalid UTC offset" in res.output
     assert res.exception is None or isinstance(res.exception, SystemExit)
@@ -228,9 +227,7 @@ def test_flightmap_3d_writes_sibling_file(tmp_path):
 def test_flightmap_3d_output_override(tmp_path):
     _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
     out = tmp_path / "custom.html"
-    res = CliRunner().invoke(
-        main, ["flightmap", str(tmp_path), "--3d", "-o", str(out)]
-    )
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--3d", "-o", str(out)])
     assert res.exit_code == 0, res.output
     assert out.exists()
 
@@ -238,9 +235,7 @@ def test_flightmap_3d_output_override(tmp_path):
 def test_flightmap_3d_rejects_non_html_formats(tmp_path):
     _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
     for fmt in ("kml", "geojson", "all"):
-        res = CliRunner().invoke(
-            main, ["flightmap", str(tmp_path), "--3d", "-f", fmt]
-        )
+        res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--3d", "-f", fmt])
         assert res.exit_code != 0
         assert "--3d" in res.output
 
@@ -311,9 +306,7 @@ def test_link_originals_with_flat_html_warns_dead_weight(tmp_path):
     warn the way photomap does for its analogous case."""
     _folder(tmp_path, {"DJI_0001.SRT": FLIGHT_A})
     (tmp_path / "DJI_0001.MP4").write_bytes(b"fake video bytes")
-    res = CliRunner().invoke(
-        main, ["flightmap", str(tmp_path), "--link-originals"]
-    )
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--link-originals"])
     assert res.exit_code == 0, res.output
     assert "only benefits the 3D map" in res.output
 
@@ -373,9 +366,14 @@ time(millisecond),datetime(utc),latitude,longitude,gimbal_heading(degrees),gimba
 
 
 def _gimbal_folder(tmp_path):
-    srt = _dt_srt(T0, [(59.33459, 18.06324, 100.0),
-                       (59.33460, 18.06325, 101.0),
-                       (59.33461, 18.06326, 102.0)])
+    srt = _dt_srt(
+        T0,
+        [
+            (59.33459, 18.06324, 100.0),
+            (59.33460, 18.06325, 101.0),
+            (59.33461, 18.06326, 102.0),
+        ],
+    )
     folder = _folder(tmp_path, {"DJI_0001.SRT": srt})
     # mtime at the recording end so tz auto-detection resolves offset 0
     # (SRT wall-clock == UTC), matching the log's UTC column exactly.
@@ -389,42 +387,64 @@ def _gimbal_folder(tmp_path):
 def test_flightmap_flight_log_merges_gimbal_into_the_geojson(tmp_path):
     folder, log = _gimbal_folder(tmp_path)
     out = folder / "out.geojson"
-    res = CliRunner().invoke(main, [
-        "flightmap", str(folder), "-f", "geojson", "-o", str(out),
-        "--flight-log", str(log),
-    ])
+    res = CliRunner().invoke(
+        main,
+        [
+            "flightmap",
+            str(folder),
+            "-f",
+            "geojson",
+            "-o",
+            str(out),
+            "--flight-log",
+            str(log),
+        ],
+    )
     assert res.exit_code == 0, res.output
     assert "DJI_0001" in res.output and "gimbal" in res.output.lower()
     assert "exact UTC join" in res.output
-    props = json.loads(out.read_text(encoding="utf-8"))[
-        "features"][0]["properties"]
+    props = json.loads(out.read_text(encoding="utf-8"))["features"][0]["properties"]
     assert props["gyaw_deg"] == [-10.0, -9.0, -8.0]
     assert props["gpitch_deg"] == [-60.0, -61.0, -62.0]
 
 
 def test_flightmap_flight_log_unmatched_notes_and_still_maps(tmp_path):
     folder, log = _gimbal_folder(tmp_path)
-    log.write_text(GIMBAL_LOG.replace("2026-07-27", "2026-01-01"),
-                   encoding="utf-8")
+    log.write_text(GIMBAL_LOG.replace("2026-07-27", "2026-01-01"), encoding="utf-8")
     out = folder / "out.geojson"
-    res = CliRunner().invoke(main, [
-        "flightmap", str(folder), "-f", "geojson", "-o", str(out),
-        "--flight-log", str(log),
-    ])
+    res = CliRunner().invoke(
+        main,
+        [
+            "flightmap",
+            str(folder),
+            "-f",
+            "geojson",
+            "-o",
+            str(out),
+            "--flight-log",
+            str(log),
+        ],
+    )
     assert res.exit_code == 0, res.output
     assert "did not match any flight" in res.output
-    props = json.loads(out.read_text(encoding="utf-8"))[
-        "features"][0]["properties"]
+    props = json.loads(out.read_text(encoding="utf-8"))["features"][0]["properties"]
     assert "gyaw_deg" not in props
 
 
 def test_flightmap_flight_log_bad_export_fails_loudly(tmp_path):
     folder, log = _gimbal_folder(tmp_path)
-    log.write_text("datetime(utc),latitude\n2026-07-27 12:00:00.0,59.0\n",
-                   encoding="utf-8")
-    res = CliRunner().invoke(main, [
-        "flightmap", str(folder), "--flight-log", str(log),
-    ])
+    log.write_text(
+        "datetime(utc),latitude\n2026-07-27 12:00:00.0,59.0\n", encoding="utf-8"
+    )
+    res = CliRunner().invoke(
+        main,
+        [
+            "flightmap",
+            str(folder),
+            "--flight-log",
+            str(log),
+        ],
+    )
     assert res.exit_code != 0
     assert "gimbal" in res.output.lower()
 
@@ -435,8 +455,15 @@ def test_flightmap_flight_log_bad_export_fails_loudly(tmp_path):
 def _djmd(cue, yaw, pitch):
     from dji_metadata_embedder.utilities import TelemetrySample
 
-    return TelemetrySample(lat=10.0, lon=20.0, alt=5.0, cue=cue, dt=None,
-                           gimbal_yaw=yaw, gimbal_pitch=pitch)
+    return TelemetrySample(
+        lat=10.0,
+        lon=20.0,
+        alt=5.0,
+        cue=cue,
+        dt=None,
+        gimbal_yaw=yaw,
+        gimbal_pitch=pitch,
+    )
 
 
 def _video_folder(tmp_path, monkeypatch, available=True):
@@ -451,8 +478,10 @@ def _video_folder(tmp_path, monkeypatch, available=True):
     )
     monkeypatch.setattr(
         "dji_metadata_embedder.geo.videogimbal.extract_samples",
-        lambda p: [_djmd("00:00:00,000", 90.0, -30.0),
-                   _djmd("00:00:01,000", 91.0, -31.0)],
+        lambda p: [
+            _djmd("00:00:00,000", 90.0, -30.0),
+            _djmd("00:00:01,000", 91.0, -31.0),
+        ],
     )
     return folder
 
@@ -460,14 +489,21 @@ def _video_folder(tmp_path, monkeypatch, available=True):
 def test_flightmap_gimbal_from_video_fills_attitude(tmp_path, monkeypatch):
     folder = _video_folder(tmp_path, monkeypatch)
     out = folder / "out.geojson"
-    res = CliRunner().invoke(main, [
-        "flightmap", str(folder), "-f", "geojson", "-o", str(out),
-        "--gimbal-from-video",
-    ])
+    res = CliRunner().invoke(
+        main,
+        [
+            "flightmap",
+            str(folder),
+            "-f",
+            "geojson",
+            "-o",
+            str(out),
+            "--gimbal-from-video",
+        ],
+    )
     assert res.exit_code == 0, res.output
     assert "Gimbal from video: 2 of 2 samples on DJI_0001" in res.output
-    props = json.loads(out.read_text(encoding="utf-8"))[
-        "features"][0]["properties"]
+    props = json.loads(out.read_text(encoding="utf-8"))["features"][0]["properties"]
     assert props["gyaw_deg"] == [90.0, 91.0]
     assert props["gpitch_deg"] == [-30.0, -31.0]
 
@@ -476,26 +512,29 @@ def test_flightmap_gimbal_from_video_without_exiftool_fails_with_hint(
     tmp_path, monkeypatch
 ):
     folder = _video_folder(tmp_path, monkeypatch, available=False)
-    res = CliRunner().invoke(main, [
-        "flightmap", str(folder), "--gimbal-from-video",
-    ])
+    res = CliRunner().invoke(
+        main,
+        [
+            "flightmap",
+            str(folder),
+            "--gimbal-from-video",
+        ],
+    )
     assert res.exit_code != 0
     assert "doctor --install exiftool" in res.output
     assert not (folder / "flightmap.html").exists()
 
 
-def test_flightmap_gimbal_from_video_skip_reason_only_verbose(
-    tmp_path, monkeypatch
-):
+def test_flightmap_gimbal_from_video_skip_reason_only_verbose(tmp_path, monkeypatch):
     folder = _video_folder(tmp_path, monkeypatch)
     (folder / "DJI_0001.MP4").unlink()
-    quiet = CliRunner().invoke(
-        main, ["flightmap", str(folder), "--gimbal-from-video"])
+    quiet = CliRunner().invoke(main, ["flightmap", str(folder), "--gimbal-from-video"])
     assert quiet.exit_code == 0, quiet.output
     assert "no video" not in quiet.output
     assert "Gimbal from video: 0 flights" in quiet.output
     loud = CliRunner().invoke(
-        main, ["flightmap", str(folder), "--gimbal-from-video", "-v"])
+        main, ["flightmap", str(folder), "--gimbal-from-video", "-v"]
+    )
     assert "skipped for DJI_0001: no video" in loud.output
 
 

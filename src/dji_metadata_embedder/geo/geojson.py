@@ -100,7 +100,8 @@ def write_geojson(
 ) -> Path:
     """Write *track* as GeoJSON to *output_path* and return it."""
     output_path.write_text(
-        json.dumps(track_to_geojson(track, footprints, home), indent=2), encoding="utf-8"
+        json.dumps(track_to_geojson(track, footprints, home), indent=2),
+        encoding="utf-8",
     )
     logger.info("GeoJSON file created: %s", output_path)
     return output_path
@@ -126,7 +127,9 @@ def convert_to_geojson(
     track = build_track(srt_path, redact=redact)
     footprints = None
     if footprint and redact == "none":
-        footprints = build_footprints(track, lens=lens_for(model), interval=footprint_interval)
+        footprints = build_footprints(
+            track, lens=lens_for(model), interval=footprint_interval
+        )
     home = None
     if extract_home and not is_video(srt_path):
         home = redact_home(parse_home(srt_path.read_text(encoding="utf-8")), redact)

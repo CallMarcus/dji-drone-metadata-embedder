@@ -25,12 +25,18 @@ def _ffprobe_duration(path: Path) -> float | None:
     try:
         result = subprocess.run(
             [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "csv=p=0",
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "csv=p=0",
                 str(path),
             ],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -56,13 +62,20 @@ def _dji_data_stream_tags(path: Path) -> list[str]:
     try:
         result = subprocess.run(
             [
-                "ffprobe", "-v", "error",
-                "-select_streams", "d",
-                "-show_entries", "stream=codec_tag_string",
-                "-of", "json",
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "d",
+                "-show_entries",
+                "stream=codec_tag_string",
+                "-of",
+                "json",
                 str(path),
             ],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -128,7 +141,9 @@ def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
     if out_duration + 1.0 < src_duration:
         logger.warning(
             "Validation failed: output duration %.2fs < source %.2fs for %s",
-            out_duration, src_duration, temp_path.name,
+            out_duration,
+            src_duration,
+            temp_path.name,
         )
         return False
 
@@ -335,9 +350,7 @@ class DJIMetadataEmbedder:
                         telemetry_line,
                     )
                     if baro_match:
-                        telemetry_data["barometers"].append(
-                            float(baro_match.group(1))
-                        )
+                        telemetry_data["barometers"].append(float(baro_match.group(1)))
 
                     # Extract camera info including extended fields
                     iso_match = re.search(r"\[iso\s*:\s*(\d+)\]", telemetry_line)
@@ -536,7 +549,7 @@ class DJIMetadataEmbedder:
 
             # Add other metadata
             if telemetry["max_altitude"]:
-                cmd.extend(["-metadata", f'altitude={telemetry["max_altitude"]:.1f}'])
+                cmd.extend(["-metadata", f"altitude={telemetry['max_altitude']:.1f}"])
 
             # Add creation date from filename if it matches DJI pattern
             filename_date_match = re.search(r"DJI_(\d{8})_(\d{6})", video_path.stem)
@@ -586,15 +599,15 @@ class DJIMetadataEmbedder:
             cmd = [
                 exiftool_cmd,
                 f"-GPSLatitude={abs(lat)}",
-                f'-GPSLatitudeRef={"N" if lat >= 0 else "S"}',
+                f"-GPSLatitudeRef={'N' if lat >= 0 else 'S'}",
                 f"-GPSLongitude={abs(lon)}",
-                f'-GPSLongitudeRef={"E" if lon >= 0 else "W"}',
+                f"-GPSLongitudeRef={'E' if lon >= 0 else 'W'}",
                 "-overwrite_original",
                 str(video_path),
             ]
 
             if telemetry["max_altitude"]:
-                cmd.insert(-2, f'-GPSAltitude={telemetry["max_altitude"]}')
+                cmd.insert(-2, f"-GPSAltitude={telemetry['max_altitude']}")
                 cmd.insert(-2, "-GPSAltitudeRef=0")  # Above sea level
 
             result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -631,10 +644,7 @@ class DJIMetadataEmbedder:
             warnings.append(msg)
             return None
         if len(matches) > 1:
-            msg = (
-                f"Multiple DAT logs match {video_path.name}; "
-                f"using {matches[0].name}"
-            )
+            msg = f"Multiple DAT logs match {video_path.name}; using {matches[0].name}"
             logger.warning(msg)
             warnings.append(msg)
         return matches[0]
@@ -662,7 +672,9 @@ class DJIMetadataEmbedder:
             "total_files": len(video_files),
             "warnings": [],
             "errors": [],
-            "output_directory": str(self.directory if self.overwrite else self.output_dir),
+            "output_directory": str(
+                self.directory if self.overwrite else self.output_dir
+            ),
         }
 
         if not video_files:
@@ -673,7 +685,9 @@ class DJIMetadataEmbedder:
 
         logger.info("Found %d video files to process", len(video_files))
         if self.overwrite:
-            logger.info("Overwrite mode: embedding in place (destination = input folder)\n")
+            logger.info(
+                "Overwrite mode: embedding in place (destination = input folder)\n"
+            )
         else:
             logger.info("Output directory: %s\n", self.output_dir)
 
@@ -835,7 +849,9 @@ class DJIMetadataEmbedder:
                             self.embed_metadata_exiftool(output_path, telemetry)
 
                         # Save telemetry summary as JSON (atomic write)
-                        json_path = output_path.parent / f"{video_path.stem}_telemetry.json"
+                        json_path = (
+                            output_path.parent / f"{video_path.stem}_telemetry.json"
+                        )
                         json_tmp_path = Path(str(json_path) + _TEMP_SUFFIX)
                         json_data = {
                             "filename": video_path.name,
@@ -858,7 +874,9 @@ class DJIMetadataEmbedder:
                         if "home" in telemetry:
                             h = telemetry["home"]
                             json_data["home"] = (
-                                {"lat": h.lat, "lon": h.lon, "alt": h.alt} if h else None
+                                {"lat": h.lat, "lon": h.lon, "alt": h.alt}
+                                if h
+                                else None
                             )
                         try:
                             with open(json_tmp_path, "w", encoding="utf-8") as f:
@@ -891,14 +909,14 @@ class DJIMetadataEmbedder:
                     progress.advance(task)
 
         result["processed"] = success_count
-        
+
         logger.info(
             "Processing complete! Successfully processed %d/%d videos",
             success_count,
             len(video_files),
         )
         logger.info("Processed files saved to: %s", self.output_dir)
-        
+
         return result
 
 
@@ -973,7 +991,9 @@ def main():
         help="Directory containing MP4 and SRT files",
     )
     parser.add_argument(
-        "-o", "--output", help="Output directory (default: ./processed); ignored if --overwrite"
+        "-o",
+        "--output",
+        help="Output directory (default: ./processed); ignored if --overwrite",
     )
     parser.add_argument(
         "--overwrite",

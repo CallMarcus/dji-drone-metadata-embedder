@@ -41,7 +41,9 @@ def _footprints_folder(footprints: list[Footprint]) -> str:
             "</LinearRing></outerBoundaryIs></Polygon></Placemark>"
         )
     return (
-        "\n    <Folder><name>Camera footprints</name>" + "".join(placemarks) + "\n    </Folder>"
+        "\n    <Folder><name>Camera footprints</name>"
+        + "".join(placemarks)
+        + "\n    </Folder>"
     )
 
 
@@ -55,7 +57,9 @@ def track_to_kml(track: Track, footprints: list[Footprint] | None = None) -> str
     )
 
 
-def write_kml(track: Track, output_path: Path, footprints: list[Footprint] | None = None) -> Path:
+def write_kml(
+    track: Track, output_path: Path, footprints: list[Footprint] | None = None
+) -> Path:
     """Write *track* as KML to *output_path* and return it."""
     output_path.write_text(track_to_kml(track, footprints), encoding="utf-8")
     logger.info("KML file created: %s", output_path)
@@ -82,5 +86,7 @@ def convert_to_kml(
     track = build_track(srt_path, redact=redact)
     footprints = None
     if footprint and redact == "none":
-        footprints = build_footprints(track, lens=lens_for(model), interval=footprint_interval)
+        footprints = build_footprints(
+            track, lens=lens_for(model), interval=footprint_interval
+        )
     return write_kml(track, output_path, footprints)

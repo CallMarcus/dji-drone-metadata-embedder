@@ -1,4 +1,5 @@
 """Static contract tests for the panoedit editor page."""
+
 from __future__ import annotations
 
 from dji_metadata_embedder.geo.panoedit_html import build_editor_page
@@ -27,7 +28,7 @@ def test_page_embeds_token_and_hooks():
 
 
 def test_page_token_is_json_escaped():
-    html = build_editor_page('</script><script>alert(1)')
+    html = build_editor_page("</script><script>alert(1)")
     assert "</script><script>alert(1)" not in html
 
 
@@ -91,10 +92,12 @@ def test_page_reports_load_failures_honestly():
 
 
 def test_page_carries_the_pillow_hint_only_when_it_applies():
-    with_pillow = build_editor_page("t", max_width=6000, renditions=True,
-                                    hint="install Pillow")
-    without = build_editor_page("t", max_width=6000, renditions=False,
-                                hint="install Pillow")
+    with_pillow = build_editor_page(
+        "t", max_width=6000, renditions=True, hint="install Pillow"
+    )
+    without = build_editor_page(
+        "t", max_width=6000, renditions=False, hint="install Pillow"
+    )
     assert "install Pillow" not in with_pillow
     assert "install Pillow" in without
 
@@ -118,8 +121,9 @@ def test_page_save_backstop_outlasts_the_server_timeouts():
 
     worst_case_ms = 2 * _WRITE_TIMEOUT * 1000
     assert _DEFAULT_SAVE_TIMEOUT_MS > worst_case_ms
-    assert f"const SAVE_TIMEOUT_MS = {_DEFAULT_SAVE_TIMEOUT_MS};" in \
-        build_editor_page("t")
+    assert f"const SAVE_TIMEOUT_MS = {_DEFAULT_SAVE_TIMEOUT_MS};" in build_editor_page(
+        "t"
+    )
 
 
 def test_page_readout_carries_the_saved_view_values():

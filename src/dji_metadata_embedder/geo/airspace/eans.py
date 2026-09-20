@@ -52,8 +52,7 @@ class EansFeed:
 
 
 _CAVEAT = (
-    "UAS geographical-zone data is informational and is not an "
-    "authorization to fly."
+    "UAS geographical-zone data is informational and is not an authorization to fly."
 )
 
 EANS_FEEDS: dict[str, EansFeed] = {
@@ -73,7 +72,7 @@ EANS_FEEDS: dict[str, EansFeed] = {
             "NOTAM-area activation hours appear as text in the zone's "
             "published message and are not evaluated here. Two "
             "presentation-layer features published in the file — a "
-            "hidden above-120 m shade and an \"Outside Estonia\" "
+            'hidden above-120 m shade and an "Outside Estonia" '
             "world-covering mask — are omitted from the zones shown."
         ),
     ),
@@ -173,9 +172,7 @@ def parse_eans(raw: bytes, source: SourceInfo) -> list[Zone]:
         windows = props.get("applicability")
         if windows is not None:
             if not isinstance(windows, list):
-                raise AirspaceError(
-                    f"{where} ({ident}): applicability is not a list"
-                )
+                raise AirspaceError(f"{where} ({ident}): applicability is not a list")
             for win in windows:
                 if str(win.get("permanent", "")).upper() == "YES":
                     always_applicable = True
@@ -185,7 +182,8 @@ def parse_eans(raw: bytes, source: SourceInfo) -> list[Zone]:
                 applicability.append(
                     Applicability(
                         start=iso_utc(start, f"{where}: startDateTime")
-                        if start else None,
+                        if start
+                        else None,
                         end=iso_utc(end, f"{where}: endDateTime") if end else None,
                         permanent=False,
                     )

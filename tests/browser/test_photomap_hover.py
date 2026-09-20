@@ -30,11 +30,11 @@ def test_hover_shows_nothing_until_opted_in(serve_map, page):
     serve_map(HTML)
     expect(page.locator("#hover-toggle")).not_to_be_checked()
     page.locator(PIN).first.hover()
-    page.wait_for_timeout(200)          # give a wrong binding time to show
+    page.wait_for_timeout(200)  # give a wrong binding time to show
     expect(page.locator(TOOLTIP)).to_have_count(0)
 
     page.check("#hover-toggle")
-    page.mouse.move(10, 10)             # leave and re-enter the pin
+    page.mouse.move(10, 10)  # leave and re-enter the pin
     page.locator(PIN).first.hover()
     expect(page.locator(TOOLTIP)).to_have_count(1)
     expect(page.locator(TOOLTIP)).to_contain_text(".JPG")
@@ -43,7 +43,7 @@ def test_hover_shows_nothing_until_opted_in(serve_map, page):
 def test_choice_is_remembered_across_reload(serve_map, page):
     url = serve_map(HTML)
     page.check("#hover-toggle")
-    page.goto(url)                      # fresh load, same browser context
+    page.goto(url)  # fresh load, same browser context
     expect(page.locator("#hover-toggle")).to_be_checked()
     page.locator(PIN).first.hover()
     expect(page.locator(TOOLTIP)).to_have_count(1)
@@ -75,7 +75,7 @@ def test_tooltip_never_lingers_under_the_click_popup(serve_map, page):
     expect(page.locator(TOOLTIP)).to_have_count(0)
 
     page.locator(".leaflet-popup-close-button").click()
-    page.mouse.move(10, 10)             # leave and re-enter the pin
+    page.mouse.move(10, 10)  # leave and re-enter the pin
     pin.hover()
     expect(page.locator(TOOLTIP)).to_have_count(1)
 
@@ -89,7 +89,8 @@ def test_touch_devices_get_no_toggle_at_all(serve_map, browser, playwright):
     try:
         serve_map(HTML, on=touch_page)
         assert touch_page.evaluate(
-            "() => matchMedia('(hover: none), (pointer: coarse)').matches")
+            "() => matchMedia('(hover: none), (pointer: coarse)').matches"
+        )
         expect(touch_page.locator("#hover-toggle")).to_have_count(0)
         # The pins themselves are still there for tapping.
         expect(touch_page.locator(PIN).first).to_be_visible()

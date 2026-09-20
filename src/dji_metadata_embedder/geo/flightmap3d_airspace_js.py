@@ -30,7 +30,9 @@ from __future__ import annotations
 
 from .flightmap_airspace_js import AIRSPACE_POPUP_JS
 
-AIRSPACE_3D_JS = AIRSPACE_POPUP_JS + """\
+AIRSPACE_3D_JS = (
+    AIRSPACE_POPUP_JS
+    + """\
 const airspace = JSON.parse(document.getElementById('airspace-data').textContent);
 const AIRSPACE_COLOR = '#4a6a8a';
 const airspaceState = { on: true };
@@ -206,3 +208,4 @@ if (map) {
   });
 }
 """
+)

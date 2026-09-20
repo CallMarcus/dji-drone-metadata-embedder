@@ -54,8 +54,14 @@ def test_default_lens_and_table_present():
 
 def _pt(lat, lon, secs, **kw):
     base = datetime(2026, 1, 1)
-    return TrackPoint(lat=lat, lon=lon, alt=kw.pop("alt", 100.0), timestamp=f"{secs}",
-                      utc=base + timedelta(seconds=secs), **kw)
+    return TrackPoint(
+        lat=lat,
+        lon=lon,
+        alt=kw.pop("alt", 100.0),
+        timestamp=f"{secs}",
+        utc=base + timedelta(seconds=secs),
+        **kw,
+    )
 
 
 def test_build_footprints_uses_rel_alt():
@@ -75,8 +81,10 @@ def test_build_footprints_agl_fallback_to_abs_minus_ground():
 
 
 def test_build_footprints_skips_oblique_gimbal():
-    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=0.0),
-           _pt(0.0001, 0.0, 1, rel_alt=50.0, gimbal_pitch=0.0)]
+    pts = [
+        _pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=0.0),
+        _pt(0.0001, 0.0, 1, rel_alt=50.0, gimbal_pitch=0.0),
+    ]
     assert build_footprints(Track("t", pts), interval=0.0) == []
 
 
@@ -110,8 +118,10 @@ def test_build_footprints_oblique_pitch_now_projected():
 
 
 def test_build_footprints_still_skips_horizon_pitch():
-    pts = [_pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=0.0),
-           _pt(0.0001, 0.0, 1, rel_alt=50.0, gimbal_pitch=5.0)]
+    pts = [
+        _pt(0.0, 0.0, 0, rel_alt=50.0, gimbal_pitch=0.0),
+        _pt(0.0001, 0.0, 1, rel_alt=50.0, gimbal_pitch=5.0),
+    ]
     assert build_footprints(Track("t", pts), interval=0.0) == []
 
 
@@ -126,6 +136,7 @@ def test_build_footprints_near_nadir_pitch_matches_rectangle():
     # A -90 deg gimbal frame goes through the frustum path but must land on
     # the same rectangle the nadir model draws.
     from dji_metadata_embedder.geo.footprint import fov_degrees as _fov
+
     pts = [_pt(0.0, 0.0, 0, rel_alt=100.0, gimbal_pitch=-90.0, gimbal_yaw=0.0)]
     fp = build_footprints(Track("t", pts), interval=0.0)[0]
     hfov, vfov = _fov(DEFAULT_LENS, None)

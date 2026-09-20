@@ -11,11 +11,24 @@ from dji_metadata_embedder.geo.photomap_html import (
 )
 
 POINTS = [
-    PhotoPoint(lat=60.170278, lon=24.952222, alt=95.3, name="church1.jpg",
-               timestamp="2026-06-15 12:30:45", model="FC8482", iso=100,
-               exposure=0.001, fnum=1.7),
-    PhotoPoint(lat=60.173047, lon=24.92515, alt=88.1, name="church2.jpg",
-               thumbnail_b64="/9j/THUMB2"),
+    PhotoPoint(
+        lat=60.170278,
+        lon=24.952222,
+        alt=95.3,
+        name="church1.jpg",
+        timestamp="2026-06-15 12:30:45",
+        model="FC8482",
+        iso=100,
+        exposure=0.001,
+        fnum=1.7,
+    ),
+    PhotoPoint(
+        lat=60.173047,
+        lon=24.92515,
+        alt=88.1,
+        name="church2.jpg",
+        thumbnail_b64="/9j/THUMB2",
+    ),
 ]
 
 _DATA_RE = re.compile(
@@ -55,7 +68,9 @@ def test_html_escapes_script_close_in_data():
     html = photos_to_html(evil, title="t")
     data_block = _DATA_RE.search(html).group(1)
     assert "</script>" not in data_block.lower()
-    assert json.loads(data_block)["features"][0]["properties"]["name"] == "x</script>y.jpg"
+    assert (
+        json.loads(data_block)["features"][0]["properties"]["name"] == "x</script>y.jpg"
+    )
 
 
 def test_html_popup_js_escapes_text_fields():
@@ -127,19 +142,17 @@ def test_html_hover_previews_are_off_by_default():
     # — which is guarded by the toggle's own state flag. The dot keeps
     # `unbindTooltip(` from matching as a substring.
     assert html.count(".bindTooltip(") == 2
-    match = re.search(
-        r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
+    match = re.search(r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
     assert match, "setHoverPreviews function not found"
     assert ".bindTooltip(" in match.group(1)
-    assert "if (!hoverPreviewsOn" in html   # the rebind's guard
+    assert "if (!hoverPreviewsOn" in html  # the rebind's guard
 
 
 def test_html_hover_toggle_binds_and_unbinds():
     # Turning the toggle on restores exactly the #273 sticky tooltips;
     # turning it off removes them again.
     html = photos_to_html(POINTS, title="t")
-    match = re.search(
-        r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
+    match = re.search(r"function setHoverPreviews\(on\) \{(.*?)\n\}", html, re.DOTALL)
     assert match
     body = match.group(1)
     assert "bindTooltip(" in body
@@ -199,8 +212,14 @@ def test_html_tooltip_does_not_replace_click_popup():
 
 
 PANO_POINTS = POINTS + [
-    PhotoPoint(lat=60.1686, lon=24.9539, alt=12.0, name="pano.jpg",
-               thumbnail_b64="/9j/PANO", is_pano=True),
+    PhotoPoint(
+        lat=60.1686,
+        lon=24.9539,
+        alt=12.0,
+        name="pano.jpg",
+        thumbnail_b64="/9j/PANO",
+        is_pano=True,
+    ),
 ]
 
 
@@ -397,17 +416,29 @@ def test_html_touch_devices_get_larger_pin_tap_target():
 
 
 VIEW_POINTS = [
-    PhotoPoint(lat=60.1686, lon=24.9539, alt=None, name="pano.jpg",
-               is_pano=True, pano_yaw=-30.0, pano_pitch=10.0, pano_hfov=90.0,
-               credit="© 2026 Jane"),
+    PhotoPoint(
+        lat=60.1686,
+        lon=24.9539,
+        alt=None,
+        name="pano.jpg",
+        is_pano=True,
+        pano_yaw=-30.0,
+        pano_pitch=10.0,
+        pano_hfov=90.0,
+        credit="© 2026 Jane",
+    ),
 ]
 
 
 def test_html_pano_anchor_carries_view_data_attributes():
     html = photos_to_html(VIEW_POINTS, title="t", link_base="")
     # Popup template writes the attributes only for numeric values...
-    for snippet in ('data-yaw="${p.yaw}"', 'data-pitch="${p.pitch}"',
-                    'data-hfov="${p.hfov}"', "typeof p.yaw === 'number'"):
+    for snippet in (
+        'data-yaw="${p.yaw}"',
+        'data-pitch="${p.pitch}"',
+        'data-hfov="${p.hfov}"',
+        "typeof p.yaw === 'number'",
+    ):
         assert snippet in html
     # ...and openPano forwards them to the Pannellum config.
     assert "cfg.yaw = Number(a.dataset.yaw)" in html
@@ -426,15 +457,14 @@ def test_html_pano_viewer_byline_is_escaped():
 
 def test_html_popup_shows_credit_line():
     html = photos_to_html(VIEW_POINTS, title="t")
-    assert "photo-credit" in html          # popup line + its CSS
-    assert "if (p.credit)" in html         # presence-guarded like every field
+    assert "photo-credit" in html  # popup line + its CSS
+    assert "if (p.credit)" in html  # presence-guarded like every field
     props = _embedded_geojson(html)["features"][0]["properties"]
     assert props["credit"] == "© 2026 Jane"
 
 
 def test_html_popup_fields_can_strip_credit():
-    html = photos_to_html(VIEW_POINTS, title="t",
-                          popup_fields=frozenset({"name"}))
+    html = photos_to_html(VIEW_POINTS, title="t", popup_fields=frozenset({"name"}))
     props = _embedded_geojson(html)["features"][0]["properties"]
     assert "credit" not in props
     # View props are configuration, not personal data — never filtered.
@@ -451,7 +481,11 @@ def test_parse_popup_fields_none_and_comma_lists():
     assert parse_popup_fields("none") == frozenset()
     assert parse_popup_fields("timestamp, CAMERA") == {"timestamp", "camera"}
     assert parse_popup_fields("name,timestamp,camera,altitude") == {
-        "name", "timestamp", "camera", "altitude"}
+        "name",
+        "timestamp",
+        "camera",
+        "altitude",
+    }
 
 
 def test_parse_popup_fields_rejects_unknown_and_names_valid_ones():
@@ -479,8 +513,7 @@ def test_html_popup_fields_none_strips_exif_from_embedded_data():
 
 
 def test_html_popup_fields_selective_keeps_only_requested():
-    html = photos_to_html(
-        POINTS, title="t", popup_fields=frozenset({"timestamp"}))
+    html = photos_to_html(POINTS, title="t", popup_fields=frozenset({"timestamp"}))
     props = _embedded_geojson(html)["features"][0]["properties"]
     assert props["timestamp"] == "2026-06-15 12:30:45"
     for prop in ("name", "camera", "alt"):
@@ -496,7 +529,8 @@ def test_html_popup_fields_default_none_means_everything():
 
 def test_html_popup_fields_none_keeps_pano_viewer_working():
     html = photos_to_html(
-        PANO_POINTS, title="t", link_base="", popup_fields=frozenset())
+        PANO_POINTS, title="t", link_base="", popup_fields=frozenset()
+    )
     data = _embedded_geojson(html)
     pano = next(f for f in data["features"] if f["properties"].get("pano"))
     # pano is type metadata and link powers the viewer — never filtered.
@@ -532,9 +566,16 @@ def test_html_alternate_tile_style_swaps_provider():
 def test_vthumb_prop_and_popup_title():
     from dji_metadata_embedder.geo.photomap import photos_to_geojson
 
-    p = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="p.jpg",
-                   thumbnail_b64="QUJD", is_pano=True, pano_yaw=5.0,
-                   thumb_is_view=True)
+    p = PhotoPoint(
+        lat=1.0,
+        lon=2.0,
+        alt=None,
+        name="p.jpg",
+        thumbnail_b64="QUJD",
+        is_pano=True,
+        pano_yaw=5.0,
+        thumb_is_view=True,
+    )
     geo = photos_to_geojson([p], include_thumbnails=True)
     assert geo["features"][0]["properties"]["vthumb"] is True
     html = photos_to_html([p], title="t")
@@ -545,8 +586,15 @@ def test_vthumb_prop_and_popup_title():
 def test_no_vthumb_prop_for_strip_thumbs():
     from dji_metadata_embedder.geo.photomap import photos_to_geojson
 
-    p = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="p.jpg",
-                   thumbnail_b64="QUJD", is_pano=True, pano_yaw=5.0)
+    p = PhotoPoint(
+        lat=1.0,
+        lon=2.0,
+        alt=None,
+        name="p.jpg",
+        thumbnail_b64="QUJD",
+        is_pano=True,
+        pano_yaw=5.0,
+    )
     geo = photos_to_geojson([p], include_thumbnails=True)
     assert "vthumb" not in geo["features"][0]["properties"]
 

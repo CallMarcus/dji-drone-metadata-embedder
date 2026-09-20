@@ -18,6 +18,7 @@ from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 
 def _fake_progress_class():
     """Minimal Progress-like class (conftest stubs Progress as object)."""
+
     class Task:
         def advance(self, _=None):
             pass
@@ -52,9 +53,7 @@ def _make_run_capture(captured: list):
             Path(cmd[-1]).write_bytes(b"embedded content")
             return ok
         if cmd and "ffprobe" in str(cmd[0]).lower():
-            return type(
-                "R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""}
-            )()
+            return type("R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""})()
         return ok
 
     return fake_run
@@ -65,7 +64,9 @@ class TestDatAutoscan:
 
     STEM = "DJI_20240101_123456"
 
-    def _prep(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, list]:
+    def _prep(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[Path, list]:
         """A one-video folder with ffmpeg + Progress stubbed and DAT parsing
         captured. Returns (out_dir, list of paths parse_dat_v13 was fed)."""
         video = tmp_path / f"{self.STEM}.mp4"
@@ -85,9 +86,7 @@ class TestDatAutoscan:
             parsed.append(path)
             return {"records": [{"altitude": 1.0}]}
 
-        monkeypatch.setattr(
-            "dji_metadata_embedder.embedder.parse_dat_v13", fake_parse
-        )
+        monkeypatch.setattr("dji_metadata_embedder.embedder.parse_dat_v13", fake_parse)
         return out_dir, parsed
 
     def _run(self, tmp_path: Path, out_dir: Path) -> dict:
@@ -110,8 +109,7 @@ class TestDatAutoscan:
         assert result["processed"] == 1
         assert parsed == [], f"unmatched DAT was parsed: {parsed}"
         assert any(
-            "dat" in w.lower() and f"{self.STEM}.mp4" in w
-            for w in result["warnings"]
+            "dat" in w.lower() and f"{self.STEM}.mp4" in w for w in result["warnings"]
         ), f"expected a missing-DAT warning, got {result['warnings']}"
 
     def test_exact_match_produces_no_warning(
@@ -140,9 +138,7 @@ class TestDatAutoscan:
 
         result = self._run(tmp_path, out_dir)
 
-        assert parsed == [dat], (
-            f"lowercase .dat was not paired, parse saw {parsed}"
-        )
+        assert parsed == [dat], f"lowercase .dat was not paired, parse saw {parsed}"
         assert not any("dat" in w.lower() for w in result["warnings"])
 
     def test_multiple_matches_pick_deterministically_and_say_so(
@@ -159,6 +155,5 @@ class TestDatAutoscan:
 
         assert parsed == [first]
         assert any(
-            "multiple" in w.lower() and first.name in w
-            for w in result["warnings"]
+            "multiple" in w.lower() and first.name in w for w in result["warnings"]
         ), f"expected a multiple-match note, got {result['warnings']}"

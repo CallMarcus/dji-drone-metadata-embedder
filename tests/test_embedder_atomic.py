@@ -30,14 +30,20 @@ class TestValidateEmbeddedOutput:
         queries by looking up the input path's stem in *durations*. Anything not
         in the map returns returncode=1 (simulates unreadable input).
         """
+
         def runner(cmd, *args, **kwargs):
             target = Path(cmd[-1]).name
             if target in durations:
                 value = durations[target]
                 if value is None:
-                    return type("R", (), {"returncode": 1, "stdout": "", "stderr": "error"})()
-                return type("R", (), {"returncode": 0, "stdout": f"{value}\n", "stderr": ""})()
+                    return type(
+                        "R", (), {"returncode": 1, "stdout": "", "stderr": "error"}
+                    )()
+                return type(
+                    "R", (), {"returncode": 0, "stdout": f"{value}\n", "stderr": ""}
+                )()
             return type("R", (), {"returncode": 1, "stdout": "", "stderr": "unknown"})()
+
         return runner
 
     def test_returns_false_when_temp_missing(self, tmp_path: Path) -> None:
@@ -54,7 +60,8 @@ class TestValidateEmbeddedOutput:
         temp_path = tmp_path / "out.mp4.tmp"
         temp_path.write_bytes(b"x" * 1500)
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             self._fake_ffprobe({"original.mp4": 10.0, "out.mp4.tmp": 10.0}),
         )
         assert _validate_embedded_output(original, temp_path) is True
@@ -69,7 +76,8 @@ class TestValidateEmbeddedOutput:
         temp_path = tmp_path / "out.mp4.tmp"
         temp_path.write_bytes(b"x" * 1500)
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             self._fake_ffprobe({"original.mp4": 53.62, "out.mp4.tmp": 53.62}),
         )
         assert _validate_embedded_output(original, temp_path) is True
@@ -83,7 +91,8 @@ class TestValidateEmbeddedOutput:
         temp_path = tmp_path / "out.mp4.tmp"
         temp_path.write_bytes(b"x" * 1500)
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             self._fake_ffprobe({"original.mp4": 60.0, "out.mp4.tmp": 5.0}),
         )
         assert _validate_embedded_output(original, temp_path) is False
@@ -97,7 +106,8 @@ class TestValidateEmbeddedOutput:
         temp_path = tmp_path / "out.mp4.tmp"
         temp_path.write_bytes(b"x" * 1500)
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             self._fake_ffprobe({"original.mp4": 53.62, "out.mp4.tmp": 53.10}),
         )
         assert _validate_embedded_output(original, temp_path) is True
@@ -110,7 +120,8 @@ class TestValidateEmbeddedOutput:
         temp_path = tmp_path / "out.mp4.tmp"
         temp_path.write_bytes(b"x" * 1500)
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             self._fake_ffprobe({"original.mp4": 10.0, "out.mp4.tmp": None}),
         )
         assert _validate_embedded_output(original, temp_path) is False
@@ -122,20 +133,27 @@ class TestProcessDirectoryAtomicWrite:
     @staticmethod
     def _fake_progress_class():
         """Minimal Progress-like class for tests (conftest stubs Progress as object)."""
+
         class Task:
             def advance(self, _=None):
                 pass
+
         class FakeProgress:
             def __enter__(self):
                 return self
+
             def __exit__(self, *args):
                 return False
+
             def add_task(self, *args, **kwargs):
                 return Task()
+
             def update(self, task, description=None):
                 pass
+
             def advance(self, task):
                 pass
+
         return FakeProgress
 
     def test_temp_suffix_defined(self) -> None:
@@ -169,7 +187,9 @@ class TestProcessDirectoryAtomicWrite:
             if cmd and "ffprobe" in str(cmd[0]).lower():
                 # ffprobe duration query — return matching durations so the
                 # validator's truncation check passes.
-                return type("R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""})()
+                return type(
+                    "R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""}
+                )()
             return ok
 
         monkeypatch.setattr(subprocess, "run", fake_run)
@@ -217,7 +237,9 @@ class TestProcessDirectoryAtomicWrite:
                 Path(cmd[-1]).write_bytes(b"embedded content")
                 return ok
             if cmd and "ffprobe" in str(cmd[0]).lower():
-                return type("R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""})()
+                return type(
+                    "R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""}
+                )()
             return ok
 
         monkeypatch.setattr(subprocess, "run", fake_run)
@@ -262,8 +284,14 @@ class TestProcessDirectoryAtomicWrite:
                 # Output unreadable (simulates truncation/corruption).
                 target = Path(cmd[-1]).name
                 if _TEMP_SUFFIX in target:
-                    return type("R", (), {"returncode": 1, "stdout": "", "stderr": "moov not found"})()
-                return type("R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""})()
+                    return type(
+                        "R",
+                        (),
+                        {"returncode": 1, "stdout": "", "stderr": "moov not found"},
+                    )()
+                return type(
+                    "R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""}
+                )()
             return type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
         monkeypatch.setattr(subprocess, "run", fake_run)
@@ -295,7 +323,9 @@ class TestProcessDirectoryAtomicWrite:
                 out_path.write_bytes(b"embedded in place")
                 return ok
             if cmd and "ffprobe" in str(cmd[0]).lower():
-                return type("R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""})()
+                return type(
+                    "R", (), {"returncode": 0, "stdout": "10.0\n", "stderr": ""}
+                )()
             return ok
 
         monkeypatch.setattr(subprocess, "run", fake_run)
@@ -311,6 +341,4 @@ class TestProcessDirectoryAtomicWrite:
         assert result["output_directory"] == str(tmp_path)
         assert video.exists()
         assert video.read_bytes() == b"embedded in place"
-        assert not video.with_name(
-            video.stem + _TEMP_SUFFIX + video.suffix
-        ).exists()
+        assert not video.with_name(video.stem + _TEMP_SUFFIX + video.suffix).exists()

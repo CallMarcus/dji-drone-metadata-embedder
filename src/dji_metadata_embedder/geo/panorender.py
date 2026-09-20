@@ -44,6 +44,7 @@ def _pil_image():
         ) from exc
     return Image
 
+
 # The source is downscaled to this width before sampling: a 320 px crop of
 # a <=170 degree view never needs more than ~2x that angular resolution,
 # and Image.draft lets JPEG decode skip DCT blocks entirely.

@@ -1,4 +1,5 @@
 """Record HTML structure tests (#413): labels, caveats, no verdicts."""
+
 from datetime import datetime
 
 from dji_metadata_embedder.geo.airspace import (
@@ -14,34 +15,53 @@ from dji_metadata_embedder.geo.record_html import record_to_html, write_flight_r
 SRC = SourceInfo(
     feed="Luxembourg UAS geographical zones (ED-269)",
     url="https://drones.geoportail.lu/zones",
-    fetched="2026-07-30T12:00:00Z", license="CC0 (data.public.lu)",
+    fetched="2026-07-30T12:00:00Z",
+    license="CC0 (data.public.lu)",
     caveat="informational only, not an authorization",
     note=None,
 )
 ZONE = Zone(
-    identifier="LU-P-001", name="Findel <CTR>", restriction="PROHIBITED",
-    lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(120, "m", "AGL"),
-    applicability=[], polygons=[[(6.18, 49.61), (6.24, 49.61), (6.24, 49.65),
-                                 (6.18, 49.65), (6.18, 49.61)]],
-    source=SRC, native={},
+    identifier="LU-P-001",
+    name="Findel <CTR>",
+    restriction="PROHIBITED",
+    lower=VerticalLimit(0, "m", "AGL"),
+    upper=VerticalLimit(120, "m", "AGL"),
+    applicability=[],
+    polygons=[
+        [(6.18, 49.61), (6.24, 49.61), (6.24, 49.65), (6.18, 49.65), (6.18, 49.61)]
+    ],
+    source=SRC,
+    native={},
 )
 
 
 def _record(**over):
     base = {
-        "name": "LUX0001", "start_utc": datetime(2026, 7, 30, 12, 0),
-        "end_utc": datetime(2026, 7, 30, 12, 3), "duration_s": 180.0,
-        "takeoff": (49.615, 6.19), "distance_m": 350.0, "max_home_m": 120.0,
-        "max_rel_alt_m": 30.0, "max_surface_m": 33.5,
-        "surface_note": None, "max_amsl_m": 303.0, "time_note": None,
+        "name": "LUX0001",
+        "start_utc": datetime(2026, 7, 30, 12, 0),
+        "end_utc": datetime(2026, 7, 30, 12, 3),
+        "duration_s": 180.0,
+        "takeoff": (49.615, 6.19),
+        "distance_m": 350.0,
+        "max_home_m": 120.0,
+        "max_rel_alt_m": 30.0,
+        "max_surface_m": 33.5,
+        "surface_note": None,
+        "max_amsl_m": 303.0,
+        "time_note": None,
         "measure_note": "Regulation (EU) 2019/947 ... makes no determination.",
         "airspace": AirspaceReport(
-            findings=[ZoneFinding(
-                zone=ZONE, entered=True,
-                entry_utc=datetime(2026, 7, 30, 12, 1),
-                exit_utc=datetime(2026, 7, 30, 12, 2),
-                max_rel_alt_m=30.0, max_surface_m=33.5, max_amsl_m=303.0,
-            )],
+            findings=[
+                ZoneFinding(
+                    zone=ZONE,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_rel_alt_m=30.0,
+                    max_surface_m=33.5,
+                    max_amsl_m=303.0,
+                )
+            ],
             source=SRC,
         ),
         "points": [(49.615, 6.19), (49.618, 6.19)],
@@ -54,8 +74,10 @@ def test_the_three_label_height_block_is_present():
     html = record_to_html([_record()], "My flights", "2.4.0")
     assert "above takeoff point" in html and "aircraft-reported" in html
     assert "estimated" in html.lower() and "surface model" in html.lower()
-    assert "not the measure the regulations use" in html.lower() or \
-        "not the legal measure" in html.lower()
+    assert (
+        "not the measure the regulations use" in html.lower()
+        or "not the legal measure" in html.lower()
+    )
 
 
 def test_sources_caveats_and_footer_identify_the_record():
@@ -102,8 +124,10 @@ def test_zone_row_carries_published_activation_text_when_present():
     rec = _record()
     rec.airspace.findings[0].zone = part_time
     html = record_to_html([rec], "t", "2.4.0")
-    assert ("<small>activation (published, not evaluated): "
-            "available for activation — Mon-Sat SR to SS.</small>") in html
+    assert (
+        "<small>activation (published, not evaluated): "
+        "available for activation — Mon-Sat SR to SS.</small>"
+    ) in html
     plain = record_to_html([_record()], "t", "2.4.0")
     assert "activation (published" not in plain
 
@@ -120,8 +144,10 @@ def test_zone_row_carries_published_notes_when_present():
     rec = _record()
     rec.airspace.findings[0].zone = noted
     html = record_to_html([rec], "t", "2.4.0")
-    assert ("<small>published, not evaluated: Exceptions: approval from "
-            "heliport; Contact: heliport@kclj.si</small>") in html
+    assert (
+        "<small>published, not evaluated: Exceptions: approval from "
+        "heliport; Contact: heliport@kclj.si</small>"
+    ) in html
     plain = record_to_html([_record()], "t", "2.4.0")
     assert "published, not evaluated:" not in plain
 
@@ -138,15 +164,20 @@ def test_zone_names_are_escaped():
 
 
 def test_unavailable_surface_height_is_a_stated_row_not_a_blank():
-    rec = _record(max_surface_m=None,
-                  surface_note="the [terrain] extra is not installed")
+    rec = _record(
+        max_surface_m=None, surface_note="the [terrain] extra is not installed"
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "unavailable" in html and "[terrain]" in html
 
 
 def test_gap_reason_renders_when_no_provider_covers_the_flight():
-    rec = _record(measure_note=None,
-                  airspace=AirspaceReport(gap_reason="no supported airspace data source for this location"))
+    rec = _record(
+        measure_note=None,
+        airspace=AirspaceReport(
+            gap_reason="no supported airspace data source for this location"
+        ),
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "no supported airspace data source" in html
 
@@ -174,27 +205,38 @@ def test_terrain_source_renders_even_with_no_airspace_source():
 
 def test_only_entered_zones_get_a_table_row_with_a_not_entered_summary():
     other = Zone(
-        identifier="LU-P-999", name="Not entered zone", restriction="PROHIBITED",
-        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(50, "m", "AGL"),
-        applicability=[], polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1),
-                                     (9.0, 49.1), (9.0, 49.0)]],
-        source=SRC, native={},
+        identifier="LU-P-999",
+        name="Not entered zone",
+        restriction="PROHIBITED",
+        lower=VerticalLimit(0, "m", "AGL"),
+        upper=VerticalLimit(50, "m", "AGL"),
+        applicability=[],
+        polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1), (9.0, 49.1), (9.0, 49.0)]],
+        source=SRC,
+        native={},
     )
     other2 = Zone(
-        identifier="LU-P-998", name="Also not entered", restriction="PROHIBITED",
-        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(50, "m", "AGL"),
-        applicability=[], polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1),
-                                     (9.0, 49.1), (9.0, 49.0)]],
-        source=SRC, native={},
+        identifier="LU-P-998",
+        name="Also not entered",
+        restriction="PROHIBITED",
+        lower=VerticalLimit(0, "m", "AGL"),
+        upper=VerticalLimit(50, "m", "AGL"),
+        applicability=[],
+        polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1), (9.0, 49.1), (9.0, 49.0)]],
+        source=SRC,
+        native={},
     )
     rec = _record(
         airspace=AirspaceReport(
             findings=[
                 ZoneFinding(
-                    zone=ZONE, entered=True,
+                    zone=ZONE,
+                    entered=True,
                     entry_utc=datetime(2026, 7, 30, 12, 1),
                     exit_utc=datetime(2026, 7, 30, 12, 2),
-                    max_rel_alt_m=30.0, max_surface_m=33.5, max_amsl_m=303.0,
+                    max_rel_alt_m=30.0,
+                    max_surface_m=33.5,
+                    max_amsl_m=303.0,
                 ),
                 ZoneFinding(zone=other, entered=False),
                 ZoneFinding(zone=other2, entered=False),
@@ -212,20 +254,27 @@ def test_only_entered_zones_get_a_table_row_with_a_not_entered_summary():
 
 def test_a_single_not_entered_zone_uses_singular_agreement():
     other = Zone(
-        identifier="LU-P-997", name="Not entered zone", restriction="PROHIBITED",
-        lower=VerticalLimit(0, "m", "AGL"), upper=VerticalLimit(50, "m", "AGL"),
-        applicability=[], polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1),
-                                     (9.0, 49.1), (9.0, 49.0)]],
-        source=SRC, native={},
+        identifier="LU-P-997",
+        name="Not entered zone",
+        restriction="PROHIBITED",
+        lower=VerticalLimit(0, "m", "AGL"),
+        upper=VerticalLimit(50, "m", "AGL"),
+        applicability=[],
+        polygons=[[(9.0, 49.0), (9.1, 49.0), (9.1, 49.1), (9.0, 49.1), (9.0, 49.0)]],
+        source=SRC,
+        native={},
     )
     rec = _record(
         airspace=AirspaceReport(
             findings=[
                 ZoneFinding(
-                    zone=ZONE, entered=True,
+                    zone=ZONE,
+                    entered=True,
                     entry_utc=datetime(2026, 7, 30, 12, 1),
                     exit_utc=datetime(2026, 7, 30, 12, 2),
-                    max_rel_alt_m=30.0, max_surface_m=33.5, max_amsl_m=303.0,
+                    max_rel_alt_m=30.0,
+                    max_surface_m=33.5,
+                    max_amsl_m=303.0,
                 ),
                 ZoneFinding(zone=other, entered=False),
             ],
@@ -247,20 +296,30 @@ def test_write_flight_record_writes_utf8(tmp_path):
 # must state its floor, not claim "not stated" / "no stated limit".
 def test_a_lower_limit_only_zone_states_its_floor():
     floor_zone = Zone(
-        identifier="FI-R-77", name="Begins above floor",
+        identifier="FI-R-77",
+        name="Begins above floor",
         restriction="REQ_AUTHORISATION",
-        lower=VerticalLimit(500, "ft", "AMSL"), upper=None,
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
-    )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(
-            zone=floor_zone, entered=True,
-            entry_utc=datetime(2026, 7, 30, 12, 1),
-            exit_utc=datetime(2026, 7, 30, 12, 2),
-            max_amsl_m=303.0,
-        )],
+        lower=VerticalLimit(500, "ft", "AMSL"),
+        upper=None,
+        applicability=[],
+        polygons=ZONE.polygons,
         source=SRC,
-    ))
+        native={},
+    )
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=floor_zone,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_amsl_m=303.0,
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "from 500 ft AMSL" in html
     assert "no stated limit" not in html
@@ -270,16 +329,29 @@ def test_a_lower_limit_only_zone_states_its_floor():
 
 def test_a_zone_with_no_limits_at_all_still_says_not_stated():
     bare = Zone(
-        identifier="FI-R-78", name="No limits", restriction="REQ_AUTHORISATION",
-        lower=None, upper=None,
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
-    )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(zone=bare, entered=True,
-                              entry_utc=datetime(2026, 7, 30, 12, 1),
-                              exit_utc=datetime(2026, 7, 30, 12, 2))],
+        identifier="FI-R-78",
+        name="No limits",
+        restriction="REQ_AUTHORISATION",
+        lower=None,
+        upper=None,
+        applicability=[],
+        polygons=ZONE.polygons,
         source=SRC,
-    ))
+        native={},
+    )
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=bare,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "not stated" in html
     assert "no stated limit to compare against" in html
@@ -296,9 +368,9 @@ def test_cover_shows_local_and_utc_times_when_offset_known():
 
     rec = _record(local_offset=timedelta(hours=2))
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
-    assert "14:00:00 +02:00" in cover      # 12:00 UTC start, +02:00
+    assert "14:00:00 +02:00" in cover  # 12:00 UTC start, +02:00
     assert "12:00:00 UTC" in cover
-    assert "14:03:00 +02:00" in cover      # end
+    assert "14:03:00 +02:00" in cover  # end
 
 
 def test_cover_dates_follow_local_time_across_midnight():
@@ -310,7 +382,7 @@ def test_cover_dates_follow_local_time_across_midnight():
         local_offset=timedelta(hours=2),
     )
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
-    assert "2026-07-31" in cover           # the pilot's logbook date
+    assert "2026-07-31" in cover  # the pilot's logbook date
 
 
 def test_cover_without_offset_states_utc_only():
@@ -328,8 +400,8 @@ def test_cover_shows_both_height_columns_with_labelled_datums():
     assert "above takeoff" in header
     assert "est. above surface" in header
     cover = _cover(html)
-    assert "30 m" in cover             # max_rel_alt_m
-    assert "34 m" in cover             # max_surface_m 33.5 -> "34 m"
+    assert "30 m" in cover  # max_rel_alt_m
+    assert "34 m" in cover  # max_surface_m 33.5 -> "34 m"
 
 
 def test_cover_surface_unavailable_is_stated():
@@ -344,42 +416,70 @@ def test_cover_surface_column_alone_can_be_unavailable():
     rec = _record(max_surface_m=None, surface_note="no terrain data")
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
     assert "unavailable" in cover
-    assert "30 m" in cover             # the takeoff figure is still there
+    assert "30 m" in cover  # the takeoff figure is still there
 
 
 # Review findings on #432: banded limits, the horizontal-entry footnote,
 # per-cell date datums, and offset-label edge cases.
 def test_a_banded_zone_states_floor_and_ceiling():
     banded = Zone(
-        identifier="EFHKUASC", name="Helsinki C", restriction="REQ_AUTHORISATION",
-        lower=VerticalLimit(50, "m", "AGL"), upper=VerticalLimit(120, "m", "AGL"),
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+        identifier="EFHKUASC",
+        name="Helsinki C",
+        restriction="REQ_AUTHORISATION",
+        lower=VerticalLimit(50, "m", "AGL"),
+        upper=VerticalLimit(120, "m", "AGL"),
+        applicability=[],
+        polygons=ZONE.polygons,
+        source=SRC,
+        native={},
     )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(
-            zone=banded, entered=True,
-            entry_utc=datetime(2026, 7, 30, 12, 1),
-            exit_utc=datetime(2026, 7, 30, 12, 2), max_surface_m=33.5,
-        )], source=SRC))
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=banded,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_surface_m=33.5,
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "50&#x2013;120 m AGL" in html or "50–120 m AGL" in html
-    assert ">120 m AGL<" not in html   # never the ceiling alone
+    assert ">120 m AGL<" not in html  # never the ceiling alone
 
 
 def test_a_zero_floor_renders_the_ceiling_alone():
     # The FAA shape: lower is always 0 ft AGL — "0–400" would be noise.
     faa_like = Zone(
-        identifier="UASFM-1", name="Cell", restriction="CEILING",
-        lower=VerticalLimit(0, "ft", "AGL"), upper=VerticalLimit(400, "ft", "AGL"),
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+        identifier="UASFM-1",
+        name="Cell",
+        restriction="CEILING",
+        lower=VerticalLimit(0, "ft", "AGL"),
+        upper=VerticalLimit(400, "ft", "AGL"),
+        applicability=[],
+        polygons=ZONE.polygons,
+        source=SRC,
+        native={},
     )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(
-            zone=faa_like, entered=True,
-            entry_utc=datetime(2026, 7, 30, 12, 1),
-            exit_utc=datetime(2026, 7, 30, 12, 2),
-            max_surface_m=33.5, max_amsl_m=303.0,
-        )], source=SRC))
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=faa_like,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_surface_m=33.5,
+                    max_amsl_m=303.0,
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "400 ft AGL" in html
     assert "0" + "\u2013" not in html and "0-400" not in html
@@ -387,17 +487,31 @@ def test_a_zero_floor_renders_the_ceiling_alone():
 
 def test_a_mixed_datum_band_prints_each_sides_datum():
     mixed = Zone(
-        identifier="X", name="Mixed", restriction="REQ_AUTHORISATION",
-        lower=VerticalLimit(500, "ft", "AMSL"), upper=VerticalLimit(120, "m", "AGL"),
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+        identifier="X",
+        name="Mixed",
+        restriction="REQ_AUTHORISATION",
+        lower=VerticalLimit(500, "ft", "AMSL"),
+        upper=VerticalLimit(120, "m", "AGL"),
+        applicability=[],
+        polygons=ZONE.polygons,
+        source=SRC,
+        native={},
     )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(
-            zone=mixed, entered=True,
-            entry_utc=datetime(2026, 7, 30, 12, 1),
-            exit_utc=datetime(2026, 7, 30, 12, 2),
-            max_surface_m=33.5, max_amsl_m=303.0,
-        )], source=SRC))
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=mixed,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                    max_surface_m=33.5,
+                    max_amsl_m=303.0,
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "500 ft AMSL" in html and "120 m AGL" in html
 
@@ -427,7 +541,7 @@ def test_cover_utc_line_keeps_the_date_for_midnight_crossings():
         local_offset=timedelta(hours=2),
     )
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
-    assert "2026-07-30 23:30:00 UTC" in cover   # the UTC line self-dates
+    assert "2026-07-30 23:30:00 UTC" in cover  # the UTC line self-dates
 
 
 def test_negative_and_odd_offsets_label_correctly():
@@ -435,7 +549,7 @@ def test_negative_and_odd_offsets_label_correctly():
 
     rec = _record(local_offset=timedelta(hours=-5, minutes=-30))
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
-    assert "06:30:00 -05:30" in cover           # 12:00 UTC at -05:30
+    assert "06:30:00 -05:30" in cover  # 12:00 UTC at -05:30
 
 
 def test_a_zero_offset_renders_utc_only():
@@ -450,8 +564,7 @@ def test_a_zero_offset_renders_utc_only():
 def test_an_offset_with_unknown_times_stays_unknown():
     from datetime import timedelta
 
-    rec = _record(start_utc=None, end_utc=None,
-                  local_offset=timedelta(hours=2))
+    rec = _record(start_utc=None, end_utc=None, local_offset=timedelta(hours=2))
     cover = _cover(record_to_html([rec], "t", "2.4.0"))
     assert "unknown" in cover
 
@@ -462,33 +575,58 @@ def test_an_offset_with_unknown_times_stays_unknown():
 def test_fl_banded_limits_render_in_aviation_form():
     # A UK danger area banded FL 50 - FL 100 must not print "50-100 FL STD".
     fl_band = Zone(
-        identifier="UK-D001", name="Danger area", restriction="PROHIBITED",
-        lower=VerticalLimit(50, "FL", "STD"), upper=VerticalLimit(100, "FL", "STD"),
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+        identifier="UK-D001",
+        name="Danger area",
+        restriction="PROHIBITED",
+        lower=VerticalLimit(50, "FL", "STD"),
+        upper=VerticalLimit(100, "FL", "STD"),
+        applicability=[],
+        polygons=ZONE.polygons,
+        source=SRC,
+        native={},
     )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(
-            zone=fl_band, entered=True,
-            entry_utc=datetime(2026, 7, 30, 12, 1),
-            exit_utc=datetime(2026, 7, 30, 12, 2),
-        )], source=SRC))
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=fl_band,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "FL 50–100" in html
 
 
 def test_an_entered_fl_zone_states_the_pressure_datum_gap():
     fl_ceiling = Zone(
-        identifier="UK-D002", name="Danger area ceiling",
+        identifier="UK-D002",
+        name="Danger area ceiling",
         restriction="PROHIBITED",
-        lower=None, upper=VerticalLimit(100, "FL", "STD"),
-        applicability=[], polygons=ZONE.polygons, source=SRC, native={},
+        lower=None,
+        upper=VerticalLimit(100, "FL", "STD"),
+        applicability=[],
+        polygons=ZONE.polygons,
+        source=SRC,
+        native={},
     )
-    rec = _record(airspace=AirspaceReport(
-        findings=[ZoneFinding(
-            zone=fl_ceiling, entered=True,
-            entry_utc=datetime(2026, 7, 30, 12, 1),
-            exit_utc=datetime(2026, 7, 30, 12, 2),
-        )], source=SRC))
+    rec = _record(
+        airspace=AirspaceReport(
+            findings=[
+                ZoneFinding(
+                    zone=fl_ceiling,
+                    entered=True,
+                    entry_utc=datetime(2026, 7, 30, 12, 1),
+                    exit_utc=datetime(2026, 7, 30, 12, 2),
+                )
+            ],
+            source=SRC,
+        )
+    )
     html = record_to_html([rec], "t", "2.4.0")
     assert "flight level" in html and "pressure datum" in html
 
@@ -499,7 +637,8 @@ def test_not_applicable_table_prints_the_publisher_reason_when_present():
     from dataclasses import replace
 
     inactive = replace(
-        ZONE, identifier="BE-1",
+        ZONE,
+        identifier="BE-1",
         not_active_reason="not active during the flight window (publisher's evaluation)",
     )
     timed_out = replace(ZONE, identifier="BE-2")

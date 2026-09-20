@@ -1,4 +1,5 @@
 """Tests for the panoedit scan + write core."""
+
 from __future__ import annotations
 
 import json
@@ -17,10 +18,12 @@ def test_compass_heading_inverts_pano_view():
         for yaw in (-179.9, -90.0, 0.0, 45.25, 179.9):
             heading = pe.compass_heading(pose, yaw)
             assert 0.0 <= heading < 360.0
-            got_yaw, _, _ = _pano_view({
-                "InitialViewHeadingDegrees": heading,
-                "PoseHeadingDegrees": pose,
-            })
+            got_yaw, _, _ = _pano_view(
+                {
+                    "InitialViewHeadingDegrees": heading,
+                    "PoseHeadingDegrees": pose,
+                }
+            )
             assert got_yaw == pytest.approx(yaw, abs=1e-6)
 
 
@@ -32,36 +35,43 @@ def test_compass_heading_missing_pose_is_north():
 def test_scan_panos_filters_and_sorts(monkeypatch, tmp_path):
     def fake_scan(directory, recursive):
         return [
-            {"SourceFile": str(tmp_path / "b.jpg"),
-             "ProjectionType": "equirectangular",
-             "PoseHeadingDegrees": 90.0,
-             "InitialViewHeadingDegrees": 100.0,
-             "InitialViewPitchDegrees": -5.0,
-             "InitialHorizontalFOVDegrees": 95.0},
-            {"SourceFile": str(tmp_path / "a.jpg"),
-             "ProjectionType": "equirectangular"},
-            {"SourceFile": str(tmp_path / "flat.jpg")},   # not a pano
+            {
+                "SourceFile": str(tmp_path / "b.jpg"),
+                "ProjectionType": "equirectangular",
+                "PoseHeadingDegrees": 90.0,
+                "InitialViewHeadingDegrees": 100.0,
+                "InitialViewPitchDegrees": -5.0,
+                "InitialHorizontalFOVDegrees": 95.0,
+            },
+            {
+                "SourceFile": str(tmp_path / "a.jpg"),
+                "ProjectionType": "equirectangular",
+            },
+            {"SourceFile": str(tmp_path / "flat.jpg")},  # not a pano
         ]
+
     monkeypatch.setattr(pe, "_run_scan", fake_scan)
     files = pe.scan_panos(tmp_path)
     assert [f.name for f in files] == ["a.jpg", "b.jpg"]
     a, b = files
     assert a.pose == 0.0 and a.yaw is None and a.pitch is None and a.hfov is None
     assert b.pose == 90.0
-    assert b.yaw == pytest.approx(10.0)      # 100 - 90
+    assert b.yaw == pytest.approx(10.0)  # 100 - 90
     assert b.pitch == pytest.approx(-5.0)
     assert b.hfov == pytest.approx(95.0)
 
 
 def test_scan_panos_no_panos_raises(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        pe, "_run_scan", lambda d, r: [{"SourceFile": str(tmp_path / "x.jpg")}])
+        pe, "_run_scan", lambda d, r: [{"SourceFile": str(tmp_path / "x.jpg")}]
+    )
     with pytest.raises(pe.PanoEditError, match="No 360"):
         pe.scan_panos(tmp_path)
 
 
-def _fake_exiftool(monkeypatch, read_json: str,
-                   returncode: int = 0, stderr: str = "") -> list[list[str]]:
+def _fake_exiftool(
+    monkeypatch, read_json: str, returncode: int = 0, stderr: str = ""
+) -> list[list[str]]:
     """Fake ``subprocess.run`` inside panoedit, recording every argv.
 
     A monkeypatch rather than an on-disk shim script: a ``#!/bin/sh`` file
@@ -88,29 +98,31 @@ def _fake_exiftool(monkeypatch, read_json: str,
 def test_write_initial_view_argv_and_verify(monkeypatch, tmp_path):
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
-    verified = json.dumps([{
-        "InitialViewHeadingDegrees": 123.456,
-        "InitialViewPitchDegrees": -4.0,
-        "InitialHorizontalFOVDegrees": 100.0,
-        "PoseHeadingDegrees": 90.0,
-    }])
+    verified = json.dumps(
+        [
+            {
+                "InitialViewHeadingDegrees": 123.456,
+                "InitialViewPitchDegrees": -4.0,
+                "InitialHorizontalFOVDegrees": 100.0,
+                "PoseHeadingDegrees": 90.0,
+            }
+        ]
+    )
     calls = _fake_exiftool(monkeypatch, verified)
     result = pe.write_initial_view(target, heading=123.456, pitch=-4.0, hfov=100.0)
     argv = [a for call in calls for a in call]
     assert "-XMP-GPano:InitialViewHeadingDegrees=123.456" in argv
     assert "-XMP-GPano:InitialViewPitchDegrees=-4.0" in argv
     assert "-XMP-GPano:InitialHorizontalFOVDegrees=100.0" in argv
-    assert "-overwrite_original" not in argv          # backup stays
+    assert "-overwrite_original" not in argv  # backup stays
     assert not any("VerticalFOV" in a for a in argv)  # the wrong tag, banned
-    assert result == {"heading": 123.456, "pitch": -4.0, "hfov": 100.0,
-                      "pose": 90.0}
+    assert result == {"heading": 123.456, "pitch": -4.0, "hfov": 100.0, "pose": 90.0}
 
 
 def test_write_initial_view_failure_raises(monkeypatch, tmp_path):
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
-    _fake_exiftool(monkeypatch, "", returncode=1,
-                   stderr="Error: not writable")
+    _fake_exiftool(monkeypatch, "", returncode=1, stderr="Error: not writable")
     with pytest.raises(pe.PanoEditError, match="not writable"):
         pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
 
@@ -125,10 +137,16 @@ def test_write_bounds_both_exiftool_runs(monkeypatch, tmp_path):
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
     timeouts: list[object] = []
-    verified = json.dumps([{"InitialViewHeadingDegrees": 1.0,
-                            "InitialViewPitchDegrees": 0.0,
-                            "InitialHorizontalFOVDegrees": 90.0,
-                            "PoseHeadingDegrees": 0.0}])
+    verified = json.dumps(
+        [
+            {
+                "InitialViewHeadingDegrees": 1.0,
+                "InitialViewPitchDegrees": 0.0,
+                "InitialHorizontalFOVDegrees": 90.0,
+                "PoseHeadingDegrees": 0.0,
+            }
+        ]
+    )
 
     class _Result:
         def __init__(self, args):
@@ -165,8 +183,7 @@ def test_write_timeout_is_an_actionable_error(monkeypatch, tmp_path):
     assert "pano.jpg_exiftool_tmp" in message
 
 
-def test_write_timeout_message_carries_the_triage_numbers(monkeypatch,
-                                                          tmp_path):
+def test_write_timeout_message_carries_the_triage_numbers(monkeypatch, tmp_path):
     # #531: field reports arrive as screenshots of the error text, so the
     # text itself must carry the measured elapsed time and the ExifTool
     # version — the numbers a triage would otherwise have to ask for.
@@ -200,7 +217,8 @@ def test_exiftool_version_is_cached_and_optional(monkeypatch):
     assert pe._cached_exiftool_version() is None
     assert len(calls) == 1
     assert pe._slow_write_message(Path("p.jpg"), 62.0).startswith(
-        "ExifTool did not finish")
+        "ExifTool did not finish"
+    )
 
 
 def test_readback_timeout_says_the_write_happened(monkeypatch, tmp_path):
@@ -229,9 +247,19 @@ def test_slow_save_is_logged_as_a_warning(monkeypatch, tmp_path, caplog):
     # next field report should be able to quote it.
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
-    _fake_exiftool(monkeypatch, json.dumps([{
-        "InitialViewHeadingDegrees": 1.0, "InitialViewPitchDegrees": 0.0,
-        "InitialHorizontalFOVDegrees": 90.0, "PoseHeadingDegrees": 0.0}]))
+    _fake_exiftool(
+        monkeypatch,
+        json.dumps(
+            [
+                {
+                    "InitialViewHeadingDegrees": 1.0,
+                    "InitialViewPitchDegrees": 0.0,
+                    "InitialHorizontalFOVDegrees": 90.0,
+                    "PoseHeadingDegrees": 0.0,
+                }
+            ]
+        ),
+    )
     clock = iter([0.0, float(pe._SLOW_WRITE_SECONDS + 5)])
     monkeypatch.setattr(pe.time, "monotonic", lambda: next(clock))
     with caplog.at_level("INFO", logger=pe.logger.name):
@@ -267,23 +295,26 @@ def test_scan_is_bounded_and_scales_with_the_folder(monkeypatch, tmp_path):
     assert "Antivirus" in str(exc.value)
 
 
-def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path,
-                                                     caplog):
+def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path, caplog):
     # The page tells the user to check the terminal, so the terminal has
     # to have something in it.
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
     monkeypatch.setattr(
-        pe.subprocess, "run",
+        pe.subprocess,
+        "run",
         lambda args, **kw: (_ for _ in ()).throw(
-            pe.subprocess.TimeoutExpired(args, kw.get("timeout", 0))))
+            pe.subprocess.TimeoutExpired(args, kw.get("timeout", 0))
+        ),
+    )
     with (
         caplog.at_level("WARNING", logger=pe.logger.name),
         pytest.raises(pe.PanoEditError),
     ):
         pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0)
-    assert any("did not finish writing pano.jpg" in r.getMessage()
-               for r in caplog.records)
+    assert any(
+        "did not finish writing pano.jpg" in r.getMessage() for r in caplog.records
+    )
 
 
 # --- #492: backups become optional -----------------------------------------
@@ -292,15 +323,18 @@ def test_write_timeout_is_logged_as_well_as_returned(monkeypatch, tmp_path,
 def test_write_initial_view_no_backup_overwrites_in_place(monkeypatch, tmp_path):
     target = tmp_path / "pano.jpg"
     target.write_bytes(b"\xff\xd8fake")
-    verified = json.dumps([{
-        "InitialViewHeadingDegrees": 1.0,
-        "InitialViewPitchDegrees": 0.0,
-        "InitialHorizontalFOVDegrees": 90.0,
-        "PoseHeadingDegrees": 0.0,
-    }])
+    verified = json.dumps(
+        [
+            {
+                "InitialViewHeadingDegrees": 1.0,
+                "InitialViewPitchDegrees": 0.0,
+                "InitialHorizontalFOVDegrees": 90.0,
+                "PoseHeadingDegrees": 0.0,
+            }
+        ]
+    )
     calls = _fake_exiftool(monkeypatch, verified)
-    pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0,
-                          backup=False)
+    pe.write_initial_view(target, heading=1.0, pitch=0.0, hfov=90.0, backup=False)
     # The flag belongs to the write; the verification read never rewrites
     # anything, so it must not carry it.
     assert "-overwrite_original" in calls[0]
@@ -331,7 +365,7 @@ def test_clean_backups_recursive_matches_the_editor_scan(tmp_path):
     (sub / "b.JPG").write_bytes(b"\xff\xd8new")
     (sub / "b.JPG_original").write_bytes(b"\xff\xd8old")
     deleted, _ = pe.clean_backups(tmp_path)
-    assert deleted == []                       # non-recursive stays shallow
+    assert deleted == []  # non-recursive stays shallow
     deleted, _ = pe.clean_backups(tmp_path, recursive=True)
     assert [p.name for p in deleted] == ["b.JPG_original"]
     assert not (sub / "b.JPG_original").exists()

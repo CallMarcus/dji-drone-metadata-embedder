@@ -134,14 +134,16 @@ def track_to_html(track: Track) -> str:
     # it back to "<" while no literal "</script>" can break out of the data
     # block.
     data = json.dumps(geojson, indent=2).replace("<", "\\u003c")
-    return stamp(_TEMPLATE.format(
-        title=escape(track.name),
-        leaflet=_LEAFLET_VERSION,
-        css_sri=_LEAFLET_CSS_SRI,
-        js_sri=_LEAFLET_JS_SRI,
-        data=data,
-        app_js=_APP_JS.replace("__CREDIT__", attribution_credit()),
-    ))
+    return stamp(
+        _TEMPLATE.format(
+            title=escape(track.name),
+            leaflet=_LEAFLET_VERSION,
+            css_sri=_LEAFLET_CSS_SRI,
+            js_sri=_LEAFLET_JS_SRI,
+            data=data,
+            app_js=_APP_JS.replace("__CREDIT__", attribution_credit()),
+        )
+    )
 
 
 def write_html(track: Track, output_path: Path) -> Path:

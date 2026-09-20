@@ -35,7 +35,7 @@ _TIMEOUT_S = 60
 
 
 def snap_bbox(
-    bbox: tuple[float, float, float, float]
+    bbox: tuple[float, float, float, float],
 ) -> tuple[float, float, float, float]:
     """Pad by 0.05 deg, then snap outward to the 0.1-deg privacy grid."""
     x1, y1, x2, y2 = bbox
@@ -62,9 +62,7 @@ def _query(bbox: tuple[float, float, float, float], offset: int) -> str:
     return f"{FAA_QUERY_URL}?{urlencode(params)}"
 
 
-def fetch_faa_pages(
-    bbox: tuple[float, float, float, float], transport
-) -> list[bytes]:
+def fetch_faa_pages(bbox: tuple[float, float, float, float], transport) -> list[bytes]:
     """All response pages for the snapped *bbox*; raises on any failure."""
     snapped = snap_bbox(bbox)
     pages: list[bytes] = []
@@ -79,26 +77,18 @@ def fetch_faa_pages(
                 f"FAA facility-map query answered HTTP {exc.code}"
             ) from exc
         except (URLError, OSError) as exc:
-            raise AirspaceError(
-                f"FAA facility-map query failed: {exc}"
-            ) from exc
+            raise AirspaceError(f"FAA facility-map query failed: {exc}") from exc
         pages.append(body)
         try:
             doc = json.loads(body)
         except ValueError as exc:
-            raise AirspaceError(
-                "FAA facility-map response is not JSON"
-            ) from exc
+            raise AirspaceError("FAA facility-map response is not JSON") from exc
         if isinstance(doc, dict) and "error" in doc:
             err = doc["error"]
             message = err.get("message") if isinstance(err, dict) else err
-            raise AirspaceError(
-                f"FAA facility-map query returned an error: {message}"
-            )
+            raise AirspaceError(f"FAA facility-map query returned an error: {message}")
         if not isinstance(doc, dict) or "features" not in doc:
-            raise AirspaceError(
-                "FAA facility-map response has no 'features' list"
-            )
+            raise AirspaceError("FAA facility-map response has no 'features' list")
         exceeded = doc.get("exceededTransferLimit") or (
             isinstance(doc.get("properties"), dict)
             and doc["properties"].get("exceededTransferLimit")
@@ -157,9 +147,7 @@ def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:
                 # key, silently dropping a zone. Identical geometry+ceiling
                 # hashing identically is correct — that IS the same cell,
                 # and collapsing it is deduplication, not loss (#424).
-                digest = hashlib.sha1(
-                    f"{ceiling}:{rings!r}".encode()
-                ).hexdigest()[:10]
+                digest = hashlib.sha1(f"{ceiling}:{rings!r}".encode()).hexdigest()[:10]
                 ident = f"cell-{digest}"
             else:
                 ident = str(oid)

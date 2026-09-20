@@ -196,7 +196,7 @@ def _pano_view(entry: dict) -> tuple[float | None, float | None, float | None]:
 def _clean_base64(raw: object) -> str | None:
     """Return the base64 payload of an ExifTool ``-b`` blob (``base64:...``), else None."""
     if isinstance(raw, str) and raw.startswith("base64:"):
-        candidate = raw[len("base64:"):]
+        candidate = raw[len("base64:") :]
         if _BASE64_RE.fullmatch(candidate):
             return candidate
     return None
@@ -342,7 +342,7 @@ def _display_name(source: str, root: Path | None) -> str:
     src = source.replace("\\", "/")
     prefix = str(root).replace("\\", "/").rstrip("/") + "/"
     if src.startswith(prefix):
-        return src[len(prefix):]
+        return src[len(prefix) :]
     return Path(source).name
 
 
@@ -409,7 +409,11 @@ def _run_exiftool_scan(directory: Path, recursive: bool) -> list[dict]:
     args.append(str(directory))
     try:
         proc = subprocess.run(
-            args, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
     except FileNotFoundError:

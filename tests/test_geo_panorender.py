@@ -6,6 +6,7 @@ zenith band and a black nadir band. yaw/pitch then predict the center
 pixel's color exactly. Image center (yaw 0) falls at x = W/2 — the
 boundary between stripes B and C — so stripe tests target stripe centers
 (yaw -135, -45, +45, +135), never boundaries."""
+
 from __future__ import annotations
 
 import io
@@ -16,8 +17,7 @@ from PIL import Image
 
 from dji_metadata_embedder.geo.panorender import render_view
 
-RED, GREEN, BLUE, YELLOW = ((255, 0, 0), (0, 200, 0),
-                            (0, 0, 255), (240, 220, 0))
+RED, GREEN, BLUE, YELLOW = ((255, 0, 0), (0, 200, 0), (0, 0, 255), (240, 220, 0))
 WHITE, BLACK = (255, 255, 255), (0, 0, 0)
 
 
@@ -29,10 +29,10 @@ def equirect(tmp_path) -> Path:
         color = [RED, GREEN, BLUE, YELLOW][min(x * 4 // W, 3)]
         for y in range(H):
             im.putpixel((x, y), color)
-    for y in range(8):                       # zenith band
+    for y in range(8):  # zenith band
         for x in range(W):
             im.putpixel((x, y), WHITE)
-    for y in range(H - 8, H):                # nadir band
+    for y in range(H - 8, H):  # nadir band
         for x in range(W):
             im.putpixel((x, y), BLACK)
     p = tmp_path / "eq.jpg"
@@ -52,8 +52,7 @@ def _close(a, b, tol=40):
 
 def test_yaw_selects_longitude_stripe(equirect):
     # yaw 0 = image center = x W/2; stripe centers are at yaw -135/-45/45/135.
-    for yaw, color in ((-135.0, RED), (-45.0, GREEN),
-                       (45.0, BLUE), (135.0, YELLOW)):
+    for yaw, color in ((-135.0, RED), (-45.0, GREEN), (45.0, BLUE), (135.0, YELLOW)):
         data = render_view(equirect, yaw, 0.0, 90.0, size=64)
         assert data is not None
         assert _close(_center_pixel(data), color), f"yaw {yaw}"

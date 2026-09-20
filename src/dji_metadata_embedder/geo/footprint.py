@@ -200,14 +200,27 @@ def build_footprints(
             if p.gimbal_pitch >= 0:
                 continue  # camera at/above the horizon: no ground footprint
             ring = frustum_ground_ring(
-                p.lat, p.lon, agl, bearing, p.gimbal_pitch, hfov, vfov,
-                max_range_m if max_range_m is not None
-                else MAX_RANGE_AGL_FACTOR * agl,
+                p.lat,
+                p.lon,
+                agl,
+                bearing,
+                p.gimbal_pitch,
+                hfov,
+                vfov,
+                max_range_m if max_range_m is not None else MAX_RANGE_AGL_FACTOR * agl,
             )
-            out.append(Footprint(
-                ring, i, p.timestamp, agl, hfov, vfov, pitch=p.gimbal_pitch,
-                oblique=abs(p.gimbal_pitch - NADIR_PITCH_DEG) > NADIR_EPS_DEG,
-            ))
+            out.append(
+                Footprint(
+                    ring,
+                    i,
+                    p.timestamp,
+                    agl,
+                    hfov,
+                    vfov,
+                    pitch=p.gimbal_pitch,
+                    oblique=abs(p.gimbal_pitch - NADIR_PITCH_DEG) > NADIR_EPS_DEG,
+                )
+            )
         else:
             ring = ground_footprint(p.lat, p.lon, agl, hfov, vfov, bearing)
             out.append(Footprint(ring, i, p.timestamp, agl, hfov, vfov))

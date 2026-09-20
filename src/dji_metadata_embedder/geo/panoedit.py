@@ -179,7 +179,8 @@ def _scan_timeout(directory: Path, recursive: bool) -> float:
     pattern = "**/*" if recursive else "*"
     try:
         jpegs = sum(
-            1 for p in directory.glob(pattern)
+            1
+            for p in directory.glob(pattern)
             if p.suffix.lower().lstrip(".") in _PANO_EXTS
         )
     except OSError:
@@ -198,8 +199,12 @@ def _run_scan(directory: Path, recursive: bool) -> list[dict]:
     timeout = _scan_timeout(directory, recursive)
     try:
         proc = subprocess.run(
-            args, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=timeout,
+            args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
             check=False,
         )
     except FileNotFoundError:
@@ -239,19 +244,22 @@ def scan_panos(directory: Path, recursive: bool = False) -> list[PanoFile]:
     files: list[PanoFile] = []
     for entry in entries:
         proj = entry.get("ProjectionType")
-        if not (isinstance(proj, str)
-                and proj.strip().lower() == "equirectangular"):
+        if not (isinstance(proj, str) and proj.strip().lower() == "equirectangular"):
             continue
         path = Path(str(entry.get("SourceFile", "?")))
         yaw, pitch, hfov = _pano_view(entry)
-        files.append(PanoFile(
-            path=path,
-            name=path.name,
-            pose=_maybe_float(entry.get("PoseHeadingDegrees")) or 0.0,
-            yaw=yaw, pitch=pitch, hfov=hfov,
-            width=int(_maybe_float(entry.get("ImageWidth")) or 0),
-            height=int(_maybe_float(entry.get("ImageHeight")) or 0),
-        ))
+        files.append(
+            PanoFile(
+                path=path,
+                name=path.name,
+                pose=_maybe_float(entry.get("PoseHeadingDegrees")) or 0.0,
+                yaw=yaw,
+                pitch=pitch,
+                hfov=hfov,
+                width=int(_maybe_float(entry.get("ImageWidth")) or 0),
+                height=int(_maybe_float(entry.get("ImageHeight")) or 0),
+            )
+        )
     if not files:
         raise PanoEditError(
             f"No 360-degree panoramas found in {directory} "
@@ -263,8 +271,12 @@ def scan_panos(directory: Path, recursive: bool = False) -> list[PanoFile]:
 
 
 def write_initial_view(
-    path: Path, heading: float, pitch: float, hfov: float,
-    *, backup: bool = True,
+    path: Path,
+    heading: float,
+    pitch: float,
+    hfov: float,
+    *,
+    backup: bool = True,
 ) -> dict:
     """Write the three initial-view tags to *path* and read them back.
 
@@ -284,7 +296,8 @@ def write_initial_view(
     """
     exe = exiftool_exe()
     write_args = [
-        exe, "-n",
+        exe,
+        "-n",
         *([] if backup else ["-overwrite_original"]),
         f"-XMP-GPano:InitialViewHeadingDegrees={heading}",
         f"-XMP-GPano:InitialViewPitchDegrees={pitch}",
@@ -294,8 +307,12 @@ def write_initial_view(
     started = time.monotonic()
     try:
         proc = subprocess.run(
-            write_args, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=_WRITE_TIMEOUT,
+            write_args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=_WRITE_TIMEOUT,
             check=False,
         )
     except FileNotFoundError:
@@ -305,8 +322,10 @@ def write_initial_view(
         # Logged as well as returned: the page tells the user to look in
         # the terminal, so something has to be there.
         logger.warning(
-            "ExifTool did not finish writing %s within %ss and was "
-            "stopped after %.1fs", path.name, _WRITE_TIMEOUT, elapsed,
+            "ExifTool did not finish writing %s within %ss and was stopped after %.1fs",
+            path.name,
+            _WRITE_TIMEOUT,
+            elapsed,
         )
         raise PanoEditError(_slow_write_message(path, elapsed)) from None
     elapsed = time.monotonic() - started
@@ -314,19 +333,24 @@ def write_initial_view(
     # is a number, and the next field report should be able to quote it.
     logger.log(
         logging.WARNING if elapsed > _SLOW_WRITE_SECONDS else logging.INFO,
-        "ExifTool wrote %s in %.1fs", path.name, elapsed,
+        "ExifTool wrote %s in %.1fs",
+        path.name,
+        elapsed,
     )
     if proc.returncode != 0:
         stderr = proc.stderr.strip()[-300:]
         raise PanoEditError(
-            f"ExifTool could not write {path.name}: "
-            f"{stderr or 'no error output'}"
+            f"ExifTool could not write {path.name}: {stderr or 'no error output'}"
         )
     read_args = [exe, "-json", "-n", *_SCAN_TAGS[1:], str(path)]
     try:
         proc = subprocess.run(
-            read_args, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=_WRITE_TIMEOUT,
+            read_args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=_WRITE_TIMEOUT,
             check=False,
         )
     except subprocess.TimeoutExpired:
@@ -352,9 +376,7 @@ def write_initial_view(
 _BACKUP_SUFFIX = "_original"
 
 
-def clean_backups(
-    directory: Path, recursive: bool = False
-) -> tuple[list[Path], int]:
+def clean_backups(directory: Path, recursive: bool = False) -> tuple[list[Path], int]:
     """Delete ``*_original`` backups whose edited sibling still exists (#492).
 
     Returns ``(deleted paths, bytes freed)``. Deliberately narrow: only
@@ -427,7 +449,7 @@ def _xmp_packet(path: Path) -> bytes | None:
     """
     try:
         with open(path, "rb") as fh:
-            if fh.read(2) != b"\xff\xd8":     # not a JPEG
+            if fh.read(2) != b"\xff\xd8":  # not a JPEG
                 return None
             while True:
                 marker = fh.read(2)
@@ -436,7 +458,7 @@ def _xmp_packet(path: Path) -> bytes | None:
                 kind = marker[1]
                 if kind == 0xDA or kind == 0xD9:  # image data: no metadata past here
                     return None
-                if 0xD0 <= kind <= 0xD8:          # standalone markers, no payload
+                if 0xD0 <= kind <= 0xD8:  # standalone markers, no payload
                     continue
                 header = fh.read(2)
                 if len(header) < 2:
@@ -446,7 +468,7 @@ def _xmp_packet(path: Path) -> bytes | None:
                     return None
                 payload = fh.read(length)
                 if kind == 0xE1 and payload.startswith(_XMP_APP1_HEADER):
-                    return payload[len(_XMP_APP1_HEADER):]
+                    return payload[len(_XMP_APP1_HEADER) :]
     except OSError:
         return None
 
@@ -497,7 +519,7 @@ def downscale_pano(src: Path, dest: Path, max_width: int) -> Path | None:
                 "the GPano metadata did not survive the re-encode "
                 "(Pillow 11 or newer is needed to carry it)"
             )
-    except Exception as exc:                  # noqa: BLE001 - never fatal
+    except Exception as exc:  # noqa: BLE001 - never fatal
         logger.warning("Could not downscale %s: %s", src.name, exc)
         dest.unlink(missing_ok=True)
         return None
@@ -513,14 +535,17 @@ _IMG_RE = re.compile(r"^/img/(\d+)$")
 _MAX_SAVE_BODY = 4096
 
 
-def _view_payload(
-    f: PanoFile, index: int, *, downscaled: bool = False
-) -> dict:
+def _view_payload(f: PanoFile, index: int, *, downscaled: bool = False) -> dict:
     return {
-        "index": index, "name": f.name, "pose": f.pose,
-        "yaw": f.yaw, "pitch": f.pitch, "hfov": f.hfov,
+        "index": index,
+        "name": f.name,
+        "pose": f.pose,
+        "yaw": f.yaw,
+        "pitch": f.pitch,
+        "hfov": f.hfov,
         "hasView": f.yaw is not None,
-        "width": f.width, "height": f.height,
+        "width": f.width,
+        "height": f.height,
         "downscaled": downscaled,
     }
 
@@ -553,8 +578,9 @@ class _EditorServer(_MapServer):
         self._cache: tempfile.TemporaryDirectory | None = None
 
     def _oversized(self, index: int) -> bool:
-        return bool(self.pano_max_width
-                    and self.pano_files[index].width > self.pano_max_width)
+        return bool(
+            self.pano_max_width and self.pano_files[index].width > self.pano_max_width
+        )
 
     def image_path(self, index: int) -> Path:
         """Path to serve for ``/img/<index>``: a cached downscaled
@@ -581,7 +607,8 @@ class _EditorServer(_MapServer):
         with per_image:
             if index not in self._renditions:
                 self._renditions[index] = downscale_pano(
-                    f.path, cache / f"{index}.jpg", self.pano_max_width)
+                    f.path, cache / f"{index}.jpg", self.pano_max_width
+                )
             return self._renditions[index] or f.path
 
     def drop_rendition(self, index: int) -> None:
@@ -598,11 +625,11 @@ class _EditorServer(_MapServer):
             known = index in self._renditions
             built = self._renditions.get(index)
         downscaled = (
-            built is not None if known
+            built is not None
+            if known
             else self.pano_renditions and self._oversized(index)
         )
-        return _view_payload(self.pano_files[index], index,
-                             downscaled=bool(downscaled))
+        return _view_payload(self.pano_files[index], index, downscaled=bool(downscaled))
 
     def server_close(self) -> None:
         try:
@@ -627,7 +654,7 @@ class _EditorHandler(_RangeHandler):
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
         if path == "/":
-            body = self.server.pano_page          # type: ignore[attr-defined]
+            body = self.server.pano_page  # type: ignore[attr-defined]
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -635,14 +662,17 @@ class _EditorHandler(_RangeHandler):
             self.wfile.write(body)
             return
         if path == "/api/list":
-            server = self.server                  # type: ignore[assignment]
-            self._send_json(HTTPStatus.OK, [
-                server.payload(i)                 # type: ignore[attr-defined]
-                for i in range(len(server.pano_files))  # type: ignore[attr-defined]
-            ])
+            server = self.server  # type: ignore[assignment]
+            self._send_json(
+                HTTPStatus.OK,
+                [
+                    server.payload(i)  # type: ignore[attr-defined]
+                    for i in range(len(server.pano_files))  # type: ignore[attr-defined]
+                ],
+            )
             return
         if _IMG_RE.match(path):
-            super().do_GET()          # ranged serving via translate_path
+            super().do_GET()  # ranged serving via translate_path
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -654,13 +684,12 @@ class _EditorHandler(_RangeHandler):
         # does not catch.)
         m = _IMG_RE.match(path.split("?", 1)[0])
         if m:
-            files = self.server.pano_files        # type: ignore[attr-defined]
+            files = self.server.pano_files  # type: ignore[attr-defined]
             i = int(m.group(1))
             if i < len(files):
                 # May build a downscaled rendition on the way (#471);
                 # cached, so the second call within a request is free.
-                return str(
-                    self.server.image_path(i))    # type: ignore[attr-defined]
+                return str(self.server.image_path(i))  # type: ignore[attr-defined]
         return str(Path(self.directory) / ".panoedit-404-not-a-real-file")
 
     def do_POST(self) -> None:
@@ -672,41 +701,48 @@ class _EditorHandler(_RangeHandler):
         except ValueError:
             length = 0
         if not 0 < length <= _MAX_SAVE_BODY:
-            self._send_json(HTTPStatus.BAD_REQUEST,
-                            {"error": "bad request body"})
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "bad request body"})
             return
         try:
             payload = json.loads(self.rfile.read(length))
         except json.JSONDecodeError:
-            self._send_json(HTTPStatus.BAD_REQUEST,
-                            {"error": "invalid JSON"})
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid JSON"})
             return
-        token = self.server.pano_token            # type: ignore[attr-defined]
+        token = self.server.pano_token  # type: ignore[attr-defined]
         sent = payload.get("token")
-        if not (isinstance(sent, str)
-                and hmac.compare_digest(sent, token)):
+        if not (isinstance(sent, str) and hmac.compare_digest(sent, token)):
             self._send_json(HTTPStatus.FORBIDDEN, {"error": "bad token"})
             return
-        files = self.server.pano_files            # type: ignore[attr-defined]
+        files = self.server.pano_files  # type: ignore[attr-defined]
         index = payload.get("index")
         heading = _maybe_float(payload.get("heading"))
         pitch = _maybe_float(payload.get("pitch"))
         hfov = _maybe_float(payload.get("hfov"))
-        if (not isinstance(index, int) or not 0 <= index < len(files)
-                or heading is None or pitch is None or hfov is None
-                or not -90.0 <= pitch <= 90.0
-                or not 10.0 <= hfov <= 170.0):
-            self._send_json(HTTPStatus.BAD_REQUEST,
-                            {"error": "invalid index or view values"})
+        if (
+            not isinstance(index, int)
+            or not 0 <= index < len(files)
+            or heading is None
+            or pitch is None
+            or hfov is None
+            or not -90.0 <= pitch <= 90.0
+            or not 10.0 <= hfov <= 170.0
+        ):
+            self._send_json(
+                HTTPStatus.BAD_REQUEST, {"error": "invalid index or view values"}
+            )
             return
         heading %= 360.0
         f = files[index]
-        lock = self.server.pano_lock              # type: ignore[attr-defined]
+        lock = self.server.pano_lock  # type: ignore[attr-defined]
         if not lock.acquire(timeout=_SAVE_LOCK_TIMEOUT):
-            self._send_json(HTTPStatus.SERVICE_UNAVAILABLE, {
-                "error": "Another save is still in progress. Wait for it "
-                         "to finish and try again — if this keeps "
-                         "happening, restart the editor."})
+            self._send_json(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {
+                    "error": "Another save is still in progress. Wait for it "
+                    "to finish and try again — if this keeps "
+                    "happening, restart the editor."
+                },
+            )
             return
         # The lock must be free before any response is written: the client
         # socket is unbuffered and blocking, so a stalled reader would
@@ -714,8 +750,11 @@ class _EditorHandler(_RangeHandler):
         # BEFORE finally — sending from one would send under the lock).
         try:
             verified = write_initial_view(
-                f.path, heading, pitch, hfov,
-                backup=self.server.pano_backup,   # type: ignore[attr-defined]
+                f.path,
+                heading,
+                pitch,
+                hfov,
+                backup=self.server.pano_backup,  # type: ignore[attr-defined]
             )
             error = None
         except PanoEditError as exc:
@@ -723,23 +762,23 @@ class _EditorHandler(_RangeHandler):
         finally:
             lock.release()
         if error is not None:
-            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR,
-                            {"error": error})
+            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": error})
             return
         # The file on disk just changed, so any rendition of it is stale.
-        self.server.drop_rendition(index)         # type: ignore[attr-defined]
+        self.server.drop_rendition(index)  # type: ignore[attr-defined]
         # The verified read is the new truth for /api/list and the client.
         f.pose = verified["pose"]
-        f.yaw, f.pitch, f.hfov = _pano_view({
-            "InitialViewHeadingDegrees": verified["heading"],
-            "PoseHeadingDegrees": verified["pose"],
-            "InitialViewPitchDegrees": verified["pitch"],
-            "InitialHorizontalFOVDegrees": verified["hfov"],
-        })
+        f.yaw, f.pitch, f.hfov = _pano_view(
+            {
+                "InitialViewHeadingDegrees": verified["heading"],
+                "PoseHeadingDegrees": verified["pose"],
+                "InitialViewPitchDegrees": verified["pitch"],
+                "InitialHorizontalFOVDegrees": verified["hfov"],
+            }
+        )
         self._send_json(
             HTTPStatus.OK,
-            {**verified,
-             **self.server.payload(index)},       # type: ignore[attr-defined]
+            {**verified, **self.server.payload(index)},  # type: ignore[attr-defined]
         )
 
     def _send_json(self, status: HTTPStatus, obj: object) -> None:
@@ -785,8 +824,11 @@ def make_editor_server(
     server.pano_renditions = renditions
     server.pano_backup = backup
     server.pano_page = build_editor_page(
-        token, max_width=max_width, renditions=renditions,
-        hint=_PILLOW_HINT, backup=backup,
+        token,
+        max_width=max_width,
+        renditions=renditions,
+        hint=_PILLOW_HINT,
+        backup=backup,
         # Outlast both server-side ExifTool timeouts (write, then the
         # read-back) so the page's backstop never pre-empts the server's
         # much better message.
@@ -827,8 +869,8 @@ def run_editor(
 ) -> None:
     """Serve the editor until Ctrl+C (same contract as ``serve_directory``)."""
     server, url = make_editor_server(
-        directory, recursive=recursive, port=port, max_width=max_width,
-        backup=backup)
+        directory, recursive=recursive, port=port, max_width=max_width, backup=backup
+    )
     with server:
         if bare_url:
             click.echo(url)

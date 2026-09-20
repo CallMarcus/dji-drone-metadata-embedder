@@ -95,8 +95,7 @@ def main(argv: list[str] | None = None) -> None:
         for name, px in iconset_entries(args.source_px):
             print(f"{name} {px}")
     else:
-        print(assemble(args.publish_dir, args.cli, args.icns,
-                       args.version, args.out))
+        print(assemble(args.publish_dir, args.cli, args.icns, args.version, args.out))
 
 
 if __name__ == "__main__":

@@ -14,18 +14,14 @@ from ..track import Track, TrackPoint
 from .model import SourceInfo, Zone
 
 
-def point_in_ring(
-    lon: float, lat: float, ring: list[tuple[float, float]]
-) -> bool:
+def point_in_ring(lon: float, lat: float, ring: list[tuple[float, float]]) -> bool:
     """Ray-casting point-in-polygon on plain WGS84 coordinates."""
     inside = False
     j = len(ring) - 1
     for i in range(len(ring)):
         xi, yi = ring[i]
         xj, yj = ring[j]
-        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (
-            yj - yi
-        ) + xi:
+        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
             inside = not inside
         j = i
     return inside
@@ -43,9 +39,9 @@ class ZoneFinding:
     entered: bool
     entry_utc: datetime | None = None
     exit_utc: datetime | None = None
-    max_rel_alt_m: float | None = None   # above takeoff, aircraft-reported
-    max_surface_m: float | None = None   # est. above surface (DEM), if given
-    max_amsl_m: float | None = None      # aircraft absolute altitude
+    max_rel_alt_m: float | None = None  # above takeoff, aircraft-reported
+    max_surface_m: float | None = None  # est. above surface (DEM), if given
+    max_amsl_m: float | None = None  # aircraft absolute altitude
 
 
 @dataclass

@@ -7,6 +7,7 @@ lock, every later save queues behind it forever. ``make_logging_nonblocking``
 moves the actual handler I/O onto a sacrificial listener thread: request
 threads only ever enqueue, so a wedged stderr can no longer stall a save.
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,9 +54,9 @@ def test_blocked_handler_no_longer_blocks_the_logging_call():
     assert listener is not None
     try:
         started = time.monotonic()
-        log.warning("save finished")          # must return immediately
+        log.warning("save finished")  # must return immediately
         assert time.monotonic() - started < 1.0
-        assert handler.records == []          # handler is still blocked
+        assert handler.records == []  # handler is still blocked
         handler.unblock.set()
         assert _wait_for(lambda: len(handler.records) == 1)
         assert handler.records[0].getMessage() == "save finished"
@@ -66,7 +67,7 @@ def test_blocked_handler_no_longer_blocks_the_logging_call():
 
 def test_records_still_reach_the_original_handler():
     handler = _BlockingHandler()
-    handler.unblock.set()                     # behaves like a normal handler
+    handler.unblock.set()  # behaves like a normal handler
     log = _private_logger("nonblocking-test-passthrough", handler)
     listener = make_logging_nonblocking(log)
     assert listener is not None

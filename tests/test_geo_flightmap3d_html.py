@@ -24,7 +24,8 @@ def _track(name="DJI_0001", lat=10.0, lon=20.0, n=2):
 def _embedded_data(html: str) -> dict:
     m = re.search(
         r'<script type="application/json" id="flight-data">\s*(.*?)\s*</script>',
-        html, re.DOTALL,
+        html,
+        re.DOTALL,
     )
     assert m, "embedded data block missing"
     return json.loads(m.group(1))
@@ -38,8 +39,14 @@ def test_3d_html_embeds_one_feature_per_flight():
 
 def test_3d_html_pins_maplibre_with_sri():
     html = flights_to_3d_html([_track()], "t")
-    assert 'src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha256-' in html
-    assert 'href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha256-' in html
+    assert (
+        'src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha256-'
+        in html
+    )
+    assert (
+        'href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha256-'
+        in html
+    )
     assert "leaflet" not in html.lower()
 
 
@@ -55,7 +62,9 @@ def test_3d_html_escapes_script_close_in_data():
     t = _track(name="</script><script>alert(1)")
     html = flights_to_3d_html([t], "t")
     assert "</script><script>alert(1)" not in html
-    assert _embedded_data(html)["features"][0]["properties"]["name"].startswith("</script>")
+    assert _embedded_data(html)["features"][0]["properties"]["name"].startswith(
+        "</script>"
+    )
 
 
 def test_3d_html_title_is_escaped():
@@ -73,8 +82,8 @@ def test_3d_single_fix_flight_survives():
 
 def test_3d_html_has_degradation_paths():
     html = flights_to_3d_html([_track()], "t")
-    assert "Terrain tiles unavailable" in html   # flat-view banner text
-    assert "WebGL" in html                        # no-WebGL fallback message
+    assert "Terrain tiles unavailable" in html  # flat-view banner text
+    assert "WebGL" in html  # no-WebGL fallback message
 
 
 def test_3d_html_has_flight_toggle_panel():
@@ -119,19 +128,33 @@ def test_3d_html_carries_the_sculpture_layers():
 
 def test_template_carries_the_gaze_and_playback_app():
     html = flights_to_3d_html([_track()], "trip")
-    for needle in ("function gazeRing(", "function beamFor(",
-                   "function gazeLookup(", "'gaze-fill'", "'beam-ray'",
-                   "'gaze-hits-line'", "id: 'gaze-cursor-dot'",
-                   "id: 'gaze-marker-body'", "function markerFor(",
-                   "pb-play", "pb-slider", "GAZE_FALLBACK_HFOV"):
+    for needle in (
+        "function gazeRing(",
+        "function beamFor(",
+        "function gazeLookup(",
+        "'gaze-fill'",
+        "'beam-ray'",
+        "'gaze-hits-line'",
+        "id: 'gaze-cursor-dot'",
+        "id: 'gaze-marker-body'",
+        "function markerFor(",
+        "pb-play",
+        "pb-slider",
+        "GAZE_FALLBACK_HFOV",
+    ):
         assert needle in html, needle
 
 
 def test_template_carries_the_crossfade_app():
     html = flights_to_3d_html([_track()], "trip")
-    for needle in ("function mountCrossfade(", "function renderCrossfade(",
-                   "function syncCrossfadePlayback(", "v.id = 'ghost-video'",
-                   "ghost-blend", "CROSSFADE_MAX_RATE"):
+    for needle in (
+        "function mountCrossfade(",
+        "function renderCrossfade(",
+        "function syncCrossfadePlayback(",
+        "v.id = 'ghost-video'",
+        "ghost-blend",
+        "CROSSFADE_MAX_RATE",
+    ):
         assert needle in html, needle
 
 

@@ -104,13 +104,25 @@ def test_convert_geojson_footprint_cli(tmp_path):
     out = tmp_path / "clip.geojson"
     runner = CliRunner()
     result = runner.invoke(
-        main, ["convert", "geojson", str(AIR3), "-o", str(out), "--footprint",
-                "--footprint-interval", "0"]
+        main,
+        [
+            "convert",
+            "geojson",
+            str(AIR3),
+            "-o",
+            str(out),
+            "--footprint",
+            "--footprint-interval",
+            "0",
+        ],
     )
     assert result.exit_code == 0, result.output
     data = json.loads(out.read_text())
-    polys = [f for f in data["features"]
-             if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+    polys = [
+        f
+        for f in data["features"]
+        if f["geometry"] and f["geometry"]["type"] == "Polygon"
+    ]
     assert polys and polys[0]["properties"]["kind"] == "footprint"
 
 
@@ -137,8 +149,11 @@ def test_convert_footprint_suppressed_by_redaction(tmp_path, fmt, redact):
     text = out.read_text()
     if fmt == "geojson":
         data = json.loads(text)
-        assert not [f for f in data["features"]
-                    if f["geometry"] and f["geometry"]["type"] == "Polygon"]
+        assert not [
+            f
+            for f in data["features"]
+            if f["geometry"] and f["geometry"]["type"] == "Polygon"
+        ]
     else:
         assert "Camera footprints" not in text
         assert "<Polygon>" not in text
@@ -148,7 +163,9 @@ _FIX = Path(__file__).parent / "fixtures" / "mp4_telemetry" / "air3s_g3j.json"
 
 
 def test_convert_geojson_single_mp4(monkeypatch, tmp_path):
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
     mp4 = tmp_path / "clip.mp4"
     mp4.write_bytes(b"\x00")
     out = tmp_path / "clip.geojson"
@@ -159,7 +176,9 @@ def test_convert_geojson_single_mp4(monkeypatch, tmp_path):
 
 
 def test_convert_batch_includes_mp4(monkeypatch, tmp_path):
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
     (tmp_path / "a.mp4").write_bytes(b"\x00")
     res = CliRunner().invoke(main, ["convert", "geojson", str(tmp_path), "--batch"])
     assert res.exit_code == 0, res.output
@@ -169,7 +188,8 @@ def test_convert_batch_includes_mp4(monkeypatch, tmp_path):
 def test_convert_mp4_too_old_exiftool_clean_error(monkeypatch, tmp_path):
     # Stream present but nothing decoded (Neo-2 style) -> extract_samples raises.
     monkeypatch.setattr(
-        mt, "_run_exiftool_json",
+        mt,
+        "_run_exiftool_json",
         lambda p: [{"Doc1": {"SampleTime": 0}}],
     )
     monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto")
@@ -180,5 +200,6 @@ def test_convert_mp4_too_old_exiftool_clean_error(monkeypatch, tmp_path):
     assert res.exit_code != 0
     # Clean ClickException, NOT an uncaught traceback:
     from dji_metadata_embedder.mp4_telemetry import Mp4TelemetryError
+
     assert not isinstance(res.exception, Mp4TelemetryError)
     assert "ExifTool" in res.output

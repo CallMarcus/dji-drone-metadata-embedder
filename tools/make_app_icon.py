@@ -23,8 +23,7 @@ BLUE = (42, 129, 203, 255)
 ORANGE = (246, 151, 48, 255)
 WHITE = (255, 255, 255, 255)
 
-ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48),
-             (64, 64), (128, 128), (256, 256)]
+ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 
 _SS = 4  # supersampling factor for clean anti-aliased edges
 
@@ -38,9 +37,7 @@ def draw_icon(size: int) -> Image.Image:
     def u(n: float) -> float:
         return s * n / 256
 
-    draw.rounded_rectangle(
-        [u(16), u(16), u(240), u(240)], radius=u(51), fill=BLUE
-    )
+    draw.rounded_rectangle([u(16), u(16), u(240), u(240)], radius=u(51), fill=BLUE)
     # Pin head circle and the tangent-triangle tail.
     cx, cy, r, tip_y = u(128), u(102), u(53), u(204)
     cos_t = r / (tip_y - cy)
@@ -65,8 +62,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--out-dir",
         type=Path,
-        default=Path(__file__).resolve().parents[1]
-        / "gui" / "DjiEmbed.Gui" / "Assets",
+        default=Path(__file__).resolve().parents[1] / "gui" / "DjiEmbed.Gui" / "Assets",
     )
     args = parser.parse_args(argv)
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -74,9 +70,7 @@ def main(argv: list[str] | None = None) -> None:
     draw_icon(1024).save(args.out_dir / "app-icon.png")
     # The .ico keeps its 16-256 tiers (ICO tops out at 256 in practice);
     # Pillow derives each frame from this base image.
-    draw_icon(256).save(
-        args.out_dir / "app-icon.ico", format="ICO", sizes=ICO_SIZES
-    )
+    draw_icon(256).save(args.out_dir / "app-icon.ico", format="ICO", sizes=ICO_SIZES)
     print(f"wrote app-icon.png + app-icon.ico to {args.out_dir}")
 
 

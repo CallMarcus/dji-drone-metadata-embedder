@@ -196,14 +196,16 @@ def test_photomap_recursive_real_scan(tmp_path):
     # Recursive scans carry the subdirectory so per-session archives don't
     # collide on DJI's restarting basenames.
     assert [p.name for p in points] == [
-        "sub/church1.jpg", "sub/church2.jpg", "sub/pano.jpg"
+        "sub/church1.jpg",
+        "sub/church2.jpg",
+        "sub/pano.jpg",
     ]
 
 
 def _html_link_props(path: Path) -> list[str | None]:
     text = path.read_text(encoding="utf-8")
     start = text.index('id="photo-data">') + len('id="photo-data">')
-    data = json.loads(text[start:text.index("</script>", start)])
+    data = json.loads(text[start : text.index("</script>", start)])
     return [f["properties"].get("link") for f in data["features"]]
 
 
@@ -373,19 +375,21 @@ def test_photomap_no_serve_never_starts_server(monkeypatch, tmp_path):
 def test_photomap_popup_fields_none_strips_details_from_html(monkeypatch, tmp_path):
     _mock_scan(monkeypatch)
     res = CliRunner().invoke(
-        main, ["photomap", str(tmp_path), "--popup-fields", "none"])
+        main, ["photomap", str(tmp_path), "--popup-fields", "none"]
+    )
     assert res.exit_code == 0, res.output
     text = (tmp_path / "photomap.html").read_text(encoding="utf-8")
-    assert "church1.jpg" not in text   # filename stripped from embedded data
-    assert "FC8482" not in text        # camera stripped
-    assert "12:30:45" not in text      # timestamp stripped
-    assert "/9j/THUMB1" in text        # the photo itself still shows
+    assert "church1.jpg" not in text  # filename stripped from embedded data
+    assert "FC8482" not in text  # camera stripped
+    assert "12:30:45" not in text  # timestamp stripped
+    assert "/9j/THUMB1" in text  # the photo itself still shows
 
 
 def test_photomap_popup_fields_selective_list(monkeypatch, tmp_path):
     _mock_scan(monkeypatch)
     res = CliRunner().invoke(
-        main, ["photomap", str(tmp_path), "--popup-fields", "name,altitude"])
+        main, ["photomap", str(tmp_path), "--popup-fields", "name,altitude"]
+    )
     assert res.exit_code == 0, res.output
     text = (tmp_path / "photomap.html").read_text(encoding="utf-8")
     assert "church1.jpg" in text
@@ -395,7 +399,8 @@ def test_photomap_popup_fields_selective_list(monkeypatch, tmp_path):
 def test_photomap_popup_fields_invalid_value_names_valid_fields(monkeypatch, tmp_path):
     _mock_scan(monkeypatch)
     res = CliRunner().invoke(
-        main, ["photomap", str(tmp_path), "--popup-fields", "shutter"])
+        main, ["photomap", str(tmp_path), "--popup-fields", "shutter"]
+    )
     assert res.exit_code == 2
     assert "shutter" in res.output
     for valid in ("name", "timestamp", "camera", "altitude"):
@@ -405,8 +410,8 @@ def test_photomap_popup_fields_invalid_value_names_valid_fields(monkeypatch, tmp
 def test_photomap_popup_fields_without_html_output_warns(monkeypatch, tmp_path):
     _mock_scan(monkeypatch)
     res = CliRunner().invoke(
-        main,
-        ["photomap", str(tmp_path), "-f", "geojson", "--popup-fields", "none"])
+        main, ["photomap", str(tmp_path), "-f", "geojson", "--popup-fields", "none"]
+    )
     assert res.exit_code == 0, res.output
     assert "only affects HTML" in res.output
 
@@ -428,13 +433,23 @@ def test_pano_view_thumbs_flag_replaces_thumbnails(monkeypatch, tmp_path):
     from dji_metadata_embedder import cli as cli_mod
     from dji_metadata_embedder.geo.photomap import PhotoPoint
 
-    pano = PhotoPoint(lat=59.3, lon=18.1, alt=10.0, name="p.jpg",
-                      thumbnail_b64="c3RyaXA=", is_pano=True,
-                      pano_yaw=10.0, pano_pitch=None, pano_hfov=None)
-    flat = PhotoPoint(lat=59.3, lon=18.1, alt=None, name="f.jpg",
-                      thumbnail_b64="ZmxhdA==")
-    monkeypatch.setattr(cli_mod, "scan_photos",
-                        lambda d, recursive=False: ([pano, flat], []))
+    pano = PhotoPoint(
+        lat=59.3,
+        lon=18.1,
+        alt=10.0,
+        name="p.jpg",
+        thumbnail_b64="c3RyaXA=",
+        is_pano=True,
+        pano_yaw=10.0,
+        pano_pitch=None,
+        pano_hfov=None,
+    )
+    flat = PhotoPoint(
+        lat=59.3, lon=18.1, alt=None, name="f.jpg", thumbnail_b64="ZmxhdA=="
+    )
+    monkeypatch.setattr(
+        cli_mod, "scan_photos", lambda d, recursive=False: ([pano, flat], [])
+    )
 
     calls = {}
 
@@ -444,17 +459,26 @@ def test_pano_view_thumbs_flag_replaces_thumbnails(monkeypatch, tmp_path):
         points[0].thumbnail_b64 = "dmlldw=="
         points[0].thumb_is_view = True
         return 1
+
     from dji_metadata_embedder.geo import panorender
+
     monkeypatch.setattr(panorender, "apply_view_thumbnails", fake_apply)
 
-    result = CliRunner().invoke(cli_mod.main, [
-        "photomap", str(tmp_path), "--pano-view-thumbs",
-        "-o", str(tmp_path / "map.html")])
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "photomap",
+            str(tmp_path),
+            "--pano-view-thumbs",
+            "-o",
+            str(tmp_path / "map.html"),
+        ],
+    )
     assert result.exit_code == 0, result.output
     assert calls["points"][0] is pano
     html = (tmp_path / "map.html").read_text(encoding="utf-8")
-    assert "dmlldw==" in html   # the vthumb prop itself is asserted
-                                # precisely in test_geo_photomap_html.py
+    assert "dmlldw==" in html  # the vthumb prop itself is asserted
+    # precisely in test_geo_photomap_html.py
 
 
 def test_no_flag_no_render(monkeypatch, tmp_path):
@@ -463,15 +487,18 @@ def test_no_flag_no_render(monkeypatch, tmp_path):
     from dji_metadata_embedder import cli as cli_mod
     from dji_metadata_embedder.geo.photomap import PhotoPoint
 
-    pano = PhotoPoint(lat=1.0, lon=2.0, alt=None, name="p.jpg",
-                      is_pano=True, pano_yaw=0.0)
-    monkeypatch.setattr(cli_mod, "scan_photos",
-                        lambda d, recursive=False: ([pano], []))
+    pano = PhotoPoint(
+        lat=1.0, lon=2.0, alt=None, name="p.jpg", is_pano=True, pano_yaw=0.0
+    )
+    monkeypatch.setattr(cli_mod, "scan_photos", lambda d, recursive=False: ([pano], []))
     called = []
     from dji_metadata_embedder.geo import panorender
-    monkeypatch.setattr(panorender, "apply_view_thumbnails",
-                        lambda pts, root: called.append(1))
-    result = CliRunner().invoke(cli_mod.main, [
-        "photomap", str(tmp_path), "-o", str(tmp_path / "m.html")])
+
+    monkeypatch.setattr(
+        panorender, "apply_view_thumbnails", lambda pts, root: called.append(1)
+    )
+    result = CliRunner().invoke(
+        cli_mod.main, ["photomap", str(tmp_path), "-o", str(tmp_path / "m.html")]
+    )
     assert result.exit_code == 0, result.output
     assert called == []

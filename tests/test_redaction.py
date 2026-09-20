@@ -54,14 +54,18 @@ def _write_srt(tmp_path: Path) -> Path:
 
 
 def test_gpx_drop_writes_no_trackpoints(tmp_path):
-    out = extract_telemetry_to_gpx(_write_srt(tmp_path), tmp_path / "f.gpx", redact="drop")
+    out = extract_telemetry_to_gpx(
+        _write_srt(tmp_path), tmp_path / "f.gpx", redact="drop"
+    )
     text = out.read_text(encoding="utf-8")
     assert "<trkpt" not in text
     assert "<trkseg>" in text  # still valid GPX structure
 
 
 def test_gpx_fuzz_coarsens_trackpoints(tmp_path):
-    out = extract_telemetry_to_gpx(_write_srt(tmp_path), tmp_path / "f.gpx", redact="fuzz")
+    out = extract_telemetry_to_gpx(
+        _write_srt(tmp_path), tmp_path / "f.gpx", redact="fuzz"
+    )
     text = out.read_text(encoding="utf-8")
     assert '<trkpt lat="39.123" lon="116.654">' in text
     assert "39.123456" not in text
@@ -81,7 +85,9 @@ def _read_csv(path: Path) -> list[dict]:
 
 
 def test_csv_drop_blanks_gps_and_sun_but_keeps_rows(tmp_path):
-    out = extract_telemetry_to_csv(_write_srt(tmp_path), tmp_path / "f.csv", redact="drop")
+    out = extract_telemetry_to_csv(
+        _write_srt(tmp_path), tmp_path / "f.csv", redact="drop"
+    )
     rows = _read_csv(out)
     assert len(rows) == 2  # rows kept — camera log still shareable
     for row in rows:
@@ -96,7 +102,9 @@ def test_csv_drop_blanks_gps_and_sun_but_keeps_rows(tmp_path):
 
 
 def test_csv_fuzz_coarsens_gps(tmp_path):
-    out = extract_telemetry_to_csv(_write_srt(tmp_path), tmp_path / "f.csv", redact="fuzz")
+    out = extract_telemetry_to_csv(
+        _write_srt(tmp_path), tmp_path / "f.csv", redact="fuzz"
+    )
     rows = _read_csv(out)
     assert rows[0]["latitude"] == "39.123"
     assert rows[0]["longitude"] == "116.654"
@@ -144,7 +152,9 @@ def test_csv_fuzz_sun_computed_from_fuzzed_coords(tmp_path):
     fuzzed = _read_csv(
         extract_telemetry_to_csv(srt, tmp_path / "fz.csv", tz_offset=tz, redact="fuzz")
     )[0]
-    raw = _read_csv(extract_telemetry_to_csv(srt, tmp_path / "raw.csv", tz_offset=tz))[0]
+    raw = _read_csv(extract_telemetry_to_csv(srt, tmp_path / "raw.csv", tz_offset=tz))[
+        0
+    ]
     assert fuzzed["sun_azimuth"] != ""
     # Angles must match the FUZZED position, not the raw one.
     utc = datetime.strptime(raw["datetime_utc"], "%Y-%m-%dT%H:%M:%SZ")
@@ -162,22 +172,31 @@ def test_csv_from_mp4_honours_redact(tmp_path, monkeypatch):
 
     samples = [
         TelemetrySample(
-            39.123456, 116.654321, 100.0, "00:00:00,000",
+            39.123456,
+            116.654321,
+            100.0,
+            "00:00:00,000",
             datetime(2026, 7, 1, 4, 0, 0),
         )
     ]
-    monkeypatch.setattr("dji_metadata_embedder.utilities.load_samples", lambda p: samples)
+    monkeypatch.setattr(
+        "dji_metadata_embedder.utilities.load_samples", lambda p: samples
+    )
 
     video = tmp_path / "DJI_0001.MP4"
     video.write_bytes(b"\x00")
 
-    drop = _read_csv(tc.extract_telemetry_to_csv(video, tmp_path / "d.csv", redact="drop"))[0]
+    drop = _read_csv(
+        tc.extract_telemetry_to_csv(video, tmp_path / "d.csv", redact="drop")
+    )[0]
     assert drop["latitude"] == "" and drop["longitude"] == ""
     assert drop["sun_azimuth"] == "" and drop["sun_elevation"] == ""
     assert drop["datetime_utc"] != ""
     assert drop["abs_altitude"] != ""
 
-    fuzz = _read_csv(tc.extract_telemetry_to_csv(video, tmp_path / "z.csv", redact="fuzz"))[0]
+    fuzz = _read_csv(
+        tc.extract_telemetry_to_csv(video, tmp_path / "z.csv", redact="fuzz")
+    )[0]
     assert fuzz["latitude"] == "39.123"
     assert fuzz["longitude"] == "116.654"
     assert fuzz["sun_azimuth"] != ""

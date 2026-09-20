@@ -54,6 +54,7 @@ Regenerate `uv.lock` when:
    uv sync --extra dev
    uv run pytest
    uv run ruff check .
+   uv run ruff format --check .
    uv run mypy
    ```
 

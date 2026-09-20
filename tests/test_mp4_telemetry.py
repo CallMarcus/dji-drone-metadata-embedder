@@ -68,18 +68,23 @@ def _docs(*per_sample):
 
 
 def test_default_omission_fills_a_field_the_stream_carries_elsewhere():
-    samples, _ = mt._samples_from_exiftool(_docs(
-        {"GimbalYaw": 12.5},
-        {"GimbalYaw": 13.0, "GimbalPitch": -30.0, "RelativeAltitude": 0.1},
-    ))
+    samples, _ = mt._samples_from_exiftool(
+        _docs(
+            {"GimbalYaw": 12.5},
+            {"GimbalYaw": 13.0, "GimbalPitch": -30.0, "RelativeAltitude": 0.1},
+        )
+    )
     first = samples[0]
     assert (first.gimbal_yaw, first.gimbal_pitch, first.rel_alt) == (12.5, 0.0, 0.0)
 
 
 def test_fields_the_stream_never_carries_stay_unknown():
-    samples, _ = mt._samples_from_exiftool(_docs(
-        {"AbsoluteAltitude": 10.0}, {"AbsoluteAltitude": 11.0},
-    ))
+    samples, _ = mt._samples_from_exiftool(
+        _docs(
+            {"AbsoluteAltitude": 10.0},
+            {"AbsoluteAltitude": 11.0},
+        )
+    )
     for s in samples:
         assert (s.gimbal_yaw, s.gimbal_pitch, s.rel_alt) == (None, None, None)
 
@@ -91,11 +96,19 @@ def test_samples_from_exiftool_undecoded_sets_saw_false():
 
 
 def test_samples_from_exiftool_filters_null_island():
-    data = [{"Doc1": {"SampleTime": 0, "GPSLatitude": 0.0, "GPSLongitude": 0.0,
-                      "AbsoluteAltitude": 10.0}}]
+    data = [
+        {
+            "Doc1": {
+                "SampleTime": 0,
+                "GPSLatitude": 0.0,
+                "GPSLongitude": 0.0,
+                "AbsoluteAltitude": 10.0,
+            }
+        }
+    ]
     samples, saw = mt._samples_from_exiftool(data)
-    assert samples == []      # (0,0) no-fix dropped
-    assert saw is True        # but telemetry WAS decoded (AbsoluteAltitude)
+    assert samples == []  # (0,0) no-fix dropped
+    assert saw is True  # but telemetry WAS decoded (AbsoluteAltitude)
 
 
 def test_samples_from_exiftool_maps_parrot_anafi():
@@ -113,7 +126,10 @@ def test_samples_from_exiftool_maps_parrot_anafi():
     # the start, level 13 s in, tilted to -54 later (verified on footage).
     assert (round(first.gimbal_yaw, 1), round(first.gimbal_pitch, 1)) == (40.6, -88.5)
     assert (round(level.gimbal_yaw, 1), round(level.gimbal_pitch, 1)) == (44.9, 0.0)
-    assert (round(tilted.gimbal_yaw, 1), round(tilted.gimbal_pitch, 1)) == (129.1, -54.1)
+    assert (round(tilted.gimbal_yaw, 1), round(tilted.gimbal_pitch, 1)) == (
+        129.1,
+        -54.1,
+    )
     assert last.cue == "00:00:52,485"
     assert last.dt == datetime(2025, 9, 22, 21, 28, 48, 485000)
 
@@ -152,7 +168,9 @@ def test_extract_samples_happy(monkeypatch, tmp_path):
 def test_extract_samples_undecoded_raises(monkeypatch, tmp_path):
     f = tmp_path / "neo2.mp4"
     f.write_bytes(b"\x00")
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _load("neo2_undecoded_g3j.json"))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: _load("neo2_undecoded_g3j.json")
+    )
     monkeypatch.setattr(mt, "probe", lambda p: "dvtm_NEO2.proto;model_name:FC9470")
     monkeypatch.setattr(mt, "exiftool_version", lambda: "13.55")
     with pytest.raises(mt.Mp4TelemetryError) as exc:
@@ -174,8 +192,16 @@ def test_extract_samples_no_stream_raises(monkeypatch, tmp_path):
 def test_extract_samples_decoded_but_no_fix_returns_empty(monkeypatch, tmp_path):
     f = tmp_path / "nofix.mp4"
     f.write_bytes(b"\x00")
-    data = [{"Doc1": {"SampleTime": 0, "AbsoluteAltitude": 5.0,
-                      "GPSLatitude": 0.0, "GPSLongitude": 0.0}}]
+    data = [
+        {
+            "Doc1": {
+                "SampleTime": 0,
+                "AbsoluteAltitude": 5.0,
+                "GPSLatitude": 0.0,
+                "GPSLongitude": 0.0,
+            }
+        }
+    ]
     monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: data)
     monkeypatch.setattr(mt, "probe", lambda p: "dvtm_Air3s.proto")
     assert mt.extract_samples(f) == []  # decoded, just no fix -> not an error
@@ -268,7 +294,9 @@ def test_generic_mett_track_without_parrot_type_is_not_telemetry(monkeypatch, tm
 
 
 def test_undecoded_parrot_stream_error_makes_no_version_claim(monkeypatch, tmp_path):
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}])
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}]
+    )
     monkeypatch.setattr(mt, "probe", lambda p: "parrot:videometadataproto")
     monkeypatch.setattr(mt, "exiftool_version", lambda: "13.59")
     f = tmp_path / "x.mp4"
@@ -292,7 +320,9 @@ def test_undecodable_stream_error_names_model_floor(monkeypatch, tmp_path):
     video = tmp_path / "DJI_0001.MP4"
     video.write_bytes(b"\x00")
     # ExifTool "ran" but decoded nothing for this model:
-    monkeypatch.setattr(m, "_run_exiftool_json", lambda path: [{"Doc1": {"SampleTime": 0.0}}])
+    monkeypatch.setattr(
+        m, "_run_exiftool_json", lambda path: [{"Doc1": {"SampleTime": 0.0}}]
+    )
     monkeypatch.setattr(m, "probe", lambda path: "dvtm_Air3s.proto;model_name:FC9113")
     monkeypatch.setattr(m, "exiftool_version", lambda: "12.76")
 
@@ -368,14 +398,26 @@ def test_extraction_argv_pins_quicktime_dates_to_utc(monkeypatch, tmp_path):
 @pytest.mark.parametrize(
     "quat, heading, pitch",
     [
-        ("1 0 0 0", 0.0, 0.0),                                  # identity: north, level
-        ("0.7071067811865476 0 0 0.7071067811865476", 90.0, 0.0),   # pure yaw east
-        ("0.8660254037844387 0 -0.5 0", 0.0, -60.0),  # pure pitch -60 (a -90 case is gimbal lock: heading undefined)
+        ("1 0 0 0", 0.0, 0.0),  # identity: north, level
+        ("0.7071067811865476 0 0 0.7071067811865476", 90.0, 0.0),  # pure yaw east
+        (
+            "0.8660254037844387 0 -0.5 0",
+            0.0,
+            -60.0,
+        ),  # pure pitch -60 (a -90 case is gimbal lock: heading undefined)
         # Real Anafi 4K FrameView values (fixture Doc1..Doc3): straight
         # down at the start, level 13 s in, tilted -54 later.
-        ("-0.66998291015625 -0.24359130859375 0.655517578125 -0.24896240234375", 40.6, -88.5),
+        (
+            "-0.66998291015625 -0.24359130859375 0.655517578125 -0.24896240234375",
+            40.6,
+            -88.5,
+        ),
         ("-0.92431640625 0 0 -0.381591796875", 44.9, 0.0),
-        ("-0.382568359375 -0.41094970703125 0.19549560546875 -0.80401611328125", 129.1, -54.1),
+        (
+            "-0.382568359375 -0.41094970703125 0.19549560546875 -0.80401611328125",
+            129.1,
+            -54.1,
+        ),
     ],
 )
 def test_quat_to_heading_pitch(quat, heading, pitch):

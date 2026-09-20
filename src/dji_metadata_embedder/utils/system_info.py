@@ -69,4 +69,3 @@ def get_system_summary() -> dict[str, str | int]:
         "architecture": get_system_architecture(),
         "admin": has_admin_privileges(),
     }
-

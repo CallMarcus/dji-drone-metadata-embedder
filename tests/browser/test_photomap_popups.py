@@ -35,8 +35,9 @@ def _jpeg_b64(width: int, height: int) -> str:
 # The short single-character name is the trigger: the text line alone measures
 # far narrower than the 240 px thumbnail above it.
 POINTS = [
-    PhotoPoint(lat=34.0567, lon=-84.1234, alt=95.3, name="a",
-               thumbnail_b64=_jpeg_b64(240, 120)),
+    PhotoPoint(
+        lat=34.0567, lon=-84.1234, alt=95.3, name="a", thumbnail_b64=_jpeg_b64(240, 120)
+    ),
 ]
 
 HTML = photos_to_html(POINTS, title="popup layout e2e")

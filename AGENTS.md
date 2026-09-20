@@ -50,15 +50,16 @@ The GUI needs the .NET SDK (version per `gui/*/[*.csproj]` TargetFramework):
 dotnet test gui/DjiEmbed.Gui.sln
 ```
 
-## Before every commit — all three must pass
+## Before every commit — all four must pass
 
 ```bash
 uv run pytest -q
 uv run ruff check .
+uv run ruff format --check .   # or `uv run ruff format .` to apply
 uv run mypy
 ```
 
-CI enforces all three on Linux and Windows (Python 3.10–3.12) plus the GUI
+CI enforces all four on Linux and Windows (Python 3.10–3.12) plus the GUI
 test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
 
 ## Conventions
@@ -72,8 +73,9 @@ test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
   `docs/<slug>`, `ci/<slug>`, `chore/<slug>`.
 - **PRs:** one issue/feature per PR, conventional-commit title, reference
   the issue (`Closes #N`).
-- **Style:** PEP 8 via ruff, type hints on new functions, comment every
-  non-obvious regex. The rule set is ruff's default plus the E/F rules
+- **Style:** PEP 8 via ruff, formatted by `ruff format` (black-compatible,
+  88 columns), type hints on new functions, comment every non-obvious
+  regex. The rule set is ruff's default plus the E/F rules
   listed in `pyproject.toml`; a `noqa` always carries the reason on the
   same line (`# noqa: BLE001  # why`), never a bare code.
 

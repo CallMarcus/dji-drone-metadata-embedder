@@ -5,6 +5,7 @@ volume dict (ED-269 field names, S-spelled restrictions, permanent-YES
 applicability semantics). Two publisher viewer masks are skipped by
 contract; everything else malformed raises.
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -16,9 +17,11 @@ from dji_metadata_embedder.geo.airspace.eans import EANS_FEEDS, parse_eans
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
-    feed="test", url="https://example.invalid/uas.geojson",
+    feed="test",
+    url="https://example.invalid/uas.geojson",
     fetched="2026-08-19T12:00:00Z",
-    license="test", caveat="informational only",
+    license="test",
+    caveat="informational only",
 )
 
 
@@ -37,17 +40,17 @@ def test_parses_the_fixture_and_skips_exactly_the_two_masks():
 def test_metric_zone_limits_and_permanent_applicability():
     z = parse_eans(_ee(), SRC)[0]
     assert z.name == "Example aerodrome zone"
-    assert z.restriction == "REQ_AUTHORISATION"   # natively S-spelled
+    assert z.restriction == "REQ_AUTHORISATION"  # natively S-spelled
     assert z.lower is not None and z.lower.label() == "0 m AGL"
     assert z.upper is not None and z.upper.label() == "120 m AGL"
-    assert z.applicability == []                  # permanent YES -> always
+    assert z.applicability == []  # permanent YES -> always
     assert z.native["properties"]["upper"] == "120 M AGL"
 
 
 def test_feet_zone_with_hole_and_seasonal_window():
     z = parse_eans(_ee(), SRC)[1]
     assert z.upper is not None and z.upper.label() == "6000 ft AGL"
-    assert len(z.polygons) == 1 and len(z.holes) == 1   # inner ring (#422)
+    assert len(z.polygons) == 1 and len(z.holes) == 1  # inner ring (#422)
     assert len(z.applicability) == 1
     win = z.applicability[0]
     assert win.permanent is False
@@ -57,7 +60,7 @@ def test_feet_zone_with_hole_and_seasonal_window():
 
 def test_notam_zone_keeps_schedule_text_in_native_only():
     z = parse_eans(_ee(), SRC)[2]
-    assert z.name == "A9901/26"                   # display name, with slash
+    assert z.name == "A9901/26"  # display name, with slash
     assert z.applicability[0].start == datetime(2026, 8, 18, 5, 0)
     assert "[Schedule:" in z.native["properties"]["message"]
 
@@ -66,10 +69,10 @@ def test_empty_name_falls_back_to_airspaceclass_then_identifier():
     doc = json.loads(_ee().decode("utf-8"))
     doc["features"][0]["properties"]["name"] = ""
     zones = parse_eans(json.dumps(doc).encode(), SRC)
-    assert zones[0].name == "EEGZ901"             # airspaceclass fallback
+    assert zones[0].name == "EEGZ901"  # airspaceclass fallback
     doc["features"][0]["properties"]["airspaceclass"] = ""
     zones = parse_eans(json.dumps(doc).encode(), SRC)
-    assert zones[0].name == "EE901"               # identifier fallback
+    assert zones[0].name == "EE901"  # identifier fallback
 
 
 def test_a_new_hidden_feature_still_skips():

@@ -185,10 +185,10 @@ def extract_telemetry_to_gpx(
                 if redact == "fuzz":
                     lat, lon = round(lat, 3), round(lon, 3)
                 f.write(f'        <trkpt lat="{lat}" lon="{lon}">\n')
-                f.write(f'            <ele>{point["ele"]}</ele>\n')
+                f.write(f"            <ele>{point['ele']}</ele>\n")
                 time_str = _point_time(point)
                 if time_str:
-                    f.write(f'            <time>{time_str}</time>\n')
+                    f.write(f"            <time>{time_str}</time>\n")
                 f.write("        </trkpt>\n")
         f.write(gpx_footer)
 
@@ -318,9 +318,22 @@ def batch_convert_to_csv(directory: Path | str) -> None:
 # CSV columns, in output order. Shared by the SRT and video paths so the header
 # is identical regardless of source.
 _CSV_COLUMNS = (
-    "timestamp", "latitude", "longitude", "rel_altitude", "abs_altitude",
-    "iso", "shutter", "fnum", "ev", "ct", "tint", "color_md", "focal_len",
-    "datetime_utc", "sun_azimuth", "sun_elevation",
+    "timestamp",
+    "latitude",
+    "longitude",
+    "rel_altitude",
+    "abs_altitude",
+    "iso",
+    "shutter",
+    "fnum",
+    "ev",
+    "ct",
+    "tint",
+    "color_md",
+    "focal_len",
+    "datetime_utc",
+    "sun_azimuth",
+    "sun_elevation",
 )
 
 
@@ -485,9 +498,7 @@ def extract_telemetry_to_csv(
                 row["focal_len"] = focal_len_match.group(1)
 
             rows.append(row)
-            solar_inputs.append(
-                (_parse_srt_datetime(telemetry_line), lat_val, lon_val)
-            )
+            solar_inputs.append((_parse_srt_datetime(telemetry_line), lat_val, lon_val))
 
     # Resolve the single local->UTC offset, then fill UTC + solar columns.
     abs_times = [dt for dt, _, _ in solar_inputs if dt is not None]

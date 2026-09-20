@@ -116,9 +116,7 @@ def media_files_in(directory: Path) -> list[Path]:
     macOS) matches ``*.mp4`` and ``*.MP4`` with the same file — and
     sorted for a deterministic report order.
     """
-    return sorted(
-        {f for pattern in _MEDIA_GLOBS for f in directory.glob(pattern)}
-    )
+    return sorted({f for pattern in _MEDIA_GLOBS for f in directory.glob(pattern)})
 
 
 def main() -> None:

@@ -39,8 +39,7 @@ class Ed269Feed:
 
 
 _CAVEAT = (
-    "UAS geographical-zone data is informational and is not an "
-    "authorization to fly."
+    "UAS geographical-zone data is informational and is not an authorization to fly."
 )
 
 ED269_FEEDS: dict[str, Ed269Feed] = {
@@ -84,9 +83,7 @@ ED269_FEEDS: dict[str, Ed269Feed] = {
 }
 
 
-def _limit(
-    geom: dict, side: str, unit: str, where: str
-) -> VerticalLimit | None:
+def _limit(geom: dict, side: str, unit: str, where: str) -> VerticalLimit | None:
     value = geom.get(f"{side}Limit")
     if value is None:
         return None  # "not stated" — never 0

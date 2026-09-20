@@ -14,8 +14,9 @@ from click.testing import CliRunner
 from dji_metadata_embedder.cli import main
 
 SCHEMA = json.loads(
-    (Path(__file__).parent.parent / "docs" / "progress_jsonl.schema.json")
-    .read_text(encoding="utf-8")
+    (Path(__file__).parent.parent / "docs" / "progress_jsonl.schema.json").read_text(
+        encoding="utf-8"
+    )
 )
 
 FLIGHT_A = (
@@ -45,9 +46,7 @@ def test_flightmap_jsonl_happy_path(tmp_path):
     (tmp_path / "DJI_0002.SRT").write_text(
         FLIGHT_A.replace("10.0", "11.0"), encoding="utf-8"
     )
-    res = CliRunner().invoke(
-        main, ["flightmap", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["command"] == "flightmap"
@@ -63,9 +62,7 @@ def test_flightmap_jsonl_happy_path(tmp_path):
 def test_flightmap_jsonl_warns_per_skipped_file(tmp_path):
     (tmp_path / "DJI_0001.SRT").write_text(FLIGHT_A, encoding="utf-8")
     (tmp_path / "movie.srt").write_text(NOT_TELEMETRY, encoding="utf-8")
-    res = CliRunner().invoke(
-        main, ["flightmap", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     warnings = [e for e in events if e["event"] == "warning"]
@@ -74,9 +71,7 @@ def test_flightmap_jsonl_warns_per_skipped_file(tmp_path):
 
 
 def test_flightmap_jsonl_fatal_error_event(tmp_path):
-    res = CliRunner().invoke(
-        main, ["flightmap", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["flightmap", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code != 0
     events = _events(res.stdout)
     assert events[-1]["event"] == "error"
@@ -107,9 +102,7 @@ def _mock_photo_scan(monkeypatch, data=None, error=None):
 
 def test_photomap_jsonl_happy_path(monkeypatch, tmp_path):
     _mock_photo_scan(monkeypatch, data=GEOTAGGED)
-    res = CliRunner().invoke(
-        main, ["photomap", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["command"] == "photomap"
@@ -127,9 +120,7 @@ def test_photomap_jsonl_fatal_error_event(monkeypatch, tmp_path):
     from dji_metadata_embedder.geo.photomap import PhotomapError
 
     _mock_photo_scan(monkeypatch, error=PhotomapError("ExifTool not found"))
-    res = CliRunner().invoke(
-        main, ["photomap", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["photomap", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code != 0
     events = _events(res.stdout)
     assert events[-1]["event"] == "error"
@@ -153,9 +144,7 @@ def test_check_jsonl_events(monkeypatch, tmp_path):
     b = tmp_path / "DJI_0002.MP4"
     a.write_bytes(b"fake")
     b.write_bytes(b"fake")
-    res = CliRunner().invoke(
-        main, ["check", str(a), str(b), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["check", str(a), str(b), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["command"] == "check" and events[0]["total"] == 2
@@ -185,12 +174,8 @@ def test_embed_jsonl_events(monkeypatch, tmp_path):
             on_progress(2, 2, "DJI_0002.MP4")
         return canned
 
-    monkeypatch.setattr(
-        cli_mod.DJIMetadataEmbedder, "process_directory", fake_process
-    )
-    res = CliRunner().invoke(
-        main, ["embed", str(tmp_path), "--progress", "jsonl"]
-    )
+    monkeypatch.setattr(cli_mod.DJIMetadataEmbedder, "process_directory", fake_process)
+    res = CliRunner().invoke(main, ["embed", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     kinds = [e["event"] for e in events]
@@ -225,9 +210,7 @@ def test_embed_jsonl_per_file_errors_mean_ok_false(monkeypatch, tmp_path):
         "process_directory",
         lambda self, use_exiftool=False, on_progress=None: canned,
     )
-    res = CliRunner().invoke(
-        main, ["embed", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["embed", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output  # exit semantics unchanged in v1
     events = _events(res.stdout)
     assert events[-1]["event"] == "result" and events[-1]["ok"] is False
@@ -238,12 +221,8 @@ def test_embed_jsonl_per_file_errors_mean_ok_false(monkeypatch, tmp_path):
 def test_embed_jsonl_missing_dependencies_is_error_event(monkeypatch, tmp_path):
     from dji_metadata_embedder import cli as cli_mod
 
-    monkeypatch.setattr(
-        cli_mod, "check_dependencies", lambda: (False, ["ffmpeg"])
-    )
-    res = CliRunner().invoke(
-        main, ["embed", str(tmp_path), "--progress", "jsonl"]
-    )
+    monkeypatch.setattr(cli_mod, "check_dependencies", lambda: (False, ["ffmpeg"]))
+    res = CliRunner().invoke(main, ["embed", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code != 0
     events = _events(res.stdout)
     assert events[-1]["event"] == "error"
@@ -316,9 +295,7 @@ def test_jsonl_stdout_survives_logger_warnings_in_real_process(tmp_path):
     assert "Timezone" in proc.stderr  # the warning still reaches the user
 
 
-def test_unexpected_exception_still_ends_stream_with_error_event(
-    monkeypatch, tmp_path
-):
+def test_unexpected_exception_still_ends_stream_with_error_event(monkeypatch, tmp_path):
     """The terminal rule must hold for non-ClickException failures too
     (PermissionError from mkdir, UnicodeDecodeError from a corrupt SRT...)."""
     from dji_metadata_embedder import cli as cli_mod
@@ -355,9 +332,7 @@ def test_embed_jsonl_outputs_are_absolute(monkeypatch, tmp_path):
         "process_directory",
         lambda self, use_exiftool=False, on_progress=None: canned,
     )
-    res = CliRunner().invoke(
-        main, ["embed", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["embed", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     (out,) = events[-1]["outputs"]
@@ -389,9 +364,7 @@ def test_check_jsonl_expands_directories(monkeypatch, tmp_path):
     sub = tmp_path / "sub"
     sub.mkdir()
     (sub / "DJI_0003.MP4").write_bytes(b"fake")  # below top level: excluded
-    res = CliRunner().invoke(
-        main, ["check", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["check", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["total"] == 4
@@ -410,9 +383,7 @@ def test_check_jsonl_expands_directories(monkeypatch, tmp_path):
 def test_check_jsonl_warns_on_empty_directory(tmp_path):
     empty = tmp_path / "empty"
     empty.mkdir()
-    res = CliRunner().invoke(
-        main, ["check", str(empty), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["check", str(empty), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["total"] == 0
@@ -435,9 +406,7 @@ def test_check_jsonl_warns_on_unreadable_directory(monkeypatch, tmp_path):
         "media_files_in",
         lambda p: (_ for _ in ()).throw(PermissionError("denied")),
     )
-    res = CliRunner().invoke(
-        main, ["check", str(unreadable), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["check", str(unreadable), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["total"] == 0
@@ -464,9 +433,7 @@ def test_check_jsonl_warns_when_a_path_cannot_be_probed(monkeypatch, tmp_path):
         return real_is_dir(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "is_dir", deny)
-    res = CliRunner().invoke(
-        main, ["check", str(blocked), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["check", str(blocked), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["total"] == 0
@@ -488,7 +455,9 @@ def test_flightmap_jsonl_all_formats_lists_every_output(tmp_path):
     events = _events(res.stdout)
     outputs = events[-1]["outputs"]
     assert [Path(o).name for o in outputs] == [
-        "flightmap.html", "flightmap.kml", "flightmap.geojson",
+        "flightmap.html",
+        "flightmap.kml",
+        "flightmap.geojson",
         "flight-record.html",
     ]
 
@@ -501,9 +470,7 @@ def _patch_doctor_env(monkeypatch, *, ffmpeg=True, exiftool=True):
     from dji_metadata_embedder.utils import exiftool as exiftool_utils
     from dji_metadata_embedder.utils import ffmpeg as ffmpeg_utils
 
-    missing = [
-        t for t, ok in (("ffmpeg", ffmpeg), ("exiftool", exiftool)) if not ok
-    ]
+    missing = [t for t, ok in (("ffmpeg", ffmpeg), ("exiftool", exiftool)) if not ok]
     monkeypatch.setattr(cli, "check_dependencies", lambda: (not missing, missing))
     if ffmpeg:
         monkeypatch.setattr(ffmpeg_utils, "ffmpeg_version", lambda: "9.0.2")
@@ -511,9 +478,7 @@ def _patch_doctor_env(monkeypatch, *, ffmpeg=True, exiftool=True):
     if exiftool:
         monkeypatch.setattr(exiftool_utils, "exiftool_version", lambda: "13.30")
         monkeypatch.setattr(exiftool_utils, "exiftool_source", lambda: "path")
-        monkeypatch.setattr(
-            exiftool_utils, "exiftool_exe", lambda: "/usr/bin/exiftool"
-        )
+        monkeypatch.setattr(exiftool_utils, "exiftool_exe", lambda: "/usr/bin/exiftool")
         monkeypatch.setattr(
             exiftool_utils, "describe_decode_capability", lambda v: "full"
         )
@@ -543,7 +508,9 @@ def test_doctor_jsonl_reports_ffmpeg_version_and_path(monkeypatch):
     assert res.exit_code == 0, res.output
     tools = _events(res.stdout)[-1]["summary"]["tools"]
     assert tools["ffmpeg"] == {
-        "present": True, "version": "9.0.2", "path": "/usr/bin/ffmpeg",
+        "present": True,
+        "version": "9.0.2",
+        "path": "/usr/bin/ffmpeg",
     }
 
 
@@ -588,9 +555,7 @@ FLIGHT_TIMED = (
 def test_convert_jsonl_happy_single_file(tmp_path):
     src = tmp_path / "DJI_0001.SRT"
     src.write_text(FLIGHT_A, encoding="utf-8")
-    res = CliRunner().invoke(
-        main, ["convert", "gpx", str(src), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["convert", "gpx", str(src), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["command"] == "convert" and events[0]["total"] == 1
@@ -640,8 +605,7 @@ def test_convert_jsonl_fatal_error_event(tmp_path):
     src.write_text(FLIGHT_A, encoding="utf-8")
     res = CliRunner().invoke(
         main,
-        ["convert", "gpx", str(src), "--tz-offset", "banana",
-         "--progress", "jsonl"],
+        ["convert", "gpx", str(src), "--tz-offset", "banana", "--progress", "jsonl"],
     )
     assert res.exit_code != 0
     events = _events(res.stdout)
@@ -666,9 +630,7 @@ def test_validate_jsonl_happy_directory(monkeypatch, tmp_path):
         "file_analyses": [],
     }
     _mock_validate_directory(monkeypatch, canned)
-    res = CliRunner().invoke(
-        main, ["validate", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["validate", str(tmp_path), "--progress", "jsonl"])
     assert res.exit_code == 0, res.output
     events = _events(res.stdout)
     assert events[0]["command"] == "validate"
@@ -679,9 +641,7 @@ def test_validate_jsonl_happy_directory(monkeypatch, tmp_path):
     assert last["summary"] == canned
 
 
-def test_validate_jsonl_issues_become_warnings_and_exit_zero(
-    monkeypatch, tmp_path
-):
+def test_validate_jsonl_issues_become_warnings_and_exit_zero(monkeypatch, tmp_path):
     canned = {
         "total_files": 2,
         "valid_pairs": 1,
@@ -690,9 +650,7 @@ def test_validate_jsonl_issues_become_warnings_and_exit_zero(
         "file_analyses": [],
     }
     _mock_validate_directory(monkeypatch, canned)
-    res = CliRunner().invoke(
-        main, ["validate", str(tmp_path), "--progress", "jsonl"]
-    )
+    res = CliRunner().invoke(main, ["validate", str(tmp_path), "--progress", "jsonl"])
     # Findings are a report, not a command failure: exit 0 in progress mode
     # (text mode keeps ExitCode.VALIDATION_ERROR for scripts).
     assert res.exit_code == 0, res.output
@@ -806,8 +764,7 @@ def test_fetch_log_jsonl_one_failure_ends_in_error(monkeypatch, tmp_path):
     def fake(txt, key):
         if Path(txt) == bad:
             raise LogFetchError(
-                "DJIFlightRecord_B.txt: the API answered HTTP 402: "
-                "insufficient balance"
+                "DJIFlightRecord_B.txt: the API answered HTTP 402: insufficient balance"
             )
         out = cache_path(Path(txt))
         out.write_bytes(b"csv")
@@ -827,7 +784,8 @@ def test_fetch_log_jsonl_one_failure_ends_in_error(monkeypatch, tmp_path):
 
 
 def test_doctor_jsonl_never_goes_online_without_the_explicit_flag(
-        monkeypatch, tmp_path):
+    monkeypatch, tmp_path
+):
     # A machine consumer of the event stream must never trigger the
     # network path as a side effect, and must never be prompted. It is
     # told the remembered choice so it can put doctor's one-time question
@@ -849,14 +807,17 @@ def test_doctor_jsonl_never_goes_online_without_the_explicit_flag(
     assert res.exit_code == 0, res.output
     summary = _events(res.stdout)[-1]["summary"]
     assert summary["update_check"] == {
-        "consent": None, "hard_disabled": False, "current": __version__,
+        "consent": None,
+        "hard_disabled": False,
+        "current": __version__,
         "releases_url": update_check.RELEASES_URL,
     }
     assert update_check.load_consent() is None
 
 
 def test_doctor_jsonl_online_flag_is_the_consent_and_reports_the_check(
-        monkeypatch, tmp_path):
+    monkeypatch, tmp_path
+):
     # #319: the GUI reuses doctor's check by passing the explicit flag —
     # the flag IS the consent (persisted like the interactive path) and
     # the result comes back structured: current, latest, newer, hint.
@@ -877,8 +838,11 @@ def test_doctor_jsonl_online_flag_is_the_consent_and_reports_the_check(
     assert update_check.load_consent() is True
 
     # --offline persists the refusal and never touches the network.
-    monkeypatch.setattr(update_check, "latest_pypi_version",
-                        lambda **k: (_ for _ in ()).throw(AssertionError("net")))
+    monkeypatch.setattr(
+        update_check,
+        "latest_pypi_version",
+        lambda **k: (_ for _ in ()).throw(AssertionError("net")),
+    )
     res = CliRunner().invoke(main, ["doctor", "--progress", "jsonl", "--offline"])
     uc = _events(res.stdout)[-1]["summary"]["update_check"]
     assert uc["consent"] is False and "latest" not in uc
@@ -886,7 +850,8 @@ def test_doctor_jsonl_online_flag_is_the_consent_and_reports_the_check(
 
 
 def test_doctor_jsonl_online_flag_degrades_silently_and_obeys_the_kill_switch(
-        monkeypatch, tmp_path):
+    monkeypatch, tmp_path
+):
     _patch_doctor_env(monkeypatch)
     monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path / "dji-embed" / "tools"))
     monkeypatch.delenv("DJIEMBED_NO_UPDATE_CHECK", raising=False)
@@ -901,11 +866,13 @@ def test_doctor_jsonl_online_flag_degrades_silently_and_obeys_the_kill_switch(
     # DJIEMBED_NO_UPDATE_CHECK=1 blocks the network AND the persisting.
     def _boom(**k):
         raise AssertionError("network touched despite kill switch")
+
     monkeypatch.setattr(update_check, "latest_pypi_version", _boom)
     (tmp_path / "dji-embed").mkdir(exist_ok=True)
     update_check.consent_path().unlink(missing_ok=True)
     res = CliRunner().invoke(
-        main, ["doctor", "--progress", "jsonl", "--online"],
+        main,
+        ["doctor", "--progress", "jsonl", "--online"],
         env={"DJIEMBED_NO_UPDATE_CHECK": "1"},
     )
     uc = _events(res.stdout)[-1]["summary"]["update_check"]

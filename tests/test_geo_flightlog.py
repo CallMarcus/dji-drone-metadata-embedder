@@ -86,10 +86,7 @@ def test_parses_an_epoch_timestamp_column(tmp_path):
 
 
 def test_epoch_column_refuses_an_empty_value(tmp_path):
-    csv = (
-        "CUSTOM.updateTime [epoch],GIMBAL.pitch,GIMBAL.yaw\n"
-        ",-60.0,-10.0\n"
-    )
+    csv = "CUSTOM.updateTime [epoch],GIMBAL.pitch,GIMBAL.yaw\n,-60.0,-10.0\n"
     with pytest.raises(FlightLogError, match="empty epoch"):
         parse_flight_log(_write(tmp_path, "log.csv", csv))
 
@@ -180,12 +177,8 @@ def test_a_value_with_both_separators_is_an_error(tmp_path):
 
 
 def test_bom_and_semicolon_delimiters_are_tolerated(tmp_path):
-    semi = (
-        "datetime(utc);GIMBAL.pitch;GIMBAL.yaw\n"
-        "2026-07-27 12:00:00.0;-60.0;-10.0\n"
-    )
-    log = parse_flight_log(
-        _write(tmp_path, "log.csv", semi, encoding="utf-8-sig"))
+    semi = "datetime(utc);GIMBAL.pitch;GIMBAL.yaw\n2026-07-27 12:00:00.0;-60.0;-10.0\n"
+    log = parse_flight_log(_write(tmp_path, "log.csv", semi, encoding="utf-8-sig"))
     assert log.rows[0].pitch == -60.0
 
 
@@ -211,12 +204,19 @@ def test_an_unambiguous_slash_date_is_accepted(tmp_path):
 
 
 def _track(start: datetime, n: int = 5) -> Track:
-    return Track(name="DJI_0001", points=[
-        TrackPoint(lat=59.33459 + i * 1e-5, lon=18.06324 + i * 1e-5,
-                   alt=100.0 + i, timestamp=f"00:00:0{i},000",
-                   utc=start + timedelta(seconds=i))
-        for i in range(n)
-    ])
+    return Track(
+        name="DJI_0001",
+        points=[
+            TrackPoint(
+                lat=59.33459 + i * 1e-5,
+                lon=18.06324 + i * 1e-5,
+                alt=100.0 + i,
+                timestamp=f"00:00:0{i},000",
+                utc=start + timedelta(seconds=i),
+            )
+            for i in range(n)
+        ],
+    )
 
 
 def test_exact_utc_join_fills_gimbal_and_reports(tmp_path):
@@ -226,10 +226,8 @@ def test_exact_utc_join_fills_gimbal_and_reports(tmp_path):
     assert report.merged
     assert report.mode == "utc"
     assert report.matched == 5
-    assert [p.gimbal_yaw for p in track.points] == [
-        -10.0, -9.0, -8.0, -7.0, -6.0]
-    assert [p.gimbal_pitch for p in track.points] == [
-        -60.0, -61.0, -62.0, -63.0, -64.0]
+    assert [p.gimbal_yaw for p in track.points] == [-10.0, -9.0, -8.0, -7.0, -6.0]
+    assert [p.gimbal_pitch for p in track.points] == [-60.0, -61.0, -62.0, -63.0, -64.0]
     assert report.gps_median_m is not None and report.gps_median_m < 50
 
 
@@ -276,9 +274,15 @@ def test_no_time_overlap_is_refused(tmp_path):
 def test_points_beyond_the_tolerance_are_not_filled(tmp_path):
     log = parse_flight_log(_write(tmp_path, "log.csv", AIRDATA))
     track = _track(datetime(2026, 7, 27, 12, 0, 0), n=5)
-    track.points.append(TrackPoint(
-        lat=59.335, lon=18.064, alt=110.0, timestamp="00:00:30,000",
-        utc=datetime(2026, 7, 27, 12, 0, 30)))  # log ends at 12:00:04
+    track.points.append(
+        TrackPoint(
+            lat=59.335,
+            lon=18.064,
+            alt=110.0,
+            timestamp="00:00:30,000",
+            utc=datetime(2026, 7, 27, 12, 0, 30),
+        )
+    )  # log ends at 12:00:04
     report = merge_gimbal(track, log)
     assert report.merged
     assert report.matched == 5

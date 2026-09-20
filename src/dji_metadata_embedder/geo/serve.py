@@ -40,7 +40,7 @@ def _parse_range(header: str, size: int) -> tuple[int, int] | None:
     first_s, last_s = m.group(1), m.group(2)
     if not first_s and not last_s:
         return None
-    if not first_s:                       # bytes=-N : the final N bytes
+    if not first_s:  # bytes=-N : the final N bytes
         n = int(last_s)
         if n == 0:
             raise ValueError("zero-length suffix range")

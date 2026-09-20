@@ -37,10 +37,18 @@ def test_serve_wrapper_flags_pass_through(tmp_path, monkeypatch):
         seen.update(kwargs)
 
     monkeypatch.setattr(cli_mod, "serve_directory", fake_serve)
-    res = CliRunner().invoke(main, [
-        "serve", str(tmp_path), "--page", "flightmap.html",
-        "--no-browser", "--url-only", "--exit-with-stdin",
-    ])
+    res = CliRunner().invoke(
+        main,
+        [
+            "serve",
+            str(tmp_path),
+            "--page",
+            "flightmap.html",
+            "--no-browser",
+            "--url-only",
+            "--exit-with-stdin",
+        ],
+    )
     assert res.exit_code == 0, res.output
     assert seen["page"] == "flightmap.html"
     assert seen["open_browser"] is False

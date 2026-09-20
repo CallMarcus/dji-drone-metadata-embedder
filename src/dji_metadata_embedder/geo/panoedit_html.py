@@ -511,17 +511,20 @@ def build_editor_page(
         "renditions": renditions,
         "hint": "" if renditions else hint,
     }
-    return stamp(_PAGE.format(
-        pannellum=PANNELLUM_VERSION,
-        pannellum_css_sri=PANNELLUM_CSS_SRI,
-        pannellum_js_sri=PANNELLUM_JS_SRI,
-        token=json.dumps(token).replace("<", "\\u003c"),
-        serve=json.dumps(serve).replace("<", "\\u003c"),
-        save_timeout_ms=int(save_timeout_ms),
-        backup_note=(
-            "Saving keeps a backup of each original beside it "
-            "(<code>*_original</code>)." if backup else
-            "Saving writes each view straight into the file - "
-            "no backup copies are kept."
-        ),
-    ))
+    return stamp(
+        _PAGE.format(
+            pannellum=PANNELLUM_VERSION,
+            pannellum_css_sri=PANNELLUM_CSS_SRI,
+            pannellum_js_sri=PANNELLUM_JS_SRI,
+            token=json.dumps(token).replace("<", "\\u003c"),
+            serve=json.dumps(serve).replace("<", "\\u003c"),
+            save_timeout_ms=int(save_timeout_ms),
+            backup_note=(
+                "Saving keeps a backup of each original beside it "
+                "(<code>*_original</code>)."
+                if backup
+                else "Saving writes each view straight into the file - "
+                "no backup copies are kept."
+            ),
+        )
+    )

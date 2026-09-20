@@ -42,21 +42,23 @@ class Validator:
 
 def parse_srt_timestamps(srt_path: Path) -> list[tuple[float, str]]:
     """Extract timestamps from SRT file.
-    
+
     Returns list of (timestamp_seconds, timecode_string) tuples.
     """
     content = srt_path.read_text(encoding="utf-8")
     blocks = content.strip().split("\n\n")
     timestamps = []
-    
+
     for block in blocks:
         lines = block.strip().split("\n")
         if len(lines) < 2:
             continue
-            
+
         # Parse SRT timestamp line "00:00:01,000 --> 00:00:02,000"
         ts_line = lines[1]
-        ts_match = re.search(r"(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})", ts_line)
+        ts_match = re.search(
+            r"(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})", ts_line
+        )
         if ts_match:
             start_time = ts_match.group(1)
             # Convert to seconds
@@ -64,21 +66,28 @@ def parse_srt_timestamps(srt_path: Path) -> list[tuple[float, str]]:
             s, ms = s_ms.split(",")
             total_seconds = int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
             timestamps.append((total_seconds, start_time))
-    
+
     return timestamps
 
 
 def get_video_duration(mp4_path: Path) -> float:
     """Get video duration in seconds using ffprobe."""
     import subprocess
-    
+
     try:
         cmd = [
-            "ffprobe", "-v", "quiet", 
-            "-show_entries", "format=duration",
-            "-of", "csv=p=0", str(mp4_path)
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+            str(mp4_path),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=10, check=False
+        )
         if result.returncode == 0 and result.stdout.strip():
             return float(result.stdout.strip())
     except (subprocess.TimeoutExpired, ValueError, FileNotFoundError):
@@ -86,7 +95,9 @@ def get_video_duration(mp4_path: Path) -> float:
     return 0.0
 
 
-def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> dict[str, Any]:
+def analyze_drift(
+    srt_path: Path, mp4_path: Path, threshold: float = 1.0
+) -> dict[str, Any]:
     """Analyze timing drift between SRT and MP4 files."""
     analysis: dict[str, Any] = {
         "srt_file": str(srt_path),
@@ -94,9 +105,9 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> dic
         "valid": True,
         "issues": [],
         "warnings": [],
-        "statistics": {}
+        "statistics": {},
     }
-    
+
     try:
         # Get SRT timestamps
         srt_timestamps = parse_srt_timestamps(srt_path)
@@ -104,28 +115,28 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> dic
             analysis["valid"] = False
             analysis["issues"].append("No valid timestamps found in SRT file")
             return analysis
-        
+
         # Get video duration
         video_duration = get_video_duration(mp4_path)
         if video_duration == 0:
             analysis["warnings"].append("Could not determine video duration")
-        
+
         # Calculate SRT duration
         srt_duration = max(ts[0] for ts in srt_timestamps) if srt_timestamps else 0
-        
+
         # Check for drift
         if video_duration > 0:
             duration_diff = abs(srt_duration - video_duration)
             analysis["statistics"]["video_duration"] = video_duration
             analysis["statistics"]["srt_duration"] = srt_duration
             analysis["statistics"]["duration_difference"] = duration_diff
-            
+
             if duration_diff > threshold:
                 analysis["warnings"].append(
                     f"Duration mismatch: SRT={srt_duration:.2f}s, MP4={video_duration:.2f}s "
                     f"(diff={duration_diff:.2f}s)"
                 )
-        
+
         # Check timestamp continuity
         prev_timestamp: float = 0.0
         gaps = []
@@ -135,40 +146,40 @@ def analyze_drift(srt_path: Path, mp4_path: Path, threshold: float = 1.0) -> dic
             elif ts - prev_timestamp > 5.0:  # Gap > 5 seconds
                 gaps.append((prev_timestamp, ts, ts - prev_timestamp))
             prev_timestamp = ts
-        
+
         if gaps:
             analysis["warnings"].append(f"Found {len(gaps)} timing gaps > 5 seconds")
             analysis["statistics"]["timing_gaps"] = gaps[:3]  # Include first 3
-        
+
         # Check frame rate consistency
         if len(srt_timestamps) > 1:
             intervals = []
             for i in range(1, len(srt_timestamps)):
-                interval = srt_timestamps[i][0] - srt_timestamps[i-1][0]
+                interval = srt_timestamps[i][0] - srt_timestamps[i - 1][0]
                 intervals.append(interval)
-            
+
             if intervals:
                 avg_interval = sum(intervals) / len(intervals)
                 max_interval = max(intervals)
                 min_interval = min(intervals)
-                
+
                 analysis["statistics"]["avg_frame_interval"] = avg_interval
                 analysis["statistics"]["frame_rate_consistency"] = {
                     "min_interval": min_interval,
                     "max_interval": max_interval,
-                    "std_dev": (max_interval - min_interval) / 2  # Rough estimate
+                    "std_dev": (max_interval - min_interval) / 2,  # Rough estimate
                 }
-                
+
                 # Warn if frame intervals vary significantly
                 if max_interval / min_interval > 2.0:
                     analysis["warnings"].append("Inconsistent frame intervals detected")
-        
+
         analysis["statistics"]["total_frames"] = len(srt_timestamps)
-        
+
     except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
         analysis["valid"] = False
         analysis["issues"].append(f"Analysis failed: {e!s}")
-    
+
     return analysis
 
 
@@ -181,9 +192,9 @@ def validate_directory(directory: Path, drift_threshold: float = 1.0) -> dict[st
         "valid_pairs": 0,
         "issues": [],
         "warnings": [],
-        "file_analyses": []
+        "file_analyses": [],
     }
-    
+
     try:
         # Find video files. Deduplicated via a set — a case-insensitive
         # filesystem (Windows, macOS) matches "*.mp4" and "*.MP4" with the
@@ -198,39 +209,43 @@ def validate_directory(directory: Path, drift_threshold: float = 1.0) -> dict[st
             # Look for corresponding SRT
             srt_candidates = [
                 mp4_file.with_suffix(".SRT"),
-                mp4_file.with_suffix(".srt")
+                mp4_file.with_suffix(".srt"),
             ]
-            
+
             srt_file = None
             for candidate in srt_candidates:
                 if candidate.exists():
                     srt_file = candidate
                     break
-            
+
             if not srt_file:
                 result["issues"].append(f"No SRT file found for {mp4_file.name}")
                 continue
-            
+
             # Analyze the pair
             analysis = analyze_drift(srt_file, mp4_file, drift_threshold)
             result["file_analyses"].append(analysis)
-            
+
             if analysis["valid"]:
                 result["valid_pairs"] += 1
-            
+
             # Aggregate issues and warnings
-            result["issues"].extend([f"{mp4_file.name}: {issue}" for issue in analysis["issues"]])
-            result["warnings"].extend([f"{mp4_file.name}: {warning}" for warning in analysis["warnings"]])
-    
+            result["issues"].extend(
+                [f"{mp4_file.name}: {issue}" for issue in analysis["issues"]]
+            )
+            result["warnings"].extend(
+                [f"{mp4_file.name}: {warning}" for warning in analysis["warnings"]]
+            )
+
     except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
         result["issues"].append(f"Directory validation failed: {e!s}")
-    
+
     return result
 
 
 def validate_srt_format(srt_path: Path, lenient: bool = True) -> dict[str, Any]:
     """Validate SRT file format and extract telemetry with warnings.
-    
+
     This implements the lenient parser mode for M3 milestone.
     """
     validation: dict[str, Any] = {
@@ -240,18 +255,18 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> dict[str, Any]:
         "issues": [],
         "warnings": [],
         "telemetry_points": 0,
-        "statistics": {}
+        "statistics": {},
     }
-    
+
     try:
         content = srt_path.read_text(encoding="utf-8")
         blocks = content.strip().split("\n\n")
-        
+
         if not blocks:
             validation["valid"] = False
             validation["issues"].append("Empty SRT file")
             return validation
-        
+
         telemetry_points = []
         format_votes = {
             "mini3_4pro": 0,
@@ -260,30 +275,40 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> dict[str, Any]:
             "legacy_unit": 0,
             "p4rtk_compact": 0,
         }
-        
+
         for i, block in enumerate(blocks):
             lines = block.strip().split("\n")
             if len(lines) < 3:
                 if lenient:
-                    validation["warnings"].append(f"Block {i+1}: Incomplete block (expected >= 3 lines)")
+                    validation["warnings"].append(
+                        f"Block {i + 1}: Incomplete block (expected >= 3 lines)"
+                    )
                     continue
                 else:
-                    validation["issues"].append(f"Block {i+1}: Invalid format - too few lines")
+                    validation["issues"].append(
+                        f"Block {i + 1}: Invalid format - too few lines"
+                    )
                     continue
-            
+
             # Check timestamp format
             ts_line = lines[1]
-            if not re.search(r"\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}", ts_line):
+            if not re.search(
+                r"\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}", ts_line
+            ):
                 if lenient:
-                    validation["warnings"].append(f"Block {i+1}: Invalid timestamp format")
+                    validation["warnings"].append(
+                        f"Block {i + 1}: Invalid timestamp format"
+                    )
                     continue
                 else:
-                    validation["issues"].append(f"Block {i+1}: Invalid timestamp format")
+                    validation["issues"].append(
+                        f"Block {i + 1}: Invalid timestamp format"
+                    )
                     continue
-            
+
             # Analyze telemetry line(s)
             tele_line = " ".join(lines[2:])
-            
+
             # Detect format
             if "[latitude:" in tele_line and "[longitude:" in tele_line:
                 if "<font" in tele_line:
@@ -302,44 +327,52 @@ def validate_srt_format(srt_path: Path, lenient: bool = True) -> dict[str, Any]:
                 else:
                     format_votes["legacy_gps"] += 1
             elif lenient:
-                validation["warnings"].append(f"Block {i+1}: Unrecognized telemetry format")
+                validation["warnings"].append(
+                    f"Block {i + 1}: Unrecognized telemetry format"
+                )
             else:
-                validation["issues"].append(f"Block {i+1}: Invalid telemetry format")
-            
+                validation["issues"].append(f"Block {i + 1}: Invalid telemetry format")
+
             telemetry_points.append(tele_line)
-        
+
         # Determine primary format
         if format_votes:
-            validation["format_detected"] = max(format_votes, key=lambda k: format_votes[k])
+            validation["format_detected"] = max(
+                format_votes, key=lambda k: format_votes[k]
+            )
             validation["statistics"]["format_confidence"] = format_votes
-        
+
         validation["telemetry_points"] = len(telemetry_points)
         validation["statistics"]["total_blocks"] = len(blocks)
-        
+
         # Additional validation checks
         if validation["telemetry_points"] == 0:
             validation["valid"] = False
             validation["issues"].append("No valid telemetry points found")
         elif validation["telemetry_points"] < len(blocks) * 0.5:  # Less than 50% valid
             if lenient:
-                validation["warnings"].append(f"Low telemetry extraction rate: {validation['telemetry_points']}/{len(blocks)}")
+                validation["warnings"].append(
+                    f"Low telemetry extraction rate: {validation['telemetry_points']}/{len(blocks)}"
+                )
             else:
                 validation["valid"] = False
                 validation["issues"].append("Too many invalid telemetry blocks")
-        
+
     except UnicodeDecodeError:
         validation["valid"] = False
         validation["issues"].append("File encoding error - not valid UTF-8")
     except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
         validation["valid"] = False
         validation["issues"].append(f"Validation failed: {e!s}")
-    
+
     return validation
 
 
-def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, str]], strict: bool = False) -> dict[str, Any]:
+def normalize_telemetry_units(
+    telemetry_data: list[tuple[float, float, float, str]], strict: bool = False
+) -> dict[str, Any]:
     """Normalize and validate telemetry units with sanity checks.
-    
+
     This implements unit normalization and sanity checks for M3 milestone (#139).
     """
     result: dict[str, Any] = {
@@ -348,77 +381,93 @@ def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, st
         "issues": [],
         "warnings": [],
         "statistics": {},
-        "normalized_data": []
+        "normalized_data": [],
     }
-    
+
     if not telemetry_data:
         result["issues"].append("No telemetry data provided")
         return result
-    
+
     # Extract coordinate components
     latitudes = [point[0] for point in telemetry_data]
     longitudes = [point[1] for point in telemetry_data]
     altitudes = [point[2] for point in telemetry_data]
-    
+
     # Sanity check ranges
     lat_issues = [lat for lat in latitudes if not (-90 <= lat <= 90)]
     lon_issues = [lon for lon in longitudes if not (-180 <= lon <= 180)]
-    alt_issues = [alt for alt in altitudes if not (-1000 <= alt <= 20000)]  # Reasonable altitude range
-    
+    alt_issues = [
+        alt for alt in altitudes if not (-1000 <= alt <= 20000)
+    ]  # Reasonable altitude range
+
     if lat_issues:
         if strict:
-            result["issues"].append(f"Invalid latitudes found: {len(lat_issues)} points outside [-90, 90]")
+            result["issues"].append(
+                f"Invalid latitudes found: {len(lat_issues)} points outside [-90, 90]"
+            )
         else:
-            result["warnings"].append(f"Suspicious latitudes: {len(lat_issues)} points outside normal range")
-    
+            result["warnings"].append(
+                f"Suspicious latitudes: {len(lat_issues)} points outside normal range"
+            )
+
     if lon_issues:
         if strict:
-            result["issues"].append(f"Invalid longitudes found: {len(lon_issues)} points outside [-180, 180]")
+            result["issues"].append(
+                f"Invalid longitudes found: {len(lon_issues)} points outside [-180, 180]"
+            )
         else:
-            result["warnings"].append(f"Suspicious longitudes: {len(lon_issues)} points outside normal range")
-    
+            result["warnings"].append(
+                f"Suspicious longitudes: {len(lon_issues)} points outside normal range"
+            )
+
     if alt_issues:
         if strict:
-            result["issues"].append(f"Invalid altitudes found: {len(alt_issues)} points outside [-1000, 20000]m")
+            result["issues"].append(
+                f"Invalid altitudes found: {len(alt_issues)} points outside [-1000, 20000]m"
+            )
         else:
-            result["warnings"].append(f"Suspicious altitudes: {len(alt_issues)} points outside normal range")
-    
+            result["warnings"].append(
+                f"Suspicious altitudes: {len(alt_issues)} points outside normal range"
+            )
+
     # Calculate statistics
     if latitudes:
         result["statistics"]["latitude"] = {
             "min": min(latitudes),
             "max": max(latitudes),
             "avg": sum(latitudes) / len(latitudes),
-            "range": max(latitudes) - min(latitudes)
+            "range": max(latitudes) - min(latitudes),
         }
-    
+
     if longitudes:
         result["statistics"]["longitude"] = {
             "min": min(longitudes),
             "max": max(longitudes),
             "avg": sum(longitudes) / len(longitudes),
-            "range": max(longitudes) - min(longitudes)
+            "range": max(longitudes) - min(longitudes),
         }
-    
+
     if altitudes:
         result["statistics"]["altitude"] = {
             "min": min(altitudes),
             "max": max(altitudes),
             "avg": sum(altitudes) / len(altitudes),
-            "range": max(altitudes) - min(altitudes)
+            "range": max(altitudes) - min(altitudes),
         }
-        
+
         # Check for reasonable altitude changes
         if len(altitudes) > 1:
             alt_changes = []
             for i in range(1, len(altitudes)):
-                change = abs(altitudes[i] - altitudes[i-1])
+                change = abs(altitudes[i] - altitudes[i - 1])
                 alt_changes.append(change)
-            
+
             max_change = max(alt_changes) if alt_changes else 0
             if max_change > 100:  # More than 100m change between frames
-                result["warnings"].append(f"Large altitude changes detected (max: {max_change:.1f}m)")
-    
+                result["warnings"].append(
+                    f"Large altitude changes detected (max: {max_change:.1f}m)"
+                )
+
     # Speed calculations (if we have timestamps)
     timestamps = [point[3] for point in telemetry_data if len(point) > 3]
     if len(timestamps) == len(telemetry_data) and len(telemetry_data) > 1:
@@ -426,11 +475,11 @@ def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, st
             speeds = []
             skipped_pairs = 0
             for i in range(1, len(telemetry_data)):
-                lat1, lon1 = latitudes[i-1], longitudes[i-1]
+                lat1, lon1 = latitudes[i - 1], longitudes[i - 1]
                 lat2, lon2 = latitudes[i], longitudes[i]
 
                 # Parse real SRT timestamps instead of assuming a fixed frame rate.
-                t1 = _timestamp_to_seconds(timestamps[i-1])
+                t1 = _timestamp_to_seconds(timestamps[i - 1])
                 t2 = _timestamp_to_seconds(timestamps[i])
                 if t1 is None or t2 is None:
                     skipped_pairs += 1
@@ -442,7 +491,9 @@ def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, st
                     continue
 
                 # Simple distance calculation (not geodesic, but good enough for sanity check)
-                dist = ((lat2-lat1)**2 + (lon2-lon1)**2)**0.5 * 111000  # Rough conversion to meters
+                dist = (
+                    (lat2 - lat1) ** 2 + (lon2 - lon1) ** 2
+                ) ** 0.5 * 111000  # Rough conversion to meters
 
                 speed = dist / time_diff
                 speeds.append(speed)
@@ -451,27 +502,31 @@ def normalize_telemetry_units(telemetry_data: list[tuple[float, float, float, st
                 result["warnings"].append(
                     f"Skipped {skipped_pairs} telemetry pair(s) with unparseable or non-monotonic timestamps"
                 )
-            
+
             if speeds:
                 max_speed = max(speeds)
                 avg_speed = sum(speeds) / len(speeds)
-                
+
                 result["statistics"]["speed"] = {
                     "max_mps": max_speed,
                     "avg_mps": avg_speed,
                     "max_kmh": max_speed * 3.6,
-                    "avg_kmh": avg_speed * 3.6
+                    "avg_kmh": avg_speed * 3.6,
                 }
-                
+
                 # Sanity check for unrealistic speeds
-                if max_speed > 200:  # More than 200 m/s (720 km/h) - clearly unrealistic for drone
-                    result["warnings"].append(f"Unrealistic speed detected: {max_speed*3.6:.1f} km/h")
-                
+                if (
+                    max_speed > 200
+                ):  # More than 200 m/s (720 km/h) - clearly unrealistic for drone
+                    result["warnings"].append(
+                        f"Unrealistic speed detected: {max_speed * 3.6:.1f} km/h"
+                    )
+
         except Exception as e:  # noqa: BLE001  # report-style validator: a failure is recorded as an issue, never raised
             result["warnings"].append(f"Speed calculation failed: {e!s}")
-    
+
     # Normalize data (for now, just copy - could implement coordinate system conversions here)
     result["normalized_data"] = telemetry_data.copy()
     result["normalized_count"] = len(result["normalized_data"])
-    
+
     return result

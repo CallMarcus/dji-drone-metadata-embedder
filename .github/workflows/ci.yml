@@ -44,6 +44,8 @@ jobs:
         run: uv sync --extra dev --extra build --python ${{ matrix.python-version }}
       - name: Ruff
         run: uv run ruff check .
+      - name: Ruff format
+        run: uv run ruff format --check .
       - name: Mypy
         run: uv run mypy
       - name: Install ExifTool (Linux)

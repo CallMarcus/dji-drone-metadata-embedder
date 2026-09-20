@@ -92,14 +92,18 @@ def _dem_png(elev_m: float, high_m: float | None = None) -> bytes:
 
     def chunk(tag: bytes, data: bytes) -> bytes:
         return (
-            struct.pack(">I", len(data)) + tag + data
+            struct.pack(">I", len(data))
+            + tag
+            + data
             + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
         )
 
     ihdr = struct.pack(">IIBBBBB", 256, 256, 8, 2, 0, 0, 0)  # 8-bit RGB
     return (
-        b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
-        + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", ihdr)
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
     )
 
 
@@ -230,9 +234,14 @@ def serve_map(map_server, page):
     """
     root, base_url = map_server
 
-    def _serve(html: str, *, on=None, terrain_stub: float | None = None,
-               terrain_steps: tuple[float, float] | None = None,
-               extra_files: dict[str, bytes] | None = None) -> str:
+    def _serve(
+        html: str,
+        *,
+        on=None,
+        terrain_stub: float | None = None,
+        terrain_steps: tuple[float, float] | None = None,
+        extra_files: dict[str, bytes] | None = None,
+    ) -> str:
         import uuid
 
         target = on if on is not None else page
@@ -252,10 +261,7 @@ def serve_map(map_server, page):
             if url.startswith(base_url):
                 return r.continue_()
             if url in assets:
-                ctype = (
-                    "text/css" if url.endswith(".css")
-                    else "application/javascript"
-                )
+                ctype = "text/css" if url.endswith(".css") else "application/javascript"
                 return r.fulfill(path=str(assets[url]), content_type=ctype)
             if r.request.resource_type == "image":
                 return r.fulfill(body=_STUB_PNG, content_type="image/png")
@@ -269,21 +275,22 @@ def serve_map(map_server, page):
             target.add_init_script(_STRIP_HILLSHADE_JS)
             if terrain_steps is not None:
                 dem = _dem_png(terrain_steps[0], terrain_steps[1])
-                maxzoom = 15   # ~1.2 km tiles: a cliff fits in the viewport
+                maxzoom = 15  # ~1.2 km tiles: a cliff fits in the viewport
             else:
                 dem = _dem_png(terrain_stub)
                 maxzoom = 12
-            tilejson = json.dumps({
-                "tilejson": "2.2.0",
-                "tiles": ["https://tiles.mapterhorn.com/dem/{z}/{x}/{y}.png"],
-                "minzoom": 0,
-                "maxzoom": maxzoom,
-            }).encode()
+            tilejson = json.dumps(
+                {
+                    "tilejson": "2.2.0",
+                    "tiles": ["https://tiles.mapterhorn.com/dem/{z}/{x}/{y}.png"],
+                    "minzoom": 0,
+                    "maxzoom": maxzoom,
+                }
+            ).encode()
 
             def terrain_route(r):
                 if r.request.url.endswith("tilejson.json"):
-                    return r.fulfill(body=tilejson,
-                                     content_type="application/json")
+                    return r.fulfill(body=tilejson, content_type="application/json")
                 return r.fulfill(body=dem, content_type="image/png")
 
             # Registered AFTER the catch-all route above: Playwright matches

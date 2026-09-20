@@ -13,7 +13,9 @@ _FIX = Path(__file__).parent / "fixtures" / "mp4_telemetry" / "air3s_g3j.json"
 
 
 def _patch(monkeypatch):
-    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text()))
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
 
 
 def test_gpx_from_mp4_uses_true_utc(monkeypatch, tmp_path):
@@ -47,6 +49,6 @@ def test_csv_from_mp4_fills_geo_and_sun(monkeypatch, tmp_path):
     r0, r3 = rows[0], rows[3]
     assert round(float(r0["latitude"]), 4) == 51.4778
     assert r0["datetime_utc"] == "2026-05-16T23:55:53Z"
-    assert r0["sun_azimuth"] and r0["sun_elevation"]   # computed from true UTC
+    assert r0["sun_azimuth"] and r0["sun_elevation"]  # computed from true UTC
     assert r3["rel_altitude"] == "5.4"
-    assert r0["iso"] == "" and r0["shutter"] == ""      # SRT-only cols blank
+    assert r0["iso"] == "" and r0["shutter"] == ""  # SRT-only cols blank

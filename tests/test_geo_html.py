@@ -28,8 +28,11 @@ def test_html_embeds_wellformed_geojson():
     html = track_to_html(build_track(CLIP))
     data = _embedded_geojson(html)
     assert data["type"] == "FeatureCollection"
-    points = [f for f in data["features"] if f["geometry"]
-              and f["geometry"]["type"] == "Point"]
+    points = [
+        f
+        for f in data["features"]
+        if f["geometry"] and f["geometry"]["type"] == "Point"
+    ]
     assert len(points) == 5
     assert points[0]["properties"]["abs_alt"] == 302.208
 

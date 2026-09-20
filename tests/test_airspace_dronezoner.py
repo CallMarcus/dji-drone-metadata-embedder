@@ -16,9 +16,7 @@ from dji_metadata_embedder.geo.airspace.dronezoner import (
 )
 from dji_metadata_embedder.geo.airspace.model import AirspaceError, SourceInfo
 
-FIXTURE = (
-    Path(__file__).parent.parent / "samples" / "airspace" / "dronezoner-dk.json"
-)
+FIXTURE = Path(__file__).parent.parent / "samples" / "airspace" / "dronezoner-dk.json"
 
 SOURCE = SourceInfo(
     feed="Denmark drone zones (Trafikstyrelsen)",
@@ -75,7 +73,13 @@ class TestParsing:
         # awareness-class site marker all drop; the rest are zones.
         assert len(zones) == 7
         assert {z.identifier for z in zones} == {
-            "DK-1", "DK-2", "DK-3", "DK-4", "DK-6", "DK-7", "DK-8"
+            "DK-1",
+            "DK-2",
+            "DK-3",
+            "DK-4",
+            "DK-6",
+            "DK-7",
+            "DK-8",
         }
 
     def test_a_typo_divergent_typeid_still_dedups_the_marker(self):
@@ -118,15 +122,11 @@ class TestParsing:
 
     def test_orphan_point_with_km_lovkrav_becomes_a_3_km_circle(self):
         z = zone(fixture_zones(), "DK-7")
-        assert dist_m((12.00, 55.40), z.polygons[0][0]) == pytest.approx(
-            3000, rel=0.01
-        )
+        assert dist_m((12.00, 55.40), z.polygons[0][0]) == pytest.approx(3000, rel=0.01)
 
     def test_orphan_point_falls_back_to_the_bufferzone_string(self):
         z = zone(fixture_zones(), "DK-4")
-        assert dist_m((12.10, 55.45), z.polygons[0][0]) == pytest.approx(
-            2000, rel=0.01
-        )
+        assert dist_m((12.10, 55.45), z.polygons[0][0]) == pytest.approx(2000, rel=0.01)
 
     def test_no_vertical_limits_are_ever_invented(self):
         for z in fixture_zones():
@@ -153,9 +153,12 @@ class TestParsing:
 
 def _one_feature(props, geometry):
     return json.dumps(
-        {"type": "FeatureCollection",
-         "features": [{"type": "Feature", "geometry": geometry,
-                       "properties": props}]}
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "geometry": geometry, "properties": props}
+            ],
+        }
     ).encode()
 
 
@@ -186,11 +189,19 @@ class TestAllOrNothing:
 
     def test_unparseable_window_raises(self):
         body = _one_feature(
-            {"OBJECTID": 9, "title": "X", "typeId": "MGZ", "Farve": "4",
-             "datoTidSTART": "next Tuesday-ish"},
-            {"type": "Polygon", "coordinates": [
-                [[12.0, 55.0], [12.1, 55.0], [12.1, 55.1], [12.0, 55.0]]
-            ]},
+            {
+                "OBJECTID": 9,
+                "title": "X",
+                "typeId": "MGZ",
+                "Farve": "4",
+                "datoTidSTART": "next Tuesday-ish",
+            },
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [[12.0, 55.0], [12.1, 55.0], [12.1, 55.1], [12.0, 55.0]]
+                ],
+            },
         )
         with pytest.raises(AirspaceError, match="datoTidSTART"):
             parse_dronezoner(body, SOURCE)
@@ -206,9 +217,12 @@ class TestAllOrNothing:
     def test_missing_objectid_raises(self):
         body = _one_feature(
             {"title": "X", "typeId": "Y", "Farve": "4"},
-            {"type": "Polygon", "coordinates": [
-                [[12.0, 55.0], [12.1, 55.0], [12.1, 55.1], [12.0, 55.0]]
-            ]},
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [[12.0, 55.0], [12.1, 55.0], [12.1, 55.1], [12.0, 55.0]]
+                ],
+            },
         )
         with pytest.raises(AirspaceError, match="OBJECTID"):
             parse_dronezoner(body, SOURCE)
@@ -225,8 +239,16 @@ class TestEvaluateIntegration:
 
         z = zone(fixture_zones(), "DK-6")
         lon, lat = z.polygons[0][0]
-        pts = [TrackPoint(lat=lat, lon=lon, alt=50, timestamp="c",
-                          utc=datetime(2026, 9, 8, 12, 0), rel_alt=20)]
+        pts = [
+            TrackPoint(
+                lat=lat,
+                lon=lon,
+                alt=50,
+                timestamp="c",
+                utc=datetime(2026, 9, 8, 12, 0),
+                rel_alt=20,
+            )
+        ]
         report = evaluate(Track(name="dk", points=pts), [z])
         assert z not in report.not_applicable
 
@@ -236,7 +258,15 @@ class TestEvaluateIntegration:
 
         z = zone(fixture_zones(), "DK-6")
         lon, lat = z.polygons[0][0]
-        pts = [TrackPoint(lat=lat, lon=lon, alt=50, timestamp="c",
-                          utc=datetime(2026, 10, 1, 12, 0), rel_alt=20)]
+        pts = [
+            TrackPoint(
+                lat=lat,
+                lon=lon,
+                alt=50,
+                timestamp="c",
+                utc=datetime(2026, 10, 1, 12, 0),
+                rel_alt=20,
+            )
+        ]
         report = evaluate(Track(name="dk", points=pts), [z])
         assert z in report.not_applicable

@@ -25,6 +25,7 @@ def _load_module():
 
 def _patch_tags(monkeypatch, module, tags: list[str]) -> None:
     """Replace run_git_command so the tag list lookup returns *tags*."""
+
     def fake(args):
         # `tag --list --sort=-version:refname` — return the canned list.
         if args[:2] == ["tag", "--list"]:

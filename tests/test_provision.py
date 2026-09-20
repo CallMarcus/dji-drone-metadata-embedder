@@ -115,9 +115,7 @@ def test_fetch_artifact_falls_back_to_second_mirror(monkeypatch, tmp_path):
     assert calls == [_SF_URL, _SF_URL, _ET_URL]
 
 
-def test_fetch_artifact_retries_transient_failure_on_same_mirror(
-    monkeypatch, tmp_path
-):
+def test_fetch_artifact_retries_transient_failure_on_same_mirror(monkeypatch, tmp_path):
     calls = []
 
     def fake_download(url, dest):
@@ -159,8 +157,7 @@ def test_fetch_artifact_reports_all_mirrors_on_total_failure(monkeypatch, tmp_pa
         _fetch_artifact(_TEST_ARTIFACT, tmp_path / "artifact.zip")
     # Every attempted URL is named: two tries per mirror, in order.
     attempted = [
-        line.strip().split(": ", 1)[0]
-        for line in str(excinfo.value).splitlines()[1:]
+        line.strip().split(": ", 1)[0] for line in str(excinfo.value).splitlines()[1:]
     ]
     assert attempted == [_SF_URL, _SF_URL, _ET_URL, _ET_URL]
 
@@ -350,8 +347,10 @@ def test_check_dependencies_finds_provisioned_exiftool(monkeypatch, tmp_path):
 
     monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path))
     monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
-    exe = tmp_path / f"exiftool-{EXIFTOOL_VERSION}" / (
-        "exiftool.exe" if provision.platform.system() == "Windows" else "exiftool"
+    exe = (
+        tmp_path
+        / f"exiftool-{EXIFTOOL_VERSION}"
+        / ("exiftool.exe" if provision.platform.system() == "Windows" else "exiftool")
     )
     exe.parent.mkdir(parents=True)
     exe.write_text("stub")
@@ -369,8 +368,10 @@ def test_get_tool_versions_sees_provisioned_exiftool(monkeypatch, tmp_path):
 
     monkeypatch.setenv("DJIEMBED_TOOLS_DIR", str(tmp_path))
     monkeypatch.delenv("DJIEMBED_EXIFTOOL_PATH", raising=False)
-    exe = tmp_path / f"exiftool-{EXIFTOOL_VERSION}" / (
-        "exiftool.exe" if provision.platform.system() == "Windows" else "exiftool"
+    exe = (
+        tmp_path
+        / f"exiftool-{EXIFTOOL_VERSION}"
+        / ("exiftool.exe" if provision.platform.system() == "Windows" else "exiftool")
     )
     exe.parent.mkdir(parents=True)
     exe.write_text("stub")

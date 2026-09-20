@@ -1,5 +1,6 @@
 """HTTP contract tests for the panoedit server (no browser, no exiftool:
 scan and write are monkeypatched; the server logic is what's under test)."""
+
 from __future__ import annotations
 
 import json
@@ -17,15 +18,16 @@ from dji_metadata_embedder.geo import panoedit as pe
 def editor(monkeypatch, tmp_path):
     img = tmp_path / "a.jpg"
     img.write_bytes(b"\xff\xd8" + b"J" * 500)
-    files = [pe.PanoFile(path=img, name="a.jpg", pose=90.0,
-                         yaw=None, pitch=None, hfov=None)]
+    files = [
+        pe.PanoFile(path=img, name="a.jpg", pose=90.0, yaw=None, pitch=None, hfov=None)
+    ]
     monkeypatch.setattr(pe, "scan_panos", lambda d, recursive=False: files)
     writes: list[tuple] = []
 
     def fake_write(path, heading, pitch, hfov, backup=True):
         writes.append((path, heading, pitch, hfov))
-        return {"heading": heading, "pitch": pitch, "hfov": hfov,
-                "pose": 90.0}
+        return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 90.0}
+
     monkeypatch.setattr(pe, "write_initial_view", fake_write)
     httpd, url = pe.make_editor_server(tmp_path)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
@@ -41,8 +43,11 @@ def _get(url: str):
 
 def _post(url: str, payload: dict):
     req = urllib.request.Request(
-        url, data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"}, method="POST")
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status, json.loads(resp.read())
@@ -57,10 +62,20 @@ def test_page_and_list(editor):
     status, body = _get(url + "api/list")
     data = json.loads(body)
     assert status == 200
-    assert data == [{"index": 0, "name": "a.jpg", "pose": 90.0,
-                     "yaw": None, "pitch": None, "hfov": None,
-                     "hasView": False, "width": 0, "height": 0,
-                     "downscaled": False}]
+    assert data == [
+        {
+            "index": 0,
+            "name": "a.jpg",
+            "pose": 90.0,
+            "yaw": None,
+            "pitch": None,
+            "hfov": None,
+            "hasView": False,
+            "width": 0,
+            "height": 0,
+            "downscaled": False,
+        }
+    ]
 
 
 def test_image_by_index_only(editor):
@@ -78,16 +93,17 @@ def test_image_by_index_only(editor):
 def test_save_happy_path_updates_list(editor):
     url, httpd, writes = editor
     token = httpd.pano_token
-    status, body = _post(url + "api/save", {
-        "index": 0, "heading": 135.5, "pitch": -3.0, "hfov": 100.0,
-        "token": token})
+    status, body = _post(
+        url + "api/save",
+        {"index": 0, "heading": 135.5, "pitch": -3.0, "hfov": 100.0, "token": token},
+    )
     assert status == 200
     assert body["heading"] == 135.5
     assert writes and writes[0][1] == 135.5
     _, listing = _get(url + "api/list")
     entry = json.loads(listing)[0]
     assert entry["hasView"] is True
-    assert entry["yaw"] == pytest.approx(45.5)   # 135.5 - pose 90
+    assert entry["yaw"] == pytest.approx(45.5)  # 135.5 - pose 90
     assert entry["pitch"] == -3.0
 
 
@@ -97,12 +113,9 @@ def test_save_rejects_bad_token_and_input(editor):
     ok = {"index": 0, "heading": 10.0, "pitch": 0.0, "hfov": 90.0}
     assert _post(url + "api/save", {**ok, "token": "wrong"})[0] == 403
     assert _post(url + "api/save", {**ok, "token": token, "index": 9})[0] == 400
-    assert _post(url + "api/save",
-                 {**ok, "token": token, "pitch": 91.0})[0] == 400
-    assert _post(url + "api/save",
-                 {**ok, "token": token, "hfov": 5.0})[0] == 400
-    assert _post(url + "api/save",
-                 {**ok, "token": token, "heading": "x"})[0] == 400
+    assert _post(url + "api/save", {**ok, "token": token, "pitch": 91.0})[0] == 400
+    assert _post(url + "api/save", {**ok, "token": token, "hfov": 5.0})[0] == 400
+    assert _post(url + "api/save", {**ok, "token": token, "heading": "x"})[0] == 400
     assert writes == []
 
 
@@ -113,12 +126,19 @@ def test_save_returns_503_while_another_save_holds_the_lock(editor, monkeypatch)
     monkeypatch.setattr(pe, "_SAVE_LOCK_TIMEOUT", 0.2)
     httpd.pano_lock.acquire()
     try:
-        status, body = _post(url + "api/save", {
-            "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
-            "token": httpd.pano_token})
+        status, body = _post(
+            url + "api/save",
+            {
+                "index": 0,
+                "heading": 1.0,
+                "pitch": 0.0,
+                "hfov": 90.0,
+                "token": httpd.pano_token,
+            },
+        )
         assert status == 503
         assert "save" in body["error"].lower()
-        assert writes == []                   # ExifTool was never reached
+        assert writes == []  # ExifTool was never reached
     finally:
         httpd.pano_lock.release()
 
@@ -131,6 +151,7 @@ def test_error_response_is_sent_after_the_lock_is_released(editor, monkeypatch):
 
     def boom(path, heading, pitch, hfov, backup=True):
         raise pe.PanoEditError("disk on fire")
+
     monkeypatch.setattr(pe, "write_initial_view", boom)
     observed = {}
     orig = pe._EditorHandler._send_json
@@ -142,10 +163,18 @@ def test_error_response_is_sent_after_the_lock_is_released(editor, monkeypatch):
                 httpd.pano_lock.release()
             observed["lock_free_during_error_send"] = free
         return orig(self, status, obj)
+
     monkeypatch.setattr(pe._EditorHandler, "_send_json", spy)
-    status, _body = _post(url + "api/save", {
-        "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
-        "token": httpd.pano_token})
+    status, _body = _post(
+        url + "api/save",
+        {
+            "index": 0,
+            "heading": 1.0,
+            "pitch": 0.0,
+            "hfov": 90.0,
+            "token": httpd.pano_token,
+        },
+    )
     assert status == 500
     assert observed["lock_free_during_error_send"] is True
 
@@ -155,10 +184,18 @@ def test_save_write_failure_is_500(editor, monkeypatch):
 
     def boom(path, heading, pitch, hfov, backup=True):
         raise pe.PanoEditError("disk on fire")
+
     monkeypatch.setattr(pe, "write_initial_view", boom)
-    status, body = _post(url + "api/save", {
-        "index": 0, "heading": 1.0, "pitch": 0.0, "hfov": 90.0,
-        "token": httpd.pano_token})
+    status, body = _post(
+        url + "api/save",
+        {
+            "index": 0,
+            "heading": 1.0,
+            "pitch": 0.0,
+            "hfov": 90.0,
+            "token": httpd.pano_token,
+        },
+    )
     assert status == 500 and "disk on fire" in body["error"]
 
 
@@ -166,21 +203,30 @@ def test_save_without_backup_reaches_the_writer(monkeypatch, tmp_path):
     # #492: the server carries the backup choice to every write.
     img = tmp_path / "a.jpg"
     img.write_bytes(b"\xff\xd8" + b"J" * 500)
-    files = [pe.PanoFile(path=img, name="a.jpg", pose=0.0,
-                         yaw=None, pitch=None, hfov=None)]
+    files = [
+        pe.PanoFile(path=img, name="a.jpg", pose=0.0, yaw=None, pitch=None, hfov=None)
+    ]
     monkeypatch.setattr(pe, "scan_panos", lambda d, recursive=False: files)
     seen = {}
 
     def fake_write(path, heading, pitch, hfov, backup=True):
         seen["backup"] = backup
         return {"heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0}
+
     monkeypatch.setattr(pe, "write_initial_view", fake_write)
     httpd, url = pe.make_editor_server(tmp_path, backup=False)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     try:
-        status, _ = _post(url + "api/save", {
-            "index": 0, "heading": 10.0, "pitch": 0.0, "hfov": 90.0,
-            "token": httpd.pano_token})
+        status, _ = _post(
+            url + "api/save",
+            {
+                "index": 0,
+                "heading": 10.0,
+                "pitch": 0.0,
+                "hfov": 90.0,
+                "token": httpd.pano_token,
+            },
+        )
     finally:
         httpd.shutdown()
     assert status == 200

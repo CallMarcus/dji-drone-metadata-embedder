@@ -68,6 +68,11 @@ def test_main_writes_the_png_master_and_multires_ico(tmp_path):
     assert png.size == (1024, 1024)
     ico = Image.open(tmp_path / "app-icon.ico")
     assert ico.info["sizes"] == {
-        (16, 16), (24, 24), (32, 32), (48, 48),
-        (64, 64), (128, 128), (256, 256),
+        (16, 16),
+        (24, 24),
+        (32, 32),
+        (48, 48),
+        (64, 64),
+        (128, 128),
+        (256, 256),
     }

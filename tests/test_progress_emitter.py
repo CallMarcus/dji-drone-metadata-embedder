@@ -13,8 +13,9 @@ from dji_metadata_embedder.progress import (
 )
 
 SCHEMA = json.loads(
-    (Path(__file__).parent.parent / "docs" / "progress_jsonl.schema.json")
-    .read_text(encoding="utf-8")
+    (Path(__file__).parent.parent / "docs" / "progress_jsonl.schema.json").read_text(
+        encoding="utf-8"
+    )
 )
 
 
@@ -36,7 +37,11 @@ def test_jsonl_events_match_schema():
     p.error("boom")
     events = _events(buf)
     assert [e["event"] for e in events] == [
-        "start", "progress", "warning", "result", "error",
+        "start",
+        "progress",
+        "warning",
+        "result",
+        "error",
     ]
     for e in events:
         jsonschema.validate(e, SCHEMA)

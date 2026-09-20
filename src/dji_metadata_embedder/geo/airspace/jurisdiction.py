@@ -43,27 +43,77 @@ MEASURE_UK = (
 
 _CORE: dict[str, list[Box]] = {
     "US": [
-        (-124.6, 33.1, -95.0, 48.7),   # West + Plains, above the border's northernmost reach (Tijuana 32.7)
-        (-111.2, 31.9, -108.3, 33.1),  # southern Arizona (Tucson); border is the 31.33N line here
-        (-106.4, 31.9, -103.0, 33.1),  # southern New Mexico; border ~31.78N, El Paso itself gaps honestly
-        (-103.0, 30.0, -100.0, 33.1),  # west Texas, north of the Big Bend river bend (~29.2N)
-        (-100.0, 28.8, -97.4, 33.1),   # south-central Texas (San Antonio); Rio Grande well south
-        (-97.4, 26.1, -95.0, 33.1),    # Texas Gulf coast (Houston, Corpus Christi); Matamoros is west of -97.4
-        (-95.0, 25.8, -84.5, 46.5),    # central-east (unchanged; only Gulf water below Florida latitudes)
-        (-84.5, 24.4, -79.8, 31.0),    # Florida; east bound keeps Bimini (-79.3) and Grand Bahama out
-        (-84.5, 31.0, -74.0, 40.9),    # Southeast + mid-Atlantic
-        (-75.5, 40.0, -69.8, 43.5),    # Northeast (unchanged)
+        (
+            -124.6,
+            33.1,
+            -95.0,
+            48.7,
+        ),  # West + Plains, above the border's northernmost reach (Tijuana 32.7)
+        (
+            -111.2,
+            31.9,
+            -108.3,
+            33.1,
+        ),  # southern Arizona (Tucson); border is the 31.33N line here
+        (
+            -106.4,
+            31.9,
+            -103.0,
+            33.1,
+        ),  # southern New Mexico; border ~31.78N, El Paso itself gaps honestly
+        (
+            -103.0,
+            30.0,
+            -100.0,
+            33.1,
+        ),  # west Texas, north of the Big Bend river bend (~29.2N)
+        (
+            -100.0,
+            28.8,
+            -97.4,
+            33.1,
+        ),  # south-central Texas (San Antonio); Rio Grande well south
+        (
+            -97.4,
+            26.1,
+            -95.0,
+            33.1,
+        ),  # Texas Gulf coast (Houston, Corpus Christi); Matamoros is west of -97.4
+        (
+            -95.0,
+            25.8,
+            -84.5,
+            46.5,
+        ),  # central-east (unchanged; only Gulf water below Florida latitudes)
+        (
+            -84.5,
+            24.4,
+            -79.8,
+            31.0,
+        ),  # Florida; east bound keeps Bimini (-79.3) and Grand Bahama out
+        (-84.5, 31.0, -74.0, 40.9),  # Southeast + mid-Atlantic
+        (-75.5, 40.0, -69.8, 43.5),  # Northeast (unchanged)
         (-165.0, 55.5, -141.5, 70.5),  # Alaska interior (unchanged)
         (-160.5, 18.5, -154.5, 22.5),  # Hawaii (unchanged)
     ],
     "LU": [
-        (5.9, 49.55, 6.3, 49.8),       # south (Luxembourg City, Findel); Moselle border ~6.36E
-        (5.95, 49.8, 6.25, 49.88),     # centre; border ~6.28E at Wallendorf (49.877)
+        (
+            5.9,
+            49.55,
+            6.3,
+            49.8,
+        ),  # south (Luxembourg City, Findel); Moselle border ~6.36E
+        (5.95, 49.8, 6.25, 49.88),  # centre; border ~6.28E at Wallendorf (49.877)
         # Bettendorf band; the Our bows west to ~6.226 near Roth/Gentingen
         # just above 49.9N; border verified in (6.230, 6.235) at 49.90, so
         # 6.2 keeps >=2 km margin on the whole edge.
         (5.95, 49.88, 6.2, 49.9),
-        (5.95, 49.9, 6.1, 50.0),       # north; Our-river border ~6.13E (Vianden excluded), tip above 50.0 gaps
+        (
+            5.95,
+            49.9,
+            6.1,
+            50.0,
+        ),  # north; Our-river border ~6.13E (Vianden excluded), tip above 50.0 gaps
     ],
     "FI": [
         (22.8, 59.8, 26.5, 64.5),
@@ -75,9 +125,9 @@ _CORE: dict[str, list[Box]] = {
     # and outside-margin point Nominatim-verified CH on 2026-08-05, >=5 km
     # of buffer to the nearest border throughout.
     "CH": [
-        (7.05, 46.6, 7.9, 47.05),   # Bern / Fribourg / Thun / Interlaken
-        (7.3, 47.0, 8.0, 47.3),     # Biel / Solothurn / Zofingen
-        (8.0, 46.8, 8.9, 47.42),    # Lucerne / Zug / Zurich
+        (7.05, 46.6, 7.9, 47.05),  # Bern / Fribourg / Thun / Interlaken
+        (7.3, 47.0, 8.0, 47.3),  # Biel / Solothurn / Zofingen
+        (8.0, 46.8, 8.9, 47.42),  # Lucerne / Zug / Zurich
     ],
     # Island geometry (#452): the only land border is with Northern
     # Ireland, whose southernmost reach is ~54.03 (Carlingford Lough) and
@@ -86,7 +136,7 @@ _CORE: dict[str, list[Box]] = {
     # sit beyond the cores and gap honestly as border bands.
     "IE": [
         (-10.5, 51.45, -5.99, 53.85),  # south + centre (Cork/Dublin/Galway)
-        (-10.2, 53.85, -8.4, 54.4),    # northwest coast (Mayo, Sligo)
+        (-10.2, 53.85, -8.4, 54.4),  # northwest coast (Mayo, Sligo)
     ],
     # An island needs sea margins, not land-border margins (#499): the
     # only land border is the IE/NI one, handled by the NI core edges
@@ -100,15 +150,15 @@ _CORE: dict[str, list[Box]] = {
     # Deliberate gaps, each an honest border band: Isle of Man, Scilly,
     # Kintyre, the IE border counties from the NI side.
     "GB": [
-        (-5.75, 49.93, -2.2, 53.4),    # SW England + Wales (Lizard 49.95 in)
-        (-2.2, 50.45, 0.9, 51.6),      # southern England incl. London
-        (0.9, 50.88, 1.42, 51.45),     # Kent; Cap Gris-Nez stays >=10 km off
-        (-0.2, 51.6, 1.77, 53.3),      # East Anglia (Lowestoft 1.76 in)
-        (-3.65, 53.4, -0.2, 55.3),     # N England (IoM stays >=40 km west)
-        (-5.0, 55.3, -1.5, 58.7),      # Scotland mainland (Kintyre gaps)
-        (-7.6, 55.7, -4.95, 58.55),    # Hebrides; Malin Head >=30 km south
-        (-3.5, 58.85, -2.3, 59.45),    # Orkney
-        (-1.85, 59.75, -0.65, 60.9),   # Shetland
+        (-5.75, 49.93, -2.2, 53.4),  # SW England + Wales (Lizard 49.95 in)
+        (-2.2, 50.45, 0.9, 51.6),  # southern England incl. London
+        (0.9, 50.88, 1.42, 51.45),  # Kent; Cap Gris-Nez stays >=10 km off
+        (-0.2, 51.6, 1.77, 53.3),  # East Anglia (Lowestoft 1.76 in)
+        (-3.65, 53.4, -0.2, 55.3),  # N England (IoM stays >=40 km west)
+        (-5.0, 55.3, -1.5, 58.7),  # Scotland mainland (Kintyre gaps)
+        (-7.6, 55.7, -4.95, 58.55),  # Hebrides; Malin Head >=30 km south
+        (-3.5, 58.85, -2.3, 59.45),  # Orkney
+        (-1.85, 59.75, -0.65, 60.9),  # Shetland
         (-6.55, 54.42, -5.43, 55.25),  # Northern Ireland (Belfast, Coleraine)
     ],
     # Sea margins on three sides, one land border (Germany, ~54.8-54.95N
@@ -120,15 +170,15 @@ _CORE: dict[str, list[Box]] = {
     # the German border strip south of 55.1 (Sønderborg, Ærø), Helsingør
     # (the 4.5 km strait), Gedser, Anholt-to-Sweden seas.
     "DK": [
-        (8.0, 55.1, 10.9, 57.73),      # Jutland (Skagen in; Sweden >=35 km E)
-        (9.6, 55.0, 10.85, 55.1),      # south Funen (Svendborg)
-        (11.05, 54.95, 12.68, 55.9),   # Zealand incl. Copenhagen/Kastrup
-        (11.3, 55.9, 12.4, 56.1),      # N Zealand, cut back from the strait
-        (11.9, 54.85, 12.56, 54.97),   # Møn (German coast >=40 km)
-        (11.0, 54.63, 12.3, 54.95),    # Lolland-Falster (Fehmarn >=11 km)
+        (8.0, 55.1, 10.9, 57.73),  # Jutland (Skagen in; Sweden >=35 km E)
+        (9.6, 55.0, 10.85, 55.1),  # south Funen (Svendborg)
+        (11.05, 54.95, 12.68, 55.9),  # Zealand incl. Copenhagen/Kastrup
+        (11.3, 55.9, 12.4, 56.1),  # N Zealand, cut back from the strait
+        (11.9, 54.85, 12.56, 54.97),  # Møn (German coast >=40 km)
+        (11.0, 54.63, 12.3, 54.95),  # Lolland-Falster (Fehmarn >=11 km)
         (14.67, 54.98, 15.17, 55.32),  # Bornholm (Sweden >=60 km)
-        (10.85, 57.1, 11.25, 57.35),   # Læsø
-        (11.38, 56.6, 11.78, 56.78),   # Anholt
+        (10.85, 57.1, 11.25, 57.35),  # Læsø
+        (11.38, 56.6, 11.78, 56.78),  # Anholt
     ],
     # Long land borders with Norway (west) and Finland (the Torne/Muonio
     # valley, northeast), plus the Öresund narrows against Denmark. All
@@ -148,17 +198,17 @@ _CORE: dict[str, list[Box]] = {
     # entirely, so they get the no-provider message, not the band one.
     "SE": [
         (12.95, 55.33, 16.05, 56.45),  # Skåne + Blekinge (Saltholm DK >=10 km W)
-        (12.0, 56.45, 12.95, 57.15),   # Halland coast (Anholt DK >=21 km W)
-        (11.55, 57.15, 12.3, 58.55),   # west coast, Gothenburg (Læsø DK >=19 km W)
-        (16.3, 56.15, 17.2, 57.4),     # Öland
-        (17.9, 56.85, 19.4, 58.0),     # Gotland incl. Fårö
-        (12.3, 56.35, 19.2, 58.9),     # Götaland interior + east coast
-        (13.4, 58.9, 19.3, 59.7),      # south Svealand (Stockholm, Karlstad)
-        (13.4, 59.7, 18.9, 61.5),      # north Svealand (Märket FI >=13 km E)
-        (14.5, 61.5, 20.6, 63.6),      # lower Norrland (Kvarken FI >=23 km E)
-        (17.5, 63.6, 23.2, 65.95),     # upper Norrland coast (Umeå, Luleå, Boden)
-        (18.9, 65.95, 22.4, 67.5),     # Jokkmokk/Gällivare (Torne border >=40 km E)
-        (19.6, 67.5, 21.6, 68.0),      # Kiruna
+        (12.0, 56.45, 12.95, 57.15),  # Halland coast (Anholt DK >=21 km W)
+        (11.55, 57.15, 12.3, 58.55),  # west coast, Gothenburg (Læsø DK >=19 km W)
+        (16.3, 56.15, 17.2, 57.4),  # Öland
+        (17.9, 56.85, 19.4, 58.0),  # Gotland incl. Fårö
+        (12.3, 56.35, 19.2, 58.9),  # Götaland interior + east coast
+        (13.4, 58.9, 19.3, 59.7),  # south Svealand (Stockholm, Karlstad)
+        (13.4, 59.7, 18.9, 61.5),  # north Svealand (Märket FI >=13 km E)
+        (14.5, 61.5, 20.6, 63.6),  # lower Norrland (Kvarken FI >=23 km E)
+        (17.5, 63.6, 23.2, 65.95),  # upper Norrland coast (Umeå, Luleå, Boden)
+        (18.9, 65.95, 22.4, 67.5),  # Jokkmokk/Gällivare (Torne border >=40 km E)
+        (19.6, 67.5, 21.6, 68.0),  # Kiruna
     ],
     # Land borders with Latvia (south) and Russia (east: the Narva river
     # and the lakes), sea north and west. All 20 edge probes
@@ -176,12 +226,22 @@ _CORE: dict[str, list[Box]] = {
     # the southern interior (Otepää, Võru) gap too, even though no
     # border sits nearby.
     "EE": [
-        (23.4, 58.75, 26.6, 59.65),   # N + NW mainland (Tallinn; Käsmu in, Purekkari cape 59.66 gaps)
-        (23.5, 58.2, 25.6, 58.85),    # SW mainland (Pärnu; LV border >=12 km)
-        (25.6, 58.2, 26.9, 59.3),     # centre-east (Tartu; edge at the Peipus shore, mid-lake border beyond)
-        (26.6, 59.1, 27.75, 59.47),   # NE (Kohtla-Järve; Narva river >=17 km)
-        (21.9, 57.9, 23.45, 58.65),   # Saaremaa + Muhu (Kolka LV >=17 km S)
-        (22.0, 58.68, 23.1, 59.1),    # Hiiumaa incl. Kõpu/Ristna
+        (
+            23.4,
+            58.75,
+            26.6,
+            59.65,
+        ),  # N + NW mainland (Tallinn; Käsmu in, Purekkari cape 59.66 gaps)
+        (23.5, 58.2, 25.6, 58.85),  # SW mainland (Pärnu; LV border >=12 km)
+        (
+            25.6,
+            58.2,
+            26.9,
+            59.3,
+        ),  # centre-east (Tartu; edge at the Peipus shore, mid-lake border beyond)
+        (26.6, 59.1, 27.75, 59.47),  # NE (Kohtla-Järve; Narva river >=17 km)
+        (21.9, 57.9, 23.45, 58.65),  # Saaremaa + Muhu (Kolka LV >=17 km S)
+        (22.0, 58.68, 23.1, 59.1),  # Hiiumaa incl. Kõpu/Ristna
     ],
     # Land borders on every side (IT, AT, HU, HR) and a 47 km coast, so the
     # cores are the interior only. All 51 edge probes Nominatim-verified
@@ -196,12 +256,32 @@ _CORE: dict[str, list[Box]] = {
     # (Dravograd), Šentilj, Gornja Radgona and the Mura, Lendava, Brežice,
     # Metlika and the Kolpa, Kočevje.
     "SI": [
-        (14.00, 45.85, 14.95, 46.38),  # Ljubljana basin, Kranj, Kamnik, Bled (Austria >=8 km N, Italy >=30 km W)
+        (
+            14.00,
+            45.85,
+            14.95,
+            46.38,
+        ),  # Ljubljana basin, Kranj, Kamnik, Bled (Austria >=8 km N, Italy >=30 km W)
         (14.95, 46.05, 15.45, 46.45),  # Celje, Velenje, Zasavje (Austria >=15 km N)
-        (15.50, 46.35, 15.95, 46.58),  # Maribor, Ptuj (Šentilj 46.68 N, Rogatec 46.23 S)
+        (
+            15.50,
+            46.35,
+            15.95,
+            46.58,
+        ),  # Maribor, Ptuj (Šentilj 46.68 N, Rogatec 46.23 S)
         (14.95, 45.75, 15.25, 45.95),  # Novo Mesto (Metlika 45.65 S)
-        (14.00, 45.62, 14.40, 45.85),  # Postojna, Notranjska (Italy >=20 km W, Croatia >=15 km S)
-        (16.08, 46.58, 16.28, 46.70),  # Murska Sobota (Mura/Austria >=8 km NW, Hungary >=13 km E)
+        (
+            14.00,
+            45.62,
+            14.40,
+            45.85,
+        ),  # Postojna, Notranjska (Italy >=20 km W, Croatia >=15 km S)
+        (
+            16.08,
+            46.58,
+            16.28,
+            46.70,
+        ),  # Murska Sobota (Mura/Austria >=8 km NW, Hungary >=13 km E)
     ],
     # Land borders with FR, LU, DE and NL, the North Sea on the fourth side.
     # Every edge and corner Nominatim-verified BE on 2026-09-16 (the coastal
@@ -212,13 +292,38 @@ _CORE: dict[str, list[Box]] = {
     # Luxembourg (Arlon, Bastogne), the German-speaking east (Eupen,
     # Verviers) and the Maas at Maasmechelen.
     "BE": [
-        (2.75, 50.95, 3.30, 51.40),   # coast + West Flanders (Ostend, Bruges); France >=14 km W, NL >=6 km E at Knokke
-        (3.35, 50.80, 4.15, 51.12),   # Ghent, Aalst, Oudenaarde; Sas van Gent (NL, 51.23) >=12 km N
-        (4.15, 50.35, 5.00, 51.28),   # Brussels, Antwerp, Leuven, Mechelen, Charleroi; NL border >=9 km N
-        (4.60, 50.28, 5.60, 50.70),   # Namur, Ciney, Marche approaches; Givet (FR, 50.15) >=14 km S
-        (3.75, 50.40, 4.15, 50.80),   # Mons, La Louvière, Ath; France >=9 km S
-        (5.00, 50.80, 5.45, 51.15),   # Hasselt, Sint-Truiden, Genk; NL >=12 km N and E
-        (5.30, 50.45, 5.75, 50.68),   # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
+        (
+            2.75,
+            50.95,
+            3.30,
+            51.40,
+        ),  # coast + West Flanders (Ostend, Bruges); France >=14 km W, NL >=6 km E at Knokke
+        (
+            3.35,
+            50.80,
+            4.15,
+            51.12,
+        ),  # Ghent, Aalst, Oudenaarde; Sas van Gent (NL, 51.23) >=12 km N
+        (
+            4.15,
+            50.35,
+            5.00,
+            51.28,
+        ),  # Brussels, Antwerp, Leuven, Mechelen, Charleroi; NL border >=9 km N
+        (
+            4.60,
+            50.28,
+            5.60,
+            50.70,
+        ),  # Namur, Ciney, Marche approaches; Givet (FR, 50.15) >=14 km S
+        (3.75, 50.40, 4.15, 50.80),  # Mons, La Louvière, Ath; France >=9 km S
+        (5.00, 50.80, 5.45, 51.15),  # Hasselt, Sint-Truiden, Genk; NL >=12 km N and E
+        (
+            5.30,
+            50.45,
+            5.75,
+            50.68,
+        ),  # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
     ],
 }
 _HULL: dict[str, list[Box]] = {
@@ -240,27 +345,27 @@ _HULL: dict[str, list[Box]] = {
     # outside entirely (zero zones in the dataset). The NI box overlaps
     # the IE hull on purpose: cores break the tie (#499).
     "GB": [
-        (-5.9, 49.85, 1.9, 61.0),      # Great Britain + Northern Isles
-        (-6.6, 49.75, -5.9, 50.3),     # Scilly approaches
-        (-8.0, 55.55, -5.9, 61.0),     # Hebridean seas
-        (-8.2, 54.0, -5.35, 55.4),     # Northern Ireland
+        (-5.9, 49.85, 1.9, 61.0),  # Great Britain + Northern Isles
+        (-6.6, 49.75, -5.9, 50.3),  # Scilly approaches
+        (-8.0, 55.55, -5.9, 61.0),  # Hebridean seas
+        (-8.2, 54.0, -5.35, 55.4),  # Northern Ireland
     ],
     # Flensburg, Helsingborg and Fehmarn's north tip sit inside the hull
     # deliberately (the CH-Konstanz semantics: a border band, not "no
     # provider"); Malmö stays outside entirely.
     "DK": [
-        (7.5, 54.68, 11.0, 57.9),      # Jutland + Funen
-        (11.0, 54.5, 12.78, 57.4),     # Zealand / Lolland-Falster / Øresund
-        (14.6, 54.9, 15.35, 55.38),    # Bornholm
+        (7.5, 54.68, 11.0, 57.9),  # Jutland + Funen
+        (11.0, 54.5, 12.78, 57.4),  # Zealand / Lolland-Falster / Øresund
+        (14.6, 54.9, 15.35, 55.38),  # Bornholm
     ],
     # Læsø, Bornholm and the Copenhagen shore sit inside the south hull
     # deliberately and resolve DK via its cores (#499 tie-break); Halden,
     # Åland and the Tornio strip sit inside as honest border bands
     # (Konstanz semantics). Oslo stays outside entirely (west of 10.9).
     "SE": [
-        (10.9, 55.05, 19.7, 61.0),     # Götaland + Svealand + approaches
-        (13.4, 61.0, 24.3, 66.4),      # Norrland + the Bothnian sea
-        (16.3, 66.4, 24.2, 69.3),      # Lapland up to Treriksröset
+        (10.9, 55.05, 19.7, 61.0),  # Götaland + Svealand + approaches
+        (13.4, 61.0, 24.3, 66.4),  # Norrland + the Bothnian sea
+        (16.3, 66.4, 24.2, 69.3),  # Lapland up to Treriksröset
     ],
     # Valka, Ivangorod and the Latvian coast strip sit inside the hull
     # deliberately (border-band semantics); Riga and Helsinki stay
@@ -281,9 +386,17 @@ _HULL: dict[str, list[Box]] = {
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
 _MEASURE = {
-    "US": MEASURE_US, "LU": MEASURE_EU, "FI": MEASURE_EU, "CH": MEASURE_EU,
-    "IE": MEASURE_EU, "GB": MEASURE_UK, "DK": MEASURE_EU, "SE": MEASURE_EU,
-    "EE": MEASURE_EU, "SI": MEASURE_EU, "BE": MEASURE_EU,
+    "US": MEASURE_US,
+    "LU": MEASURE_EU,
+    "FI": MEASURE_EU,
+    "CH": MEASURE_EU,
+    "IE": MEASURE_EU,
+    "GB": MEASURE_UK,
+    "DK": MEASURE_EU,
+    "SE": MEASURE_EU,
+    "EE": MEASURE_EU,
+    "SI": MEASURE_EU,
+    "BE": MEASURE_EU,
 }
 
 

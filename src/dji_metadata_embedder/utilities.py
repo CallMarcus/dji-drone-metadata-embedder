@@ -422,17 +422,12 @@ def make_logging_nonblocking(
     import queue
 
     log = target if target is not None else logging.getLogger()
-    queued = [
-        h for h in log.handlers
-        if isinstance(h, logging.handlers.QueueHandler)
-    ]
+    queued = [h for h in log.handlers if isinstance(h, logging.handlers.QueueHandler)]
     handlers = [h for h in log.handlers if h not in queued]
     if not handlers:
         return None
     q: queue.SimpleQueue = queue.SimpleQueue()
-    listener = logging.handlers.QueueListener(
-        q, *handlers, respect_handler_level=True
-    )
+    listener = logging.handlers.QueueListener(q, *handlers, respect_handler_level=True)
     # Existing queue handlers stay wired: dropping one would orphan its
     # listener and silently cut off every handler behind it.
     log.handlers = [*queued, logging.handlers.QueueHandler(q)]
@@ -445,29 +440,26 @@ def get_tool_versions() -> dict[str, str]:
     import os
     import platform
     from pathlib import Path
-    
-    tools = {
-        "ffmpeg": ["ffmpeg", "-version"],
-        "exiftool": ["exiftool", "-ver"]
-    }
+
+    tools = {"ffmpeg": ["ffmpeg", "-version"], "exiftool": ["exiftool", "-ver"]}
     versions: dict[str, str] = {}
-    
+
     # Add dji-embed bin directory to PATH temporarily (Windows only)
     original_path = os.environ.get("PATH", "")
     path_modified = False
-    
+
     if platform.system() == "Windows":
         bin_dir = Path.home() / "AppData" / "Local" / "dji-embed" / "bin"
         if bin_dir.exists() and str(bin_dir) not in original_path:
             os.environ["PATH"] = str(bin_dir) + os.pathsep + original_path
             path_modified = True
-    
+
     try:
         for name, cmd in tools.items():
             # Check environment variables first (set by bootstrap script)
             env_var = f"DJIEMBED_{name.upper()}_PATH"
             tool_path = os.environ.get(env_var)
-            
+
             if name == "exiftool":
                 # Shared resolver: env override → provisioned copy → PATH
                 from .utils.exiftool import exiftool_exe
@@ -477,12 +469,12 @@ def get_tool_versions() -> dict[str, str]:
                 test_cmd = [tool_path] + cmd[1:]
             else:
                 test_cmd = cmd
-            
+
             try:
                 result = subprocess.run(
-                    test_cmd, 
-                    capture_output=True, 
-                    text=True, 
+                    test_cmd,
+                    capture_output=True,
+                    text=True,
                     timeout=5,
                     check=False,
                 )
@@ -492,6 +484,7 @@ def get_tool_versions() -> dict[str, str]:
                     if name == "ffmpeg":
                         # Extract version from "ffmpeg version X.Y.Z" line
                         import re
+
                         match = re.search(r"ffmpeg version ([^\s]+)", output)
                         if match:
                             versions[name] = match.group(1)
@@ -504,13 +497,17 @@ def get_tool_versions() -> dict[str, str]:
                         versions[name] = "detected"
                 else:
                     versions[name] = "not available"
-            except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+            except (
+                subprocess.TimeoutExpired,
+                subprocess.SubprocessError,
+                FileNotFoundError,
+            ):
                 versions[name] = "not available"
     finally:
         # Restore original PATH
         if path_modified:
             os.environ["PATH"] = original_path
-    
+
     return versions
 
 

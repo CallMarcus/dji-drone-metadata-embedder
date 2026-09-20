@@ -62,7 +62,9 @@ def test_ffmpeg_version_none_on_garbage_or_failure(monkeypatch):
     monkeypatch.setattr(
         ffmpeg_utils.subprocess,
         "run",
-        lambda cmd, **k: subprocess.CompletedProcess(cmd, 0, stdout="not ffmpeg", stderr=""),
+        lambda cmd, **k: subprocess.CompletedProcess(
+            cmd, 0, stdout="not ffmpeg", stderr=""
+        ),
     )
     assert ffmpeg_utils.ffmpeg_version() is None
 

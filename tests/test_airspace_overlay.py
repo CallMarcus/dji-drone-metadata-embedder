@@ -1,4 +1,5 @@
 """Unit tests for the pure --airspace overlay builder (#413 PR 2)."""
+
 from datetime import datetime
 from pathlib import Path
 
@@ -17,15 +18,22 @@ SAMPLES = Path(__file__).parent.parent / "samples" / "airspace"
 def _lu_zones():
     feed = ED269_FEEDS["LU"]
     source = SourceInfo(
-        feed=feed.feed_name, url=feed.url, fetched="2026-07-30T10:00:00Z",
-        license=feed.license, caveat=feed.caveat, note=feed.note,
+        feed=feed.feed_name,
+        url=feed.url,
+        fetched="2026-07-30T10:00:00Z",
+        license=feed.license,
+        caveat=feed.caveat,
+        note=feed.note,
     )
     return parse_ed269((SAMPLES / "ed269-lu.json").read_bytes(), source), source
 
 
 def _point(lat, lon, second, rel_alt=50.0):
     return TrackPoint(
-        lat=lat, lon=lon, alt=300.0, timestamp=f"00:00:{second:02d}",
+        lat=lat,
+        lon=lon,
+        alt=300.0,
+        timestamp=f"00:00:{second:02d}",
         utc=datetime(2026, 7, 30, 12, 0, second),
         rel_alt=rel_alt,
     )
@@ -41,9 +49,14 @@ def _track_inside(zone, name="LUX0001"):
     lon = sum(c[0] for c in ring[:-1]) / (len(ring) - 1)
     lat = sum(c[1] for c in ring[:-1]) / (len(ring) - 1)
     assert point_in_ring(lon, lat, ring), "fixture ring is concave; pick a point inside"
-    return Track(name=name, points=[
-        _point(lat, lon, 0), _point(lat, lon, 1, rel_alt=80.0), _point(lat, lon, 2),
-    ])
+    return Track(
+        name=name,
+        points=[
+            _point(lat, lon, 0),
+            _point(lat, lon, 1, rel_alt=80.0),
+            _point(lat, lon, 2),
+        ],
+    )
 
 
 def _track_far(name="FAR0001"):
@@ -119,11 +132,23 @@ def test_zone_dict_shape_and_source_footer():
     )
     z = out["zones"][0]
     assert set(z) == {
-        "id", "name", "restriction", "lower", "upper", "upper_m", "upper_ref",
-        "applicability", "polygons", "holes", "source", "entered",
+        "id",
+        "name",
+        "restriction",
+        "lower",
+        "upper",
+        "upper_m",
+        "upper_ref",
+        "applicability",
+        "polygons",
+        "holes",
+        "source",
+        "entered",
     }
     assert z["source"] == {
-        "feed": source.feed, "license": source.license, "fetched": source.fetched,
+        "feed": source.feed,
+        "license": source.license,
+        "fetched": source.fetched,
     }
 
 
@@ -132,8 +157,12 @@ def test_missing_limits_stay_none():
     # it must surface as None — the JS renders "not stated", never 0
     feed = ED269_FEEDS["FI"]
     source = SourceInfo(
-        feed=feed.feed_name, url=feed.url, fetched="2026-07-30T10:00:00Z",
-        license=feed.license, caveat=feed.caveat, note=feed.note,
+        feed=feed.feed_name,
+        url=feed.url,
+        fetched="2026-07-30T10:00:00Z",
+        license=feed.license,
+        caveat=feed.caveat,
+        note=feed.note,
     )
     zones = parse_ed269((SAMPLES / "ed269-fi.json").read_bytes(), source)
     out = zones_to_overlay_json(
@@ -162,8 +191,12 @@ def test_a_dated_product_states_its_effective_date_everywhere():
     # cycle the zones reflect, not just when this copy was downloaded.
     zones, source = _lu_zones()
     dated = SourceInfo(
-        feed=source.feed, url=source.url, fetched=source.fetched,
-        license=source.license, caveat=source.caveat, note=source.note,
+        feed=source.feed,
+        url=source.url,
+        fetched=source.fetched,
+        license=source.license,
+        caveat=source.caveat,
+        note=source.note,
         effective="2026-08-06",
     )
     for z in zones:
@@ -171,8 +204,9 @@ def test_a_dated_product_states_its_effective_date_everywhere():
     out = zones_to_overlay_json(
         [_track_far()], [AirspaceData(zones=zones, source=dated)]
     )
-    assert (f"Airspace: {dated.feed}, effective 2026-08-06, "
-            f"fetched {dated.fetched}") in out["notes"]
+    assert (
+        f"Airspace: {dated.feed}, effective 2026-08-06, fetched {dated.fetched}"
+    ) in out["notes"]
     assert all(z["source"]["effective"] == "2026-08-06" for z in out["zones"])
     # Undated feeds keep the old shape: no key invented.
     out = zones_to_overlay_json(
@@ -186,8 +220,12 @@ def test_source_note_reaches_the_map_notes_once():
     # SourceInfo.note must reach the overlay, not just the record.
     feed = ED318_FEEDS["SE"]
     source = SourceInfo(
-        feed=feed.feed_name, url=feed.file_url, fetched="2026-08-19T10:00:00Z",
-        license=feed.license, caveat=feed.caveat, note=feed.note,
+        feed=feed.feed_name,
+        url=feed.file_url,
+        fetched="2026-08-19T10:00:00Z",
+        license=feed.license,
+        caveat=feed.caveat,
+        note=feed.note,
     )
     zones = parse_ed318((SAMPLES / "ed318-se.json").read_bytes(), source)
     data = [
@@ -229,6 +267,7 @@ def test_mtime_time_note_reaches_entered_entries():
 
 def test_no_verdict_vocabulary_in_output():
     import json as _json
+
     zones, source = _lu_zones()
     out = zones_to_overlay_json(
         [_track_inside(zones[0])], [AirspaceData(zones=zones, source=source)]
@@ -245,8 +284,12 @@ def test_zone_dicts_carry_numeric_ceilings_for_the_3d_map():
 
     def zone(upper, ident):
         return Zone(
-            identifier=ident, name=ident, restriction="CEILING",
-            lower=None, upper=upper, applicability=[],
+            identifier=ident,
+            name=ident,
+            restriction="CEILING",
+            lower=None,
+            upper=upper,
+            applicability=[],
             polygons=[[(6.0, 49.0), (6.1, 49.0), (6.1, 49.1), (6.0, 49.0)]],
             source=src,
         )
@@ -256,9 +299,7 @@ def test_zone_dicts_carry_numeric_ceilings_for_the_3d_map():
         zone(VerticalLimit(2500, "m", "AMSL"), "M"),
         zone(None, "NONE"),
     ]
-    out = zones_to_overlay_json(
-        [_track_far()], [AirspaceData(zones=zones, source=src)]
-    )
+    out = zones_to_overlay_json([_track_far()], [AirspaceData(zones=zones, source=src)])
     by_id = {z["id"]: z for z in out["zones"]}
     assert by_id["FT"]["upper_m"] == pytest.approx(400 * 0.3048)
     assert by_id["FT"]["upper_ref"] == "AGL"
@@ -274,6 +315,7 @@ def test_a_flight_level_ceiling_renders_flat_in_3d_not_100_metres():
     # 100 m-tall volume for FL 100.
     from dji_metadata_embedder.geo.airspace.model import VerticalLimit
     from dji_metadata_embedder.geo.airspace.overlay import _upper_numeric
+
     assert _upper_numeric(VerticalLimit(100.0, "FL", "STD")) == (None, None)
 
 
@@ -282,9 +324,9 @@ def test_publisher_status_reaches_the_popup_data_only_when_present():
     # window carries a "status" line in its popup data; every other zone
     # keeps its shape.
     zones, source = _lu_zones()
-    zones[0].not_active_reason = (
-        "not active during the flight window (publisher's evaluation)"
-    )
+    zones[
+        0
+    ].not_active_reason = "not active during the flight window (publisher's evaluation)"
     out = zones_to_overlay_json(
         [_track_inside(zones[1])], [AirspaceData(zones=zones, source=source)]
     )

@@ -88,9 +88,7 @@ class MergeReport:
 # Columns that look like coordinates but are not the aircraft's position.
 # "appgps" = the pilot's phone/tablet, "adsb" = a nearby MANNED aircraft,
 # "base"/"station" = the RTK ground station (all in the /v1/fields catalog).
-_NOT_AIRCRAFT = (
-    "home", "rc", "remote", "tablet", "appgps", "adsb", "base", "station"
-)
+_NOT_AIRCRAFT = ("home", "rc", "remote", "tablet", "appgps", "adsb", "base", "station")
 
 # One way of spelling a slot's column: (needles, exclude) for _find.
 _Alternative = tuple[tuple[str, ...], tuple[str, ...]]
@@ -238,9 +236,7 @@ def _parse_date(raw: str, column: str, line: int) -> tuple[int, int, int]:
             f"column {column!r}, line {line}: {raw!r} is ambiguous (day and "
             f"month cannot be told apart); {_ADVICE} for an exact join"
         )
-    raise FlightLogError(
-        f"column {column!r}, line {line}: {raw!r} is not a date"
-    )
+    raise FlightLogError(f"column {column!r}, line {line}: {raw!r} is not a date")
 
 
 def _parse_datetime(raw: str, column: str, line: int) -> datetime:
@@ -306,7 +302,9 @@ def parse_flight_log(path: Path | str) -> FlightLog:
     date_col = _find_column(headers, "date")
     time_col = _find_column(headers, "time")
     has_time_col = (
-        epoch_col is not None or utc_col is not None or has_utc_pair
+        epoch_col is not None
+        or utc_col is not None
+        or has_utc_pair
         or datetime_col is not None
         or (date_col is not None and time_col is not None)
     )
@@ -345,9 +343,7 @@ def parse_flight_log(path: Path | str) -> FlightLog:
             utc = _parse_datetime(rec[utc_col], utc_col, line_no)
         elif has_utc_pair:
             assert utc_date_col is not None and utc_time_col is not None
-            year, month, day = _parse_date(
-                rec[utc_date_col], utc_date_col, line_no
-            )
+            year, month, day = _parse_date(rec[utc_date_col], utc_date_col, line_no)
             hour, minute, sec, micro = _parse_clock(
                 rec[utc_time_col], utc_time_col, line_no
             )
@@ -357,9 +353,7 @@ def parse_flight_log(path: Path | str) -> FlightLog:
         else:
             assert date_col is not None and time_col is not None
             year, month, day = _parse_date(rec[date_col], date_col, line_no)
-            hour, minute, sec, micro = _parse_clock(
-                rec[time_col], time_col, line_no
-            )
+            hour, minute, sec, micro = _parse_clock(rec[time_col], time_col, line_no)
             local = datetime(year, month, day, hour, minute, sec, micro)
         yaw = _number(rec[yaw_col], yaw_col, line_no)
         rows.append(
@@ -375,9 +369,8 @@ def parse_flight_log(path: Path | str) -> FlightLog:
     if not rows:
         raise FlightLogError(f"{src.name}: the export contains no data rows")
     time_base = "utc" if utc_source else "local"
-    rows.sort(key=lambda r: (r.utc or r.local or datetime.min))
-    return FlightLog(name=src.name, time_base=time_base, rows=rows,
-                     columns=columns)
+    rows.sort(key=lambda r: r.utc or r.local or datetime.min)
+    return FlightLog(name=src.name, time_base=time_base, rows=rows, columns=columns)
 
 
 # A track point pairs with the nearest log row inside this window. Flight
@@ -412,19 +405,13 @@ def merge_gimbal(track: Track, log: FlightLog) -> MergeReport:
         mode, offset = "utc", timedelta(0)
         stamped = [(r.utc, r) for r in log.rows if r.utc is not None]
     else:
-        first_local = next(
-            (r.local for r in log.rows if r.local is not None), None
-        )
+        first_local = next((r.local for r in log.rows if r.local is not None), None)
         if first_local is None:
             return MergeReport(merged=False, reason="the log has no timestamps")
         raw = (first_local - pts[0].utc).total_seconds()  # type: ignore[operator]
-        offset = timedelta(
-            seconds=round(raw / _OFFSET_STEP_S) * _OFFSET_STEP_S
-        )
+        offset = timedelta(seconds=round(raw / _OFFSET_STEP_S) * _OFFSET_STEP_S)
         mode = "derived"
-        stamped = [
-            (r.local - offset, r) for r in log.rows if r.local is not None
-        ]
+        stamped = [(r.local - offset, r) for r in log.rows if r.local is not None]
     if not stamped:
         return MergeReport(merged=False, reason="the log has no timestamps")
     stamped.sort(key=lambda tr: tr[0])
@@ -506,9 +493,7 @@ def merge_into_flights(
     overlap and GPS refusals still apply to each attempt. Returns the
     winning report and track, or the last refusal and ``None``.
     """
-    candidates = [
-        t for t in tracks if any(p.utc is not None for p in t.points)
-    ]
+    candidates = [t for t in tracks if any(p.utc is not None for p in t.points)]
     if not candidates:
         return (
             MergeReport(

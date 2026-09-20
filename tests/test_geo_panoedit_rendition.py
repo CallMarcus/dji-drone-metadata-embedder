@@ -5,6 +5,7 @@ to load erratically after the first while the same folder at 6000x3000
 opened every image. The editor therefore serves a downscaled rendition and
 keeps the original untouched — these tests pin both halves of that promise.
 """
+
 from __future__ import annotations
 
 import io
@@ -25,7 +26,7 @@ _XMP = (
     b'<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>'
     b'<x:xmpmeta xmlns:x="adobe:ns:meta/">'
     b'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
-    b'<rdf:Description'
+    b"<rdf:Description"
     b' xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"'
     b' GPano:ProjectionType="equirectangular"'
     b' GPano:FullPanoWidthPixels="1200"'
@@ -34,7 +35,7 @@ _XMP = (
     b' GPano:CroppedAreaImageHeightPixels="600"'
     b' GPano:CroppedAreaTopPixels="0"'
     b' GPano:PoseHeadingDegrees="90"/>'
-    b"</rdf:RDF></x:xmpmeta><?xpacket end=\"w\"?>"
+    b'</rdf:RDF></x:xmpmeta><?xpacket end="w"?>'
 )
 
 
@@ -55,10 +56,10 @@ def test_rendition_caps_width_and_carries_gpano(tmp_path):
     dest = tmp_path / "small.jpg"
     assert pe.downscale_pano(src, dest, 600) == dest
     with Image.open(dest) as im:
-        assert im.size == (600, 300)          # aspect ratio preserved
-        assert im.info.get("xmp") == _XMP     # angles still derivable
+        assert im.size == (600, 300)  # aspect ratio preserved
+        assert im.info.get("xmp") == _XMP  # angles still derivable
     with Image.open(src) as im:
-        assert im.size == (1200, 600)         # source only ever read
+        assert im.size == (1200, 600)  # source only ever read
 
 
 def test_rendition_without_pillow_is_none(tmp_path, monkeypatch):
@@ -81,7 +82,7 @@ def test_rendition_refused_when_gpano_would_be_lost(tmp_path, monkeypatch):
 
     monkeypatch.setattr(Image.Image, "save", save_without_xmp)
     assert pe.downscale_pano(src, dest, 600) is None
-    assert not dest.exists()                  # no half-built leftovers
+    assert not dest.exists()  # no half-built leftovers
 
 
 def test_rendition_of_unreadable_file_is_none(tmp_path):
@@ -99,10 +100,26 @@ def editor(monkeypatch, tmp_path):
     big = _pano(tmp_path / "big.jpg", 1200, 600)
     small = _pano(tmp_path / "small.jpg", 400, 200, xmp=None)
     files = [
-        pe.PanoFile(path=big, name="big.jpg", pose=0.0, yaw=None,
-                    pitch=None, hfov=None, width=1200, height=600),
-        pe.PanoFile(path=small, name="small.jpg", pose=0.0, yaw=None,
-                    pitch=None, hfov=None, width=400, height=200),
+        pe.PanoFile(
+            path=big,
+            name="big.jpg",
+            pose=0.0,
+            yaw=None,
+            pitch=None,
+            hfov=None,
+            width=1200,
+            height=600,
+        ),
+        pe.PanoFile(
+            path=small,
+            name="small.jpg",
+            pose=0.0,
+            yaw=None,
+            pitch=None,
+            hfov=None,
+            width=400,
+            height=200,
+        ),
     ]
     monkeypatch.setattr(pe, "scan_panos", lambda d, recursive=False: files)
 
@@ -143,16 +160,19 @@ def test_rendition_is_built_once_and_cleaned_up(editor, monkeypatch):
     httpd, url = start(max_width=600)
     builds = []
     real = pe.downscale_pano
-    monkeypatch.setattr(pe, "downscale_pano", lambda src, dest, mw: (
-        builds.append(src) or real(src, dest, mw)))
+    monkeypatch.setattr(
+        pe,
+        "downscale_pano",
+        lambda src, dest, mw: builds.append(src) or real(src, dest, mw),
+    )
     _get(url + "img/0")
     _get(url + "img/0")
     assert len(builds) == 1
 
     cache = Path(httpd._cache.name)
-    assert list(cache.iterdir())              # the rendition lives here
+    assert list(cache.iterdir())  # the rendition lives here
     httpd.server_close()
-    assert not cache.exists()                 # and dies with the server
+    assert not cache.exists()  # and dies with the server
 
 
 def test_list_reports_size_and_downscaling(editor):
@@ -160,7 +180,9 @@ def test_list_reports_size_and_downscaling(editor):
     _, url = start(max_width=600)
     data = json.loads(_get(url + "api/list"))
     assert [(f["width"], f["height"], f["downscaled"]) for f in data] == [
-        (1200, 600, True), (400, 200, False)]
+        (1200, 600, True),
+        (400, 200, False),
+    ]
 
 
 def test_max_width_zero_serves_originals(editor):
@@ -200,8 +222,7 @@ def test_notice_reports_downscaling(editor):
     assert "not modified" in notice
 
 
-def test_notice_names_pillow_when_renditions_are_impossible(
-        editor, monkeypatch):
+def test_notice_names_pillow_when_renditions_are_impossible(editor, monkeypatch):
     monkeypatch.setattr(pe, "_pil_image", lambda: None)
     start, _ = editor
     httpd, _url = start(max_width=600)
@@ -293,17 +314,32 @@ def test_saving_drops_the_stale_rendition(editor, monkeypatch):
     # rewritten the original, that copy is out of date.
     start, _ = editor
     monkeypatch.setattr(
-        pe, "write_initial_view",
+        pe,
+        "write_initial_view",
         lambda path, heading, pitch, hfov, backup=True: {
-            "heading": heading, "pitch": pitch, "hfov": hfov, "pose": 0.0})
+            "heading": heading,
+            "pitch": pitch,
+            "hfov": hfov,
+            "pose": 0.0,
+        },
+    )
     httpd, url = start(max_width=600)
     _get(url + "img/0")
     assert 0 in httpd._renditions
     req = urllib.request.Request(
         url + "api/save",
-        data=json.dumps({"index": 0, "heading": 12.0, "pitch": 0.0,
-                         "hfov": 90.0, "token": httpd.pano_token}).encode(),
-        headers={"Content-Type": "application/json"}, method="POST")
+        data=json.dumps(
+            {
+                "index": 0,
+                "heading": 12.0,
+                "pitch": 0.0,
+                "hfov": 90.0,
+                "token": httpd.pano_token,
+            }
+        ).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     with urllib.request.urlopen(req, timeout=5) as resp:
         assert resp.status == 200
     assert 0 not in httpd._renditions
