@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-09-22
+
 ### Fixed
 
 - **doctor**: reports the FFmpeg version and the path it resolved to, not just "FOUND", so a stale copy first on PATH is visible at a glance (#579) (#580) (fef50d3)
@@ -22,26 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **installer**: the bundled FFmpeg moves from 8.1.2 to 9.0.2 (checksum-pinned; 9.0.1 was superseded before it shipped) (#577) (9d00479) (#578) (b5bcc0d)
 - Lint and formatting: ruff 0.16's default rule set adopted deliberately (431 rules, two real bugs above found on the way), `ruff format` replaces black as the formatter and is a fourth CI gate; a whole-tree reformat is listed in `.git-blame-ignore-revs` so blame stays useful (#561) (#582) (3d94e8f) (#584) (756f5e9) (#585) (1bdd98f) (#586) (852405c)
-
-## [2.16.1] - 2026-09-22
-
-### Fixed
-
-- **doctor**: Report the FFmpeg version and resolved path, not just FOUND (#580) (fef50d3)
-- **lint**: Settle the hand-review sites in src for ruff 0.16 (#561 stage 2) (#583) (71ec78c)
-
-### Maintenance
-
-- **installer**: Bump the bundled FFmpeg pin to 9.0.1 (#577) (9d00479)
-- **installer**: Bump the bundled FFmpeg pin to 9.0.2 (#578) (b5bcc0d)
-- **lint**: Adopt ruff 0.16's default rule set deliberately (#561 stages 3+4) (#584) (756f5e9)
-- **lint**: Apply ruff's safe auto-fixers across the tree (#561 stage 1) (#582) (3d94e8f)
-- Add .git-blame-ignore-revs for the ruff format reformat (#586) (852405c)
-
-### Other
-
-- Prepare version 2.16.1 (#587) (933066d)
-
 
 ## [2.16.0] - 2026-09-19
 
