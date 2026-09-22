@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **doctor**: reports the FFmpeg version and the path it resolved to, not just "FOUND", so a stale copy first on PATH is visible at a glance (#579) (#580) (fef50d3)
+- **GPX**: the `<metadata><time>` fallback stamped the machine's local time with a literal `Z`; it is now genuine UTC. The validator report's timestamp now carries its UTC offset (#561) (#583) (71ec78c)
+
+### Changed
+
+- **installer**: the bundled FFmpeg moves from 8.1.2 to 9.0.2 (checksum-pinned; 9.0.1 was superseded before it shipped) (#577) (9d00479) (#578) (b5bcc0d)
+- Lint and formatting: ruff 0.16's default rule set adopted deliberately (431 rules, two real bugs above found on the way), `ruff format` replaces black as the formatter and is a fourth CI gate; a whole-tree reformat is listed in `.git-blame-ignore-revs` so blame stays useful (#561) (#582) (3d94e8f) (#584) (756f5e9) (#585) (1bdd98f) (#586) (852405c)
+
 ## [2.16.0] - 2026-09-19
 
 ### Added
