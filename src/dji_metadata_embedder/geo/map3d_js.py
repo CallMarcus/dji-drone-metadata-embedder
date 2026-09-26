@@ -41,7 +41,7 @@ const PIN_PHOTO = '"""
     + """';
 const photoShown = { photo: true, pano: true };
 // Street level: past this zoom the source stops clustering altogether, so a
-// cluster whose expansion zoom lands above it never actually separates —
+// cluster whose expansion zoom lands above it never actually separates:
 // its points are stacked on the same pixel (see the cluster click handler
 // below). One constant feeds both the source option and that comparison.
 const CLUSTER_MAX_ZOOM = 17;
