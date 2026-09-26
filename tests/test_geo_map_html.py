@@ -81,7 +81,7 @@ def test_mixed_geojson_single_type_folders():
 
 
 _DATA_RE = re.compile(
-    r'<script type="application/json" id="map-data">(.*?)</script>',
+    r'<script type="application/json" id="(?:map|flight)-data">(.*?)</script>',
     re.DOTALL,
 )
 
@@ -198,3 +198,49 @@ def test_popup_builder_is_a_standalone_block():
     # ...and the 2D layer code still carries it exactly once.
     assert PHOTO_LAYER_JS.count("function buildPopup(") == 1
     assert PHOTO_POPUP_JS in PHOTO_LAYER_JS
+
+
+def test_3d_html_embeds_all_types_and_the_photo_layer():
+    from dji_metadata_embedder.geo.map_html import mixed_to_3d_html
+
+    html = mixed_to_3d_html(POINTS, TRACKS, title="t")
+    fc = _embedded(html)
+    assert sorted({f["properties"]["type"] for f in fc["features"]}) == [
+        "pano",
+        "photo",
+        "track",
+    ]
+    assert "maplibre-gl@5." in html and 'integrity="sha256-' in html
+    assert "photo-clusters" in html and "function buildPopup(" in html
+    assert "const photoHooks = {" in html
+    assert not re.search(r"__[A-Z_0-9]+__", html)
+    assert html.count("const esc =") == 1
+    assert "dji-embed" in html  # provenance stamp
+
+
+def test_3d_html_pano_viewer_is_link_gated():
+    from dji_metadata_embedder.geo.map_html import mixed_to_3d_html
+
+    pano = [PhotoPoint(lat=1.0, lon=2.0, alt=3.0, name="p.jpg", is_pano=True)]
+    assert "pannellum" not in mixed_to_3d_html(pano, [], title="t")
+    linked = mixed_to_3d_html(pano, [], title="t", link_base="")
+    assert "pannellum" in linked and 'id="pano-overlay"' in linked
+    assert "function openPano(" in linked
+
+
+def test_3d_html_renders_single_type_folders():
+    from dji_metadata_embedder.geo.map_html import mixed_to_3d_html
+
+    for html in (
+        mixed_to_3d_html(POINTS, [], title="t"),
+        mixed_to_3d_html([], TRACKS, title="t"),
+    ):
+        assert "<!DOCTYPE html>" in html
+        assert not re.search(r"__[A-Z_0-9]+__", html)
+
+
+def test_write_mixed_3d_html(tmp_path):
+    from dji_metadata_embedder.geo.map_html import write_mixed_3d_html
+
+    out = write_mixed_3d_html(POINTS, TRACKS, tmp_path / "map-3d.html", "t")
+    assert out.read_text(encoding="utf-8").lstrip().startswith("<!DOCTYPE html>")

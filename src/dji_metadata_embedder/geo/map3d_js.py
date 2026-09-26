@@ -1,0 +1,128 @@
+"""MapLibre photo layer for the combined map's 3D page (#514).
+
+``PHOTO_3D_JS`` is spliced into the 3D template's ``__PHOTO_3D_JS__`` slot
+after the loader has filled ``photoFeatures``. It reassigns the two
+``photoHooks`` the template always defines (``addLayers`` on map load,
+``panelRows`` while the layer panel is built) and is a no-op when the page
+carries no photo features. Popup HTML comes from the shared
+``PHOTO_POPUP_JS`` (``buildPopup``), spliced in ahead of this block by
+:func:`~.map_html.mixed_to_3d_html`.
+"""
+
+from __future__ import annotations
+
+# Same two colours as the 2D pin CSS (photomap_js.PHOTO_CSS), so the legend
+# means the same thing on both pages: blue is a photo, orange a 360° pano.
+PIN_PHOTO = "#2a81cb"
+PIN_PANO = "#f69730"
+
+PHOTO_3D_CSS = """  .photo-popup img { max-width: 260px; height: auto; display: block;
+                     margin-bottom: 4px; }
+  .photo-popup .photo-credit { opacity: .75; font-size: 90%; }
+  .pin-swatch { display: inline-block; width: 10px; height: 10px;
+                border-radius: 50%; border: 2px solid #fff;
+                box-shadow: 0 0 2px rgba(0,0,0,.5); vertical-align: -1px;
+                margin: 0 4px 0 2px; }"""
+
+PHOTO_3D_JS = (
+    """
+// --- Photo and panorama pins (#514): one clustered GeoJSON source, three
+// circle layers. No DOM markers (a 400-photo folder must not become 400
+// DOM nodes over WebGL) and no symbol text: the page declares no glyph
+// source, and adding a font server would break its keyless, self-contained
+// contract, so cluster size carries the count and a click expands it.
+const PIN_PHOTO = '"""
+    + PIN_PHOTO
+    + """', PIN_PANO = '"""
+    + PIN_PANO
+    + """';
+const photoShown = { photo: true, pano: true };
+
+function shownPhotoData() {
+  return { type: 'FeatureCollection',
+           features: photoFeatures.filter(f => photoShown[f.properties.type]) };
+}
+
+// A toggle rebuilds the source data rather than hiding a layer: clusters
+// mix both types, so hiding "photos" must also shrink the clusters.
+function applyPhotoVisibility() {
+  const src = map.getSource('photos');
+  if (src) src.setData(shownPhotoData());
+}
+
+photoHooks.addLayers = function () {
+  if (!photoFeatures.length) return;
+  map.addSource('photos', {
+    type: 'geojson', data: shownPhotoData(),
+    cluster: true,
+    clusterRadius: 50,     // px; a 7 px pin needs less than markercluster's 80
+    clusterMaxZoom: 17,    // street level: past it a stack of pins is honest
+    // Any pano in the cluster tints it orange, so the legend's "orange is a
+    // 360°" promise survives clustering.
+    clusterProperties: {
+      panos: ['+', ['case', ['==', ['get', 'type'], 'pano'], 1, 0]] },
+  });
+  map.addLayer({ id: 'photo-clusters', type: 'circle', source: 'photos',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': ['case', ['>', ['get', 'panos'], 0], PIN_PANO, PIN_PHOTO],
+      'circle-opacity': 0.7,
+      // 1 / 10 / 50 photos: the three sizes markercluster uses on the 2D map.
+      'circle-radius': ['step', ['get', 'point_count'], 14, 10, 18, 50, 22],
+      'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+  const pinLayer = (id, type, color) => map.addLayer({
+    id: id, type: 'circle', source: 'photos',
+    filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'type'], type]],
+    paint: { 'circle-color': color, 'circle-radius': 7,
+             'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
+  pinLayer('photo-pins', 'photo', PIN_PHOTO);
+  pinLayer('pano-pins', 'pano', PIN_PANO);
+  ['photo-clusters', 'photo-pins', 'pano-pins'].forEach(id => {
+    map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
+  });
+  map.on('click', 'photo-clusters', ev => {
+    const f = ev.features[0];
+    map.getSource('photos').getClusterExpansionZoom(f.properties.cluster_id)
+      .then(z => map.easeTo({ center: f.geometry.coordinates, zoom: z }));
+  });
+  const openPhotoPopup = ev => {
+    const f = ev.features[0];
+    const el = document.createElement('div');
+    el.innerHTML = buildPopup(f);   // every field passes through esc()
+    new maplibregl.Popup({ maxWidth: '300px' })
+      .setLngLat(f.geometry.coordinates).setDOMContent(el).addTo(map);
+  };
+  map.on('click', 'photo-pins', openPhotoPopup);
+  map.on('click', 'pano-pins', openPhotoPopup);
+};
+
+photoHooks.panelRows = function (panel) {
+  const present = t => photoFeatures.some(f => f.properties.type === t);
+  const row = (type, id, color, text) => {
+    if (!present(type)) return;
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = id;
+    box.checked = true;
+    box.addEventListener('change', () => {
+      photoShown[type] = box.checked;
+      applyPhotoVisibility();
+    });
+    label.appendChild(box);
+    const swatch = document.createElement('span');
+    swatch.className = 'pin-swatch';
+    swatch.style.background = color;
+    label.appendChild(swatch);
+    label.appendChild(document.createTextNode(text));
+    panel.appendChild(label);
+  };
+  row('photo', 'photo-toggle', PIN_PHOTO, 'Photos');
+  row('pano', 'pano-toggle', PIN_PANO, '360\\u00b0 panoramas');
+  if (present('photo') || present('pano')) {
+    if (flights.length) panel.appendChild(document.createElement('hr'));
+  }
+};
+"""
+)
