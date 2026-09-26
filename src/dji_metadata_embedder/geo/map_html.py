@@ -323,6 +323,9 @@ def mixed_to_3d_html(
         pano_overlay=PANO_OVERLAY if pano_enabled else "",
         pano_scripts=PANO_SCRIPT if pano_enabled else "",
         extra_js=PANO_JS if pano_enabled else "",
+        # The combined map's flat sibling is map.html, not flightmap.html;
+        # the no-WebGL fallback text names it (#514).
+        flat_map="map.html",
     )
 
 

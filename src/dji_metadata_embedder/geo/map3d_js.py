@@ -22,7 +22,10 @@ PHOTO_3D_CSS = """  .photo-popup img { max-width: 260px; height: auto; display: 
   .pin-swatch { display: inline-block; width: 10px; height: 10px;
                 border-radius: 50%; border: 2px solid #fff;
                 box-shadow: 0 0 2px rgba(0,0,0,.5); vertical-align: -1px;
-                margin: 0 4px 0 2px; }"""
+                margin: 0 4px 0 2px; }
+  /* A co-located-photo popup (#514 I2) stacks several .photo-popup bodies;
+     let it scroll rather than run off the bottom of the viewport. */
+  .maplibregl-popup-content { max-height: 70vh; overflow-y: auto; }"""
 
 PHOTO_3D_JS = (
     """
@@ -37,6 +40,11 @@ const PIN_PHOTO = '"""
     + PIN_PANO
     + """';
 const photoShown = { photo: true, pano: true };
+// Street level: past this zoom the source stops clustering altogether, so a
+// cluster whose expansion zoom lands above it never actually separates —
+// its points are stacked on the same pixel (see the cluster click handler
+// below). One constant feeds both the source option and that comparison.
+const CLUSTER_MAX_ZOOM = 17;
 
 function shownPhotoData() {
   return { type: 'FeatureCollection',
@@ -56,7 +64,7 @@ photoHooks.addLayers = function () {
     type: 'geojson', data: shownPhotoData(),
     cluster: true,
     clusterRadius: 50,     // px; a 7 px pin needs less than markercluster's 80
-    clusterMaxZoom: 17,    // street level: past it a stack of pins is honest
+    clusterMaxZoom: CLUSTER_MAX_ZOOM,
     // Any pano in the cluster tints it orange, so the legend's "orange is a
     // 360°" promise survives clustering.
     clusterProperties: {
@@ -81,20 +89,66 @@ photoHooks.addLayers = function () {
     map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
   });
+  // Builds one popup from however many photo features share the click (or
+  // the cluster): each feature's own buildPopup() body, concatenated, with
+  // a one-line count heading when there's more than one (#514 I2). Redact
+  // fuzz's 3-decimal grid and AEB/burst shots routinely land several photos
+  // on the same point, and past CLUSTER_MAX_ZOOM they share a pixel too, so
+  // "just show the top one" silently hides the rest.
+  const openPhotoPopup = (features, lngLat) => {
+    const el = document.createElement('div');
+    if (features.length > 1) {
+      const heading = document.createElement('p');
+      heading.textContent = `${features.length} photos here`;
+      el.appendChild(heading);
+    }
+    features.forEach(f => {
+      const body = document.createElement('div');
+      body.innerHTML = buildPopup(f);   // every field passes through esc()
+      el.appendChild(body);
+    });
+    new maplibregl.Popup({ maxWidth: '300px' })
+      .setLngLat(lngLat).setDOMContent(el).addTo(map);
+  };
   map.on('click', 'photo-clusters', ev => {
     const f = ev.features[0];
-    map.getSource('photos').getClusterExpansionZoom(f.properties.cluster_id)
-      .then(z => map.easeTo({ center: f.geometry.coordinates, zoom: z }));
+    const src = map.getSource('photos');
+    src.getClusterExpansionZoom(f.properties.cluster_id).then(z => {
+      if (z > CLUSTER_MAX_ZOOM) {
+        // This cluster never actually splits: even unclustered (past
+        // CLUSTER_MAX_ZOOM there's no clustering left to zoom into) its
+        // points render on the same pixel. Easing there would show a single
+        // pin and hide the rest, so list them here instead (the 2D map's
+        // marker cluster spiderfies the same case). getClusterLeaves is a
+        // Promise in MapLibre 5.
+        src.getClusterLeaves(f.properties.cluster_id, Infinity, 0)
+          .then(leaves => openPhotoPopup(leaves, f.geometry.coordinates));
+        return;
+      }
+      map.easeTo({ center: f.geometry.coordinates, zoom: z });
+    });
   });
-  const openPhotoPopup = ev => {
-    const f = ev.features[0];
-    const el = document.createElement('div');
-    el.innerHTML = buildPopup(f);   // every field passes through esc()
-    new maplibregl.Popup({ maxWidth: '300px' })
-      .setLngLat(f.geometry.coordinates).setDOMContent(el).addTo(map);
-  };
-  map.on('click', 'photo-pins', openPhotoPopup);
-  map.on('click', 'pano-pins', openPhotoPopup);
+  map.on('click', 'photo-pins', ev => {
+    openPhotoPopup(ev.features, ev.features[0].geometry.coordinates);
+  });
+  map.on('click', 'pano-pins', ev => {
+    openPhotoPopup(ev.features, ev.features[0].geometry.coordinates);
+  });
+};
+
+// #514 I1: a click on a pin also fires any flight click handler underneath
+// it, because MapLibre's layer-delegated listeners each run independently.
+// A drone photo sits on its own flight path by construction, and on the
+// flat map the pin is a DOM marker that swallows the click before it
+// reaches the track; here the flight handler must check this itself before
+// opening its own popup. photoFeatures.length guards a page with no photo
+// layers at all (queryRenderedFeatures on a layer id that was never added
+// throws).
+photoHooks.hits = function (point) {
+  if (!photoFeatures.length) return false;
+  return map.queryRenderedFeatures(point, {
+    layers: ['photo-clusters', 'photo-pins', 'pano-pins'],
+  }).length > 0;
 };
 
 photoHooks.panelRows = function (panel) {

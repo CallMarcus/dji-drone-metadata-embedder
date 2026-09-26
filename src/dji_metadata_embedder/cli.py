@@ -1719,30 +1719,21 @@ def map_cmd(
                 "not resolve",
                 err=True,
             )
+        # --serve is the map's only "link originals" switch: the served
+        # folder is where the videos live, so the crossfade can find them
+        # (#514). Unserved pages get no video links.
+        if three_d and serve_map:
+            resolve_media(tracks, src, "")
+        writer = write_mixed_3d_html if three_d else write_mixed_html
         try:
-            if three_d:
-                # --serve is the map's only "link originals" switch: the
-                # served folder is where the videos live, so the crossfade
-                # can find them (#514). Unserved pages get no video links.
-                if serve_map:
-                    resolve_media(tracks, src, "")
-                write_mixed_3d_html(
-                    points,
-                    tracks,
-                    out,
-                    src.resolve().name,
-                    link_base=link_base,
-                    redact=redact.lower(),
-                )
-            else:
-                write_mixed_html(
-                    points,
-                    tracks,
-                    out,
-                    src.resolve().name,
-                    link_base=link_base,
-                    redact=redact.lower(),
-                )
+            writer(
+                points,
+                tracks,
+                out,
+                src.resolve().name,
+                link_base=link_base,
+                redact=redact.lower(),
+            )
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
         progress.result(

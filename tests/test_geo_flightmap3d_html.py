@@ -84,6 +84,8 @@ def test_3d_html_has_degradation_paths():
     html = flights_to_3d_html([_track()], "t")
     assert "Terrain tiles unavailable" in html  # flat-view banner text
     assert "WebGL" in html  # no-WebGL fallback message
+    # #514 M1: the flight page's own flat sibling, not the combined map's.
+    assert "(flightmap.html)" in html
 
 
 def test_3d_html_has_flight_toggle_panel():

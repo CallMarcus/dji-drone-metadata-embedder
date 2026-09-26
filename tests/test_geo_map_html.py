@@ -216,6 +216,9 @@ def test_3d_html_embeds_all_types_and_the_photo_layer():
     assert not re.search(r"__[A-Z_0-9]+__", html)
     assert html.count("const esc =") == 1
     assert "dji-embed" in html  # provenance stamp
+    # #514 M1: the combined map's own flat sibling, not flightmap's.
+    assert "(map.html)" in html
+    assert "(flightmap.html)" not in html
 
 
 def test_3d_html_pano_viewer_is_link_gated():

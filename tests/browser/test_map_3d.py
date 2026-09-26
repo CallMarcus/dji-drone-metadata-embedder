@@ -135,6 +135,7 @@ def _click_feature(page, layer: str) -> None:
     """Click the screen position of the first rendered feature on *layer*."""
     pt = page.evaluate(
         "l => { const f = map.queryRenderedFeatures({ layers: [l] })[0];"
+        " if (!f) throw new Error('no rendered feature on ' + l);"
         " const p = map.project(f.geometry.coordinates); return [p.x, p.y]; }",
         layer,
     )
@@ -159,9 +160,15 @@ def test_photo_popup_shows_thumbnail_and_name(serve_map, page):
 
 
 def test_cluster_expands_on_click(serve_map, page):
+    # ~70 m apart: close enough to start as one cluster at the page's
+    # opening (fitBounds) zoom, far enough that it fully expands at zoom 16
+    # (well within CLUSTER_MAX_ZOOM), so this exercises the plain ease-in
+    # path (#514 I2 only diverts a click when the expansion zoom lands
+    # *past* that cap, covered separately by the co-located-photo tests
+    # below).
     near = [
         PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="a.jpg"),
-        PhotoPoint(lat=LAT + 0.00005, lon=LON, alt=1.0, name="b.jpg"),  # ~5 m
+        PhotoPoint(lat=LAT + 70 / 111320, lon=LON, alt=1.0, name="b.jpg"),
     ]
     _serve(serve_map, page, near, [])
     page.wait_for_function(
@@ -170,13 +177,80 @@ def test_cluster_expands_on_click(serve_map, page):
         timeout=15000,
     )
     assert _rendered(page, "photo-pins") == 0
+    zoom_before = page.evaluate("() => map.getZoom()")
     _click_feature(page, "photo-clusters")
     page.wait_for_function(
         "() => !map.isMoving() && "
         "map.queryRenderedFeatures({ layers: ['photo-pins'] }).length === 2",
         timeout=15000,
     )
-    assert page.evaluate("() => map.getZoom()") > 17
+    assert page.evaluate("() => map.getZoom()") > zoom_before
+    # The ease path opens no popup; that's reserved for the cluster-can't-
+    # expand case.
+    assert page.locator(".maplibregl-popup").count() == 0
+
+
+def test_photo_click_does_not_also_open_the_flight_popup(serve_map, page):
+    # A drone photo taken mid-flight sits on the track by construction; this
+    # pins one exactly on TRACK's first point (#514 I1).
+    on_track = PhotoPoint(
+        lat=TRACK.points[0].lat,
+        lon=TRACK.points[0].lon,
+        alt=1.0,
+        name="ontrack.jpg",
+    )
+    _serve(serve_map, page, [on_track], [TRACK])
+    page.wait_for_function(
+        "() => map.getLayer('photo-pins') && "
+        "map.queryRenderedFeatures({ layers: ['photo-pins'] }).length === 1",
+        timeout=15000,
+    )
+    _click_feature(page, "photo-pins")
+    expect(page.locator(".maplibregl-popup")).to_have_count(1)
+    expect(page.locator(".maplibregl-popup .photo-popup")).to_be_visible(timeout=10000)
+
+
+def test_colocated_photos_open_together_from_cluster(serve_map, page):
+    same = [
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="a.jpg"),
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="b.jpg"),
+    ]
+    _serve(serve_map, page, same, [])
+    page.wait_for_function(
+        "() => map.getLayer('photo-clusters') && "
+        "map.queryRenderedFeatures({ layers: ['photo-clusters'] }).length === 1",
+        timeout=15000,
+    )
+    _click_feature(page, "photo-clusters")
+    popup = page.locator(".maplibregl-popup")
+    expect(popup.locator(".photo-popup")).to_have_count(2, timeout=10000)
+    expect(popup).to_contain_text("2 photos here")
+    # Identical points never separate, however far the cluster is asked to
+    # expand, so the fix must list them rather than ease past clusterMaxZoom.
+    assert page.evaluate("() => map.getZoom()") <= 17
+
+
+def test_colocated_photos_open_together_from_pins(serve_map, page):
+    same = [
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="a.jpg"),
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="b.jpg"),
+    ]
+    _serve(serve_map, page, same, [])
+    page.wait_for_function("() => map.getLayer('photo-clusters')", timeout=15000)
+    # Past clusterMaxZoom the source stops clustering, so both identical
+    # points render as separate photo-pins features stacked on one pixel.
+    page.evaluate(
+        "([lon, lat]) => map.jumpTo({ center: [lon, lat], zoom: 19 })",
+        [LON, LAT],
+    )
+    page.wait_for_function(
+        "() => map.getLayer('photo-pins') && "
+        "map.queryRenderedFeatures({ layers: ['photo-pins'] }).length === 2",
+        timeout=15000,
+    )
+    _click_feature(page, "photo-pins")
+    popup = page.locator(".maplibregl-popup")
+    expect(popup.locator(".photo-popup")).to_have_count(2, timeout=10000)
 
 
 def test_pano_popup_opens_the_viewer_overlay(serve_map, page):

@@ -192,7 +192,8 @@ const photoFeatures = [];
 
 // Photo hooks (#514): the combined map's photo JS reassigns these; the
 // flight-only page keeps the no-ops so the call sites need no guards.
-const photoHooks = { addLayers() {}, panelRows(panel) {} };
+// hits() defaults to false: a flight-only page has no photo pins to hit.
+const photoHooks = { addLayers() {}, panelRows(panel) {}, hits() { return false; } };
 __PHOTO_3D_JS__
 
 function showNote(text, dismissible) {
@@ -247,7 +248,7 @@ try {
   // No WebGL (or MapLibre failed to start): plain-HTML fallback.
   document.getElementById('map').innerHTML =
     '<p class="fallback">This 3D view needs WebGL, which this browser ' +
-    'does not provide. The flat map (flightmap.html) shows the same ' +
+    'does not provide. The flat map (__FLAT_MAP__) shows the same ' +
     'flights without it.</p>';
 }
 
@@ -280,6 +281,12 @@ if (map) {
           paint: { 'circle-color': f.color, 'circle-radius': 6 } });
       }
       map.on('click', f.id, ev => {
+        // #514 I1: a drone photo sits on its own flight path by
+        // construction, so a click there also lands on this line/point
+        // layer; MapLibre fires both layers' click handlers independently.
+        // On the flat map the pin is a DOM marker that swallows the click
+        // first, so let the photo layer keep the popup here too.
+        if (photoHooks.hits(ev.point)) return;
         const el = document.createElement('div');
         el.innerHTML = popupHtml(f.props);
         const popup = new maplibregl.Popup({ maxWidth: '320px' })
@@ -1159,6 +1166,7 @@ def render_3d_html(
     pano_overlay: str = "",
     pano_scripts: str = "",
     extra_js: str = "",
+    flat_map: str = "flightmap.html",
 ) -> str:
     """Render *geojson* (a flight FeatureCollection, or the combined map's
     type-tagged one) as the 3D-terrain page.
@@ -1168,6 +1176,9 @@ def render_3d_html(
     overlay. ``photo_js`` fills the ``__PHOTO_3D_JS__`` splice and
     ``extra_css`` / ``pano_*`` / ``extra_js`` the matching template slots;
     all default to empty, which is the ``flightmap --3d`` page (#514).
+    ``flat_map`` names the no-WebGL fallback's flat sibling page: the
+    combined map (#514) passes ``"map.html"``, since its flat page isn't
+    ``flightmap.html``.
     """
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
@@ -1187,6 +1198,7 @@ def render_3d_html(
         .replace("__OSM_TILES__", _OSM_TILES)
         .replace("__MAPTERHORN__", _MAPTERHORN_TILEJSON)
         .replace("__CREDIT__", attribution_credit())
+        .replace("__FLAT_MAP__", flat_map)
     ) + extra_js
     return stamp(
         _TEMPLATE.format(
