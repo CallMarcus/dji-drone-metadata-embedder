@@ -8,6 +8,7 @@ unless it opts into ``terrain_stub``; pins do not need terrain to render.
 
 import base64
 import io
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -128,3 +129,67 @@ def test_tracks_only_page_has_no_photo_rows(serve_map, page):
     expect(page.locator("#flights-panel")).to_be_visible(timeout=15000)
     expect(page.locator("#photo-toggle")).to_have_count(0)
     assert page.evaluate("() => map.getSource('photos') === undefined")
+
+
+def _click_feature(page, layer: str) -> None:
+    """Click the screen position of the first rendered feature on *layer*."""
+    pt = page.evaluate(
+        "l => { const f = map.queryRenderedFeatures({ layers: [l] })[0];"
+        " const p = map.project(f.geometry.coordinates); return [p.x, p.y]; }",
+        layer,
+    )
+    box = page.locator("#map canvas").first.bounding_box()
+    page.mouse.click(box["x"] + pt[0], box["y"] + pt[1])
+
+
+def test_photo_popup_shows_thumbnail_and_name(serve_map, page):
+    _serve(serve_map, page, [PHOTO], [TRACK])
+    page.wait_for_function(
+        "() => map.getLayer('photo-pins') && "
+        "map.queryRenderedFeatures({ layers: ['photo-pins'] }).length === 1",
+        timeout=15000,
+    )
+    _click_feature(page, "photo-pins")
+    popup = page.locator(".maplibregl-popup .photo-popup")
+    expect(popup).to_be_visible(timeout=10000)
+    expect(popup.locator("img")).to_have_attribute(
+        "src", re.compile(r"^data:image/jpeg;base64,")
+    )
+    expect(popup).to_contain_text("church.jpg")
+
+
+def test_cluster_expands_on_click(serve_map, page):
+    near = [
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="a.jpg"),
+        PhotoPoint(lat=LAT + 0.00005, lon=LON, alt=1.0, name="b.jpg"),  # ~5 m
+    ]
+    _serve(serve_map, page, near, [])
+    page.wait_for_function(
+        "() => map.getLayer('photo-clusters') && "
+        "map.queryRenderedFeatures({ layers: ['photo-clusters'] }).length === 1",
+        timeout=15000,
+    )
+    assert _rendered(page, "photo-pins") == 0
+    _click_feature(page, "photo-clusters")
+    page.wait_for_function(
+        "() => !map.isMoving() && "
+        "map.queryRenderedFeatures({ layers: ['photo-pins'] }).length === 2",
+        timeout=15000,
+    )
+    assert page.evaluate("() => map.getZoom()") > 17
+
+
+def test_pano_popup_opens_the_viewer_overlay(serve_map, page):
+    _serve(serve_map, page, [PANO], [], link_base="")
+    page.wait_for_function(
+        "() => map.getLayer('pano-pins') && "
+        "map.queryRenderedFeatures({ layers: ['pano-pins'] }).length === 1",
+        timeout=15000,
+    )
+    _click_feature(page, "pano-pins")
+    anchor = page.locator(".maplibregl-popup a.pano-open")
+    expect(anchor).to_be_visible(timeout=10000)
+    anchor.click()
+    expect(page.locator("#pano-overlay")).to_be_visible(timeout=10000)
+    page.keyboard.press("Escape")
+    expect(page.locator("#pano-overlay")).to_be_hidden()
