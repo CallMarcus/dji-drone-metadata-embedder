@@ -634,7 +634,7 @@ def test_geojson_pose_arrays_absent_without_data():
 
     fc = flights_to_geojson([_ghost_track()])
     props = fc["features"][0]["properties"]
-    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "hfov_deg", "vfov_deg"):
+    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "hfov_deg", "vfov_deg", "datum_m"):
         assert key not in props
 
 
@@ -645,8 +645,28 @@ def test_geojson_pose_arrays_not_on_single_fix_point():
     track.points = track.points[:1]
     fc = flights_to_geojson([track])
     assert fc["features"][0]["geometry"]["type"] == "Point"
-    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "hfov_deg", "vfov_deg"):
+    for key in ("gyaw_deg", "gpitch_deg", "agl_m", "hfov_deg", "vfov_deg", "datum_m"):
         assert key not in fc["features"][0]["properties"]
+
+
+def test_geojson_datum_is_median_of_abs_minus_rel():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    # _ghost_track alts are 100, 101, 102; datums 80.0, 70.6, 82.0 -> median 80.0
+    track = _ghost_track(rel_alt=20.0)
+    track.points[1].rel_alt = 30.4
+    fc = flights_to_geojson([track])
+    assert fc["features"][0]["properties"]["datum_m"] == 80.0
+
+
+def test_geojson_datum_skips_points_without_rel_alt():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    # Only the middle point carries rel_alt; the others must not count as 0.
+    track = _ghost_track()
+    track.points[1].rel_alt = 1.0  # alt 101 -> datum 100.0
+    fc = flights_to_geojson([track])
+    assert fc["features"][0]["properties"]["datum_m"] == 100.0
 
 
 def test_geojson_vfov_from_median_focal():
