@@ -575,12 +575,13 @@ videos require ExifTool; SRT flight tracks don't.
 dji-embed map /path/to/folder                 # -> folder/map.html
 dji-embed map /path/to/folder --serve         # local server + 360° viewer
 dji-embed map /path/to/folder --redact fuzz   # coarsen all GPS to ~100 m
+dji-embed map /path/to/folder --3d            # -> folder/map-3d.html, over terrain
 ```
 
 Photos cluster and toggle exactly like `photomap`; flights draw and play
-back exactly like `flightmap`. Reach for those two commands when you need
-KML/GeoJSON output, popup control, linked originals, basemap styles, or
-the 3D map.
+back exactly like `flightmap`, and `--3d` gives the whole folder the 3D
+terrain view. Reach for those two commands when you need KML/GeoJSON
+output, popup control, linked originals, basemap styles, or airspace.
 
 ### `dji-embed photomap` - Map Still Photos
 

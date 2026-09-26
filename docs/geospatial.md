@@ -724,6 +724,7 @@ dji-embed photomap /path/to/photos --redact fuzz
 dji-embed map ./mixed-folder                  # -> mixed-folder/map.html
 dji-embed map ./mixed-folder --serve          # local server + 360° viewer
 dji-embed map ./mixed-folder --redact fuzz    # ~100 m coarsened photos and tracks
+dji-embed map ./mixed-folder --3d             # -> mixed-folder/map-3d.html
 ```
 
 The simple mode (#322): point `map` at a folder that mixes photos,
@@ -746,8 +747,17 @@ default.
 
 Reach for `photomap` or `flightmap` instead when you need KML/GeoJSON
 output, `--popup-fields`, `--link-originals`/`--link-base`, `--tile-style`,
-`--tz-offset`, or the 3D terrain view — `map` deliberately doesn't expose
+`--tz-offset`, or airspace overlays — `map` deliberately doesn't expose
 them.
+
+`--3d` writes `map-3d.html` next to (never instead of) the flat map and
+renders the same folder over real terrain: photo and panorama pins sit on
+the ground where they were taken and cluster as you zoom out, tracks drape
+over the relief, and every flight gets the cockpit view, sculpture, gaze
+and playback described under [3D terrain view](#3d-terrain-view). With
+`--serve`, the flight videos are linked too, so the cockpit's crossfade
+works. The page needs WebGL and fetches terrain tiles from the network;
+without either it falls back exactly as the flightmap 3D page does.
 
 `--redact fuzz` coarsens every photo and flight to ~100 m before the map is
 written, the same as `photomap` and `flightmap`. Combined with `--serve`,

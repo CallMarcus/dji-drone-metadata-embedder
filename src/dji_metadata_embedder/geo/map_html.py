@@ -17,7 +17,9 @@ from html import escape
 from pathlib import Path
 
 from .flightmap import flights_to_geojson
+from .flightmap3d_html import render_3d_html
 from .flightmap_js import FLIGHT_POPUP_JS, PLAYBACK_JS
+from .map3d_js import PHOTO_3D_CSS, PHOTO_3D_JS
 from .photomap import PhotoPoint, photos_to_geojson
 from .photomap_js import (
     CLUSTER_CSS_SRI,
@@ -31,6 +33,7 @@ from .photomap_js import (
     PANO_SCRIPT,
     PHOTO_CSS,
     PHOTO_LAYER_JS,
+    PHOTO_POPUP_JS,
 )
 from .provenance import stamp
 from .tiles import DEFAULT_TILE_STYLE, tile_layer_js
@@ -291,4 +294,54 @@ def write_mixed_html(
         encoding="utf-8",
     )
     logger.info("HTML combined map created: %s", output_path)
+    return output_path
+
+
+def mixed_to_3d_html(
+    points: list[PhotoPoint],
+    tracks: list[Track],
+    title: str,
+    *,
+    link_base: str | None = None,
+    redact: str = "none",
+) -> str:
+    """Return the combined map over 3D terrain (#514).
+
+    The same type-tagged collection as :func:`mixed_to_html`, rendered by
+    the flightmap 3D page with a MapLibre photo layer spliced in. The
+    ghost camera, sculpture, gaze and crossfade all come along unchanged;
+    ``link_base`` gates the 360° viewer exactly as in 2D.
+    """
+    geojson = mixed_to_geojson(points, tracks, link_base=link_base, redact=redact)
+    pano_enabled = link_base is not None and any(p.is_pano for p in points)
+    return render_3d_html(
+        geojson,
+        title,
+        photo_js=PHOTO_POPUP_JS + PHOTO_3D_JS,
+        extra_css=PHOTO_3D_CSS,
+        pano_head=PANO_HEAD if pano_enabled else "",
+        pano_overlay=PANO_OVERLAY if pano_enabled else "",
+        pano_scripts=PANO_SCRIPT if pano_enabled else "",
+        extra_js=PANO_JS if pano_enabled else "",
+        # The combined map's flat sibling is map.html, not flightmap.html;
+        # the no-WebGL fallback text names it (#514).
+        flat_map="map.html",
+    )
+
+
+def write_mixed_3d_html(
+    points: list[PhotoPoint],
+    tracks: list[Track],
+    output_path: Path,
+    title: str,
+    *,
+    link_base: str | None = None,
+    redact: str = "none",
+) -> Path:
+    """Write the 3D combined map to *output_path* and return it."""
+    output_path.write_text(
+        mixed_to_3d_html(points, tracks, title, link_base=link_base, redact=redact),
+        encoding="utf-8",
+    )
+    logger.info("HTML 3D combined map created: %s", output_path)
     return output_path

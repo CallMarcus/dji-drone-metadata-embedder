@@ -24,8 +24,8 @@ dji-embed /path/to/footage    # -> flightmap.html (and photomap.html) open in th
 ```
 
 For one combined map instead — photos, panoramas and flight tracks
-together — use `dji-embed map <folder>`; airspace overlays, flight
-records and the panorama tools are covered in
+together — use `dji-embed map <folder>` (add `--3d` for the terrain view);
+airspace overlays, flight records and the panorama tools are covered in
 [Maps & Panoramas](geospatial.md).
 
 ## 3D terrain view

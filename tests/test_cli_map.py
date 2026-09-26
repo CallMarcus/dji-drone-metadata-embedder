@@ -234,3 +234,44 @@ def test_map_pano_thumbs_degrade_without_pillow(monkeypatch, tmp_path):
     assert res.exit_code == 0, res.output  # degradation, not an error
     assert (tmp_path / "map.html").exists()
     assert "Note: opening-view thumbnails need Pillow" in res.output
+
+
+def test_map_3d_writes_map_3d_html(monkeypatch, tmp_path):
+    _mock_scans(monkeypatch)
+    res = CliRunner().invoke(main, ["map", str(tmp_path), "--3d"])
+    assert res.exit_code == 0, res.output
+    out = tmp_path / "map-3d.html"
+    assert out.exists() and not (tmp_path / "map.html").exists()
+    html = out.read_text(encoding="utf-8")
+    assert "maplibre-gl" in html and "photo-clusters" in html
+
+
+def test_map_3d_output_flag_still_wins(monkeypatch, tmp_path):
+    _mock_scans(monkeypatch)
+    out = tmp_path / "custom.html"
+    res = CliRunner().invoke(main, ["map", str(tmp_path), "--3d", "-o", str(out)])
+    assert res.exit_code == 0, res.output
+    assert out.exists() and not (tmp_path / "map-3d.html").exists()
+
+
+def test_map_3d_serve_resolves_video_media(monkeypatch, tmp_path):
+    _mock_scans(monkeypatch)
+    calls = []
+    monkeypatch.setattr(
+        cli_mod, "resolve_media", lambda tracks, root, base: calls.append(base)
+    )
+    monkeypatch.setattr(cli_mod, "serve_directory", lambda *a, **k: None)
+    res = CliRunner().invoke(main, ["map", str(tmp_path), "--3d", "--serve"])
+    assert res.exit_code == 0, res.output
+    assert calls == [""]
+
+
+def test_map_3d_without_serve_does_not_resolve_media(monkeypatch, tmp_path):
+    _mock_scans(monkeypatch)
+    calls = []
+    monkeypatch.setattr(
+        cli_mod, "resolve_media", lambda tracks, root, base: calls.append(base)
+    )
+    res = CliRunner().invoke(main, ["map", str(tmp_path), "--3d"])
+    assert res.exit_code == 0, res.output
+    assert calls == []

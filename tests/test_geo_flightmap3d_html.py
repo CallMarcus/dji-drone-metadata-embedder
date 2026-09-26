@@ -84,6 +84,8 @@ def test_3d_html_has_degradation_paths():
     html = flights_to_3d_html([_track()], "t")
     assert "Terrain tiles unavailable" in html  # flat-view banner text
     assert "WebGL" in html  # no-WebGL fallback message
+    # #514 M1: the flight page's own flat sibling, not the combined map's.
+    assert "(flightmap.html)" in html
 
 
 def test_3d_html_has_flight_toggle_panel():
@@ -189,3 +191,39 @@ def test_write_flights_3d_html(tmp_path):
     result = write_flights_3d_html([_track()], out, "trip")
     assert result == out
     assert out.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+
+
+def test_render_3d_html_takes_a_collection_and_slots():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+    from dji_metadata_embedder.geo.flightmap3d_html import render_3d_html
+
+    fc = flights_to_geojson([_track()])
+    html = render_3d_html(
+        fc,
+        "t",
+        photo_js="/* PHOTO-JS-MARKER */",
+        extra_css=".marker-css {}",
+        pano_head="<!-- PANO-HEAD -->",
+        pano_overlay="<!-- PANO-OVERLAY -->",
+        pano_scripts="<!-- PANO-SCRIPT -->",
+        extra_js="/* EXTRA-JS */",
+    )
+    assert "/* PHOTO-JS-MARKER */" in html
+    assert ".marker-css {}" in html
+    assert html.index("<!-- PANO-HEAD -->") < html.index("<body>")
+    assert html.index("<!-- PANO-OVERLAY -->") < html.index("</body>")
+    assert html.index("maplibre-gl.js") < html.index("<!-- PANO-SCRIPT -->")
+    assert "/* EXTRA-JS */" in html
+    assert not re.search(r"__[A-Z_0-9]+__", html)
+
+
+def test_flight_page_has_no_photo_code():
+    from dji_metadata_embedder.geo.flightmap3d_html import flights_to_3d_html
+
+    html = flights_to_3d_html([_track()], "t")
+    assert "pannellum" not in html
+    assert "photo-clusters" not in html
+    assert not re.search(r"__[A-Z_0-9]+__", html)
+    # The hooks the combined map fills in are present as no-ops.
+    assert "const photoHooks = {" in html
+    assert "const photoFeatures = [];" in html
