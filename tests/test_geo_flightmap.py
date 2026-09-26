@@ -669,6 +669,22 @@ def test_geojson_datum_skips_points_without_rel_alt():
     assert fc["features"][0]["properties"]["datum_m"] == 100.0
 
 
+def test_geojson_datum_ignores_the_zero_altitude_fallback():
+    from dji_metadata_embedder.geo.flightmap import flights_to_geojson
+
+    # The video readers report alt 0.0 when AbsoluteAltitude is missing; a
+    # datum built from those would be -rel_alt and pair unrelated clips that
+    # merely flew at the same height (#550 review).
+    track = _ghost_track(rel_alt=120.0)
+    for pt in track.points:
+        pt.alt = 0.0
+    fc = flights_to_geojson([track])
+    assert "datum_m" not in fc["features"][0]["properties"]
+    track.points[2].alt = 200.0  # one real fix -> datum 80.0 from it alone
+    fc = flights_to_geojson([track])
+    assert fc["features"][0]["properties"]["datum_m"] == 80.0
+
+
 def test_geojson_vfov_from_median_focal():
     from dji_metadata_embedder.geo.flightmap import flights_to_geojson
 

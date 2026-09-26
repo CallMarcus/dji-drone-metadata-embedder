@@ -324,7 +324,8 @@ ground contact at all first looks for a sibling in the same folder launched
 from the same spot: DJI's absolute altitude minus its height above takeoff
 is the takeoff altitude, stable within one power cycle, so two clips that
 agree on it to within half a metre share a launch site, and the one that
-touched the ground lends its reference. The cockpit view badges that
+touched the ground lends its reference (DJI clips only: Parrot reports
+height above ground, not above takeoff). The cockpit view badges that
 *ground reference borrowed from* the lending clip. With no such sibling the
 clip falls back to its first sample, badged *ground reference estimated* so
 you know the heights are a guess.
