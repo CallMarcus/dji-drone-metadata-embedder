@@ -108,8 +108,8 @@ Every command accepts `--help` for its options.
 - **"Map everything in this folder, including subfolders":**
   `dji-embed map D:\Drone` → one `map.html` with photos, panoramas and
   flight tracks together (subfolders always included; add `--serve` for
-  the 360° viewer). For just photos with more options:
-  `dji-embed photomap D:\Photos -r`; just flights:
+  the 360° viewer, `--3d` for the terrain view). For just photos with more
+  options: `dji-embed photomap D:\Photos -r`; just flights:
   `dji-embed flightmap D:\Footage`.
 - **"Show official drone zones around my flights":**
   `dji-embed flightmap D:\Footage --airspace` — overlays published zones
