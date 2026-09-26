@@ -253,6 +253,32 @@ def test_colocated_photos_open_together_from_pins(serve_map, page):
     expect(popup.locator(".photo-popup")).to_have_count(2, timeout=10000)
 
 
+def test_colocated_photo_and_pano_open_in_one_popup(serve_map, page):
+    """A photo and a pano at the same point live on different pin layers;
+    one click must still open one popup listing both, not one per layer."""
+    same = [
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="a.jpg"),
+        PhotoPoint(lat=LAT, lon=LON, alt=1.0, name="b.jpg", is_pano=True),
+    ]
+    _serve(serve_map, page, same, [])
+    page.wait_for_function("() => map.getLayer('photo-clusters')", timeout=15000)
+    page.evaluate(
+        "([lon, lat]) => map.jumpTo({ center: [lon, lat], zoom: 19 })",
+        [LON, LAT],
+    )
+    page.wait_for_function(
+        "() => map.getLayer('pano-pins') && "
+        "map.queryRenderedFeatures({ layers: ['photo-pins', 'pano-pins'] })"
+        ".length === 2",
+        timeout=15000,
+    )
+    _click_feature(page, "pano-pins")
+    expect(page.locator(".maplibregl-popup")).to_have_count(1, timeout=10000)
+    popup = page.locator(".maplibregl-popup")
+    expect(popup.locator(".photo-popup")).to_have_count(2)
+    expect(popup).to_contain_text("2 photos here")
+
+
 def test_pano_popup_opens_the_viewer_overlay(serve_map, page):
     _serve(serve_map, page, [PANO], [], link_base="")
     page.wait_for_function(

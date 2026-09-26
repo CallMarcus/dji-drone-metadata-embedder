@@ -128,11 +128,13 @@ photoHooks.addLayers = function () {
       map.easeTo({ center: f.geometry.coordinates, zoom: z });
     });
   });
-  map.on('click', 'photo-pins', ev => {
-    openPhotoPopup(ev.features, ev.features[0].geometry.coordinates);
-  });
-  map.on('click', 'pano-pins', ev => {
-    openPhotoPopup(ev.features, ev.features[0].geometry.coordinates);
+  // One handler across both pin layers, not one per layer: a photo and a
+  // pano at the same point past CLUSTER_MAX_ZOOM would otherwise open two
+  // popups (each layer-bound handler sees only its own layer's features).
+  map.on('click', ev => {
+    const hits = map.queryRenderedFeatures(ev.point,
+                                           { layers: ['photo-pins', 'pano-pins'] });
+    if (hits.length) openPhotoPopup(hits, hits[0].geometry.coordinates);
   });
 };
 
