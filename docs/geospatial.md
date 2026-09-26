@@ -320,8 +320,15 @@ The takeoff point is a sample where the aircraft was on the ground, not
 simply the first sample: if you pressed record after launching, the clip
 starts airborne, often over terrain quite unlike the launch site, and the
 landing at the end of the clip gives the reference instead. A clip with no
-ground contact at all falls back to its first sample, and the cockpit view
-badges it *ground reference estimated* so you know the heights are a guess.
+ground contact at all first looks for a sibling in the same folder launched
+from the same spot: DJI's absolute altitude minus its height above takeoff
+is the takeoff altitude, stable within one power cycle, so two clips that
+agree on it to within half a metre share a launch site, and the one that
+touched the ground lends its reference (DJI clips only: Parrot reports
+height above ground, not above takeoff). The cockpit view badges that
+*ground reference borrowed from* the lending clip. With no such sibling the
+clip falls back to its first sample, badged *ground reference estimated* so
+you know the heights are a guess.
 
 Where the terrain model is unavailable the curtain falls back to plain height
 above takeoff. Segments where the drone works out to be at or below the

@@ -444,6 +444,9 @@ def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
     ``hfov_deg``/``vfov_deg`` are per-flight (median focal length) — DJI
     zooms mid-flight rarely enough that one value per flight is honest. The
     3D gaze sizes the camera footprint from them (#378).
+    ``datum_m`` is the per-flight median of ``alt - rel_alt`` over points
+    with a real absolute altitude: DJI's takeoff altitude in the GPS datum
+    (#550).
     """
     for key, attr in (
         ("gyaw_deg", "gimbal_yaw"),
@@ -461,6 +464,21 @@ def _add_ghost_props(properties: dict, points: list[TrackPoint]) -> None:
         hfov, vfov = fov_degrees(DEFAULT_LENS, median(focals))
         properties["hfov_deg"] = round(hfov, 1)
         properties["vfov_deg"] = round(vfov, 1)
+    # The takeoff altitude in the GPS datum (#550): DJI's abs_alt - rel_alt
+    # is stable within one power cycle (observed to a decimetre; the 3D page
+    # pairs within half a metre), so two clips that agree were launched from
+    # the same spot, and the page lends one clip's ground reference to a
+    # sibling that never touched the ground. Points whose absolute altitude
+    # is exactly 0.0 are skipped: the video readers fall back to 0.0 when
+    # the tag is missing, and a datum of -rel_alt would pair unrelated clips
+    # that merely cruised at the same height. (Parrot's rel_alt is distance
+    # to ground, not to takeoff, so its datum is a ground altitude; it never
+    # pairs with a DJI clip and the page's model is DJI-shaped anyway.)
+    datums = [
+        p.alt - p.rel_alt for p in points if p.rel_alt is not None and p.alt != 0.0
+    ]
+    if datums:
+        properties["datum_m"] = round(median(datums), 1)
 
 
 def _add_media_props(properties: dict, track: Track) -> None:
@@ -490,7 +508,7 @@ def flights_to_geojson(tracks: list[Track], redact: str = "none") -> dict:
     Each flight is a ``LineString`` carrying name/start/duration/altitude
     summary properties plus ``times_s`` — per-point seconds relative to the
     flight start — which drives the HTML viewer's playback animation (#267).
-    LineStrings also carry per-point ghost-camera pose arrays (``gyaw_deg``/``gpitch_deg``/``agl_m``) and per-flight ``hfov_deg``/``vfov_deg`` when the telemetry has them (#372).
+    LineStrings also carry per-point ghost-camera pose arrays (``gyaw_deg``/``gpitch_deg``/``agl_m``), per-flight ``hfov_deg``/``vfov_deg`` when the telemetry has them (#372), and ``datum_m`` (median ``alt - rel_alt``) when ``rel_alt`` is present (#550).
     They also carry ``media`` (per-segment video hrefs), ``cue_s`` (each
     point's in-file video offset), and ``seg_i`` (each point's segment
     index) once :func:`..media.resolve_media` has linked originals (#380).

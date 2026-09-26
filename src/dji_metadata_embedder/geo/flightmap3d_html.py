@@ -162,6 +162,7 @@ const allCoords = [];
     entry.gyaw = p.gyaw_deg || null;
     entry.gpitch = p.gpitch_deg || null;
     entry.agl = p.agl_m || null;
+    entry.datum = typeof p.datum_m === 'number' ? p.datum_m : null;
     entry.vfov = p.vfov_deg || null;
     entry.hfov = p.hfov_deg || null;
     entry.media = p.media || null;
@@ -479,7 +480,7 @@ function terrainElevAt(lngLat) {
 // rel_alt reads -0.1..0.3 m at rest, so half a metre never catches a hover.
 const GROUND_AGL_M = 0.5;
 
-function groundRef(fl) {
+function ownGroundRef(fl) {
   // The DEM elevation the flight's rel_alt is measured from (#548).
   // rel_alt is relative to the real takeoff point, NOT to wherever the
   // recording happened to start: a clip whose first sample is airborne
@@ -503,6 +504,31 @@ function groundRef(fl) {
   }
   const p = fl.pts[idx];
   return { elev: terrainElevAt([p[0], p[1]]), idx: idx, estimated: estimated };
+}
+
+// Half a metre: DJI's abs_alt - rel_alt (datum_m) agrees to a decimetre
+// between clips of one power cycle, while the next launch site, or the
+// next day's GPS fix, is metres away (#550).
+const DATUM_TOL_M = 0.5;
+
+function groundRef(fl) {
+  // A clip with no ground contact at all borrows its reference from a
+  // sibling launched from the same spot (#550): matching datum_m means the
+  // same takeoff point, hence the same DEM elevation under it. Closest
+  // datum wins; a sibling whose own reference is itself a guess is skipped.
+  const own = ownGroundRef(fl);
+  if (!own.estimated || fl.datum == null) return own;
+  let best = null, bestDiff = Infinity;
+  flights.forEach(other => {
+    if (other === fl || other.datum == null || !other.pts) return;
+    const diff = Math.abs(other.datum - fl.datum);
+    if (diff > DATUM_TOL_M || diff >= bestDiff) return;
+    const ref = ownGroundRef(other);
+    if (ref.estimated || typeof ref.elev !== 'number') return;
+    best = { elev: ref.elev, idx: own.idx, estimated: false, borrowed: other.name };
+    bestDiff = diff;
+  });
+  return best || own;
 }
 
 function takeoffElev(fl) {
@@ -698,8 +724,12 @@ function updateHud() {
   };
   if (pose.clamped) badge('pitch clamped to ' + GHOST_MAX_PITCH + '\\u00b0');
   if (pose.estimated) badge('estimated view \\u2014 no gimbal data');
-  if (fl.agl && groundRef(fl).estimated) {
-    badge('ground reference estimated \\u2014 clip started airborne');
+  if (fl.agl) {
+    const ref = groundRef(fl);
+    if (ref.borrowed) badge('ground reference borrowed from ' + ref.borrowed);
+    else if (ref.estimated) {
+      badge('ground reference estimated \\u2014 clip started airborne');
+    }
   }
   if (REDACTED === 'fuzz') badge('position fuzzed ~100 m');
 }
