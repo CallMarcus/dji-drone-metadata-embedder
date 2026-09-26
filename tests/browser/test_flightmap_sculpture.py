@@ -861,8 +861,8 @@ def test_airborne_clip_borrows_a_matching_siblings_reference(serve_map, page):
         "ground reference borrowed from DJI_0001", timeout=10000
     )
     # Not the narrower "estimated" substring: the fixture has no gimbal data,
-    # so the unrelated pose-estimation badge ("estimated view — no
-    # gimbal data", #372) always fires here too.
+    # so the unrelated pose-estimation badge ("estimated view", #372)
+    # always fires here too.
     expect(page.locator("#ghost-badges")).not_to_contain_text(
         "ground reference estimated"
     )
