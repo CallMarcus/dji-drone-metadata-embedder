@@ -100,7 +100,9 @@ const BEAM_MIN_MS = 85;   // ~12 beam rebuilds/s while the clock free-runs
 
 function addGazeLayers() {
   // Below the flight lines: a track must stay readable through its own patch.
-  const before = map.getLayer(flights[0].id) ? flights[0].id : undefined;
+  // A photos-only combined map (#514) has no flights at all.
+  const first = flights[0];
+  const before = first && map.getLayer(first.id) ? first.id : undefined;
   map.addSource('gaze-hits', { type: 'geojson', data: emptyFC() });
   map.addLayer({ id: 'gaze-hits-line', type: 'line', source: 'gaze-hits',
     layout: { 'line-cap': 'round', 'line-join': 'round' },

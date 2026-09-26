@@ -119,15 +119,17 @@ _TEMPLATE = """<!DOCTYPE html>
                background: #f6f6f6; padding: 1px 6px; }}
   .gaze-est {{ margin-top: 4px; opacity: .7; font-size: 11px; }}
   .gaze-skip {{ margin-top: 4px; opacity: .7; font-size: 11px; }}
+{extra_css}
 </style>
+{pano_head}
 </head>
 <body>
-<div id="map"></div>
+<div id="map"></div>{pano_overlay}
 <script type="application/json" id="flight-data">
 {data}
 </script>{airspace_block}
 <script src="https://unpkg.com/maplibre-gl@{maplibre}/dist/maplibre-gl.js" integrity="{js_sri}"
-        crossorigin=""></script>
+        crossorigin=""></script>{pano_scripts}
 <script>
 {app_js}
 </script>
@@ -144,13 +146,23 @@ __SHARED_JS__
 // (altitude) is deliberately unused here (maplibre-gl-js#644).
 const flights = [];
 const allCoords = [];
-(data.features || []).forEach((f, i) => {
+// The combined map (#514) tags features by type; photos and panoramas
+// go to the photo layer, everything else is a flight (untagged features
+// are flightmap's own output).
+const photoFeatures = [];
+(data.features || []).forEach(f => {
   if (!f.geometry) return;
   const p = f.properties || {};
+  if (p.type === 'photo' || p.type === 'pano') {
+    photoFeatures.push(f);
+    allCoords.push(f.geometry.coordinates.slice(0, 2));
+    return;
+  }
+  const n = flights.length;   // photos skip no flight numbers (#514)
   const entry = {
-    id: 'flight-' + i,
-    name: p.name || `flight ${i + 1}`,
-    color: PALETTE[i % PALETTE.length],
+    id: 'flight-' + n,
+    name: p.name || `flight ${n + 1}`,
+    color: PALETTE[n % PALETTE.length],
     props: p,
     shown: true,
   };
@@ -177,6 +189,11 @@ const allCoords = [];
     ? entry.geometry.coordinates : [entry.geometry.coordinates];
   allCoords.push(...cs);
 });
+
+// Photo hooks (#514): the combined map's photo JS reassigns these; the
+// flight-only page keeps the no-ops so the call sites need no guards.
+const photoHooks = { addLayers() {}, panelRows(panel) {} };
+__PHOTO_3D_JS__
 
 function showNote(text, dismissible) {
   const note = document.createElement('div');
@@ -287,6 +304,7 @@ if (map) {
       });
       addSculpture(f, fi);
     });
+    photoHooks.addLayers();
     map.on('zoomend', rebuildSculpture);
     sculptSettle();
     buildPanel();
@@ -295,7 +313,7 @@ if (map) {
 }
 
 function buildPanel() {
-  if (!flights.length) return;
+  if (!flights.length && !photoFeatures.length) return;
   const panel = document.createElement('div');
   panel.id = 'flights-panel';
   panel.className = 'flights-panel';
@@ -320,6 +338,7 @@ function buildPanel() {
   head.appendChild(toggle);
   panel.appendChild(head);
   setCollapsed(false);
+  photoHooks.panelRows(panel);
   flights.forEach(f => {
     const label = document.createElement('label');
     const box = document.createElement('input');
@@ -1129,19 +1148,27 @@ __AIRSPACE_3D_JS__
 """
 
 
-def flights_to_3d_html(
-    tracks: list[Track],
+def render_3d_html(
+    geojson: dict,
     title: str,
-    redact: str = "none",
+    *,
     airspace_json: dict | None = None,
+    photo_js: str = "",
+    extra_css: str = "",
+    pano_head: str = "",
+    pano_overlay: str = "",
+    pano_scripts: str = "",
+    extra_js: str = "",
 ) -> str:
-    """Return a complete 3D-terrain HTML flight map (draped tracks).
+    """Render *geojson* (a flight FeatureCollection, or the combined map's
+    type-tagged one) as the 3D-terrain page.
 
     ``airspace_json`` (#424): the overlay dict from
-    :func:`~.airspace.overlay.zones_to_overlay_json`; None renders the
-    map exactly as before.
+    :func:`~.airspace.overlay.zones_to_overlay_json`; None renders no
+    overlay. ``photo_js`` fills the ``__PHOTO_3D_JS__`` splice and
+    ``extra_css`` / ``pano_*`` / ``extra_js`` the matching template slots;
+    all default to empty, which is the ``flightmap --3d`` page (#514).
     """
-    geojson = flights_to_geojson(tracks, redact=redact)
     # Escape "<" to "\\u003c" (a JSON Unicode escape) so JSON.parse round-trips
     # it while no literal "</script>" can break out of the data block.
     data = json.dumps(geojson).replace("<", "\\u003c")
@@ -1155,11 +1182,12 @@ def flights_to_3d_html(
     app_js = (
         _APP_JS.replace("__SHARED_JS__", FLIGHT_POPUP_JS)
         .replace("__GAZE_JS__", GAZE_JS)
+        .replace("__PHOTO_3D_JS__", photo_js)
         .replace("__AIRSPACE_3D_JS__", airspace_js)
         .replace("__OSM_TILES__", _OSM_TILES)
         .replace("__MAPTERHORN__", _MAPTERHORN_TILEJSON)
         .replace("__CREDIT__", attribution_credit())
-    )
+    ) + extra_js
     return stamp(
         _TEMPLATE.format(
             title=escape(title),
@@ -1169,7 +1197,30 @@ def flights_to_3d_html(
             data=data,
             airspace_block=airspace_block,
             app_js=app_js,
+            extra_css=extra_css,
+            pano_head=pano_head,
+            pano_overlay=pano_overlay,
+            pano_scripts=pano_scripts,
         )
+    )
+
+
+def flights_to_3d_html(
+    tracks: list[Track],
+    title: str,
+    redact: str = "none",
+    airspace_json: dict | None = None,
+) -> str:
+    """Return a complete 3D-terrain HTML flight map (draped tracks).
+
+    ``airspace_json`` (#424): the overlay dict from
+    :func:`~.airspace.overlay.zones_to_overlay_json`; None renders the
+    map exactly as before.
+    """
+    return render_3d_html(
+        flights_to_geojson(tracks, redact=redact),
+        title,
+        airspace_json=airspace_json,
     )
 
 
