@@ -33,6 +33,7 @@ from .geo import (
     write_flights_geojson,
     write_flights_html,
     write_flights_kml,
+    write_mixed_3d_html,
     write_mixed_html,
     write_photos_geojson,
     write_photos_html,
@@ -1563,6 +1564,15 @@ def serve(
     "Links each pin to its original photo and enables the 360° viewer, "
     "which browsers block on maps opened straight from disk.",
 )
+@click.option(
+    "--3d",
+    "three_d",
+    is_flag=True,
+    help="Render over 3D terrain (MapLibre + Mapterhorn) instead of the flat "
+    "map; writes map-3d.html. Needs WebGL and a network connection for the "
+    "terrain tiles. With --serve, flight videos also play inside the 3D "
+    "cockpit view.",
+)
 @_progress_option
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress info output")
@@ -1571,6 +1581,7 @@ def map_cmd(
     output: str | None,
     redact: str,
     serve_map: bool,
+    three_d: bool,
     progress_mode: str | None,
     verbose: bool,
     quiet: bool,
@@ -1586,6 +1597,9 @@ def map_cmd(
     limit are chained back into single flights. Deliberately few options:
     use photomap or flightmap for control over formats, popups, links,
     or basemaps.
+
+    --3d renders the same map over real terrain, with everything flightmap's
+    3D view offers (cockpit view, sculpture, gaze, playback).
     """
     progress = make_progress(progress_mode)
     if progress.active:
@@ -1695,7 +1709,9 @@ def map_cmd(
                     f"{len(tracks)} flight{'s' if len(tracks) != 1 else ''}{more}"
                 )
             click.echo("Mapped " + " and ".join(parts))
-        out = Path(output) if output else src / "map.html"
+        out = (
+            Path(output) if output else src / ("map-3d.html" if three_d else "map.html")
+        )
         if serve_map and out.resolve().parent != src.resolve():
             click.echo(
                 "Note: --serve serves the map's own folder; with -o outside "
@@ -1704,14 +1720,29 @@ def map_cmd(
                 err=True,
             )
         try:
-            write_mixed_html(
-                points,
-                tracks,
-                out,
-                src.resolve().name,
-                link_base=link_base,
-                redact=redact.lower(),
-            )
+            if three_d:
+                # --serve is the map's only "link originals" switch: the
+                # served folder is where the videos live, so the crossfade
+                # can find them (#514). Unserved pages get no video links.
+                if serve_map:
+                    resolve_media(tracks, src, "")
+                write_mixed_3d_html(
+                    points,
+                    tracks,
+                    out,
+                    src.resolve().name,
+                    link_base=link_base,
+                    redact=redact.lower(),
+                )
+            else:
+                write_mixed_html(
+                    points,
+                    tracks,
+                    out,
+                    src.resolve().name,
+                    link_base=link_base,
+                    redact=redact.lower(),
+                )
         except OSError as e:
             raise click.ClickException(f"Could not write {out}: {e}")
         progress.result(
