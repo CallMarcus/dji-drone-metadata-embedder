@@ -185,3 +185,16 @@ def test_write_mixed_html(tmp_path):
 
     out = write_mixed_html(POINTS, TRACKS, tmp_path / "map.html", "t")
     assert out.read_text(encoding="utf-8").lstrip().startswith("<!DOCTYPE html>")
+
+
+def test_popup_builder_is_a_standalone_block():
+    from dji_metadata_embedder.geo.photomap_js import PHOTO_LAYER_JS, PHOTO_POPUP_JS
+
+    # The 3D page (#514) reuses the popup without Leaflet: the block must
+    # define both helpers and mention no Leaflet API.
+    assert "function imgDims(" in PHOTO_POPUP_JS
+    assert "function buildPopup(" in PHOTO_POPUP_JS
+    assert "L." not in PHOTO_POPUP_JS
+    # ...and the 2D layer code still carries it exactly once.
+    assert PHOTO_LAYER_JS.count("function buildPopup(") == 1
+    assert PHOTO_POPUP_JS in PHOTO_LAYER_JS

@@ -161,53 +161,10 @@ document.addEventListener('click', e => {
 });
 """
 
-PHOTO_LAYER_JS = """// Per-type markers (issue #283): photos and 360 panoramas get their own
-// colored pin and their own cluster group, so clusters stay type-pure and
-// each type can be toggled independently.
-const isPano = f => (f.properties || {}).pano === true;
-// Touch handling (issue #295): hover is a mouse concept. On touch devices the
-// first tap opened the sticky tooltip, which then covered the pin and
-// swallowed the tap meant for it ("huge image of the pin icon" on iPhone).
-// Capability check, not UA sniffing: no hover / coarse pointer → no hover
-// tooltips, and the pin's tap target grows while the dot stays the same size.
-// The click popup (whose thumbnail opens the 360 viewer) is the touch path.
-const TOUCH = window.matchMedia('(hover: none), (pointer: coarse)').matches;
-const PIN_BOX = TOUCH ? 34 : 19;
-const pinIcon = cls => L.divIcon({
-  className: '',
-  html: `<span class="pin-hit"><span class="photo-pin ${cls}"></span></span>`,
-  iconSize: [PIN_BOX, PIN_BOX], iconAnchor: [PIN_BOX / 2, PIN_BOX / 2],
-  popupAnchor: [0, -PIN_BOX / 2]
-});
-const photoIcon = pinIcon('pin-photo');
-const panoIcon = pinIcon('pin-pano');
-// The two groups cluster independently, so a photo blob and a pano blob can
-// land on the exact same point (routine with --redact fuzz, which rounds
-// both types to the same 3-decimal grid). Anchoring the pano blob slightly
-// off-center keeps the photo blob underneath visible and clickable instead
-// of fully occluded.
-const PANO_CLUSTER_ANCHOR = L.point(31, 31);
-// Mirrors markercluster's default icon (count + small/medium/large sizing)
-// with a per-type color scheme (see the .photo-cluster/.pano-cluster CSS).
-const clusterIcon = (cls, anchor) => c => {
-  const n = c.getChildCount();
-  const size = n < 10 ? 'small' : n < 100 ? 'medium' : 'large';
-  return L.divIcon({
-    html: `<div><span>${n}</span></div>`,
-    className: `marker-cluster marker-cluster-${size} ${cls}`,
-    iconSize: L.point(40, 40), iconAnchor: anchor
-  });
-};
-const photoCluster = L.markerClusterGroup({
-  chunkedLoading: true, iconCreateFunction: clusterIcon('photo-cluster') });
-const panoCluster = L.markerClusterGroup({
-  chunkedLoading: true,
-  iconCreateFunction: clusterIcon('pano-cluster', PANO_CLUSTER_ANCHOR) });
-const photoMarkers = [];
-const panoMarkers = [];
-const photoLatLngs = [];
-
-// #472: thumbnails are data URIs and still decode async, so Leaflet measures
+# The popup builder is Leaflet-free on purpose: the combined map's 3D page
+# (#514) shows the same popups inside MapLibre popups. It needs only the
+# shared `esc` helper, which every template defines.
+PHOTO_POPUP_JS = """// #472: thumbnails are data URIs and still decode async, so Leaflet measures
 // the popup before the image has a size. Declaring the known pixel size up
 // front makes that pre-decode layout (and the tip anchor) correct; thumbs
 // without parsed dimensions fall back to the bare tag.
@@ -263,7 +220,58 @@ function buildPopup(f) {
   html += '</div>';
   return html;
 }
+"""
 
+PHOTO_LAYER_JS = (
+    """// Per-type markers (issue #283): photos and 360 panoramas get their own
+// colored pin and their own cluster group, so clusters stay type-pure and
+// each type can be toggled independently.
+const isPano = f => (f.properties || {}).pano === true;
+// Touch handling (issue #295): hover is a mouse concept. On touch devices the
+// first tap opened the sticky tooltip, which then covered the pin and
+// swallowed the tap meant for it ("huge image of the pin icon" on iPhone).
+// Capability check, not UA sniffing: no hover / coarse pointer → no hover
+// tooltips, and the pin's tap target grows while the dot stays the same size.
+// The click popup (whose thumbnail opens the 360 viewer) is the touch path.
+const TOUCH = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+const PIN_BOX = TOUCH ? 34 : 19;
+const pinIcon = cls => L.divIcon({
+  className: '',
+  html: `<span class="pin-hit"><span class="photo-pin ${cls}"></span></span>`,
+  iconSize: [PIN_BOX, PIN_BOX], iconAnchor: [PIN_BOX / 2, PIN_BOX / 2],
+  popupAnchor: [0, -PIN_BOX / 2]
+});
+const photoIcon = pinIcon('pin-photo');
+const panoIcon = pinIcon('pin-pano');
+// The two groups cluster independently, so a photo blob and a pano blob can
+// land on the exact same point (routine with --redact fuzz, which rounds
+// both types to the same 3-decimal grid). Anchoring the pano blob slightly
+// off-center keeps the photo blob underneath visible and clickable instead
+// of fully occluded.
+const PANO_CLUSTER_ANCHOR = L.point(31, 31);
+// Mirrors markercluster's default icon (count + small/medium/large sizing)
+// with a per-type color scheme (see the .photo-cluster/.pano-cluster CSS).
+const clusterIcon = (cls, anchor) => c => {
+  const n = c.getChildCount();
+  const size = n < 10 ? 'small' : n < 100 ? 'medium' : 'large';
+  return L.divIcon({
+    html: `<div><span>${n}</span></div>`,
+    className: `marker-cluster marker-cluster-${size} ${cls}`,
+    iconSize: L.point(40, 40), iconAnchor: anchor
+  });
+};
+const photoCluster = L.markerClusterGroup({
+  chunkedLoading: true, iconCreateFunction: clusterIcon('photo-cluster') });
+const panoCluster = L.markerClusterGroup({
+  chunkedLoading: true,
+  iconCreateFunction: clusterIcon('pano-cluster', PANO_CLUSTER_ANCHOR) });
+const photoMarkers = [];
+const panoMarkers = [];
+const photoLatLngs = [];
+
+"""
+    + PHOTO_POPUP_JS
+    + """
 // Hover preview (issue #273): thumbnail + filename in a sticky tooltip so a
 // map can be skimmed without clicking every pin. Thumb-less points fall back
 // to a filename-only tooltip.
@@ -343,6 +351,7 @@ map.on('popupclose', e => {
   const entry = allMarkers.find(pair => pair[0] === src);
   if (entry) src.bindTooltip(() => buildTooltip(entry[1]), TOOLTIP_OPTS);
 });"""
+)
 
 # Mouse-only hover-previews control (issue #345). Reads TOUCH, allMarkers, and
 # the hover-pref helpers defined by PHOTO_LAYER_JS, so it must be emitted
