@@ -15,9 +15,18 @@ TILE_DEG = 360 / 2**15  # z15 tile width; DEM cliff sits at each midpoint
 
 
 def _flight(
-    name: str, lat: float, lon: float, agls: list[float | None], step: float = 0.0006
+    name: str,
+    lat: float,
+    lon: float,
+    agls: list[float | None],
+    step: float = 0.0006,
+    alt_base: float = 100.0,
 ) -> Track:
-    """Synthetic flight; ``agls[i]`` becomes point i's rel_alt (AGL)."""
+    """Synthetic flight; ``agls[i]`` becomes point i's rel_alt (AGL).
+
+    ``alt`` is ``alt_base + agl`` so every flight's datum_m equals
+    ``alt_base``: two flights share a launch site iff their bases match.
+    """
     t0 = datetime(2026, 6, 15, 12, 0, 0)
     return Track(
         name=name,
@@ -25,7 +34,7 @@ def _flight(
             TrackPoint(
                 lat=lat,
                 lon=lon + i * step,
-                alt=100.0 + (a or 0),
+                alt=alt_base + (a or 0),
                 timestamp=f"00:00:{i:02d},000",
                 utc=t0 + timedelta(seconds=i * 1.0),
                 rel_alt=a,
@@ -796,3 +805,96 @@ def test_no_ground_contact_falls_back_to_sample_zero_with_a_badge(serve_map, pag
     expect(page.locator("#ghost-badges")).to_contain_text(
         "ground reference estimated", timeout=10000
     )
+
+
+# --- #550: a clip that never touched the ground borrows a sibling's reference ---
+
+_LANDS_IN_VALLEY = [6.0, 6.0, 6.0, 6.0, 3.0, 0.0]
+_AIRBORNE = [6.0, 6.0, 6.0, 6.0, 6.0, 6.0]
+
+
+def _serve_pair(serve_map, page, sibling_base: float, redact: str = "none"):
+    """Two flights over the plateau; DJI_0001 lands in the valley (reference
+    elev ~0 m), DJI_0003 stays airborne and starts over the 600 m plateau."""
+    lat = 10.0
+    tile_lon = TILE_DEG * 1660
+    start_lon = tile_lon + TILE_DEG * 1.75
+    step = TILE_DEG * 0.12
+    html = flights_to_3d_html(
+        [
+            _flight("DJI_0001", lat, start_lon, _LANDS_IN_VALLEY, step=step),
+            _flight(
+                "DJI_0003",
+                lat + 0.0002,
+                start_lon,
+                _AIRBORNE,
+                step=step,
+                alt_base=sibling_base,
+            ),
+        ],
+        "trip",
+        redact=redact,
+    )
+    serve_map(html, terrain_steps=(0.0, 600.0))
+    page.wait_for_function(
+        "() => typeof map !== 'undefined' && map && map.getLayer('sculpt-1-curtain')",
+        timeout=20000,
+    )
+    page.wait_for_function(
+        "() => map.getTerrain() && map.areTilesLoaded()", timeout=20000
+    )
+    page.evaluate("() => setSculptData()")
+
+
+def test_airborne_clip_borrows_a_matching_siblings_reference(serve_map, page):
+    from playwright.sync_api import expect
+
+    _serve_pair(serve_map, page, sibling_base=100.0)
+    ref = page.evaluate("() => groundRef(flights[1])")
+    assert ref["estimated"] is False and ref["borrowed"] == "DJI_0001", ref
+    assert abs(ref["elev"]) < 1.0, ref  # the valley floor, not the plateau
+    hs = page.evaluate("() => planksFor(flights[1], 10).map(f => f.properties.hgt)")
+    assert hs, "no planks built"
+    assert max(hs) < 20, f"planks lifted by the plateau under sample 0: {hs}"
+    page.evaluate("() => ghostEnter(1, 1)")
+    expect(page.locator("#ghost-badges")).to_contain_text(
+        "ground reference borrowed from DJI_0001", timeout=10000
+    )
+    # Not the narrower "estimated" substring: the fixture has no gimbal data,
+    # so the unrelated pose-estimation badge ("estimated view — no
+    # gimbal data", #372) always fires here too.
+    expect(page.locator("#ghost-badges")).not_to_contain_text(
+        "ground reference estimated"
+    )
+
+
+def test_datum_mismatch_beyond_tolerance_does_not_borrow(serve_map, page):
+    from playwright.sync_api import expect
+
+    _serve_pair(serve_map, page, sibling_base=100.8)  # 0.8 m > DATUM_TOL_M
+    ref = page.evaluate("() => groundRef(flights[1])")
+    assert ref["estimated"] is True and "borrowed" not in ref, ref
+    assert ref["idx"] == 0 and ref["elev"] > 500, ref
+    page.evaluate("() => ghostEnter(1, 1)")
+    expect(page.locator("#ghost-badges")).to_contain_text(
+        "ground reference estimated", timeout=10000
+    )
+
+
+def test_borrowing_survives_fuzz_redaction(serve_map, page):
+    from playwright.sync_api import expect
+
+    _serve_pair(serve_map, page, sibling_base=100.0, redact="fuzz")
+    ref = page.evaluate("() => groundRef(flights[1])")
+    assert ref["borrowed"] == "DJI_0001", ref
+    page.evaluate("() => ghostEnter(1, 1)")
+    expect(page.locator("#ghost-badges")).to_contain_text("borrowed from DJI_0001")
+    expect(page.locator("#ghost-badges")).to_contain_text("position fuzzed")
+
+
+def test_own_ground_contact_is_never_overridden_by_a_sibling(serve_map, page):
+    """A clip that lands keeps its own reference even with a matching sibling."""
+    _serve_pair(serve_map, page, sibling_base=100.0)
+    ref = page.evaluate("() => groundRef(flights[0])")
+    assert ref["estimated"] is False and "borrowed" not in ref, ref
+    assert ref["idx"] == 5, ref
