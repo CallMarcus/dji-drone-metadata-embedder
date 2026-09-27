@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-09-27
+
 ### Added
 
 - **flightmap --3d**: a clip that starts and ends airborne no longer falls back to an "estimated" ground reference. The flight GeoJSON now carries a per-flight `datum_m` (DJI's takeoff altitude, `abs_alt - rel_alt`), and the 3D page lends the ground-contact DEM elevation of a sibling clip from the same power cycle (datum within 0.5 m); the HUD says which clip it borrowed from. The "estimated" badge remains for clips with no qualifying sibling, and `--redact fuzz` leaves altitudes alone so borrowing survives it (#550) (#589) (2a4eb51)
