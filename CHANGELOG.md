@@ -13,22 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **flightmap --3d**: a clip that starts and ends airborne no longer falls back to an "estimated" ground reference. The flight GeoJSON now carries a per-flight `datum_m` (DJI's takeoff altitude, `abs_alt - rel_alt`), and the 3D page lends the ground-contact DEM elevation of a sibling clip from the same power cycle (datum within 0.5 m); the HUD says which clip it borrowed from. The "estimated" badge remains for clips with no qualifying sibling, and `--redact fuzz` leaves altitudes alone so borrowing survives it (#550) (#589) (2a4eb51)
-- **map --3d**: the combined map renders over 3D terrain. Photo and 360° pins are clustered MapLibre circle layers over the flight tracks, clicking a pin opens the same popup the 2D map builds, pano thumbnails open the existing 360° overlay, and tracks keep everything `flightmap --3d` has (cockpit view, sculpture, gaze, playback, video crossfade with `--serve`). Photos at one point, bursts and brackets included, open together in one popup; a photo pin sitting on its own flight path opens the photo, not the flight. The page stays keyless with pinned, integrity-checked assets (#514) (#590) (571478f)
-
 ## [2.17.0] - 2026-09-27
 
 ### Added
 
-- **flightmap --3d**: Lend a sibling clip's ground reference to airborne-only clips (#589) (2a4eb51)
-- **map**: --3d renders the combined map over 3D terrain (#590) (571478f)
-
-### Other
-
-- Prepare version 2.17.0 (#591) (a99bbe0)
-
+- **flightmap --3d**: a clip that starts and ends airborne no longer falls back to an "estimated" ground reference. The flight GeoJSON now carries a per-flight `datum_m` (DJI's takeoff altitude, `abs_alt - rel_alt`), and the 3D page lends the ground-contact DEM elevation of a sibling clip from the same power cycle (datum within 0.5 m); the HUD says which clip it borrowed from. The "estimated" badge remains for clips with no qualifying sibling, and `--redact fuzz` leaves altitudes alone so borrowing survives it (#550) (#589) (2a4eb51)
+- **map --3d**: the combined map renders over 3D terrain. Photo and 360° pins are clustered MapLibre circle layers over the flight tracks, clicking a pin opens the same popup the 2D map builds, pano thumbnails open the existing 360° overlay, and tracks keep everything `flightmap --3d` has (cockpit view, sculpture, gaze, playback, video crossfade with `--serve`). Photos at one point, bursts and brackets included, open together in one popup; a photo pin sitting on its own flight path opens the photo, not the flight. The page stays keyless with pinned, integrity-checked assets (#514) (#590) (571478f)
 
 ## [2.16.1] - 2026-09-22
 
