@@ -362,7 +362,7 @@ _CORE: dict[str, list[Box]] = {
             56.60,
             27.3,
             57.35,
-        ),  # Gulbene, Balvi; EE border dips to ~57.55 past Ape, RU east of 27.7 => >=25 km
+        ),  # Gulbene, Balvi; EE border dips to ~57.55 past Ape, RU east of 27.7 => ~24 km
         (
             25.8,
             56.25,
@@ -374,7 +374,7 @@ _CORE: dict[str, list[Box]] = {
             55.95,
             27.5,
             56.60,
-        ),  # Rēzekne; BY border ~55.80 => >=15 km, RU east of 27.9 => >=25 km
+        ),  # Rēzekne; BY border ~55.80 => >=15 km, RU east of 27.9 => ~24 km
     ],
 }
 _HULL: dict[str, list[Box]] = {

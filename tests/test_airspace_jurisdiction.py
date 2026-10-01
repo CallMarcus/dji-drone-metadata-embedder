@@ -495,9 +495,10 @@ def test_valka_latvia_gaps_inside_the_hull_only():
     assert r.jurisdiction is None
 
 
-def test_riga_stays_outside_the_ee_hull_entirely():
-    # Latvia is supported since #594: Riga resolves LV, never EE.
-    r = resolve_jurisdiction(_track((56.95, 24.10)))
+def test_riga_resolves_to_lv_never_ee():
+    # Riga (56.95) sits below the EE hull floor (57.45), so it was never an
+    # EE candidate; since #594 it resolves through the LV Riga core.
+    r = resolve_jurisdiction(_track((56.95, 24.1)))
     assert r.jurisdiction is not None and r.jurisdiction.code == "LV"
 
 
@@ -705,17 +706,21 @@ def test_latvian_cities_resolve_through_their_cores():
 
 
 def test_latvian_border_towns_gap_as_border_bands():
-    # Daugavpils (~12 km from LT), Krāslava, Bauska, Valka, Ainaži, Alūksne,
-    # Zilupe, Rucava: inside the hull, deliberately outside every core.
+    # Daugavpils (~12 km from LT), Krāslava, Bauska, Valka, Ainaži, Salacgrīva,
+    # Alūksne, Ludza, Zilupe, Rucava, Pape: inside the hull, deliberately
+    # outside every core.
     for lat, lon in [
-        (55.87, 26.52),
-        (55.90, 27.17),
-        (56.41, 24.19),
-        (57.78, 26.02),
-        (57.86, 24.36),
-        (57.42, 27.05),
-        (56.39, 28.12),
-        (56.16, 21.16),
+        (55.87, 26.52),  # Daugavpils
+        (55.90, 27.17),  # Krāslava
+        (56.41, 24.19),  # Bauska
+        (57.78, 26.02),  # Valka
+        (57.86, 24.36),  # Ainaži
+        (57.75, 24.36),  # Salacgrīva
+        (57.42, 27.05),  # Alūksne
+        (56.55, 27.72),  # Ludza
+        (56.39, 28.12),  # Zilupe
+        (56.16, 21.16),  # Rucava
+        (56.16, 21.03),  # Pape
     ]:
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is None, (lat, lon)
