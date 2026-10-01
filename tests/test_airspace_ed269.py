@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 
 from dji_metadata_embedder.geo.airspace import AirspaceError, SourceInfo
-from dji_metadata_embedder.geo.airspace.ed269 import ED269_FEEDS, parse_ed269
+from dji_metadata_embedder.geo.airspace.ed269 import (
+    ED269_FEEDS,
+    ed269_effective,
+    parse_ed269,
+)
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
@@ -241,3 +245,71 @@ def test_feed_registry_pins_switzerland():
     # BAZL's proposed attribution, carried verbatim (email 2026-08-05, #456)
     assert "Bundesamt für Zivilluftfahrt (BAZL)" in feed.license
     assert "O-BY" in feed.license
+
+
+def _lv() -> bytes:
+    return (FIXTURES / "ed269-lv.json").read_bytes()
+
+
+LV_NOTES = ("extendedProperties", "messageEng")
+
+
+def test_parses_the_latvian_fixture_with_english_notes():
+    zones = parse_ed269(_lv(), SRC, notes_path=LV_NOTES)
+    by_id = {z.identifier: z for z in zones}
+    assert set(by_id) == {
+        "94b44aa",
+        "5250143",
+        "3c0b685",
+        "9865af7",
+        "2fe5375",
+        "kHxxOPx",
+    }
+    banned = by_id["2fe5375"]
+    assert banned.restriction == "PROHIBITED"
+    assert banned.upper is not None and banned.upper.label() == "1220 m AMSL"
+    assert banned.notes == [
+        "Flights are prohibited without the option to request authorisation."
+    ]
+    # The Latvian original stays available, untouched, in native.
+    assert isinstance(banned.native["message"], str) and banned.native["message"]
+
+
+def test_notes_are_empty_without_a_notes_path():
+    assert all(z.notes == [] for z in parse_ed269(_lv(), SRC))
+
+
+def test_latvian_two_digit_fractional_seconds_parse_as_windows():
+    two = next(z for z in parse_ed269(_lv(), SRC) if z.identifier == "2fe5375")
+    assert [(w.start, w.end) for w in two.applicability] == [
+        (datetime(2026, 10, 1, 6, 0), datetime(2026, 10, 1, 18, 0)),
+        (datetime(2026, 10, 2, 6, 0), datetime(2026, 10, 2, 18, 0)),
+    ]
+    assert all(w.permanent is False for w in two.applicability)
+
+
+def test_latvian_open_ended_window_has_no_end():
+    z = next(z for z in parse_ed269(_lv(), SRC) if z.identifier == "9865af7")
+    assert len(z.applicability) == 1
+    assert z.applicability[0].start == datetime(2026, 3, 1, 0, 0)
+    assert z.applicability[0].end is None
+
+
+def test_latvian_five_volume_zone_with_identical_limits_is_accepted():
+    z = next(z for z in parse_ed269(_lv(), SRC) if z.identifier == "kHxxOPx")
+    assert len(z.polygons) == 5
+    assert z.upper is not None and z.upper.label() == "40 m AGL"
+    assert z.lower is not None and z.lower.label() == "0 m AGL"
+
+
+def test_the_latvian_title_stamp_is_the_edition():
+    assert ed269_effective(_lv()) == "2026-10-01"
+
+
+def test_a_title_without_a_stamp_is_an_error_not_a_silent_none():
+    with pytest.raises(AirspaceError, match="UASZoneVersion stamp"):
+        ed269_effective(b'{"title": "zones", "features": []}')
+    with pytest.raises(AirspaceError, match="UASZoneVersion stamp"):
+        ed269_effective(b'{"features": []}')
+    with pytest.raises(AirspaceError, match="not JSON"):
+        ed269_effective(b"<html>")

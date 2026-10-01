@@ -11,6 +11,7 @@ feeds are contract: UTF-8 BOM (utf-8-sig), absent limits mean "not stated".
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 
 from .model import (
@@ -36,11 +37,55 @@ class Ed269Feed:
     # feed re-verified 2026-08-05). Mapped to "not stated" at parse time
     # so it never renders or compares as a real altitude.
     no_ceiling_m: float | None = None
+    # Key path, per feature, to published free text the popup shows
+    # verbatim as a note (#594: Latvia's English wording lives under
+    # extendedProperties.messageEng; its Latvian ``message`` stays in
+    # native). Empty: the feed publishes no such text, no notes.
+    notes_path: tuple[str, ...] = ()
+    # The document's ``title`` carries its edition stamp
+    # (``UASZoneVersion_2026_10_01T13_54_14_382723Z``, #594); parsed into
+    # ``SourceInfo.effective`` like the ED-318 files' validFrom (#563).
+    edition_from_title: bool = False
 
 
 _CAVEAT = (
     "UAS geographical-zone data is informational and is not an authorization to fly."
 )
+
+# The drz.lv title stamp: UASZoneVersion_YYYY_MM_DDTHH_MM_SS_ffffffZ. Only
+# the date is the edition; the time is when the daily export ran.
+_TITLE_STAMP = re.compile(r"UASZoneVersion_(\d{4})_(\d{2})_(\d{2})T\d{2}_\d{2}_\d{2}")
+
+
+def ed269_effective(raw: bytes) -> str:
+    """The ISO date in the document's title stamp (#594).
+
+    Only feeds that opt in (``edition_from_title``) call this, so a missing
+    or unrecognised title is an error, never a silent None: a cached copy
+    must always be able to say which edition it is.
+    """
+    try:
+        data = json.loads(raw.decode("utf-8-sig"))
+    except ValueError as exc:
+        raise AirspaceError(f"ED-269 edition: feed is not JSON ({exc})") from exc
+    title = data.get("title") if isinstance(data, dict) else None
+    match = _TITLE_STAMP.match(title) if isinstance(title, str) else None
+    if match is None:
+        raise AirspaceError(
+            f"ED-269 edition: title {title!r} carries no UASZoneVersion stamp"
+        )
+    year, month, day = match.groups()
+    return f"{year}-{month}-{day}"
+
+
+def _note_at(feat: dict, path: tuple[str, ...]) -> list[str]:
+    """The non-empty string at *path* inside *feat* as a one-line note."""
+    node: object = feat
+    for key in path:
+        node = node.get(key) if isinstance(node, dict) else None
+    text = node.strip() if isinstance(node, str) else ""
+    return [text] if text else []
+
 
 ED269_FEEDS: dict[str, Ed269Feed] = {
     "LU": Ed269Feed(
@@ -102,6 +147,7 @@ def parse_ed269(
     source: SourceInfo,
     *,
     no_ceiling_m: float | None = None,
+    notes_path: tuple[str, ...] = (),
 ) -> list[Zone]:
     """Every zone of an ED-269 document as normalized :class:`Zone`s."""
     try:
@@ -205,6 +251,7 @@ def parse_ed269(
                 applicability=applicability,
                 polygons=polygons,
                 holes=holes,
+                notes=_note_at(feat, notes_path) if notes_path else [],
                 source=source,
                 native=feat,
             )
