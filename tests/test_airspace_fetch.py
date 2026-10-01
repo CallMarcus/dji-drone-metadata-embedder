@@ -657,3 +657,55 @@ def test_a_cached_latvian_body_keeps_its_edition(tmp_path):
     data = fetch_zones(_track(56.95, 24.11), tmp_path, transport=second)
     assert second.urls == []
     assert data.source is not None and data.source.effective == "2026-10-01"
+
+
+def _es_body() -> bytes:
+    return (FIXTURES / "enaire-es.json").read_bytes()
+
+
+def _es_pages() -> list[bytes]:
+    # The provider fetches one page per layer; hand back each layer's page.
+    layers = json.loads(_es_body())["layers"]
+    return [json.dumps(layers["2"][0]).encode(), json.dumps(layers["0"][0]).encode()]
+
+
+def test_a_spanish_flight_queries_both_enaire_layers_by_snapped_bbox(tmp_path):
+    # #451: per-flight bbox like the FAA grid; the record cites the service.
+    fake = FakeTransport(_es_pages())
+    lines = []
+    data = fetch_zones(
+        _track(40.42, -3.70), tmp_path, transport=fake, announce=lines.append
+    )
+    assert data.gap_reason is None and len(data.zones) == 10
+    assert len(fake.urls) == 2
+    assert fake.urls[0].startswith("https://servais.enaire.es/")
+    assert "/2/query?" in fake.urls[0]
+    assert "/0/query?" in fake.urls[1]
+    # Padded + snapped, never the raw point.
+    assert "geometry=-3.8%2C40.3%2C-3.6%2C40.5" in fake.urls[0]
+    assert data.source is not None
+    assert data.source.url.startswith("https://servais.enaire.es/")
+    assert "ENAIRE" in data.source.license and "caso 44348" in data.source.license
+    assert "Urbano" in (data.source.note or "")
+    assert data.source.effective is None
+    cached = [
+        p
+        for p in tmp_path.glob("enaire-ES-*.json")
+        if not p.name.endswith(".meta.json")
+    ]
+    assert len(cached) == 1
+    assert any("Fetching" in ln and "servais.enaire.es" in ln for ln in lines)
+
+
+def test_a_cached_spanish_body_never_touches_the_network(tmp_path):
+    fetch_zones(_track(40.42, -3.70), tmp_path, transport=FakeTransport(_es_pages()))
+    second = FakeTransport([])
+    data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=second)
+    assert second.urls == [] and len(data.zones) == 10
+
+
+def test_an_enaire_maintenance_page_is_a_gap_and_never_cached(tmp_path):
+    fake = FakeTransport([b"<html>Error performing query operation</html>"])
+    data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=fake)
+    assert data.gap_reason is not None and "not JSON" in data.gap_reason
+    assert not list(tmp_path.glob("enaire-ES-*.json"))
