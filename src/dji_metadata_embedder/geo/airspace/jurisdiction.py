@@ -412,9 +412,13 @@ _CORE: dict[str, list[Box]] = {
     # diagonally, sea allowed). The first sweep of the candidate boxes
     # found 92 foreign hits (Minho, Arribes del Duero, Algerian coast,
     # Moroccan waters off Fuerteventura); the boxes below are the
-    # adjusted set, 1,264 probes, zero foreign hits.
+    # adjusted set, 1,264 probes, zero foreign hits. The two Canarias boxes
+    # were then re-swept after the southern Gran Canaria and El Hierro
+    # change: 292 probes, zero foreign hits.
     # Deliberate gaps, each an honest border band: Badajoz, Tui and the
-    # Minho valley, Ciudad Rodrigo, Ayamonte, Irun and San Sebastián, the
+    # Minho valley, Ciudad Rodrigo, Ayamonte, Huelva (about 40 km from
+    # Portugal, yet west of the Andalusia core's 6.6 W edge; a future box
+    # there needs its own sweep), Irun and San Sebastián, the
     # Campo de Gibraltar (Algeciras, La Línea, Tarifa), Puigcerdà, La Seu
     # d'Urgell, Figueres and Jaca; Ceuta and Melilla; the open sea south
     # of 37.4 N between 1 W and 4.5 E and south-east of Fuerteventura.
@@ -448,7 +452,7 @@ _CORE: dict[str, list[Box]] = {
             40.2,
             -2.05,
             41.2,
-        ),  # Salamanca, Ávila, Segovia, Madrid; west edge 6.3 W gaps Ciudad Rodrigo on purpose and keeps clear of the Arribes del Duero (PT reaches 41.3 N at 6.5 W => >=17 km at the north-west corner)
+        ),  # Salamanca, Ávila, Segovia, Madrid; west edge 6.3 W gaps Ciudad Rodrigo on purpose and keeps clear of the Arribes del Duero (PT reaches 41.3 N at 6.5 W => about 19 km at the north-west corner)
         (
             -2.05,
             41.2,
@@ -467,7 +471,7 @@ _CORE: dict[str, list[Box]] = {
             36.7,
             -1.0,
             40.6,
-        ),  # Almería, Murcia, Alicante; sea to the south (Algeria's Cap Falcon, 35.77 N 0.8 E, is ~100 km from the south-east corner)
+        ),  # Almería, Murcia, Alicante; sea to the south (Algeria's Cap Falcon, 35.77 N 0.8 W, is ~100 km from the south-east corner)
         (
             -1.0,
             37.4,
@@ -491,7 +495,7 @@ _CORE: dict[str, list[Box]] = {
             28.0,
             -13.4,
             29.4,
-        ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; Jandia's tip south of 28.0 N and the sea towards Africa gap
+        ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; the waters south of Jandia's tip and the sea towards Africa gap
     ],
 }
 _HULL: dict[str, list[Box]] = {

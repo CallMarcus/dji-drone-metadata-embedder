@@ -839,7 +839,7 @@ def test_the_waters_south_of_the_jandia_tip_gap_as_a_boundary():
 
 def test_spanish_border_towns_gap_as_border_bands():
     # Badajoz, Tui, Irun, San Sebastián, Algeciras, La Línea, Tarifa,
-    # Ayamonte, Ciudad Rodrigo, Puigcerdà, La Seu d'Urgell, Figueres, Jaca.
+    # Ayamonte, Huelva, Ciudad Rodrigo, Puigcerdà, La Seu d'Urgell, Figueres, Jaca.
     for lat, lon in [
         (38.88, -6.97),
         (42.05, -8.64),
@@ -849,6 +849,7 @@ def test_spanish_border_towns_gap_as_border_bands():
         (36.17, -5.35),
         (36.01, -5.60),
         (37.21, -7.40),
+        (37.26, -6.95),
         (40.60, -6.53),
         (42.43, 1.93),
         (42.36, 1.46),
