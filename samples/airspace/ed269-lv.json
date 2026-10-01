@@ -1,0 +1,878 @@
+{
+ "title": "UASZoneVersion_2026_10_01T13_54_14_382723Z",
+ "zoneCount": 6,
+ "description": "The data set is provided by SJSC “Latvijas gaisa satiksme”. The data set contains information about restrictions and conditions over and in the vicinity of objects of national and public interest, permanent and temporary airspace structure elements that may affect the operation of UA flights",
+ "features": [
+  {
+   "identifier": "94b44aa",
+   "country": "LVA",
+   "name": "UAS EVR41 ROBO1 P 120-160m",
+   "type": "COMMON",
+   "restriction": "PROHIBITED",
+   "reason": [
+    "AIR_TRAFFIC"
+   ],
+   "regulationExemption": "NO",
+   "message": "Lidojumi aizliegti, neparedzot lidojumu saskaņošanu.",
+   "zoneAuthority": [
+    {
+     "name": "SIA Origin Robotics",
+     "email": "redacted",
+     "contactName": "redacted",
+     "siteUrl": "www.origin-robotics.com",
+     "phone": "redacted",
+     "purpose": "INFORMATION"
+    }
+   ],
+   "applicability": [
+    {
+     "permanent": "NO",
+     "startDateTime": "2027-03-28T01:00:00.00Z",
+     "endDateTime": "2027-10-31T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "05:00:00.00Z",
+       "endTime": "18:00:00.00Z"
+      }
+     ]
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2027-10-31T01:00:00.00Z",
+     "endDateTime": "2028-03-26T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "06:00:00.00Z",
+       "endTime": "19:00:00.00Z"
+      }
+     ]
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-03-29T01:00:00.00Z",
+     "endDateTime": "2026-10-25T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "05:00:00.00Z",
+       "endTime": "18:00:00.00Z"
+      }
+     ]
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-10-25T01:00:00.00Z",
+     "endDateTime": "2027-03-28T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "06:00:00.00Z",
+       "endTime": "19:00:00.00Z"
+      }
+     ]
+    }
+   ],
+   "geometry": [
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 120,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 160,
+     "upperVerticalReference": "AMSL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         23.6505556002695,
+         56.8036110999371
+        ],
+        [
+         23.7769443997487,
+         56.80722220009669
+        ],
+        [
+         23.7738888997857,
+         56.8397221998566
+        ],
+        [
+         23.647777800103505,
+         56.835555599957395
+        ],
+        [
+         23.6505556002695,
+         56.8036110999371
+        ]
+       ]
+      ]
+     }
+    }
+   ],
+   "extendedProperties": {
+    "isSunsetSunriseZone": null,
+    "additionalProperties": null,
+    "messageEng": "Flights are prohibited without the option to request authorisation."
+   }
+  },
+  {
+   "identifier": "5250143",
+   "country": "LVA",
+   "name": "UAS EVR15A ZALENIEKI N 0-90m",
+   "type": "COMMON",
+   "restriction": "CONDITIONAL",
+   "restrictionConditions": [
+    "PERMITTED/NOTIFICATION=YES"
+   ],
+   "region": 1,
+   "reason": [
+    "AIR_TRAFFIC"
+   ],
+   "regulationExemption": "NO",
+   "message": "Par lidojumiem iepriekš jāpaziņo CAA bezpilota gaisa kuģu informācijas sistēmā (https://e.caa.gov.lv/uas-operations), nosūtot informāciju 15 minūtes pirms plānoto lidojumu uzsākšanas.\n",
+   "zoneAuthority": [
+    {
+     "name": "EDGE AUTONOMY",
+     "email": "redacted",
+     "contactName": "redacted",
+     "siteUrl": "www.edgeautonomy.eu",
+     "phone": "redacted",
+     "purpose": "NOTIFICATION",
+     "intervalBefore": "PT15M"
+    }
+   ],
+   "applicability": [
+    {
+     "permanent": "NO",
+     "startDateTime": "2025-05-12T10:32:02.00Z",
+     "schedule": [
+      {
+       "day": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI"
+       ],
+       "startTime": "00:00:00.00Z",
+       "endTime": "23:59:00.00Z"
+      }
+     ]
+    }
+   ],
+   "geometry": [
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 90,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         23.4741724,
+         56.57030509999999
+        ],
+        [
+         23.4332809,
+         56.5703047
+        ],
+        [
+         23.4241787,
+         56.57420669999999
+        ],
+        [
+         23.3449216,
+         56.5535383
+        ],
+        [
+         23.5850602,
+         56.4460871
+        ],
+        [
+         23.643291,
+         56.508538400000006
+        ],
+        [
+         23.4909149,
+         56.57521149999998
+        ],
+        [
+         23.4741724,
+         56.57030509999999
+        ]
+       ],
+       [
+        [
+         23.4965025,
+         56.5580197
+        ],
+        [
+         23.4965025,
+         56.5592026
+        ],
+        [
+         23.4952279,
+         56.5661794
+        ],
+        [
+         23.5106501,
+         56.5622534
+        ],
+        [
+         23.5027514,
+         56.555176499999995
+        ],
+        [
+         23.5010094,
+         56.55594599999999
+        ],
+        [
+         23.4963851,
+         56.55708619999999
+        ],
+        [
+         23.4965025,
+         56.5580197
+        ]
+       ]
+      ]
+     }
+    }
+   ],
+   "extendedProperties": {
+    "isSunsetSunriseZone": null,
+    "additionalProperties": null,
+    "messageEng": "Flight notification must be submitted using the CAA Unmanned Aircraft Information System (https://e.caa.gov.lv/uas-operations) at least 15 minutes before the planned operation.\n"
+   }
+  },
+  {
+   "identifier": "3c0b685",
+   "country": "LVA",
+   "name": "UAS EVR41 ROBO1 R 0-120m",
+   "type": "COMMON",
+   "restriction": "REQ_AUTHORISATION",
+   "reason": [
+    "AIR_TRAFFIC"
+   ],
+   "regulationExemption": "NO",
+   "message": "Lidojumus iepriekš jāsaskaņo CAA bezpilota gaisa kuģu informācijas sistēmā (https://e.caa.gov.lv/uas-operations), nosūtot pieteikumu 3 dienas pirms plānoto lidojumu uzsākšanas.",
+   "zoneAuthority": [
+    {
+     "name": "SIA Origin Robotics",
+     "email": "redacted",
+     "contactName": "redacted",
+     "siteUrl": "www.origin-robotics.com",
+     "phone": "redacted",
+     "purpose": "AUTHORIZATION",
+     "intervalBefore": "P3D"
+    }
+   ],
+   "applicability": [
+    {
+     "permanent": "NO",
+     "startDateTime": "2027-03-28T01:00:00.00Z",
+     "endDateTime": "2027-10-31T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "05:00:00.00Z",
+       "endTime": "18:00:00.00Z"
+      }
+     ]
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2027-10-31T01:00:00.00Z",
+     "endDateTime": "2028-03-26T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "06:00:00.00Z",
+       "endTime": "19:00:00.00Z"
+      }
+     ]
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-03-29T01:00:00.00Z",
+     "endDateTime": "2026-10-25T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "05:00:00.00Z",
+       "endTime": "18:00:00.00Z"
+      }
+     ]
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-10-25T01:00:00.00Z",
+     "endDateTime": "2027-03-28T00:59:59.00Z",
+     "schedule": [
+      {
+       "day": [
+        "ANY"
+       ],
+       "startTime": "06:00:00.00Z",
+       "endTime": "19:00:00.00Z"
+      }
+     ]
+    }
+   ],
+   "geometry": [
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 120,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         23.6505556002695,
+         56.8036110999371
+        ],
+        [
+         23.7769443997487,
+         56.80722220009669
+        ],
+        [
+         23.7738888997857,
+         56.8397221998566
+        ],
+        [
+         23.647777800103505,
+         56.835555599957395
+        ],
+        [
+         23.6505556002695,
+         56.8036110999371
+        ]
+       ]
+      ]
+     }
+    }
+   ],
+   "extendedProperties": {
+    "isSunsetSunriseZone": null,
+    "additionalProperties": null,
+    "messageEng": "Flight authorisation must be obtained using the CAA Unmanned Aircraft IS (https://e.caa.gov.lv/uas-operations) by submitting an application at least 3 days before the planned operation."
+   }
+  },
+  {
+   "identifier": "9865af7",
+   "country": "LVA",
+   "name": "UAS EVD84 BALTICOVO I",
+   "type": "COMMON",
+   "restriction": "NO_RESTRICTION",
+   "region": 1,
+   "reason": [
+    "AIR_TRAFFIC"
+   ],
+   "regulationExemption": "NO",
+   "message": "UAS EVD84 BALTICOVO zona. BVLOS lidojumi AS \"Balticovo\" teritorijā.",
+   "zoneAuthority": [
+    {
+     "name": "AS \"Balticovo\"",
+     "service": "",
+     "email": "redacted",
+     "contactName": "redacted",
+     "phone": "redacted",
+     "purpose": "INFORMATION"
+    }
+   ],
+   "applicability": [
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-03-01T00:00:00.00Z"
+    }
+   ],
+   "geometry": [
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 160,
+     "upperVerticalReference": "AMSL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         24.2183333330779,
+         56.633888888973395
+        ],
+        [
+         24.2083333331492,
+         56.6230555558076
+        ],
+        [
+         24.2180555560258,
+         56.61666666720609
+        ],
+        [
+         24.2166666671717,
+         56.606388888806286
+        ],
+        [
+         24.2450000001535,
+         56.6047222219717
+        ],
+        [
+         24.255000000082205,
+         56.60888888910479
+        ],
+        [
+         24.2669444438676,
+         56.6202777782096
+        ],
+        [
+         24.2666666668155,
+         56.6236111110142
+        ],
+        [
+         24.2619444443524,
+         56.62749999977589
+        ],
+        [
+         24.2183333330779,
+         56.633888888973395
+        ]
+       ]
+      ]
+     }
+    }
+   ],
+   "extendedProperties": {
+    "isSunsetSunriseZone": null,
+    "additionalProperties": "Zona izveidota UAS apsardzes un novērošanas lidojumiem AS \"Balticovo\" teritorijā saskaņā ar CAA lēmumu un AIP EVD84 publikāciju.",
+    "messageEng": "UAS EVD84 BALTICOVO zone. BVLOS flights over AS \"Balticovo\" territory."
+   }
+  },
+  {
+   "identifier": "2fe5375",
+   "country": "LVA",
+   "name": "UAS EVR62A RUSONS1 P",
+   "type": "COMMON",
+   "restriction": "PROHIBITED",
+   "region": 1,
+   "reason": [
+    "AIR_TRAFFIC"
+   ],
+   "regulationExemption": "NO",
+   "message": "Lidojumi aizliegti, neparedzot lidojumu saskaņošanu.\n",
+   "zoneAuthority": [
+    {
+     "id": "90000068801-2",
+     "name": "Nacionālie bruņotie spēki ",
+     "service": "NBS Gaisa spēki MAMC",
+     "email": "mamc@mil.lv",
+     "contactName": "MAMC",
+     "phone": "+37165002679",
+     "purpose": "INFORMATION",
+     "authorRegNr": "90000068801"
+    }
+   ],
+   "applicability": [
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-10-01T06:00:00.00Z",
+     "endDateTime": "2026-10-01T18:00:00.00Z"
+    },
+    {
+     "permanent": "NO",
+     "startDateTime": "2026-10-02T06:00:00.00Z",
+     "endDateTime": "2026-10-02T18:00:00.00Z"
+    }
+   ],
+   "geometry": [
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 1220,
+     "upperVerticalReference": "AMSL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         26.5608333332285,
+         56.2749999999226
+        ],
+        [
+         25.7447222222936,
+         56.0736111110442
+        ],
+        [
+         26.6833333330293,
+         55.90138888880791
+        ],
+        [
+         27.696388888677,
+         56.228611111043996
+        ],
+        [
+         26.5608333332285,
+         56.2749999999226
+        ]
+       ]
+      ]
+     }
+    }
+   ],
+   "extendedProperties": {
+    "isSunsetSunriseZone": null,
+    "additionalProperties": null,
+    "messageEng": "Flights are prohibited without the option to request authorisation."
+   }
+  },
+  {
+   "identifier": "kHxxOPx",
+   "country": "LVA",
+   "name": "UAS AST KI 40",
+   "type": "COMMON",
+   "restriction": "REQ_AUTHORISATION",
+   "reason": [
+    "SENSITIVE"
+   ],
+   "regulationExemption": "NO",
+   "message": "Lidojumus iepriekš jāsaskaņo CAA bezpilota gaisa kuģu informācijas sistēmā (https://e.caa.gov.lv/uas-operations), nosūtot pieteikumu 2 dienas pirms plānoto lidojumu uzsākšanas.",
+   "zoneAuthority": [
+    {
+     "name": "AS Augstsprieguma tīkls",
+     "service": "Drošības daļa",
+     "email": "redacted",
+     "siteUrl": "https://www.ast.lv/",
+     "phone": "redacted",
+     "purpose": "AUTHORIZATION",
+     "intervalBefore": "P2D"
+    }
+   ],
+   "applicability": [
+    {
+     "permanent": "NO",
+     "startDateTime": "2025-11-18T22:00:00.00Z",
+     "endDateTime": "2027-09-30T20:59:59.00Z"
+    }
+   ],
+   "geometry": [
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 40,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         26.222119,
+         56.288337
+        ],
+        [
+         26.220353,
+         56.306992
+        ],
+        [
+         26.209303,
+         56.329988
+        ],
+        [
+         26.207521,
+         56.330023
+        ],
+        [
+         26.20902,
+         56.326941
+        ],
+        [
+         26.209723,
+         56.325433
+        ],
+        [
+         26.218664,
+         56.306826
+        ],
+        [
+         26.218901,
+         56.304499
+        ],
+        [
+         26.220414,
+         56.288257
+        ],
+        [
+         26.221491,
+         56.284838
+        ],
+        [
+         26.22323,
+         56.284807
+        ],
+        [
+         26.222119,
+         56.288337
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 40,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         26.142882,
+         56.405236
+        ],
+        [
+         26.137293,
+         56.408436
+        ],
+        [
+         26.122473,
+         56.414569
+        ],
+        [
+         26.107917,
+         56.42747
+        ],
+        [
+         26.107823,
+         56.425784
+        ],
+        [
+         26.1176,
+         56.417079
+        ],
+        [
+         26.121186,
+         56.413924
+        ],
+        [
+         26.121318,
+         56.413857
+        ],
+        [
+         26.123802,
+         56.412843
+        ],
+        [
+         26.13614,
+         56.407728
+        ],
+        [
+         26.141674,
+         56.404568
+        ],
+        [
+         26.186271,
+         56.379822
+        ],
+        [
+         26.18634,
+         56.381104
+        ],
+        [
+         26.186381,
+         56.381175
+        ],
+        [
+         26.186322,
+         56.38126
+        ],
+        [
+         26.145259,
+         56.40391
+        ],
+        [
+         26.142882,
+         56.405236
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 40,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         26.049104,
+         56.467779
+        ],
+        [
+         26.040722,
+         56.470421
+        ],
+        [
+         26.038204,
+         56.471236
+        ],
+        [
+         26.029264,
+         56.47316
+        ],
+        [
+         26.029211,
+         56.472156
+        ],
+        [
+         26.037441,
+         56.470381
+        ],
+        [
+         26.039872,
+         56.469599
+        ],
+        [
+         26.046241,
+         56.467591
+        ],
+        [
+         26.048976,
+         56.467548
+        ],
+        [
+         26.049101,
+         56.467582
+        ],
+        [
+         26.049172,
+         56.467648
+        ],
+        [
+         26.049167,
+         56.467725
+        ],
+        [
+         26.049104,
+         56.467779
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 40,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         25.204919,
+         56.38876
+        ],
+        [
+         25.218367,
+         56.43355
+        ],
+        [
+         25.216454,
+         56.433566
+        ],
+        [
+         25.203007,
+         56.388775
+        ],
+        [
+         25.204919,
+         56.38876
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "uomDimensions": "M",
+     "lowerLimit": 0,
+     "lowerVerticalReference": "AGL",
+     "upperLimit": 40,
+     "upperVerticalReference": "AGL",
+     "horizontalProjection": {
+      "type": "Polygon",
+      "coordinates": [
+       [
+        [
+         25.050485,
+         56.303939
+        ],
+        [
+         24.991388,
+         56.300654
+        ],
+        [
+         24.991434,
+         56.300456
+        ],
+        [
+         24.99146,
+         56.300008
+        ],
+        [
+         24.991442,
+         56.299847
+        ],
+        [
+         24.991333,
+         56.299598
+        ],
+        [
+         25.050451,
+         56.302883
+        ],
+        [
+         25.050485,
+         56.303939
+        ]
+       ]
+      ]
+     }
+    }
+   ],
+   "extendedProperties": {
+    "isSunsetSunriseZone": null,
+    "additionalProperties": null,
+    "messageEng": "Flight authorisation must be obtained using the CAA Unmanned Aircraft IS (https://e.caa.gov.lv/uas-operations) by submitting an application at least 2 days before the planned operation."
+   }
+  }
+ ]
+}

@@ -42,6 +42,16 @@ verified on issue #413 (2026-07-29). Public data, no privacy concern.
   and its field names differ per folder. Tests wrap the KML into the live
   zip→kmz nesting in memory. Reproduced under the CAA site's terms of use
   (source marked, data content unchanged).
+- `ed269-lv.json` — Latvia ED-269 `UASZoneVersion` document (drz.lv, published
+  by Latvijas Gaisa Satiksme; free of charge for non-commercial use under
+  Cabinet Regulation No. 248 §45, confirmed in writing 2026-09-29; issue
+  #594, live shape verified 2026-10-01), trimmed to six real zones: one per
+  restriction class, one with two dated windows, one open-ended, three with
+  the weekday/hour `schedule` the parser shows but does not evaluate, and
+  one five-volume zone. Keeps the live file's title stamp (the edition),
+  its two-digit fractional seconds and its `extendedProperties.messageEng`.
+  Contact details of natural persons in `zoneAuthority` are replaced with
+  "redacted"; everything else is as published.
 
 The manual E2E step before merge re-fetches each live endpoint and confirms
 these shapes still match; `ed318-se.json` and `eans-ee.json` are synthetic,
