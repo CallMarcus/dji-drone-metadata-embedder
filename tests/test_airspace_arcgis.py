@@ -1,5 +1,6 @@
 """Shared ArcGIS paging (#451): used by the FAA and ENAIRE providers."""
 
+import io
 import json
 
 import pytest
@@ -15,8 +16,6 @@ class FakeTransport:
 
     def __call__(self, req, timeout=None):
         self.urls.append(req.full_url)
-        import io
-
         resp = io.BytesIO(self.bodies.pop(0))
         resp.__enter__ = lambda *a: resp  # type: ignore[method-assign]
         resp.__exit__ = lambda *a: False  # type: ignore[method-assign]

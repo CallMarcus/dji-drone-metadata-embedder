@@ -693,7 +693,7 @@ def test_a_spanish_flight_queries_both_enaire_layers_by_snapped_bbox(tmp_path):
         for p in tmp_path.glob("enaire-ES-*.json")
         if not p.name.endswith(".meta.json")
     ]
-    assert len(cached) == 1
+    assert [p.name for p in cached] == ["enaire-ES-m3.8_40.3_m3.6_40.5.json"]
     assert any("Fetching" in ln and "servais.enaire.es" in ln for ln in lines)
 
 
@@ -709,3 +709,13 @@ def test_an_enaire_maintenance_page_is_a_gap_and_never_cached(tmp_path):
     data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=fake)
     assert data.gap_reason is not None and "not JSON" in data.gap_reason
     assert not list(tmp_path.glob("enaire-ES-*.json"))
+
+
+def test_an_enaire_failure_on_the_second_layer_is_a_gap_and_never_cached(tmp_path):
+    # Layer 2 answers; layer 0 then returns an HTML error page. Either layer
+    # failing must void the whole fetch, with nothing cached.
+    fake = FakeTransport([_es_pages()[0], b"<html>Error performing query</html>"])
+    data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=fake)
+    assert len(fake.urls) == 2
+    assert data.gap_reason is not None and "not JSON" in data.gap_reason
+    assert not list(tmp_path.glob("enaire-ES-*"))
