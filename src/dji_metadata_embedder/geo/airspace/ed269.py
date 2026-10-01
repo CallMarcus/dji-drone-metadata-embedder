@@ -125,6 +125,31 @@ ED269_FEEDS: dict[str, Ed269Feed] = {
         caveat=_CAVEAT,
         no_ceiling_m=99999,
     ),
+    "LV": Ed269Feed(
+        code="LV",
+        # The stable public export; the per-version URLs answer 401.
+        url="https://drz.lv/api/v1/export-history/UASZoneVersion",
+        feed_name="Latvia UAS geographical zones (ED-269, LGS)",
+        # LGS's written answer (2026-09-29, issue #594) cites Cabinet
+        # Regulation No. 248 §45: free of charge unless processed and
+        # disseminated to third parties for commercial gain.
+        license=(
+            "Latvijas Gaisa Satiksme (LGS), official UAS geographical zones "
+            "data set; free of charge for non-commercial use under Cabinet "
+            "Regulation No. 248, paragraph 45 (confirmed in writing by LGS "
+            "AIS, 2026-09-29)"
+        ),
+        caveat=_CAVEAT,
+        note=(
+            "Zone conditions are binding from the moment LGS publishes them "
+            "(Regulation No. 248, paragraph 44). Validity windows are "
+            "evaluated; some zones also carry a weekday/hour schedule in "
+            "their published data that is not evaluated here. Zone messages "
+            "are shown in LGS's own English wording."
+        ),
+        notes_path=("extendedProperties", "messageEng"),
+        edition_from_title=True,
+    ),
 }
 
 
