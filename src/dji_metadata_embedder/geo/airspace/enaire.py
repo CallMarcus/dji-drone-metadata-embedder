@@ -148,29 +148,14 @@ def _text(value: object) -> str | None:
     return None if text in ("", "None") else text
 
 
-# The messages end (or interrupt) their prose with "Contacto: TEL: +34-... ;
-# Email: a@b.c ; ..." blocks. Individuals' phone numbers and mailboxes are
-# never rendered, so the whole chain goes: each item is an optional TEL:/Email:
-# label, then a +country phone or an address, then an optional ';' separator.
-_EMAIL = r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
-_PHONE = r"\+\d[\d\- ]*\d"
-_CONTACT_CHAIN = re.compile(
-    rf"contacto\s*:\s*(?:(?:(?:TEL|Email)\s*:\s*)?(?:{_PHONE}|{_EMAIL})\s*;?\s*)+",
-    re.IGNORECASE,
-)
-# Stragglers outside a "Contacto:" chain (e.g. "en el email: x@y.z").
-_STRAY_CONTACT = re.compile(rf"{_EMAIL}|{_PHONE}")
-
-
 def _plain(value: object) -> str | None:
-    """Published prose with its markup stripped, contacts removed and
-    whitespace collapsed."""
+    """Published prose with its markup stripped and whitespace collapsed.
+    Shown as published: the messages carry ENAIRE's own coordination
+    contacts, which are part of the text."""
     text = _text(value)
     if text is None:
         return None
-    text = html.unescape(_TAG.sub(" ", text))
-    text = _STRAY_CONTACT.sub("", _CONTACT_CHAIN.sub("", text))
-    return _WS.sub(" ", text).strip() or None
+    return _WS.sub(" ", html.unescape(_TAG.sub(" ", text))).strip() or None
 
 
 def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:

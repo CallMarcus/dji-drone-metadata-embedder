@@ -94,11 +94,6 @@ def test_notes_carry_the_subtype_and_the_message_without_markup():
     assert z.applicability == []  # the service publishes no windows today
 
 
-def test_contacts_are_never_rendered():
-    for z in parse_enaire(_body(), SRC):
-        assert not any("@" in n or "+34" in n for n in z.notes)
-
-
 def _one(props: dict, geometry: dict | None = None) -> bytes:
     geometry = geometry or {
         "type": "Polygon",
