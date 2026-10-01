@@ -21,7 +21,7 @@ urban environment"), not a place; every flight would "enter" it. The
 reminder rides as the feed note instead.
 
 Permission record (issue #451): ENAIRE AIS helpdesk, caso 44348,
-2026-09-29 — use is public, no agreement needed, provided it is stated
+2026-09-29: use is public, no agreement needed, provided it is stated
 expressly that ENAIRE holds the intellectual and industrial property
 rights (Aviso Legal §6). That email is the written authorisation §6 asks
 for. ENAIRE's own "Uso y limitaciones" page: the geometry is informative,
@@ -133,6 +133,9 @@ def fetch_enaire_body(bbox: tuple[float, float, float, float], transport) -> byt
 
 # Markup in the published messages: <elem>, <b>, <p>, <font ...>, </...>.
 _TAG = re.compile(r"<[^>]+>")
+# The service caps messages at 2000 characters, so a long one can end inside
+# a tag (`<a href='https://...` with no closing `>`): drop that dangling tag.
+_OPEN_TAG_AT_END = re.compile(r"<[^>]*$")
 _WS = re.compile(r"\s+")
 
 
@@ -155,7 +158,12 @@ def _plain(value: object) -> str | None:
     text = _text(value)
     if text is None:
         return None
-    return _WS.sub(" ", html.unescape(_TAG.sub(" ", text))).strip() or None
+    return (
+        _WS.sub(
+            " ", html.unescape(_TAG.sub(" ", _OPEN_TAG_AT_END.sub("", text)))
+        ).strip()
+        or None
+    )
 
 
 def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
@@ -211,7 +219,18 @@ def _piece(feat: object, where: str) -> _Piece:
         raise AirspaceError(f"{where}: missing properties")
     ident = _text(props.get("identifier"))
     if ident is None:
-        raise AirspaceError(f"{where}: missing identifier")
+        # The live Aero layer publishes at least one feature (an ENR 5.5 area
+        # south-east of Madrid) with an empty identifier and name. Parsing is
+        # all-or-nothing, so raising here would blank every flight whose box
+        # reaches it. Synthesise a stable id from the subtype and the GUID;
+        # only a feature with no identity at all is malformed.
+        raw_guid = (
+            _text(props.get("GFID")) or _text(props.get("OBJECTID")) or ""
+        ).strip("{}")[:8]
+        if not raw_guid:
+            raise AirspaceError(f"{where}: missing identifier")
+        subtype = _text(props.get("extendedProperties")) or "zone"
+        ident = f"{subtype} [{raw_guid}]"
     restriction = _text(props.get("type"))
     if restriction is None:
         raise AirspaceError(f"{where} ({ident}): missing restriction type")
@@ -291,8 +310,13 @@ def parse_enaire(raw: bytes, source: SourceInfo) -> list[Zone]:
     zones: list[Zone] = []
     for ident, pieces in groups.items():
         buckets: dict[tuple, list[_Piece]] = {}
-        for piece in pieces:
-            buckets.setdefault(piece.key, []).append(piece)
+        for n, piece in enumerate(pieces):
+            # Holes are zone-wide (the evaluator and renderers apply every
+            # hole to every polygon), so a holed piece merged with a piece
+            # lying inside its hole would under-report. A holed piece always
+            # gets its own bucket.
+            key = piece.key + (("holed", n),) if piece.holes else piece.key
+            buckets.setdefault(key, []).append(piece)
         for group in buckets.values():
             first = group[0]
             if len(buckets) == 1:

@@ -13,6 +13,7 @@ from dji_metadata_embedder.geo.airspace.enaire import (
     parse_enaire,
     query_url,
 )
+from dji_metadata_embedder.geo.airspace.evaluate import point_in_ring
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
@@ -207,12 +208,107 @@ def test_pieces_with_different_windows_stay_separate_zones():
     assert all(z.identifier.startswith("X1 [") for z in zones)
 
 
-def test_suffix_does_not_depend_on_publisher_order():
-    a = {"identifier": "X1", "type": "CONDITIONAL", "name": "A", "GFID": "{AAAA0001}"}
-    b = {"identifier": "X1", "type": "CONDITIONAL", "name": "B", "GFID": "{BBBB0002}"}
-    one = {z.identifier for z in parse_enaire(_many(a, b), SRC)}
-    two = {z.identifier for z in parse_enaire(_many(b, a), SRC)}
-    assert one == two
+def test_suffix_of_a_merged_zone_is_its_smallest_guid_in_any_order():
+    base = {"identifier": "X1", "type": "CONDITIONAL"}
+    a1 = {**base, "name": "A", "GFID": "{CCCC0003}"}
+    a2 = {**base, "name": "A", "GFID": "{AAAA0001}"}
+    b = {**base, "name": "B", "GFID": "{BBBB0002}"}
+    seen = []
+    for order in ((a1, a2, b), (b, a2, a1), (a2, b, a1)):
+        zones = parse_enaire(_many(*order), SRC)
+        assert len(zones) == 2
+        seen.append({z.name: z.identifier for z in zones})
+    assert seen[0] == {"A": "X1 [AAAA0001]", "B": "X1 [BBBB0002]"}
+    assert seen[0] == seen[1] == seen[2]
+
+
+def test_identifier_less_features_get_a_synthesised_id():
+    z = parse_enaire(
+        _one(
+            {
+                "identifier": "",
+                "name": "",
+                "type": "REQ_AUTHORIZATION",
+                "extendedProperties": "ENR_5_5",
+                "GFID": "{8FA678F7-1111-2222}",
+            }
+        ),
+        SRC,
+    )
+    assert [x.identifier for x in z] == ["ENR_5_5 [8FA678F7]"]
+    # Without a subtype the id still carries the GUID.
+    z = parse_enaire(
+        _one({"type": "REQ_AUTHORIZATION", "OBJECTID": 1445}),
+        SRC,
+    )
+    assert z[0].identifier == "zone [1445]"
+
+
+def _ring(x0, y0, x1, y1):
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]
+
+
+def test_a_holed_piece_never_merges_with_a_piece_inside_its_hole():
+    base = {"identifier": "X1", "type": "CONDITIONAL", "name": "A"}
+    outer = {
+        "type": "Polygon",
+        "coordinates": [_ring(0, 0, 10, 10), _ring(4, 4, 6, 6)],
+    }
+    inner = {"type": "Polygon", "coordinates": [_ring(4.5, 4.5, 5.5, 5.5)]}
+    feats = [
+        {
+            "type": "Feature",
+            "properties": {**base, "GFID": "{AAAA0001}"},
+            "geometry": outer,
+        },
+        {
+            "type": "Feature",
+            "properties": {**base, "GFID": "{BBBB0002}"},
+            "geometry": inner,
+        },
+    ]
+    for order in (feats, feats[::-1]):
+        body = json.dumps(
+            {"layers": {"2": [{"type": "FeatureCollection", "features": order}]}}
+        ).encode()
+        zones = parse_enaire(body, SRC)
+        assert len(zones) == 2
+        holed = next(z for z in zones if z.holes)
+        plain = next(z for z in zones if not z.holes)
+        assert holed.identifier == "X1 [AAAA0001]"
+        assert plain.identifier == "X1 [BBBB0002]"
+        # A point in the hole is outside the holed zone and inside the other.
+        assert any(point_in_ring(5, 5, r) for r in holed.holes)
+        assert any(point_in_ring(5, 5, r) for r in plain.polygons)
+        assert not plain.holes
+
+
+def test_a_truncated_trailing_tag_is_dropped_from_notes():
+    z = parse_enaire(
+        _one(
+            {
+                "identifier": "X1",
+                "type": "CONDITIONAL",
+                "message": "<p>Contacte <a href='x",
+            }
+        ),
+        SRC,
+    )[0]
+    assert z.notes == ["Contacte"]
+
+
+LIVE_AERO = Path(
+    "/tmp/claude-1000/-mnt-c-Claude-dji-drone-metadata-embedder/"
+    "0c8149d6-8463-4242-929c-654f79ef7036/scratchpad/es-aero-p1.json"
+)
+
+
+@pytest.mark.skipif(not LIVE_AERO.exists(), reason="live Aero sample not present")
+def test_the_whole_live_aero_layer_parses():
+    # Local-only: the sample is a scratch download, so CI always skips this.
+    doc = json.loads(LIVE_AERO.read_text(encoding="utf-8"))
+    zones = parse_enaire(json.dumps({"layers": {"2": [doc]}}).encode(), SRC)
+    assert len(zones) > 1400
 
 
 def test_unknown_uom_is_an_error():

@@ -102,10 +102,11 @@ class Zone:
     passthrough). ``polygons`` are closed exterior rings of (lon, lat);
     ``holes`` are interior rings (GeoJSON ``coordinates[1:]``), kept apart
     so the evaluator subtracts them instead of counting them as zone
-    (#422). Grouping is zone-level, not per-polygon — sufficient for every
-    shape the live feeds publish (none has holes or multi-volume zones
-    today); a grouped model is the #424-era upgrade if a feed ever needs
-    it."""
+    (#422). Grouping is zone-level, not per-polygon: holes apply to every
+    polygon of the zone. ENAIRE merges same-attribute pieces into
+    multi-polygon zones, so its parser keeps any holed piece a single-
+    polygon zone of its own; a grouped model is the #424-era upgrade if a
+    feed ever needs holes inside multi-volume zones."""
 
     identifier: str
     name: str
