@@ -325,6 +325,57 @@ _CORE: dict[str, list[Box]] = {
             50.68,
         ),  # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
     ],
+    # Land borders with Estonia (N), Russia (E), Belarus (SE) and Lithuania
+    # (S); the Baltic coast and the Gulf of Riga are free. Cores stay
+    # >=12 km inside every land border; 37/37 edge probes Nominatim-verified
+    # 2026-10-01 (scratch lv_nominatim.py). Deliberate gaps, each an honest
+    # border band: Daugavpils (~12 km from Lithuania, ~20 from Belarus),
+    # Krāslava, Bauska, Valka/Valga, Ainaži and Salacgrīva, Alūksne, Ludza
+    # and Zilupe, Rucava and Pape.
+    "LV": [
+        (
+            20.9,
+            56.47,
+            21.6,
+            57.80,
+        ),  # Liepāja + the Kurzeme coast; LT border 56.16 at the coast, ~56.34 at Skuodas => >=14 km
+        (
+            21.6,
+            56.52,
+            23.0,
+            57.80,
+        ),  # Ventspils, Kuldīga, Saldus, Talsi; LT border ~56.40 at Mažeikiai => >=13 km
+        (
+            22.9,
+            56.55,
+            25.2,
+            57.60,
+        ),  # Riga, Jūrmala, Jelgava, Tukums, Sigulda, Ogre, Limbaži; LT 56.37 => >=20 km, EE coast 57.87 => >=30 km
+        (
+            25.0,
+            56.75,
+            26.3,
+            57.60,
+        ),  # Cēsis, Valmiera, Smiltene, Madona; Valka/Valga 57.78 => >=20 km
+        (
+            26.3,
+            56.60,
+            27.3,
+            57.35,
+        ),  # Gulbene, Balvi; EE border dips to ~57.55 past Ape, RU east of 27.7 => >=25 km
+        (
+            25.8,
+            56.25,
+            26.9,
+            56.75,
+        ),  # Jēkabpils, Līvāni, Preiļi; LT border ~56.12 at Aknīste => >=13 km
+        (
+            26.4,
+            55.95,
+            27.5,
+            56.60,
+        ),  # Rēzekne; BY border ~55.80 => >=15 km, RU east of 27.9 => >=25 km
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -382,6 +433,11 @@ _HULL: dict[str, list[Box]] = {
     # Grand Duchy on purpose: cores break the tie (#499), so Luxembourg City
     # keeps resolving LU.
     "BE": [(2.50, 49.49, 6.42, 51.51)],
+    # The national bounding box with a sea margin: Valga, Palanga, the
+    # Lithuanian and Belarusian border towns and Sõrve on Saaremaa sit
+    # inside it deliberately (border-band semantics; the EE core claims
+    # Sõrve). Overlaps the EE hull's southern band on purpose: cores decide.
+    "LV": [(20.8, 55.6, 28.3, 58.15)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
@@ -397,6 +453,7 @@ _MEASURE = {
     "EE": MEASURE_EU,
     "SI": MEASURE_EU,
     "BE": MEASURE_EU,
+    "LV": MEASURE_EU,
 }
 
 
@@ -428,7 +485,8 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia and Belgium)",
+            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium "
+            "and Latvia)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:
