@@ -313,3 +313,44 @@ def test_a_title_without_a_stamp_is_an_error_not_a_silent_none():
         ed269_effective(b'{"features": []}')
     with pytest.raises(AirspaceError, match="not JSON"):
         ed269_effective(b"<html>")
+
+
+def _lv_zone(ident: str):
+    return next(z for z in parse_ed269(_lv(), SRC) if z.identifier == ident)
+
+
+def test_latvian_schedules_ride_as_published_activation_text():
+    first = _lv_zone("3c0b685").activation
+    assert len(first) == 4  # one line per window, each carrying one entry
+    assert first[0] == "any day 05:00-18:00 UTC"
+    assert first[1] == "any day 06:00-19:00 UTC"
+    assert _lv_zone("5250143").activation == ["MON/TUE/WED/THU/FRI 00:00-23:59 UTC"]
+
+
+def test_a_window_without_a_schedule_adds_no_activation_text():
+    assert _lv_zone("2fe5375").activation == []
+    assert all(z.activation == [] for z in parse_ed269(_lu(), SRC))
+
+
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        [{"day": "MON", "startTime": "05:00:00.00Z", "endTime": "18:00:00.00Z"}],
+        [{"day": ["MON"], "endTime": "18:00:00.00Z"}],
+        [{"day": ["MON"], "startTime": "5", "endTime": "18:00:00.00Z"}],
+        ["MON"],
+        "MON",
+    ],
+)
+def test_a_malformed_schedule_rejects_the_feed_naming_the_zone(schedule):
+    data = json.loads(_lv().decode("utf-8-sig"))
+    zone = next(f for f in data["features"] if f["identifier"] == "5250143")
+    zone["applicability"][0]["schedule"] = schedule
+    with pytest.raises(AirspaceError, match="5250143"):
+        parse_ed269(json.dumps(data).encode(), SRC)
+
+
+def test_an_impossible_edition_date_is_rejected():
+    raw = json.dumps({"title": "UASZoneVersion_2026_13_01T13_54_14_382723Z"}).encode()
+    with pytest.raises(AirspaceError, match="not a calendar date"):
+        ed269_effective(raw)

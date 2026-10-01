@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import date
 
 from .model import (
     AirspaceError,
@@ -75,6 +76,12 @@ def ed269_effective(raw: bytes) -> str:
             f"ED-269 edition: title {title!r} carries no UASZoneVersion stamp"
         )
     year, month, day = match.groups()
+    try:
+        date.fromisoformat(f"{year}-{month}-{day}")
+    except ValueError as exc:
+        raise AirspaceError(
+            f"ED-269 edition: title {title!r} is not a calendar date"
+        ) from exc
     return f"{year}-{month}-{day}"
 
 
@@ -167,6 +174,41 @@ def _limit(geom: dict, side: str, unit: str, where: str) -> VerticalLimit | None
     return VerticalLimit(float(value), unit, ref)
 
 
+def _hhmm(value: object, where: str) -> str:
+    """``05:00:00.00Z`` -> ``05:00``."""
+    if not isinstance(value, str) or len(value) < 5 or value[2] != ":":
+        raise AirspaceError(f"{where}: schedule time {value!r} is not HH:MM")
+    return value[:5]
+
+
+def _schedule_lines(schedule: object, where: str) -> list[str]:
+    """One published-not-evaluated text line per schedule entry (#594).
+
+    ``"any day 05:00-18:00 UTC"``; absent schedule adds nothing, a malformed
+    one rejects the whole feed like every other ED-269 shape error.
+    """
+    if schedule is None:
+        return []
+    if not isinstance(schedule, list):
+        raise AirspaceError(f"{where}: schedule is not a list")
+    lines: list[str] = []
+    for entry in schedule:
+        if not isinstance(entry, dict):
+            raise AirspaceError(f"{where}: schedule entry is not an object")
+        days = entry.get("day")
+        if (
+            not isinstance(days, list)
+            or not days
+            or not all(isinstance(d, str) for d in days)
+        ):
+            raise AirspaceError(f"{where}: schedule day {days!r} is not a list")
+        start = _hhmm(entry.get("startTime"), where)
+        end = _hhmm(entry.get("endTime"), where)
+        names = "/".join("any day" if d.upper() == "ANY" else d for d in days)
+        lines.append(f"{names} {start}-{end} UTC")
+    return lines
+
+
 def parse_ed269(
     raw: bytes,
     source: SourceInfo,
@@ -196,6 +238,7 @@ def parse_ed269(
         if not isinstance(restriction, str) or not restriction:
             raise AirspaceError(f"{where} ({ident}): missing restriction")
         applicability: list[Applicability] = []
+        activation: list[str] = []
         always_applicable = False
         for win in feat.get("applicability") or []:
             if str(win.get("permanent", "")).upper() == "YES":
@@ -205,6 +248,9 @@ def parse_ed269(
                 # always-applicable zone as "not applicable".
                 always_applicable = True
                 break
+            activation.extend(
+                _schedule_lines(win.get("schedule"), f"{where} ({ident})")
+            )
             start = win.get("startDateTime")
             end = win.get("endDateTime")
             applicability.append(
@@ -274,6 +320,7 @@ def parse_ed269(
                 lower=lower,
                 upper=upper,
                 applicability=applicability,
+                activation=activation,
                 polygons=polygons,
                 holes=holes,
                 notes=_note_at(feat, notes_path) if notes_path else [],
