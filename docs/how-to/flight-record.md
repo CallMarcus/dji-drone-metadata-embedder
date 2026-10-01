@@ -84,6 +84,14 @@ Seven feeds are used:
   application of the BCAA or the Belgian authorities, that only the
   official publication channels are authoritative, and that regulatory
   compliance verification remains with the remote pilot and UAS operator.
+- **Latvia** flights fetch LGS's whole published UAS geographical-zone
+  file (the daily `UASZoneVersion` export, attributed to Latvijas Gaisa
+  Satiksme; free of charge for non-commercial use under Cabinet Regulation
+  No. 248 §45, confirmed in writing), again with no location sent. The
+  file's title stamp is its edition and the record states it. Validity
+  windows are evaluated; a few zones also publish a weekday/hour schedule,
+  which the record shows and does not evaluate; LGS's English zone
+  message rides in the popup verbatim.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -98,11 +106,11 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
 United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
-Denmark, Sweden, Estonia, Slovenia, or Belgium. Everywhere else the record
+Denmark, Sweden, Estonia, Slovenia, Belgium, or Latvia. Everywhere else the record
 states
 the gap
 instead of guessing: *"no supported airspace data source for this
