@@ -8,6 +8,7 @@ normalization must lose nothing.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -19,11 +20,23 @@ class AirspaceError(ValueError):
     field/position. All-or-nothing: one bad zone invalidates the feed."""
 
 
+# A fractional-seconds group ahead of the offset (or the end once "Z"
+# has become "+00:00"). Python 3.10's fromisoformat accepts only 3- or
+# 6-digit fractions; the drz.lv file writes two (#594), so the group is
+# padded to six before parsing.
+_FRACTION = re.compile(r"\.(\d{1,6})(?=[+-]\d{2}:\d{2}$|$)")
+
+
 def iso_utc(raw: str, where: str) -> datetime:
     """An ISO-8601 instant as the naive UTC datetime the evaluator compares
     (``Z`` and offsets both honoured); *where* names the field on error."""
+    text = _FRACTION.sub(
+        lambda m: "." + m.group(1).ljust(6, "0"),
+        raw.replace("Z", "+00:00"),
+        count=1,
+    )
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(text)
     except ValueError as exc:
         raise AirspaceError(f"{where}: {raw!r} is not an ISO datetime") from exc
     if dt.tzinfo is not None:
