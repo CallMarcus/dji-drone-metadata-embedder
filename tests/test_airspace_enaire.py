@@ -169,3 +169,63 @@ def test_query_url_targets_the_v2_service_with_the_bbox_and_geojson():
     assert ENAIRE_LAYERS == (2, 0)
     assert "ENAIRE" in ENAIRE_FEED.license and "caso 44348" in ENAIRE_FEED.license
     assert "Urbano" in (ENAIRE_FEED.note or "")
+
+
+def _many(*props_list: dict) -> bytes:
+    geom = {
+        "type": "Polygon",
+        "coordinates": [[[-3.7, 40.4], [-3.6, 40.4], [-3.6, 40.5], [-3.7, 40.4]]],
+    }
+    feats = [{"type": "Feature", "properties": p, "geometry": geom} for p in props_list]
+    return json.dumps(
+        {"layers": {"2": [{"type": "FeatureCollection", "features": feats}]}}
+    ).encode()
+
+
+def test_split_zones_without_a_guid_cannot_be_told_apart():
+    base = {"identifier": "X1", "type": "CONDITIONAL"}
+    with pytest.raises(AirspaceError, match="tell them apart"):
+        parse_enaire(_many({**base, "name": "A"}, {**base, "name": "B"}), SRC)
+
+
+def test_pieces_with_different_windows_stay_separate_zones():
+    base = {
+        "identifier": "X1",
+        "type": "CONDITIONAL",
+        "name": "A",
+        "lower": 0,
+        "lowerReference": "AGL",
+    }
+    zones = parse_enaire(
+        _many(
+            {**base, "GFID": "{AAAA0001-0}", "startDateTime": "2026-10-01T06:00:00"},
+            {**base, "GFID": "{BBBB0002-0}", "startDateTime": "2026-10-02T06:00:00"},
+        ),
+        SRC,
+    )
+    assert len(zones) == 2
+    assert all(z.identifier.startswith("X1 [") for z in zones)
+
+
+def test_suffix_does_not_depend_on_publisher_order():
+    a = {"identifier": "X1", "type": "CONDITIONAL", "name": "A", "GFID": "{AAAA0001}"}
+    b = {"identifier": "X1", "type": "CONDITIONAL", "name": "B", "GFID": "{BBBB0002}"}
+    one = {z.identifier for z in parse_enaire(_many(a, b), SRC)}
+    two = {z.identifier for z in parse_enaire(_many(b, a), SRC)}
+    assert one == two
+
+
+def test_unknown_uom_is_an_error():
+    with pytest.raises(AirspaceError, match="uom 'FL' is not supported"):
+        parse_enaire(
+            _one(
+                {
+                    "identifier": "X1",
+                    "type": "CONDITIONAL",
+                    "upper": 100,
+                    "upperReference": "AMSL",
+                    "uom": "FL",
+                }
+            ),
+            SRC,
+        )

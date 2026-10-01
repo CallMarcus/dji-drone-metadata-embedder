@@ -169,7 +169,10 @@ def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
     reference = _text(props.get(f"{side}Reference"))
     if reference not in ("AGL", "AMSL"):
         raise AirspaceError(f"{where}: {side}Reference {reference!r} is not supported")
-    unit = "ft" if (_text(props.get("uom")) or "M").upper() == "FT" else "m"
+    uom = (_text(props.get("uom")) or "M").upper()
+    if uom not in ("M", "FT"):
+        raise AirspaceError(f"{where}: uom {uom!r} is not supported")
+    unit = "ft" if uom == "FT" else "m"
     return VerticalLimit(value=value, unit=unit, reference=reference)
 
 
@@ -189,7 +192,15 @@ class _Piece:
 
     @property
     def key(self) -> tuple:
-        return (self.name, self.restriction, self.lower, self.upper, tuple(self.notes))
+        windows = tuple((w.start, w.end, w.permanent) for w in self.applicability)
+        return (
+            self.name,
+            self.restriction,
+            self.lower,
+            self.upper,
+            tuple(self.notes),
+            windows,
+        )
 
 
 def _piece(feat: object, where: str) -> _Piece:
@@ -284,7 +295,17 @@ def parse_enaire(raw: bytes, source: SourceInfo) -> list[Zone]:
             buckets.setdefault(piece.key, []).append(piece)
         for group in buckets.values():
             first = group[0]
-            zone_id = ident if len(buckets) == 1 else f"{ident} [{first.guid}]"
+            if len(buckets) == 1:
+                zone_id = ident
+            else:
+                # min() keeps the suffix independent of publisher order.
+                guid = min(piece.guid for piece in group)
+                if not guid:
+                    raise AirspaceError(
+                        f"{source.feed}: identifier {ident!r} is published for "
+                        "different zones without a GFID/OBJECTID to tell them apart"
+                    )
+                zone_id = f"{ident} [{guid}]"
             zones.append(
                 Zone(
                     identifier=zone_id,
