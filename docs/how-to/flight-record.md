@@ -34,7 +34,7 @@ takeoff-referenced height, which is aircraft-reported. The
 surface-referenced height is the exception — it needs a fetch from
 Mapterhorn's terrain tiles (see "The `[terrain]` extra" below).
 
-Seven feeds are used:
+These feeds are used:
 
 - **US flights** query the FAA's UAS Facility Map (keyless ArcGIS). The
   bounding box sent to the endpoint is padded and snapped outward to a
