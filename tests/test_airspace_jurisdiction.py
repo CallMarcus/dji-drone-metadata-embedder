@@ -667,8 +667,9 @@ def test_the_no_provider_message_lists_belgium():
 
 
 # --- Latvia (#594): land borders with EE, RU, BY and LT; the Baltic coast
-# and the Gulf of Riga are free. 37/37 Nominatim probes 2026-10-01
-# (scratch script lv_nominatim.py) -----------------------------------------
+# is free but the Gulf of Riga and Irbe Strait are partly Estonian water.
+# Town markers were probed against Nominatim first; every core edge and
+# corner was then swept at 0.1 deg steps with 12 km outward probes: 432 probes, zero foreign (2026-10-01) -----------------------------
 
 
 def test_a_riga_flight_resolves_to_lv_with_the_eu_measure():
@@ -707,8 +708,8 @@ def test_latvian_cities_resolve_through_their_cores():
 
 def test_latvian_border_towns_gap_as_border_bands():
     # Daugavpils (~12 km from LT), Krāslava, Bauska, Valka, Ainaži, Salacgrīva,
-    # Alūksne, Ludza, Zilupe, Rucava, Pape: inside the hull, deliberately
-    # outside every core.
+    # Alūksne, Ludza, Zilupe, Rucava, Pape, the corner east of Valga and
+    # Kolka cape: inside the hull, deliberately outside every core.
     for lat, lon in [
         (55.87, 26.52),  # Daugavpils
         (55.90, 27.17),  # Krāslava
@@ -721,6 +722,8 @@ def test_latvian_border_towns_gap_as_border_bands():
         (56.39, 28.12),  # Zilupe
         (56.16, 21.16),  # Rucava
         (56.16, 21.03),  # Pape
+        (57.58, 26.28),  # the former Estonian sliver of the Cēsis/Madona core
+        (57.75, 22.60),  # Kolka cape: the Irbe Strait margin gaps on purpose
     ]:
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is None, (lat, lon)

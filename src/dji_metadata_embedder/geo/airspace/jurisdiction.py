@@ -326,37 +326,57 @@ _CORE: dict[str, list[Box]] = {
         ),  # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
     ],
     # Land borders with Estonia (N), Russia (E), Belarus (SE) and Lithuania
-    # (S); the Baltic coast and the Gulf of Riga are free. Cores stay
-    # >=12 km inside every land border; 37/37 edge probes Nominatim-verified
-    # 2026-10-01 (scratch lv_nominatim.py). Deliberate gaps, each an honest
-    # border band: Daugavpils (~12 km from Lithuania, ~20 from Belarus),
+    # (S). The Baltic coast is free, but the Gulf of Riga and the Irbe
+    # Strait are not: Estonian waters around Ruhnu and the Irbe median line
+    # bound them, and territorial airspace follows territorial sea, so the
+    # northern edges stay well south of both. Cores stay >=12 km inside
+    # every land border and out of Estonian waters. Probed against
+    # Nominatim 2026-10-01 in two passes: town markers first, then an
+    # edge-and-corner sweep (every perimeter sample about every 0.1 deg,
+    # each probed at the edge and 12 km straight outward, corners also
+    # diagonally; 432 probes, zero foreign hits, sea allowed).
+    # Deliberate gaps, each an honest border band or an Estonian-water
+    # margin: Daugavpils (~12 km from Lithuania, ~20 from Belarus),
     # Krāslava, Bauska, Valka/Valga, Ainaži and Salacgrīva, Alūksne, Ludza
-    # and Zilupe, Rucava and Pape.
+    # and Zilupe, Rucava and Pape, and the Irbe Strait coast (Kolka cape,
+    # 57.75 N, may gap).
     "LV": [
         (
             20.9,
             56.47,
             21.6,
-            57.80,
-        ),  # Liepāja + the Kurzeme coast; LT border 56.16 at the coast, ~56.34 at Skuodas => >=14 km
+            57.55,
+        ),  # Liepāja + the Kurzeme coast; LT border ~56.07 at the coast, ~56.34 at Skuodas => >=14 km; Irbe Strait kept clear
         (
             21.6,
-            56.52,
+            56.55,
             23.0,
-            57.80,
-        ),  # Ventspils, Kuldīga, Saldus, Talsi; LT border ~56.40 at Mažeikiai => >=13 km
+            57.45,
+        ),  # Ventspils, Kuldīga, Saldus, Talsi; south edge pulled 0.03 N inboard: its 12 km probe (56.44 N, 22.07 E) is Latvian, the old edge's was Lithuanian
         (
             22.9,
             56.55,
+            24.3,
+            57.35,
+        ),  # Riga west, Jūrmala, Jelgava, Tukums; LT 56.37 => >=20 km; north edge clear of Estonian waters off Ruhnu
+        (
+            24.3,
+            56.58,
             25.2,
             57.60,
-        ),  # Riga, Jūrmala, Jelgava, Tukums, Sigulda, Ogre, Limbaži; LT 56.37 => >=20 km, EE coast 57.87 => >=30 km
+        ),  # Riga east, Ogre, Sigulda, Limbaži; south edge pulled 0.03 N inboard: its 12 km probe (56.47 N, 24.89 E near Biržai) is Latvian, the old edge's was Lithuanian; EE coast 57.87 => >=30 km
         (
             25.0,
             56.75,
-            26.3,
+            25.9,
             57.60,
-        ),  # Cēsis, Valmiera, Smiltene, Madona; Valka/Valga 57.78 => >=20 km
+        ),  # Cēsis, Valmiera, Smiltene; Valka/Valga 57.78 => >=20 km
+        (
+            25.9,
+            56.75,
+            26.3,
+            57.45,
+        ),  # Madona; capped at 57.45 N because the EE border dips to ~57.55 east of Valga (Mõniste is EE at 57.56 N, 26.53 E)
         (
             26.3,
             56.60,
@@ -371,10 +391,10 @@ _CORE: dict[str, list[Box]] = {
         ),  # Jēkabpils, Līvāni, Preiļi; LT border ~56.12 at Aknīste => >=13 km
         (
             26.4,
-            55.95,
-            27.5,
+            55.98,
+            27.45,
             56.60,
-        ),  # Rēzekne; BY border ~55.80 => >=15 km, RU east of 27.9 => ~24 km
+        ),  # Rēzekne; SE corner pulled 0.03 N / 0.05 E inboard so its 12 km probes stay Latvian (the old corner's were Belarusian); RU east of 27.9 => ~24 km
     ],
 }
 _HULL: dict[str, list[Box]] = {
