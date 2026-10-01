@@ -92,6 +92,16 @@ These feeds are used:
   windows are evaluated; a few zones also publish a weekday/hour schedule,
   which the record shows and does not evaluate; LGS's English zone
   message rides in the popup verbatim.
+- **Spain** flights query ENAIRE's documented ZGUAS service (keyless
+  ArcGIS, attributed to ENAIRE as holder of the intellectual and
+  industrial property rights, reuse authorised in writing). Like the
+  FAA grid, the bounding box sent is padded and snapped outward to a
+  0.1° grid first, so the endpoint learns no more than a map-tile fetch
+  would. Aerodrome and infrastructure-protection zones are fetched; the
+  service's territory-wide urban-environment reminder is carried as a
+  note, not drawn as a zone. The service states no edition date, only
+  the fetch time is shown, and ENAIRE's caveat that the geometry is
+  informative and the AIP normative rides with every Spanish record.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -106,11 +116,11 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia, Spain — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
 United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
-Denmark, Sweden, Estonia, Slovenia, Belgium, or Latvia. Everywhere else the record
+Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia, or Spain. Everywhere else the record
 states
 the gap
 instead of guessing: *"no supported airspace data source for this
