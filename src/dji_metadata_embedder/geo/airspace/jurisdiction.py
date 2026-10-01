@@ -325,6 +325,77 @@ _CORE: dict[str, list[Box]] = {
             50.68,
         ),  # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
     ],
+    # Land borders with Estonia (N), Russia (E), Belarus (SE) and Lithuania
+    # (S). The Baltic coast is free, but the Gulf of Riga and the Irbe
+    # Strait are not: Estonian waters around Ruhnu and the Irbe median line
+    # bound them, and territorial airspace follows territorial sea, so the
+    # northern edges stay well south of both. Cores stay >=12 km inside
+    # every land border and out of Estonian waters. Probed against
+    # Nominatim 2026-10-01 in two passes: town markers first, then an
+    # edge-and-corner sweep (every perimeter sample about every 0.1 deg,
+    # each probed at the edge and 12 km straight outward, corners also
+    # diagonally; 432 probes, zero foreign hits, sea allowed).
+    # Deliberate gaps, each an honest border band or an Estonian-water
+    # margin: Daugavpils (~12 km from Lithuania, ~20 from Belarus),
+    # Krāslava, Bauska, Valka/Valga, Ainaži and Salacgrīva, Alūksne, Ludza
+    # and Zilupe, Rucava and Pape, and the Irbe Strait coast (Kolka cape,
+    # 57.75 N, may gap).
+    "LV": [
+        (
+            20.9,
+            56.47,
+            21.6,
+            57.55,
+        ),  # Liepāja + the Kurzeme coast; LT border ~56.07 at the coast, ~56.34 at Skuodas => >=14 km; Irbe Strait kept clear
+        (
+            21.6,
+            56.55,
+            23.0,
+            57.45,
+        ),  # Ventspils, Kuldīga, Saldus, Talsi; south edge pulled 0.03 N inboard: its 12 km probe (56.44 N, 22.07 E) is Latvian, the old edge's was Lithuanian
+        (
+            22.9,
+            56.55,
+            24.3,
+            57.35,
+        ),  # Riga west, Jūrmala, Jelgava, Tukums; LT 56.37 => >=20 km; north edge clear of Estonian waters off Ruhnu
+        (
+            24.3,
+            56.58,
+            25.2,
+            57.60,
+        ),  # Riga east, Ogre, Sigulda, Limbaži; south edge pulled 0.03 N inboard: its 12 km probe (56.47 N, 24.89 E near Biržai) is Latvian, the old edge's was Lithuanian; EE coast 57.87 => >=30 km
+        (
+            25.0,
+            56.75,
+            25.9,
+            57.60,
+        ),  # Cēsis, Valmiera, Smiltene; Valka/Valga 57.78 => >=20 km
+        (
+            25.9,
+            56.75,
+            26.3,
+            57.45,
+        ),  # Madona; capped at 57.45 N because the EE border dips to ~57.55 east of Valga (Mõniste is EE at 57.56 N, 26.53 E)
+        (
+            26.3,
+            56.60,
+            27.3,
+            57.35,
+        ),  # Gulbene, Balvi; EE border dips to ~57.55 past Ape, RU east of 27.7 => ~24 km
+        (
+            25.8,
+            56.25,
+            26.9,
+            56.75,
+        ),  # Jēkabpils, Līvāni, Preiļi; LT border ~56.12 at Aknīste => >=13 km
+        (
+            26.4,
+            55.98,
+            27.45,
+            56.60,
+        ),  # Rēzekne; SE corner pulled 0.03 N / 0.05 E inboard so its 12 km probes stay Latvian (the old corner's were Belarusian); RU east of 27.9 => ~24 km
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -382,6 +453,11 @@ _HULL: dict[str, list[Box]] = {
     # Grand Duchy on purpose: cores break the tie (#499), so Luxembourg City
     # keeps resolving LU.
     "BE": [(2.50, 49.49, 6.42, 51.51)],
+    # The national bounding box with a sea margin: Valga, Palanga, the
+    # Lithuanian and Belarusian border towns and Sõrve on Saaremaa sit
+    # inside it deliberately (border-band semantics; the EE core claims
+    # Sõrve). Overlaps the EE hull's southern band on purpose: cores decide.
+    "LV": [(20.8, 55.6, 28.3, 58.15)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
@@ -397,6 +473,7 @@ _MEASURE = {
     "EE": MEASURE_EU,
     "SI": MEASURE_EU,
     "BE": MEASURE_EU,
+    "LV": MEASURE_EU,
 }
 
 
@@ -428,7 +505,8 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia and Belgium)",
+            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium "
+            "and Latvia)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

@@ -485,13 +485,17 @@ publisher's evaluation and such a zone, if the flight was inside it, is
 listed as not applicable, never as entered. NOTAM zones take their dates from Droneguide's NOTAM layer.
 The BCAA's four notices ride with every Belgian record: not an official
 application, only the official channels are authoritative, and compliance
-verification stays with the remote pilot).
+verification stays with the remote pilot. Latvia is served by LGS's published ED-269 file: every zone carries
+validity windows, which are evaluated, and some carry a weekday/hour
+schedule, which shows in the popup as published and is not evaluated;
+the popup quotes LGS's own English message for each zone, and the record
+notes that zone conditions bind from the moment LGS publishes them).
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
 fetch time. Where the dataset is published per edition (the UK's 28-day
 AIRAC cycle, dated in the filename; the Irish and Swedish ED-318 files,
-which state their valid-from date inside the document), the popup and the
+which state their valid-from date inside the document; the Latvian file, whose title carries the stamp of the daily export), the popup and the
 corner note also state the edition's effective date, so a cached copy that has outlived its
 cycle is visible as such: "fetched" is when the copy was downloaded,
 "effective" is which cycle it reflects. Zones the

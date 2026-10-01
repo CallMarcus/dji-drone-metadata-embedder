@@ -495,10 +495,11 @@ def test_valka_latvia_gaps_inside_the_hull_only():
     assert r.jurisdiction is None
 
 
-def test_riga_stays_outside_the_ee_hull_entirely():
-    r = resolve_jurisdiction(_track((56.95, 24.10)))
-    assert r.jurisdiction is None
-    assert r.gap_reason is not None and "Estonia" in r.gap_reason
+def test_riga_resolves_to_lv_never_ee():
+    # Riga (56.95) sits below the EE hull floor (57.45), so it was never an
+    # EE candidate; since #594 it resolves through the LV Riga core.
+    r = resolve_jurisdiction(_track((56.95, 24.1)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LV"
 
 
 def test_helsinki_still_resolves_fi_with_the_ee_hull_nearby():
@@ -663,3 +664,99 @@ def test_the_no_provider_message_lists_belgium():
     r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert r.jurisdiction is None
     assert r.gap_reason is not None and "Belgium" in r.gap_reason
+
+
+# --- Latvia (#594): land borders with EE, RU, BY and LT; the Baltic coast
+# is free but the Gulf of Riga and Irbe Strait are partly Estonian water.
+# Town markers were probed against Nominatim first; every core edge and
+# corner was then swept at 0.1 deg steps with 12 km outward probes: 432 probes, zero foreign (2026-10-01) -----------------------------
+
+
+def test_a_riga_flight_resolves_to_lv_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((56.95, 24.11)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LV"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_latvian_cities_resolve_through_their_cores():
+    # Jūrmala, Jelgava, Liepāja, Ventspils, Kuldīga, Saldus, Talsi, Tukums,
+    # Sigulda, Ogre, Limbaži, Cēsis, Valmiera, Madona, Gulbene, Jēkabpils,
+    # Preiļi, Rēzekne.
+    for lat, lon in [
+        (56.97, 23.77),
+        (56.65, 23.71),
+        (56.51, 21.01),
+        (57.39, 21.56),
+        (56.97, 21.97),
+        (56.66, 22.49),
+        (57.24, 22.59),
+        (56.97, 23.15),
+        (57.15, 24.85),
+        (56.82, 24.60),
+        (57.51, 24.71),
+        (57.31, 25.27),
+        (57.54, 25.42),
+        (56.85, 26.22),
+        (57.17, 26.75),
+        (56.50, 25.86),
+        (56.29, 26.72),
+        (56.51, 27.33),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "LV", (lat, lon)
+
+
+def test_latvian_border_towns_gap_as_border_bands():
+    # Daugavpils (~12 km from LT), Krāslava, Bauska, Valka, Ainaži, Salacgrīva,
+    # Alūksne, Ludza, Zilupe, Rucava, Pape, the corner east of Valga and
+    # Kolka cape: inside the hull, deliberately outside every core.
+    for lat, lon in [
+        (55.87, 26.52),  # Daugavpils
+        (55.90, 27.17),  # Krāslava
+        (56.41, 24.19),  # Bauska
+        (57.78, 26.02),  # Valka
+        (57.86, 24.36),  # Ainaži
+        (57.75, 24.36),  # Salacgrīva
+        (57.42, 27.05),  # Alūksne
+        (56.55, 27.72),  # Ludza
+        (56.39, 28.12),  # Zilupe
+        (56.16, 21.16),  # Rucava
+        (56.16, 21.03),  # Pape
+        (57.58, 26.28),  # the former Estonian sliver of the Cēsis/Madona core
+        (57.75, 22.60),  # Kolka cape: the Irbe Strait margin gaps on purpose
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_towns_inside_the_lv_hull_never_resolve_to_lv():
+    # Valga, Palanga, Skuodas, Mažeikiai, Joniškis, Biržai, Zarasai,
+    # Turmantas, Braslaw, Pytalovo.
+    for lat, lon in [
+        (57.78, 26.05),
+        (55.92, 21.07),
+        (56.27, 21.53),
+        (56.31, 22.34),
+        (56.24, 23.61),
+        (56.20, 24.76),
+        (55.73, 26.25),
+        (55.70, 26.47),
+        (55.64, 27.04),
+        (57.06, 27.92),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+
+
+def test_sorve_still_resolves_to_ee_inside_the_overlapping_lv_hull():
+    # The LV hull's sea margin reaches Saaremaa's Sõrve tip; the EE core
+    # breaks the tie (#499 semantics).
+    r = resolve_jurisdiction(_track((57.92, 22.04)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_the_no_provider_message_lists_latvia():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Latvia" in r.gap_reason

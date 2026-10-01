@@ -11,7 +11,9 @@ feeds are contract: UTF-8 BOM (utf-8-sig), absent limits mean "not stated".
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
+from datetime import date
 
 from .model import (
     AirspaceError,
@@ -36,11 +38,61 @@ class Ed269Feed:
     # feed re-verified 2026-08-05). Mapped to "not stated" at parse time
     # so it never renders or compares as a real altitude.
     no_ceiling_m: float | None = None
+    # Key path, per feature, to published free text the popup shows
+    # verbatim as a note (#594: Latvia's English wording lives under
+    # extendedProperties.messageEng; its Latvian ``message`` stays in
+    # native). Empty: the feed publishes no such text, no notes.
+    notes_path: tuple[str, ...] = ()
+    # The document's ``title`` carries its edition stamp
+    # (``UASZoneVersion_2026_10_01T13_54_14_382723Z``, #594); parsed into
+    # ``SourceInfo.effective`` like the ED-318 files' validFrom (#563).
+    edition_from_title: bool = False
 
 
 _CAVEAT = (
     "UAS geographical-zone data is informational and is not an authorization to fly."
 )
+
+# The drz.lv title stamp: UASZoneVersion_YYYY_MM_DDTHH_MM_SS_ffffffZ. Only
+# the date is the edition; the time is when the daily export ran.
+_TITLE_STAMP = re.compile(r"UASZoneVersion_(\d{4})_(\d{2})_(\d{2})T\d{2}_\d{2}_\d{2}")
+
+
+def ed269_effective(raw: bytes) -> str:
+    """The ISO date in the document's title stamp (#594).
+
+    Only feeds that opt in (``edition_from_title``) call this, so a missing
+    or unrecognised title is an error, never a silent None: a cached copy
+    must always be able to say which edition it is.
+    """
+    try:
+        data = json.loads(raw.decode("utf-8-sig"))
+    except ValueError as exc:
+        raise AirspaceError(f"ED-269 edition: feed is not JSON ({exc})") from exc
+    title = data.get("title") if isinstance(data, dict) else None
+    match = _TITLE_STAMP.match(title) if isinstance(title, str) else None
+    if match is None:
+        raise AirspaceError(
+            f"ED-269 edition: title {title!r} carries no UASZoneVersion stamp"
+        )
+    year, month, day = match.groups()
+    try:
+        date.fromisoformat(f"{year}-{month}-{day}")
+    except ValueError as exc:
+        raise AirspaceError(
+            f"ED-269 edition: title {title!r} is not a calendar date"
+        ) from exc
+    return f"{year}-{month}-{day}"
+
+
+def _note_at(feat: dict, path: tuple[str, ...]) -> list[str]:
+    """The non-empty string at *path* inside *feat* as a one-line note."""
+    node: object = feat
+    for key in path:
+        node = node.get(key) if isinstance(node, dict) else None
+    text = node.strip() if isinstance(node, str) else ""
+    return [text] if text else []
+
 
 ED269_FEEDS: dict[str, Ed269Feed] = {
     "LU": Ed269Feed(
@@ -80,6 +132,31 @@ ED269_FEEDS: dict[str, Ed269Feed] = {
         caveat=_CAVEAT,
         no_ceiling_m=99999,
     ),
+    "LV": Ed269Feed(
+        code="LV",
+        # The stable public export; the per-version URLs answer 401.
+        url="https://drz.lv/api/v1/export-history/UASZoneVersion",
+        feed_name="Latvia UAS geographical zones (ED-269, LGS)",
+        # LGS's written answer (2026-09-29, issue #594) cites Cabinet
+        # Regulation No. 248 §45: free of charge unless processed and
+        # disseminated to third parties for commercial gain.
+        license=(
+            "Latvijas Gaisa Satiksme (LGS), official UAS geographical zones "
+            "data set; free of charge for non-commercial use under Cabinet "
+            "Regulation No. 248, paragraph 45 (confirmed in writing by LGS "
+            "AIS, 2026-09-29)"
+        ),
+        caveat=_CAVEAT,
+        note=(
+            "Zone conditions are binding from the moment LGS publishes them "
+            "(Regulation No. 248, paragraph 44). Validity windows are "
+            "evaluated; some zones also carry a weekday/hour schedule in "
+            "their published data that is not evaluated here. Zone messages "
+            "are shown in LGS's own English wording."
+        ),
+        notes_path=("extendedProperties", "messageEng"),
+        edition_from_title=True,
+    ),
 }
 
 
@@ -97,11 +174,47 @@ def _limit(geom: dict, side: str, unit: str, where: str) -> VerticalLimit | None
     return VerticalLimit(float(value), unit, ref)
 
 
+def _hhmm(value: object, where: str) -> str:
+    """``05:00:00.00Z`` -> ``05:00``."""
+    if not isinstance(value, str) or len(value) < 5 or value[2] != ":":
+        raise AirspaceError(f"{where}: schedule time {value!r} is not HH:MM")
+    return value[:5]
+
+
+def _schedule_lines(schedule: object, where: str) -> list[str]:
+    """One published-not-evaluated text line per schedule entry (#594).
+
+    ``"any day 05:00-18:00 UTC"``; absent schedule adds nothing, a malformed
+    one rejects the whole feed like every other ED-269 shape error.
+    """
+    if schedule is None:
+        return []
+    if not isinstance(schedule, list):
+        raise AirspaceError(f"{where}: schedule is not a list")
+    lines: list[str] = []
+    for entry in schedule:
+        if not isinstance(entry, dict):
+            raise AirspaceError(f"{where}: schedule entry is not an object")
+        days = entry.get("day")
+        if (
+            not isinstance(days, list)
+            or not days
+            or not all(isinstance(d, str) for d in days)
+        ):
+            raise AirspaceError(f"{where}: schedule day {days!r} is not a list")
+        start = _hhmm(entry.get("startTime"), where)
+        end = _hhmm(entry.get("endTime"), where)
+        names = "/".join("any day" if d.upper() == "ANY" else d for d in days)
+        lines.append(f"{names} {start}-{end} UTC")
+    return lines
+
+
 def parse_ed269(
     raw: bytes,
     source: SourceInfo,
     *,
     no_ceiling_m: float | None = None,
+    notes_path: tuple[str, ...] = (),
 ) -> list[Zone]:
     """Every zone of an ED-269 document as normalized :class:`Zone`s."""
     try:
@@ -125,6 +238,7 @@ def parse_ed269(
         if not isinstance(restriction, str) or not restriction:
             raise AirspaceError(f"{where} ({ident}): missing restriction")
         applicability: list[Applicability] = []
+        activation: list[str] = []
         always_applicable = False
         for win in feat.get("applicability") or []:
             if str(win.get("permanent", "")).upper() == "YES":
@@ -134,6 +248,9 @@ def parse_ed269(
                 # always-applicable zone as "not applicable".
                 always_applicable = True
                 break
+            activation.extend(
+                _schedule_lines(win.get("schedule"), f"{where} ({ident})")
+            )
             start = win.get("startDateTime")
             end = win.get("endDateTime")
             applicability.append(
@@ -203,8 +320,10 @@ def parse_ed269(
                 lower=lower,
                 upper=upper,
                 applicability=applicability,
+                activation=activation,
                 polygons=polygons,
                 holes=holes,
+                notes=_note_at(feat, notes_path) if notes_path else [],
                 source=source,
                 native=feat,
             )

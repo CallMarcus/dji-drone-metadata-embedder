@@ -53,7 +53,7 @@ from .dronezoner import (
     discover_feed_url as discover_dronezoner_url,
 )
 from .eans import EANS_FEEDS, parse_eans
-from .ed269 import ED269_FEEDS, parse_ed269
+from .ed269 import ED269_FEEDS, ed269_effective, parse_ed269
 from .ed318 import ED318_FEEDS, discover_feed_url, ed318_effective, parse_ed318
 from .evaluate import track_window
 from .jurisdiction import resolve_jurisdiction
@@ -246,7 +246,12 @@ def fetch_zones(
             doc = _load_faa_doc(body)
             return parse_faa(_faa_pages_from_doc(doc), source)
         if code in ED269_FEEDS:
-            return parse_ed269(body, source, no_ceiling_m=feed.no_ceiling_m)
+            return parse_ed269(
+                body,
+                source,
+                no_ceiling_m=feed.no_ceiling_m,
+                notes_path=feed.notes_path,
+            )
         if code in ED318_FEEDS:
             return parse_ed318(body, source)
         if code in DRONEZONER_FEEDS:
@@ -275,6 +280,11 @@ def fetch_zones(
                 )
             elif code in ED269_FEEDS:
                 body = _fetch_url(url, transport)
+                if feed.edition_from_title:
+                    # The document states its own edition in its title
+                    # (#594); it rides in the record and the cache sidecar
+                    # like the ED-318 files' validFrom.
+                    effective = ed269_effective(body)
             elif code in ED318_FEEDS:
                 if feed318.file_url:
                     body = _fetch_url(url, transport)

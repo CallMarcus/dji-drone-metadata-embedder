@@ -621,3 +621,39 @@ def test_an_untimed_belgian_flight_sends_no_window_and_says_so(tmp_path):
     assert "not evaluated by the publisher" in (data.source.note or "")
     assert (tmp_path / "droneguide-BE-nowindow.json").exists()
     assert all(z.not_active_reason is None for z in data.zones)
+
+
+def test_a_latvian_flight_fetches_the_lgs_file_with_its_edition_and_notes(tmp_path):
+    # #594: drz.lv's stable export URL is fetched directly; the title stamp
+    # is the edition and the English message rides as the zone note.
+    fake = FakeTransport([(FIXTURES / "ed269-lv.json").read_bytes()])
+    lines = []
+    data = fetch_zones(
+        _track(56.95, 24.11), tmp_path, transport=fake, announce=lines.append
+    )
+    assert data.gap_reason is None and len(data.zones) == 6
+    assert fake.urls == ["https://drz.lv/api/v1/export-history/UASZoneVersion"]
+    assert data.source is not None
+    assert "Latvijas Gaisa Satiksme" in data.source.license
+    assert "paragraph 45" in data.source.license
+    assert "not evaluated" in (data.source.note or "")
+    assert data.source.effective == "2026-10-01"
+    banned = next(z for z in data.zones if z.identifier == "2fe5375")
+    assert banned.notes == [
+        "Flights are prohibited without the option to request authorisation."
+    ]
+    assert (tmp_path / "ed269-LV.json").exists()
+    meta = json.loads(
+        (tmp_path / "ed269-LV.json.meta.json").read_text(encoding="utf-8")
+    )
+    assert meta["effective"] == "2026-10-01"
+    assert any("Fetching" in ln and "drz.lv" in ln for ln in lines)
+
+
+def test_a_cached_latvian_body_keeps_its_edition(tmp_path):
+    first = FakeTransport([(FIXTURES / "ed269-lv.json").read_bytes()])
+    fetch_zones(_track(56.95, 24.11), tmp_path, transport=first)
+    second = FakeTransport([])
+    data = fetch_zones(_track(56.95, 24.11), tmp_path, transport=second)
+    assert second.urls == []
+    assert data.source is not None and data.source.effective == "2026-10-01"
