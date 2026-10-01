@@ -135,7 +135,9 @@ def fetch_enaire_body(bbox: tuple[float, float, float, float], transport) -> byt
 _TAG = re.compile(r"<[^>]+>")
 # The service caps messages at 2000 characters, so a long one can end inside
 # a tag (`<a href='https://...` with no closing `>`): drop that dangling tag.
-_OPEN_TAG_AT_END = re.compile(r"<[^>]*$")
+# Only a tag-looking tail (a letter or "/" after "<") is dropped, so prose
+# such as "altura < 120 m" survives.
+_OPEN_TAG_AT_END = re.compile(r"<[A-Za-z/][^>]*$")
 _WS = re.compile(r"\s+")
 
 
@@ -347,4 +349,15 @@ def parse_enaire(raw: bytes, source: SourceInfo) -> list[Zone]:
                     notes=list(first.notes),
                 )
             )
+    # The overlay dedupes on (feed, identifier): a repeated id would silently
+    # drop a zone, so a collision (a shared 8-hex GUID prefix, or OBJECTIDs
+    # repeating across layers) must fail loudly instead.
+    seen: set[str] = set()
+    for zone in zones:
+        if zone.identifier in seen:
+            raise AirspaceError(
+                f"{source.feed}: zone id {zone.identifier!r} is not unique "
+                "after merging and splitting"
+            )
+        seen.add(zone.identifier)
     return zones

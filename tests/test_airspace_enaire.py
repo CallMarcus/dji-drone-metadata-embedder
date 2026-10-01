@@ -1,6 +1,7 @@
 """ENAIRE (Spain) provider tests (#451) against the cache-shaped fixture."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -297,15 +298,16 @@ def test_a_truncated_trailing_tag_is_dropped_from_notes():
     assert z.notes == ["Contacte"]
 
 
-LIVE_AERO = Path(
-    "/tmp/claude-1000/-mnt-c-Claude-dji-drone-metadata-embedder/"
-    "0c8149d6-8463-4242-929c-654f79ef7036/scratchpad/es-aero-p1.json"
+# A whole live Aero layer, when a maintainer points at a local download
+# (DJIEMBED_ENAIRE_AERO_SAMPLE=/path/to/aero.json); never present in CI.
+LIVE_AERO = Path(os.environ.get("DJIEMBED_ENAIRE_AERO_SAMPLE", ""))
+
+
+@pytest.mark.skipif(
+    not LIVE_AERO.is_file(),
+    reason="set DJIEMBED_ENAIRE_AERO_SAMPLE to a live Aero download",
 )
-
-
-@pytest.mark.skipif(not LIVE_AERO.exists(), reason="live Aero sample not present")
 def test_the_whole_live_aero_layer_parses():
-    # Local-only: the sample is a scratch download, so CI always skips this.
     doc = json.loads(LIVE_AERO.read_text(encoding="utf-8"))
     zones = parse_enaire(json.dumps({"layers": {"2": [doc]}}).encode(), SRC)
     assert len(zones) > 1400
@@ -325,3 +327,64 @@ def test_unknown_uom_is_an_error():
             ),
             SRC,
         )
+
+
+def test_a_duplicate_zone_id_after_splitting_is_an_error():
+    # Two different zones under one identifier whose GUIDs share the same
+    # 8-character prefix would collide on the suffix; the overlay would
+    # drop one, so the parser refuses instead.
+    body = json.dumps(
+        {
+            "layers": {
+                "2": [
+                    {
+                        "type": "FeatureCollection",
+                        "features": [
+                            {
+                                "type": "Feature",
+                                "properties": {
+                                    "identifier": "X1",
+                                    "name": "A",
+                                    "type": "CONDITIONAL",
+                                    "GFID": "{ABCDEF12-1111}",
+                                },
+                                "geometry": {
+                                    "type": "Polygon",
+                                    "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+                                },
+                            },
+                            {
+                                "type": "Feature",
+                                "properties": {
+                                    "identifier": "X1",
+                                    "name": "B",
+                                    "type": "CONDITIONAL",
+                                    "GFID": "{ABCDEF12-2222}",
+                                },
+                                "geometry": {
+                                    "type": "Polygon",
+                                    "coordinates": [[[2, 2], [3, 2], [3, 3], [2, 2]]],
+                                },
+                            },
+                        ],
+                    }
+                ]
+            }
+        }
+    ).encode()
+    with pytest.raises(AirspaceError, match="not unique"):
+        parse_enaire(body, SRC)
+
+
+def test_prose_with_a_lone_less_than_sign_survives_tag_trimming():
+    z = parse_enaire(
+        _one(
+            {
+                "identifier": "X1",
+                "type": "CONDITIONAL",
+                "message": "vuele a altura < 120 m",
+            }
+        ),
+        SRC,
+    )[0]
+    assert z.notes == ["vuele a altura < 120 m"]
