@@ -430,13 +430,13 @@ _CORE: dict[str, list[Box]] = {
             42.3,
             -8.0,
             43.8,
-        ),  # Ourense and the Minho stretch; south edge 42.3 N because the 12 km probes from 42.2 N at 8.3 W and 8.2 W were Portuguese (Melgaço)
+        ),  # the Ribadavia stretch of the Minho valley; south edge 42.3 N because the 12 km probes from 42.2 N at 8.3 W and 8.2 W were Portuguese (Melgaço)
         (
             -8.0,
             42.2,
             -6.0,
             43.8,
-        ),  # Galicia east, Asturias; PT (Minho/Verín side, sweep-verified
+        ),  # Galicia east (Ourense, Lugo), Asturias; PT (Verín side, border near 41.93 N) is ~30 km south of the 42.2 N edge
         (
             -6.0,
             41.2,
@@ -454,7 +454,7 @@ _CORE: dict[str, list[Box]] = {
             41.2,
             -1.2,
             42.85,
-        ),  # Navarra south of Pamplona; FR border >= 43.0 => >=17 km
+        ),  # Navarra south of Pamplona; FR border >= 43.0 => >=16 km
         (
             -1.2,
             40.2,
@@ -467,7 +467,7 @@ _CORE: dict[str, list[Box]] = {
             36.7,
             -1.0,
             40.6,
-        ),  # Almería, Murcia, Alicante; sea to the south (Algeria is 200 km away here)
+        ),  # Almería, Murcia, Alicante; sea to the south (Algeria's Cap Falcon, 35.77 N 0.8 E, is ~100 km from the south-east corner)
         (
             -1.0,
             37.4,
@@ -482,10 +482,16 @@ _CORE: dict[str, list[Box]] = {
         ),  # Andalusia + Cáceres; PT (Huelva/Badajoz) <= -7.0 => >=35 km, Gibraltar 36.15 => >=16 km
         (
             -18.3,
+            27.6,
+            -14.6,
+            29.4,
+        ),  # western Canarias (El Hierro, La Palma, La Gomera, Tenerife, Gran Canaria); the nearest foreign territory is Western Sahara/Morocco, over 100 km east, so southern Gran Canaria and El Hierro resolve
+        (
+            -14.6,
             28.0,
             -13.4,
             29.4,
-        ),  # Canarias; south edge 28.0 N because Nominatim places the waters south-east of Fuerteventura (27.6-27.8 N, 13.3 W) in Morocco; Fuerteventura's south tip is 28.04 N
+        ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; Jandia's tip south of 28.0 N and the sea towards Africa gap
     ],
 }
 _HULL: dict[str, list[Box]] = {

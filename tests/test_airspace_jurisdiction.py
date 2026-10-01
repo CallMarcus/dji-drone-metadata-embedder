@@ -815,9 +815,26 @@ def test_spanish_cities_resolve_through_their_cores():
 
 
 def test_the_canary_islands_resolve_through_their_own_hull():
-    for lat, lon in [(28.12, -15.43), (28.47, -16.25), (28.96, -13.55)]:
+    # Las Palmas, Tenerife, Lanzarote, Maspalomas, Mogan, Valverde (El
+    # Hierro), Santa Cruz de La Palma, Morro Jable (Fuerteventura).
+    for lat, lon in [
+        (28.12, -15.43),
+        (28.47, -16.25),
+        (28.96, -13.55),
+        (27.76, -15.59),
+        (27.88, -15.72),
+        (27.81, -17.92),
+        (28.68, -17.76),
+        (28.05, -14.35),
+    ]:
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is not None and r.jurisdiction.code == "ES", (lat, lon)
+
+
+def test_the_waters_south_of_the_jandia_tip_gap_as_a_boundary():
+    r = resolve_jurisdiction(_track((27.95, -14.40)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
 
 
 def test_spanish_border_towns_gap_as_border_bands():
