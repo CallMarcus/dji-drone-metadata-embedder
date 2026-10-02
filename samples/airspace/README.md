@@ -70,3 +70,14 @@ drifting from reality unnoticed).
   live layer publishes Polygons only). The activity flags are set by hand
   for the fixture window. Reuse per the BCAA's letter ref G26-187
   (public-sector information, no individual authorisation).
+- `enaire-es.json` — Spain: ENAIRE's ZGUAS ArcGIS service (servais.enaire.es,
+  reuse authorised in writing by ENAIRE AIS, caso 44348, 2026-09-29; issue
+  #451, live shape verified 2026-10-01), in the provider's cache-body shape
+  (`layers` → layer id → pages). Twelve real features: an aerodrome zone with
+  a hole, an RVF zone in feet, a TMA with AMSL limits, a MultiPolygon, the
+  two different ultralight fields that share identifier `T0010`, three
+  pieces of one railway-protection identifier (`INF0224`), two `INF0824`
+  pieces with differing limits, and one sensitive-site zone. Contact details
+  are kept only for organisation domains, in the dedicated fields and inside
+  the published message text alike; private operators' emails and numbers
+  read "redacted". The `ZGUAS_Urbano` layer is absent on purpose.

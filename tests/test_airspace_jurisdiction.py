@@ -760,3 +760,135 @@ def test_the_no_provider_message_lists_latvia():
     r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert r.jurisdiction is None
     assert r.gap_reason is not None and "Latvia" in r.gap_reason
+
+
+# --- Spain (#451): land borders with PT, FR, AD and Gibraltar; two hulls
+# (mainland + Balearics, Canarias); Ceuta and Melilla gap. Town markers +
+# a 0.1° edge-and-corner Nominatim sweep 2026-10-02 (es_nominatim.py,
+# es_edge_probe.py) -------------------------------------------------------
+
+
+def test_a_madrid_flight_resolves_to_es_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((40.42, -3.70)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "ES"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_spanish_cities_resolve_through_their_cores():
+    # Barcelona, Valencia, Seville, Zaragoza, Málaga, Murcia, Palma, Bilbao,
+    # Alicante, Córdoba, Valladolid, Vigo, Gijón, A Coruña, Granada,
+    # Vitoria, Santander, Pamplona, Huesca, Lleida, Girona, Cáceres,
+    # Salamanca, Zamora, León, Cádiz, Marbella, Mahón, Ibiza.
+    for lat, lon in [
+        (41.39, 2.17),
+        (39.47, -0.38),
+        (37.39, -5.99),
+        (41.65, -0.88),
+        (36.72, -4.42),
+        (37.99, -1.13),
+        (39.57, 2.65),
+        (43.26, -2.93),
+        (38.35, -0.48),
+        (37.88, -4.78),
+        (41.65, -4.72),
+        (42.24, -8.72),
+        (43.54, -5.66),
+        (43.37, -8.40),
+        (37.18, -3.60),
+        (42.85, -2.67),
+        (43.46, -3.80),
+        (42.81, -1.64),
+        (42.14, -0.41),
+        (41.62, 0.62),
+        (41.98, 2.82),
+        (39.47, -6.37),
+        (40.97, -5.66),
+        (41.50, -5.75),
+        (42.60, -5.57),
+        (36.53, -6.29),
+        (36.51, -4.88),
+        (39.89, 4.26),
+        (38.91, 1.43),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "ES", (lat, lon)
+
+
+def test_the_canary_islands_resolve_through_their_own_hull():
+    # Las Palmas, Tenerife, Lanzarote, Maspalomas, Mogan, Valverde (El
+    # Hierro), Santa Cruz de La Palma, Morro Jable (Fuerteventura).
+    for lat, lon in [
+        (28.12, -15.43),
+        (28.47, -16.25),
+        (28.96, -13.55),
+        (27.76, -15.59),
+        (27.88, -15.72),
+        (27.81, -17.92),
+        (28.68, -17.76),
+        (28.05, -14.35),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "ES", (lat, lon)
+
+
+def test_the_waters_south_of_the_jandia_tip_gap_as_a_boundary():
+    r = resolve_jurisdiction(_track((27.95, -14.40)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_spanish_border_towns_gap_as_border_bands():
+    # Badajoz, Tui, Irun, San Sebastián, Algeciras, La Línea, Tarifa,
+    # Ayamonte, Huelva, Ciudad Rodrigo, Puigcerdà, La Seu d'Urgell, Figueres, Jaca.
+    for lat, lon in [
+        (38.88, -6.97),
+        (42.05, -8.64),
+        (43.34, -1.79),
+        (43.32, -1.98),
+        (36.13, -5.45),
+        (36.17, -5.35),
+        (36.01, -5.60),
+        (37.21, -7.40),
+        (37.26, -6.95),
+        (40.60, -6.53),
+        (42.43, 1.93),
+        (42.36, 1.46),
+        (42.27, 2.96),
+        (42.57, -0.55),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_ceuta_melilla_and_madeira_are_outside_every_spanish_hull():
+    for lat, lon in [(35.89, -5.31), (35.29, -2.94), (32.65, -16.91)]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "no supported" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_towns_inside_the_es_hulls_never_resolve_to_es():
+    # Lisbon, Porto, Bragança, Elvas, Vila Real de Santo António, Perpignan,
+    # Bayonne, Andorra la Vella, Gibraltar, Tangier, Tarfaya, Oloron.
+    for lat, lon in [
+        (38.72, -9.14),
+        (41.15, -8.61),
+        (41.81, -6.76),
+        (38.88, -7.16),
+        (37.19, -7.42),
+        (42.70, 2.90),
+        (43.49, -1.47),
+        (42.51, 1.52),
+        (36.14, -5.35),
+        (35.78, -5.81),
+        (27.94, -12.93),
+        (43.19, -0.61),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+
+
+def test_the_no_provider_message_lists_spain():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.gap_reason is not None and "Spain" in r.gap_reason

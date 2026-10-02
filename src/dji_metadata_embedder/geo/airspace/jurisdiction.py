@@ -396,6 +396,107 @@ _CORE: dict[str, list[Box]] = {
             56.60,
         ),  # Rēzekne; SE corner pulled 0.03 N / 0.05 E inboard so its 12 km probes stay Latvian (the old corner's were Belarusian); RU east of 27.9 => ~24 km
     ],
+    # Land borders with Portugal (west and south-west), France and Andorra
+    # (the Pyrenees) and Gibraltar; the sea is free on every other side,
+    # but Nominatim counts territorial waters as the coastal state's, so
+    # the southern edges also keep out of Algerian and Moroccan waters.
+    # Cores stay >=12 km inside every land border. Ceuta and Melilla are
+    # outside both hulls on purpose (Moroccan land borders), and the cores
+    # stop short of the Strait of Gibraltar, so nothing there resolves.
+    # Probed against Nominatim 2026-10-02 in two passes: 60 town markers
+    # first (Ceuta, Melilla, Tangier and Tarfaya sit outside every hull
+    # by design; Ciudad Rodrigo is a real Spanish town about 25 km from
+    # Portugal and was gapped by pulling its edge in), then an
+    # edge-and-corner sweep (every perimeter sample about every 0.1 deg,
+    # each probed at the edge and 12 km straight outward, corners also
+    # diagonally, sea allowed). The first sweep of the candidate boxes
+    # found 92 foreign hits (Minho, Arribes del Duero, Algerian coast,
+    # Moroccan waters off Fuerteventura); the boxes below are the
+    # adjusted set, 1,264 probes, zero foreign hits. The two Canarias boxes
+    # were then re-swept after the southern Gran Canaria and El Hierro
+    # change: 292 probes, zero foreign hits.
+    # Deliberate gaps, each an honest border band: Badajoz, Tui and the
+    # Minho valley, Ciudad Rodrigo, Ayamonte, Huelva (about 40 km from
+    # Portugal, yet west of the Andalusia core's 6.6 W edge; a future box
+    # there needs its own sweep), Irun and San Sebastián, the
+    # Campo de Gibraltar (Algeciras, La Línea, Tarifa), Puigcerdà, La Seu
+    # d'Urgell, Figueres and Jaca; Ceuta and Melilla; the open sea south
+    # of 37.4 N between 1 W and 4.5 E and south-east of Fuerteventura.
+    "ES": [
+        (
+            -9.3,
+            42.2,
+            -8.4,
+            43.8,
+        ),  # Galicia west of the Minho bend (Vigo, A Coruña); PT border at the Minho mouth 41.87 N
+        (
+            -8.4,
+            42.3,
+            -8.0,
+            43.8,
+        ),  # the Ribadavia stretch of the Minho valley; south edge 42.3 N because the 12 km probes from 42.2 N at 8.3 W and 8.2 W were Portuguese (Melgaço)
+        (
+            -8.0,
+            42.2,
+            -6.0,
+            43.8,
+        ),  # Galicia east (Ourense, Lugo), Asturias; PT (Verín side, border near 41.93 N) is ~30 km south of the 42.2 N edge
+        (
+            -6.0,
+            41.2,
+            -2.05,
+            43.8,
+        ),  # León, Burgos, Valladolid, Cantabria, Bilbao, Vitoria; PT (Zamora) <= -6.2 => >=14 km, FR (Irun -1.78) => >=20 km
+        (
+            -6.3,
+            40.2,
+            -2.05,
+            41.2,
+        ),  # Salamanca, Ávila, Segovia, Madrid; west edge 6.3 W gaps Ciudad Rodrigo on purpose and keeps clear of the Arribes del Duero (PT reaches 41.3 N at 6.5 W => about 19 km at the north-west corner)
+        (
+            -2.05,
+            41.2,
+            -1.2,
+            42.85,
+        ),  # Navarra south of Pamplona; FR border >= 43.0 => >=16 km
+        (
+            -1.2,
+            40.2,
+            0.3,
+            42.5,
+        ),  # Zaragoza, Huesca, Teruel; FR border >= 42.7 => >=22 km
+        (0.3, 40.6, 3.3, 42.2),  # Catalonia; FR/AD border >= 42.4 => >=22 km
+        (
+            -2.5,
+            36.7,
+            -1.0,
+            40.6,
+        ),  # Almería, Murcia, Alicante; sea to the south (Algeria's Cap Falcon, 35.77 N 0.8 W, is ~100 km from the south-east corner)
+        (
+            -1.0,
+            37.4,
+            4.5,
+            40.6,
+        ),  # Valencia coast and the Balearics; south edge 37.4 N because Algerian land and territorial waters reach past 37.04 N near Dellys (3.9 E); the old 36.7 N edge sat inside Algeria
+        (
+            -6.6,
+            36.3,
+            -2.5,
+            40.2,
+        ),  # Andalusia + Cáceres; PT (Huelva/Badajoz) <= -7.0 => >=35 km, Gibraltar 36.15 => >=16 km
+        (
+            -18.3,
+            27.6,
+            -14.6,
+            29.4,
+        ),  # western Canarias (El Hierro, La Palma, La Gomera, Tenerife, Gran Canaria); the nearest foreign territory is Western Sahara/Morocco, over 100 km east, so southern Gran Canaria and El Hierro resolve
+        (
+            -14.6,
+            28.0,
+            -13.4,
+            29.4,
+        ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; the waters south of Jandia's tip and the sea towards Africa gap
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -458,6 +559,12 @@ _HULL: dict[str, list[Box]] = {
     # inside it deliberately (border-band semantics; the EE core claims
     # Sõrve). Overlaps the EE hull's southern band on purpose: cores decide.
     "LV": [(20.8, 55.6, 28.3, 58.15)],
+    # Mainland + Balearics, with a sea margin; Portugal, the French and
+    # Andorran Pyrenees and Gibraltar sit inside it deliberately (cores
+    # decide). Ceuta (35.89) and Melilla (35.29) sit south of the floor
+    # on purpose: the North African enclaves gap as no-provider rather
+    # than borrow a mainland framing across the strait.
+    "ES": [(-9.4, 35.95, 4.5, 43.9), (-18.4, 27.5, -13.3, 29.5)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
@@ -474,6 +581,7 @@ _MEASURE = {
     "SI": MEASURE_EU,
     "BE": MEASURE_EU,
     "LV": MEASURE_EU,
+    "ES": MEASURE_EU,
 }
 
 
@@ -505,8 +613,8 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium "
-            "and Latvia)",
+            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, "
+            "Latvia and Spain)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

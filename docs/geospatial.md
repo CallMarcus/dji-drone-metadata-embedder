@@ -489,7 +489,13 @@ verification stays with the remote pilot. Latvia is served by LGS's published ED
 validity windows, which are evaluated, and some carry a weekday/hour
 schedule, which shows in the popup as published and is not evaluated;
 the popup quotes LGS's own English message for each zone, and the record
-notes that zone conditions bind from the moment LGS publishes them).
+notes that zone conditions bind from the moment LGS publishes them. Spain is served by ENAIRE's documented ZGUAS service, queried for the
+flight's area only (the box is padded and snapped to a 0.1° grid before it
+is sent, as for the FAA grid), with aerodrome and infrastructure-protection
+zones whose Spanish messages appear in the popup as published; ENAIRE's own
+caveat that the geometry is informative and the AIP normative rides along,
+and its territory-wide urban-environment reminder is carried as a note
+rather than drawn as a zone).
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
