@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-10-02
+
 ### Added
 
 - **airspace**: Latvia is the twelfth covered country: `-f record` and `--airspace` fetch LGS's daily ED-269 export of UAS geographical zones. LGS's English zone notes ride in the popup and the record, the file's own edition date appears in the source line, and ED-269 activation schedules are now shown as published text for every ED-269 country (free use under Cabinet Regulation No. 248 §45, confirmed in writing by LGS AIS) (#594) (#597) (fb93871)
