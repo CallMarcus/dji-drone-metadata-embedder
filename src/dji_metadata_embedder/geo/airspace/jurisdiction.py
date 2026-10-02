@@ -519,7 +519,9 @@ _CORE: dict[str, list[Box]] = {
     # enough for 22 boxes. Per-box comments name the nearest foreign land
     # and its distance from the box, by arithmetic (1 deg lat = 111 km,
     # 1 deg lon = 111 * cos(lat) km) from a border crossing or border-side
-    # town; at sea, the neighbour's territorial waters sit nearer than its
+    # town whose coordinates were given from memory, so the figures are
+    # approximate (about 1 km) and not re-probed; the 12 km safety claim
+    # rests on the sweep, not on these comments. At sea, the neighbour's territorial waters sit nearer than its
     # land, and the sweep's sea probes cover those.
     # Deliberate gaps, each an honest border band or a coast margin: the 21
     # border towns (Aachen, Trier, Saarbrücken, Konstanz, Passau, Görlitz,
@@ -542,8 +544,18 @@ _CORE: dict[str, list[Box]] = {
         (11.3, 52.9, 12.6, 54.35),  # Schwerin, Rostock; DK Gedser 24 km N
         (12.6, 52.9, 12.9, 54.4),  # DK Gedser 47 km NW; PL 83 km
         (12.9, 52.9, 13.85, 54.68),  # Rügen; PL Oder (Hohenwutzen) 20 km SE
-        (10.5, 50.95, 13.9, 52.9),  # Berlin, Leipzig; PL Oder 15 km E, CZ 24 km
-        (11.9, 50.7, 13.1, 50.95),  # Chemnitz; CZ Erzgebirge crest 30 km S
+        (
+            10.5,
+            50.95,
+            13.9,
+            52.9,
+        ),  # Berlin, Leipzig; PL Oder 15 km E, CZ (Bahratal, ~50.83 N) ~15 km at the SE corner
+        (
+            11.9,
+            50.7,
+            13.1,
+            50.95,
+        ),  # Chemnitz; CZ crest 30 km S mid-strip, ~20 km at the SE corner
         (7.45, 51.6, 9.5, 52.9),  # Münster, Bielefeld; NL Bourtange 20 km
         (6.6, 50.4, 9.5, 51.6),  # Ruhr, Cologne; BE Losheimergraben 15 km
         (8.0, 51.3, 11.5, 52.9),  # Hanover, Harz; interior, NL 55 km
@@ -554,8 +566,18 @@ _CORE: dict[str, list[Box]] = {
         (9.5, 50.0, 11.85, 50.95),  # Fulda, Coburg; CZ Aš salient 18 km E
         (9.0, 47.85, 12.0, 49.05),  # Stuttgart, Munich; CH Kreuzlingen 22 km
         (8.6, 47.95, 9.0, 49.05),  # Pforzheim; CH Schaffhausen tip 16 km
-        (12.0, 47.95, 12.5, 48.3),  # Wasserburg; AT Salzach (Oberndorf) 33 km
-        (12.0, 48.3, 12.75, 49.05),  # Regensburg, Landshut; AT Braunau 21 km
+        (
+            12.0,
+            47.95,
+            12.5,
+            48.3,
+        ),  # Wasserburg; AT Kufstein bulge (12.26 E, 47.74 N) ~23 km S
+        (
+            12.0,
+            48.3,
+            12.75,
+            49.05,
+        ),  # Regensburg, Landshut; AT Salzach at Burghausen ~16 km from the SE corner
         (7.85, 47.95, 8.6, 48.1),  # Freiburg east; CH 16 km, FR Rhine 21 km
         (8.1, 48.1, 8.6, 48.6),  # Black Forest; FR Rhine (Strasbourg) 22 km
     ],
