@@ -495,7 +495,13 @@ is sent, as for the FAA grid), with aerodrome and infrastructure-protection
 zones whose Spanish messages appear in the popup as published; ENAIRE's own
 caveat that the geometry is informative and the AIP normative rides along,
 and its territory-wide urban-environment reminder is carried as a note
-rather than drawn as a zone).
+rather than drawn as a zone). Germany is served by dipul's anonymous WFS
+(the platform of the Federal Ministry of Transport, operated by DFS),
+queried for the flight's area only in the same padded, grid-snapped way,
+one request per category layer; the popup shows dipul's category, legal
+reference and type code as published, and the § 21h LuftVO categories
+appear as conditional zones because the paragraph permits them only under
+its stated conditions, which the tool does not restate or evaluate.
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
