@@ -112,8 +112,8 @@ DIPUL_FEED = DipulFeed(
     code="DE",
     feed_name="Germany UAS geographical zones (dipul)",
     license=(
-        "© dipul (Bundesministerium für Verkehr, operated by DFS), CC BY-ND 4.0 "
-        '— attribution "dipul, CC-BY-ND 4.0"; use confirmed in writing by the '
+        "© dipul (Bundesministerium für Verkehr, operated by DFS), CC BY-ND 4.0"
+        '; attribution "dipul, CC-BY-ND 4.0"; use confirmed in writing by the '
         "dipul Service Team, 2026-09-28"
     ),
     caveat=_CAVEAT,
@@ -202,10 +202,11 @@ def fetch_dipul_body(bbox: tuple[float, float, float, float], transport) -> byte
     return json.dumps({"layers": layers}).encode("utf-8")
 
 
-# Whole-reference match: "§ 17" or "§ 17, Abs. 1" but not "§ 170" or "§ 17a"
-# (the negative lookahead rejects a digit or letter right after the number).
-_LEGAL_17 = re.compile(r"^§ 17(?![0-9a-z])")
-_LEGAL_21H = re.compile(r"^§ 21h(?![0-9a-z])")
+# Whole-reference match: "§ 17" or "§ 17, Abs. 1" but not "§ 170", "§ 17a"
+# or "§ 17A" (the negative lookahead rejects a digit or a letter of either
+# case right after the number).
+_LEGAL_17 = re.compile(r"^§ 17(?![0-9A-Za-z])")
+_LEGAL_21H = re.compile(r"^§ 21h(?![0-9A-Za-z])")
 _UNIT = {"m": "m", "ft": "ft", "fl": "FL"}
 _DATUM = {"AGL": "AGL", "MSL": "AMSL", "PA": "STD"}
 
@@ -256,6 +257,9 @@ def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
 def _restriction(props: dict, where: str) -> str:
     type_code = _text(props.get("type_code")) or ""
     legal = _text(props.get("legal_ref")) or ""
+    # U_NFZ wins over the legal basis on purpose (maintainer decision): a
+    # temporary § 17 area is PROHIBITED, while § 17 on a permanent layer
+    # stays REQ_AUTHORISATION.
     if type_code == "U_NFZ":
         return "PROHIBITED"
     if _LEGAL_17.match(legal):

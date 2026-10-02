@@ -116,11 +116,10 @@ Every command accepts `--help` for its options.
   on the map (works with `--3d` too); `-f record` writes a printable
   flight record including the zones crossed. Covered: US, UK, Ireland,
   Switzerland, Luxembourg, Denmark, Sweden, Finland, Estonia, Slovenia,
-  Belgium, Latvia, Spain, Germany; flights elsewhere simply get no overlay. Zone data
-  is
-  fetched from the official feeds and cached beside the map
-  (`--airspace-refresh` forces a refetch). Needs exact positions, so it
-  refuses `--redact fuzz`.
+  Belgium, Latvia, Spain, Germany; flights elsewhere simply get no
+  overlay. Zone data is fetched from the official feeds and cached beside
+  the map (`--airspace-refresh` forces a refetch). Needs exact positions,
+  so it refuses `--redact fuzz`.
 - **"My 360° panoramas won't open / black viewer":** browsers block the 360°
   viewer on maps opened straight from disk (`file://`). Rebuild with
   `dji-embed photomap <folder> --serve`, or serve an existing map with

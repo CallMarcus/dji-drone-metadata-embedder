@@ -57,6 +57,7 @@ def test_the_registry_lists_all_31_layers_with_dipul_titles():
         == "Temporäre Betriebseinschränkungen"
     )
     assert "dipul, CC-BY-ND 4.0" in DIPUL_FEED.license
+    assert "—" not in DIPUL_FEED.license  # house style reaches data strings too
     assert "28-day" in (DIPUL_FEED.note or "")
 
 
@@ -351,7 +352,9 @@ def test_legal_bases_match_as_whole_references_not_prefixes():
     assert restriction("§ 21h, Abs. 3 LuftVO") == "CONDITIONAL"
     assert restriction("§ 170 LuftVO") == "NEUARTIG"
     assert restriction("§ 17a LuftVO") == "NEUARTIG"
+    assert restriction("§ 17A LuftVO") == "NEUARTIG"
     assert restriction("§ 21hx LuftVO") == "NEUARTIG"
+    assert restriction("§ 21hX LuftVO") == "NEUARTIG"
 
 
 @pytest.mark.parametrize("bad", ["nan", "inf", "-inf", float("inf")])
