@@ -54,7 +54,7 @@ browser = [
 ]
 build = [
     "build==1.6.1",
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "twine==7.0.0",
     "pyinstaller>=6.0.0",
     "setuptools>=65.0.0",
