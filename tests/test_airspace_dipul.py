@@ -4,6 +4,7 @@ import io
 import json
 from datetime import datetime
 from pathlib import Path
+from urllib.error import HTTPError
 
 import pytest
 
@@ -224,11 +225,13 @@ def _page(n, total):
     ).encode()
 
 
+BB = (13.3, 52.4, 13.5, 52.6)
+
+
 def test_fetch_body_queries_every_layer_once_and_pages_by_start_index():
-    # 31 layers; make the first layer need two pages (1000 + 5) and the rest one empty page.
     bodies = [_page(1000, 1005), _page(5, 1005)] + [_page(0, 0)] * 30
     fake = FakeTransport(bodies)
-    body = fetch_dipul_body((13.3, 52.4, 13.5, 52.6), fake)
+    body = fetch_dipul_body(BB, fake)
     assert len(fake.urls) == 32
     assert "startIndex=1000" in fake.urls[1]
     doc = json.loads(body)
@@ -237,11 +240,95 @@ def test_fetch_body_queries_every_layer_once_and_pages_by_start_index():
     assert sum(len(p["features"]) for p in first) == 1005
 
 
+def test_fetch_body_stops_after_exactly_one_full_page_when_total_matches():
+    fake = FakeTransport([_page(1000, 1000)] + [_page(0, 0)] * 30)
+    fetch_dipul_body(BB, fake)
+    assert len(fake.urls) == 31
+
+
+def test_fetch_body_continues_when_the_server_caps_pages_below_1000():
+    fake = FakeTransport(
+        [_page(500, 1200), _page(500, 1200), _page(200, 1200)] + [_page(0, 0)] * 30
+    )
+    body = fetch_dipul_body(BB, fake)
+    assert len(fake.urls) == 33
+    assert "startIndex" not in fake.urls[0]
+    assert "startIndex=500" in fake.urls[1]
+    assert "startIndex=1000" in fake.urls[2]
+    first = next(iter(json.loads(body)["layers"].values()))
+    assert sum(len(p["features"]) for p in first) == 1200
+
+
+def test_fetch_body_refuses_a_response_without_a_total():
+    page = json.dumps({"features": []}).encode()
+    with pytest.raises(AirspaceError, match="no totalFeatures"):
+        fetch_dipul_body(BB, FakeTransport([page]))
+
+
 def test_fetch_body_refuses_a_short_page_set():
-    # totalFeatures says 1005 but the server stops after 1000 with a 0-row page.
     bodies = [_page(1000, 1005), _page(0, 1005)] + [_page(0, 0)] * 30
     with pytest.raises(AirspaceError, match="incomplete"):
-        fetch_dipul_body((13.3, 52.4, 13.5, 52.6), FakeTransport(bodies))
+        fetch_dipul_body(BB, FakeTransport(bodies))
+
+
+def test_fetch_body_cannot_spin_on_a_server_that_ignores_start_index():
+    bodies = [_page(1000, 1005)] * 200
+    with pytest.raises(AirspaceError, match="did not converge"):
+        fetch_dipul_body(BB, FakeTransport(bodies))
+
+
+def test_fetch_body_raises_on_http_error():
+    def transport(req, timeout=None):
+        raise HTTPError(req.full_url, 503, "unavailable", {}, None)  # type: ignore[arg-type]
+
+    with pytest.raises(AirspaceError, match="answered HTTP 503"):
+        fetch_dipul_body(BB, transport)
+
+
+def test_a_duplicate_identifier_in_one_body_is_an_error():
+    doc = json.loads(_one("bahnanlagen", BASE))
+    page = doc["layers"]["dipul:bahnanlagen"][0]
+    page["features"].append(page["features"][0])
+    with pytest.raises(AirspaceError, match="not unique"):
+        parse_dipul(json.dumps(doc).encode(), SRC)
+
+
+def test_a_multipolygon_with_a_hole_yields_two_polygons_and_one_hole():
+    outer1 = [[13.0, 52.0], [13.1, 52.0], [13.1, 52.1], [13.0, 52.0]]
+    hole = [[13.02, 52.02], [13.05, 52.02], [13.05, 52.05], [13.02, 52.02]]
+    outer2 = [[13.2, 52.0], [13.3, 52.0], [13.3, 52.1], [13.2, 52.0]]
+    z = parse_dipul(
+        _one(
+            "bahnanlagen",
+            BASE,
+            {"type": "MultiPolygon", "coordinates": [[outer1, hole], [outer2]]},
+        ),
+        SRC,
+    )[0]
+    assert len(z.polygons) == 2
+    assert len(z.holes) == 1
+
+
+def test_an_altitude_with_no_unit_is_an_error():
+    props = {**BASE}
+    del props["lower_limit_unit"]
+    with pytest.raises(AirspaceError, match="unit"):
+        parse_dipul(_one("bahnanlagen", props), SRC)
+
+
+def test_a_json_number_limit_parses_to_a_float_label():
+    z = parse_dipul(_one("bahnanlagen", {**BASE, "lower_limit_altitude": 100.5}), SRC)[
+        0
+    ]
+    assert z.lower is not None
+    assert z.lower.value == 100.5
+    assert "100.5" in z.lower.label()
+
+
+def test_neither_legal_ref_nor_type_code_is_an_error_not_a_guess():
+    props = {**BASE, "legal_ref": "", "type_code": ""}
+    with pytest.raises(AirspaceError, match="no legal_ref or type_code"):
+        parse_dipul(_one("bahnanlagen", props), SRC)
 
 
 def test_fetch_body_raises_on_a_maintenance_page():

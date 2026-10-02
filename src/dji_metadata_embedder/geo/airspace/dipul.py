@@ -52,6 +52,8 @@ from .model import (
 
 DIPUL_WFS = "https://uas-betrieb.de/geoservices/dipul/wfs"
 _PAGE = 1000
+# Hard stop per layer: 100 pages of up to 1000 rows is far beyond any real set.
+_MAX_PAGES = 100
 _TIMEOUT_S = 60
 
 # Layer short name -> dipul's own title, from the live capabilities
@@ -171,21 +173,29 @@ def fetch_dipul_body(bbox: tuple[float, float, float, float], transport) -> byte
     layers: dict[str, list[dict]] = {}
     for layer in DIPUL_LAYERS:
         pages: list[dict] = []
-        start = 0
-        while True:
-            doc = _fetch_page(query_url(layer, snapped, start), transport, layer)
+        fetched = 0
+        total: int | None = None
+        while total is None or fetched < total:
+            if len(pages) >= _MAX_PAGES:
+                raise AirspaceError(f"dipul layer {layer}: paging did not converge")
+            doc = _fetch_page(query_url(layer, snapped, fetched), transport, layer)
+            if total is None:
+                stated = doc.get("totalFeatures")
+                if not isinstance(stated, int) or isinstance(stated, bool):
+                    raise AirspaceError(
+                        f"dipul layer {layer}: response states no totalFeatures count"
+                    )
+                total = stated
             pages.append(doc)
             got = len(doc["features"])
-            total = doc.get("totalFeatures")
-            fetched = sum(len(p["features"]) for p in pages)
-            if got < _PAGE:
-                if isinstance(total, int) and fetched < total:
-                    raise AirspaceError(
-                        f"dipul layer {layer}: page set incomplete "
-                        f"({fetched} of {total} features)"
-                    )
-                break
-            start += got
+            if got == 0 and fetched < total:
+                raise AirspaceError(
+                    f"dipul layer {layer}: page set incomplete "
+                    f"({fetched} of {total} features)"
+                )
+            fetched += got
+            if fetched > total:
+                raise AirspaceError(f"dipul layer {layer}: paging did not converge")
         layers[f"dipul:{layer}"] = pages
     return json.dumps({"layers": layers}).encode("utf-8")
 
@@ -233,7 +243,7 @@ def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
     return VerticalLimit(value=value, unit=unit, reference=reference)
 
 
-def _restriction(props: dict) -> str:
+def _restriction(props: dict, where: str) -> str:
     type_code = _text(props.get("type_code")) or ""
     legal = _text(props.get("legal_ref")) or ""
     if type_code == "U_NFZ":
@@ -242,7 +252,9 @@ def _restriction(props: dict) -> str:
         return "REQ_AUTHORISATION"
     if legal.startswith("§ 21h") or type_code == "KONTROLLZONE":
         return "CONDITIONAL"
-    return type_code or "UNKNOWN"
+    if not type_code and not legal:
+        raise AirspaceError(f"{where}: no legal_ref or type_code")
+    return type_code or legal
 
 
 def _english_name(props: dict) -> str | None:
@@ -326,7 +338,7 @@ def parse_dipul(raw: bytes, source: SourceInfo) -> list[Zone]:
                     Zone(
                         identifier=ident,
                         name=name,
-                        restriction=_restriction(props),
+                        restriction=_restriction(props, f"{where} ({ident})"),
                         lower=_limit(props, "lower", f"{where} ({ident})"),
                         upper=_limit(props, "upper", f"{where} ({ident})"),
                         applicability=applicability,
