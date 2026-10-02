@@ -984,6 +984,29 @@ def test_german_border_towns_gap_as_border_bands():
         assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
 
 
+def test_declared_inland_and_coastal_gaps_stay_border_bands():
+    # Gaps the block comment declares: wider than their borders need
+    # (Hof, Karlsruhe, eastern Saarland, Cottbus) or deliberate (Rosenheim,
+    # Sylt, Krefeld, Rheine, Kempten, Friedrichshafen). A box that grows
+    # into one of them needs its own sweep first, and this test says so.
+    for lat, lon in [
+        (50.32, 11.92),  # Hof
+        (49.01, 8.40),  # Karlsruhe
+        (49.23, 6.99),  # Saarbrucken
+        (49.35, 7.18),  # Neunkirchen, eastern Saarland
+        (51.76, 14.33),  # Cottbus
+        (47.86, 12.13),  # Rosenheim
+        (54.91, 8.31),  # Sylt, Westerland
+        (51.34, 6.56),  # Krefeld
+        (52.28, 7.44),  # Rheine
+        (47.73, 10.31),  # Kempten
+        (47.65, 9.48),  # Friedrichshafen
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
 def test_neighbouring_towns_inside_the_de_hull_never_resolve_to_de():
     for lat, lon in [
         (48.57, 7.75),  # Strasbourg
@@ -1016,13 +1039,16 @@ def test_neighbouring_towns_inside_the_de_hull_never_resolve_to_de():
 
 
 def test_existing_neighbours_keep_their_resolutions_inside_the_overlapping_de_hull():
-    # The DE hull overlaps the DK, LU, BE and CH hulls; cores decide.
+    # The DE hull (5.8-15.1 E, 47.2-55.1 N) overlaps the DK, LU, BE and CH
+    # hulls; cores decide. Every point here sits inside the DE hull by
+    # arithmetic. No BE core reaches into it, so the BE overlap is hull-only
+    # and has no tie-break case.
     for (lat, lon), code in [
         ((49.61, 6.13), "LU"),  # Luxembourg City
-        ((47.37, 8.54), "CH"),  # Zurich
-        ((55.68, 12.57), "DK"),  # Copenhagen
-        ((50.85, 4.35), "BE"),  # Brussels
-        ((50.63, 5.57), "BE"),  # Liège, in the DE hull's western band
+        ((47.37, 8.54), "CH"),  # Zurich, 47.37 N > 47.2 N
+        ((54.77, 11.88), "DK"),  # Nykøbing Falster, Lolland-Falster core
+        ((55.10, 14.70), "DK"),  # Rønne, on the hull's 55.1 N edge
+        ((55.05, 14.90), "DK"),  # western Bornholm, strictly inside
     ]:
         r = resolve_jurisdiction(_track((lat, lon)))
         assert r.jurisdiction is not None, (lat, lon)
