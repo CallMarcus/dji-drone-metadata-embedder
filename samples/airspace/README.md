@@ -81,3 +81,14 @@ drifting from reality unnoticed).
   are kept only for organisation domains, in the dedicated fields and inside
   the published message text alike; private operators' emails and numbers
   read "redacted". The `ZGUAS_Urbano` layer is absent on purpose.
+- `dipul-de.json` — Germany: dipul's anonymous WFS (uas-betrieb.de, CC BY-ND 4.0,
+  attribution "dipul, CC-BY-ND 4.0", use confirmed in writing by the dipul Service
+  Team 2026-09-28; issue #593, live shape verified 2026-10-02), in the provider's
+  cache-body shape (`layers` → `dipul:<layer>` → pages). Twelve real features
+  across eleven layers: nine from a central-Berlin box (railway, motorway, police,
+  embassy, open-air pool, BSL-4 lab, heliport with `type_code_detail`, waterway,
+  the § 17 "Berlin" restricted area with a ft MSL ceiling) plus the smallest
+  control zone (MultiPolygon, `U_CONTROL_ZONE_*`), the smallest temporary
+  restriction (U_NFZ with `start_time`/`end_time`, metres spelled `M`) and the
+  smallest restricted area with a flight-level ceiling (`FL`, datum `PA`).
+  Geometry and attributes are as published (CC BY-ND); facility names only.
