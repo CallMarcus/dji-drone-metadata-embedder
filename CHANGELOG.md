@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **airspace**: Latvia is the twelfth covered country: `-f record` and `--airspace` fetch LGS's daily ED-269 export of UAS geographical zones. LGS's English zone notes ride in the popup and the record, the file's own edition date appears in the source line, and ED-269 activation schedules are now shown as published text for every ED-269 country (free use under Cabinet Regulation No. 248 §45, confirmed in writing by LGS AIS) (#594) (#597) (fb93871)
+- **airspace**: Spain is the thirteenth: ENAIRE's documented ZGUAS service is queried per flight for the padded flight box (aerodromes and infrastructure protection), pieces that share an identifier and attributes merge into one zone, and ENAIRE's territory-wide "check whether this is an urban environment" reminder rides as the feed note instead of being drawn. ENAIRE is credited as rights holder, as its Aviso Legal asks (#451) (#598) (3db32b4)
+- **airspace**: Germany is the fourteenth: dipul's anonymous WFS (Bundesministerium für Verkehr, operated by DFS) is queried per flight box across its 31 category layers, with attributes and geometry carried verbatim as CC BY-ND 4.0 requires. Temporary no-fly areas are prohibited for their published window, § 17 LuftVO areas need authorisation, and every § 21h category and the control zones are shown as conditional (#593) (#599) (494ce9a)
+
+### Fixed
+
+- **airspace**: a zone made of many parts with holes (dipul publishes one residential-plot feature per municipality) kept every hole on every part, which inflated dense maps and under-reported islands inside holes; holes now stay with their own part. The evaluator also skips rings whose bounding box the track never enters, so a dense Berlin box evaluates in about a second instead of twenty (#593) (#599) (494ce9a)
+- Python 3.10 rejected ED-269 activation windows written with two-digit fractional seconds (#594) (#597) (fb93871)
+
+### Changed
+
+- Dependency refresh: ruff 0.16.9, coverage 7.16.2, playwright 1.63, build 1.6.1 (#595) (9f4f193) and hatchling 1.32.4 (#596) (9e34018); urllib3 moves to 2.8.0 in the lock for three advisories published 2026-10-02 (HTTPS proxy TLS settings, unbounded chunk-size line, chunked-deflate loop)
+
 ## [2.17.0] - 2026-09-27
 
 ### Added
