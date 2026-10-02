@@ -226,3 +226,35 @@ def test_airspace_toggle_hides_all_layers(serve_map, page):
             page.evaluate(f"() => map.getLayoutProperty('{layer}', 'visibility')")
             == "none"
         )
+
+
+# #593: a two-part zone. Part A carries a hole; part B is an island inside
+# that hole. Each exterior must carry only its own holes.
+_A = [[19.99, 9.99], [20.02, 9.99], [20.02, 10.02], [19.99, 10.02], [19.99, 9.99]]
+_HOLE = [[20.0, 10.0], [20.01, 10.0], [20.01, 10.01], [20.0, 10.01], [20.0, 10.0]]
+_B = [
+    [20.004, 10.004],
+    [20.006, 10.004],
+    [20.006, 10.006],
+    [20.004, 10.006],
+    [20.004, 10.004],
+]
+
+
+def _parted_zone(**over):
+    zone = _zone(**over)
+    zone["polygons"] = [_A, _B]
+    zone["holes"] = [_HOLE]
+    zone["part_holes"] = [[_HOLE], []]
+    return zone
+
+
+def test_each_part_carries_only_its_own_holes_in_3d(serve_map, page):
+    html = flights_to_3d_html(
+        [_flight()], "t", airspace_json=_overlay([_parted_zone()])
+    )
+    serve_map(html, terrain_stub=100.0)
+    _wait_layers(page)
+    feats = _vol_features(page)
+    # One Polygon per part: A with its hole, the island B without one.
+    assert [len(f["geometry"]["coordinates"]) for f in feats] == [2, 1]

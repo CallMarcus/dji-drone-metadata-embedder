@@ -485,13 +485,29 @@ publisher's evaluation and such a zone, if the flight was inside it, is
 listed as not applicable, never as entered. NOTAM zones take their dates from Droneguide's NOTAM layer.
 The BCAA's four notices ride with every Belgian record: not an official
 application, only the official channels are authoritative, and compliance
-verification stays with the remote pilot).
+verification stays with the remote pilot. Latvia is served by LGS's published ED-269 file: every zone carries
+validity windows, which are evaluated, and some carry a weekday/hour
+schedule, which shows in the popup as published and is not evaluated;
+the popup quotes LGS's own English message for each zone, and the record
+notes that zone conditions bind from the moment LGS publishes them. Spain is served by ENAIRE's documented ZGUAS service, queried for the
+flight's area only (the box is padded and snapped to a 0.1° grid before it
+is sent, as for the FAA grid), with aerodrome and infrastructure-protection
+zones whose Spanish messages appear in the popup as published; ENAIRE's own
+caveat that the geometry is informative and the AIP normative rides along,
+and its territory-wide urban-environment reminder is carried as a note
+rather than drawn as a zone). Germany is served by dipul's anonymous WFS
+(the platform of the Federal Ministry of Transport, operated by DFS),
+queried for the flight's area only in the same padded, grid-snapped way,
+one request per category layer; the popup shows dipul's category, legal
+reference and type code as published, and the § 21h LuftVO categories
+appear as conditional zones because the paragraph permits them only under
+its stated conditions, which the tool does not restate or evaluate.
 Zones draw in one neutral
 style; clicking one shows the published facts: restriction class, vertical
 limits (or "not stated"), applicability windows, and the feed, license and
 fetch time. Where the dataset is published per edition (the UK's 28-day
 AIRAC cycle, dated in the filename; the Irish and Swedish ED-318 files,
-which state their valid-from date inside the document), the popup and the
+which state their valid-from date inside the document; the Latvian file, whose title carries the stamp of the daily export), the popup and the
 corner note also state the edition's effective date, so a cached copy that has outlived its
 cycle is visible as such: "fetched" is when the copy was downloaded,
 "effective" is which cycle it reflects. Zones the

@@ -11,10 +11,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request
 
+from .arcgis import fetch_arcgis_pages
 from .model import AirspaceError, SourceInfo, VerticalLimit, Zone
 
 FAA_QUERY_URL = (
@@ -31,7 +30,6 @@ FAA_FEED = (
 )
 _GRID = 0.1
 _PAD = 0.05
-_TIMEOUT_S = 60
 
 
 def snap_bbox(
@@ -65,46 +63,9 @@ def _query(bbox: tuple[float, float, float, float], offset: int) -> str:
 def fetch_faa_pages(bbox: tuple[float, float, float, float], transport) -> list[bytes]:
     """All response pages for the snapped *bbox*; raises on any failure."""
     snapped = snap_bbox(bbox)
-    pages: list[bytes] = []
-    offset = 0
-    while True:
-        req = Request(_query(snapped, offset), headers={"User-Agent": "dji-embed"})
-        try:
-            with transport(req, timeout=_TIMEOUT_S) as resp:
-                body = resp.read()
-        except HTTPError as exc:
-            raise AirspaceError(
-                f"FAA facility-map query answered HTTP {exc.code}"
-            ) from exc
-        except (URLError, OSError) as exc:
-            raise AirspaceError(f"FAA facility-map query failed: {exc}") from exc
-        pages.append(body)
-        try:
-            doc = json.loads(body)
-        except ValueError as exc:
-            raise AirspaceError("FAA facility-map response is not JSON") from exc
-        if isinstance(doc, dict) and "error" in doc:
-            err = doc["error"]
-            message = err.get("message") if isinstance(err, dict) else err
-            raise AirspaceError(f"FAA facility-map query returned an error: {message}")
-        if not isinstance(doc, dict) or "features" not in doc:
-            raise AirspaceError("FAA facility-map response has no 'features' list")
-        exceeded = doc.get("exceededTransferLimit") or (
-            isinstance(doc.get("properties"), dict)
-            and doc["properties"].get("exceededTransferLimit")
-        )
-        if not exceeded:
-            return pages
-        features = doc.get("features") or []
-        if not features:
-            raise AirspaceError(
-                "FAA facility-map paging cannot establish completeness "
-                "(transfer limit flagged on an empty page)"
-            )
-        # Advance by the real feature count returned by this page — the
-        # server's page size may be under the ArcGIS default of 1000, and
-        # guessing a fixed stride would silently skip records.
-        offset += len(features)
+    return fetch_arcgis_pages(
+        lambda offset: _query(snapped, offset), "FAA facility-map", transport
+    )
 
 
 def parse_faa(pages: list[bytes], source: SourceInfo) -> list[Zone]:

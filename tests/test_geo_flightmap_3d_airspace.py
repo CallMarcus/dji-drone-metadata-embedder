@@ -49,3 +49,18 @@ def test_airspace_data_block_escapes_script_breakout():
         airspace_json={"zones": [], "notes": ["</script><b>x</b>"], "covered": False},
     )
     assert "</script><b>x</b>" not in html
+
+
+def test_both_builders_attach_each_parts_own_holes():
+    # #593: with part_holes, ring i carries part_holes[i]; without it, the
+    # zone-level holes. No browser here; tests/browser covers the render.
+    from dji_metadata_embedder.geo.flightmap3d_airspace_js import (
+        AIRSPACE_3D_JS,
+    )
+    from dji_metadata_embedder.geo.flightmap_airspace_js import AIRSPACE_OVERLAY_JS
+
+    pick = "z.part_holes ? (z.part_holes[i] || []) : (z.holes || [])"
+    for js in (AIRSPACE_OVERLAY_JS, AIRSPACE_3D_JS):
+        assert "z.polygons.forEach((ring, i) =>" in js
+        assert pick in js
+        assert "[ring].concat(z.holes" not in js

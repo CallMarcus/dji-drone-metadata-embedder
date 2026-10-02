@@ -55,11 +55,13 @@ function zoneHeightM(z, centroid) {
 function airspaceFeatures() {
   const vol = [], flat = [];
   airspace.zones.forEach((z, zi) => {
-    z.polygons.forEach(ring => {
-      // Zone-level holes attach to every exterior — same convention as
-      // the 2D map and the evaluator's hole subtraction (#422).
+    z.polygons.forEach((ring, i) => {
+      // Each exterior carries its own holes when part_holes is present
+      // (#593), else every zone-level hole: the same convention as the 2D
+      // map and the evaluator's hole subtraction (#422).
+      const holes = z.part_holes ? (z.part_holes[i] || []) : (z.holes || []);
       const geom = { type: 'Polygon',
-                     coordinates: [ring].concat(z.holes || []) };
+                     coordinates: [ring].concat(holes) };
       const props = { zi: zi, entered: z.entered.length > 0 };
       if (z.upper_m != null) {
         const hgt = zoneHeightM(z, zoneCentroid(ring));

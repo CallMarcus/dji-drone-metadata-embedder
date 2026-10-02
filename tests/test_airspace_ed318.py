@@ -46,6 +46,9 @@ def test_parses_the_ireland_fixture():
     assert z.applicability == []  # no windows -> always applicable
     assert z.polygons[0][0] == (-8.50, 51.60)
     assert len(z.holes) == 1  # the inner ring is a hole (#422)
+    # #593: holes are grouped per part, aligned with the exteriors.
+    assert z.part_holes is not None and len(z.part_holes) == len(z.polygons)
+    assert [h for part in z.part_holes for h in part] == z.holes
     assert z.native["properties"]["reason"] == "AIR_TRAFFIC"
 
 
@@ -109,6 +112,22 @@ def test_plain_polygon_geometry_is_accepted():
     geom["coordinates"] = geom["coordinates"][0]
     zones = parse_ed318(json.dumps(doc).encode(), SRC)
     assert zones[2].polygons and not zones[2].holes
+
+
+def test_a_multipolygon_hole_stays_with_its_own_part():
+    # #593: a hole in part A must not be attached to part B.
+    doc = json.loads(_ie().decode("utf-8"))
+    a = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]
+    hole = [[4, 4], [6, 4], [6, 6], [4, 6], [4, 4]]
+    b = [[20, 0], [30, 0], [30, 10], [20, 10], [20, 0]]
+    doc["features"][2]["geometry"] = {
+        "type": "MultiPolygon",
+        "coordinates": [[a, hole], [b]],
+    }
+    z = parse_ed318(json.dumps(doc).encode(), SRC)[2]
+    assert len(z.polygons) == 2
+    assert z.holes == [[(4.0, 4.0), (6.0, 4.0), (6.0, 6.0), (4.0, 6.0), (4.0, 4.0)]]
+    assert z.part_holes == [z.holes, []]
 
 
 def test_ie_feed_registry_states_source_and_reference_only_note():
@@ -199,6 +218,7 @@ def test_point_circle_zones_become_densified_rings():
         dx = (lon - 15.50) * 111_320.0 * math.cos(math.radians(58.50))
         assert 450.0 < math.hypot(dx, dy) < 550.0
     assert circle.holes == []
+    assert circle.part_holes is None  # one densified ring, nothing to group
     assert circle.native["geometry"]["extent"]["radius"] == 500.0
 
 

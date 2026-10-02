@@ -325,6 +325,262 @@ _CORE: dict[str, list[Box]] = {
             50.68,
         ),  # Liège basin; NL (Visé/Maastricht) >=8 km N, DE >=17 km E
     ],
+    # Land borders with Estonia (N), Russia (E), Belarus (SE) and Lithuania
+    # (S). The Baltic coast is free, but the Gulf of Riga and the Irbe
+    # Strait are not: Estonian waters around Ruhnu and the Irbe median line
+    # bound them, and territorial airspace follows territorial sea, so the
+    # northern edges stay well south of both. Cores stay >=12 km inside
+    # every land border and out of Estonian waters. Probed against
+    # Nominatim 2026-10-01 in two passes: town markers first, then an
+    # edge-and-corner sweep (every perimeter sample about every 0.1 deg,
+    # each probed at the edge and 12 km straight outward, corners also
+    # diagonally; 432 probes, zero foreign hits, sea allowed).
+    # Deliberate gaps, each an honest border band or an Estonian-water
+    # margin: Daugavpils (~12 km from Lithuania, ~20 from Belarus),
+    # Krāslava, Bauska, Valka/Valga, Ainaži and Salacgrīva, Alūksne, Ludza
+    # and Zilupe, Rucava and Pape, and the Irbe Strait coast (Kolka cape,
+    # 57.75 N, may gap).
+    "LV": [
+        (
+            20.9,
+            56.47,
+            21.6,
+            57.55,
+        ),  # Liepāja + the Kurzeme coast; LT border ~56.07 at the coast, ~56.34 at Skuodas => >=14 km; Irbe Strait kept clear
+        (
+            21.6,
+            56.55,
+            23.0,
+            57.45,
+        ),  # Ventspils, Kuldīga, Saldus, Talsi; south edge pulled 0.03 N inboard: its 12 km probe (56.44 N, 22.07 E) is Latvian, the old edge's was Lithuanian
+        (
+            22.9,
+            56.55,
+            24.3,
+            57.35,
+        ),  # Riga west, Jūrmala, Jelgava, Tukums; LT 56.37 => >=20 km; north edge clear of Estonian waters off Ruhnu
+        (
+            24.3,
+            56.58,
+            25.2,
+            57.60,
+        ),  # Riga east, Ogre, Sigulda, Limbaži; south edge pulled 0.03 N inboard: its 12 km probe (56.47 N, 24.89 E near Biržai) is Latvian, the old edge's was Lithuanian; EE coast 57.87 => >=30 km
+        (
+            25.0,
+            56.75,
+            25.9,
+            57.60,
+        ),  # Cēsis, Valmiera, Smiltene; Valka/Valga 57.78 => >=20 km
+        (
+            25.9,
+            56.75,
+            26.3,
+            57.45,
+        ),  # Madona; capped at 57.45 N because the EE border dips to ~57.55 east of Valga (Mõniste is EE at 57.56 N, 26.53 E)
+        (
+            26.3,
+            56.60,
+            27.3,
+            57.35,
+        ),  # Gulbene, Balvi; EE border dips to ~57.55 past Ape, RU east of 27.7 => ~24 km
+        (
+            25.8,
+            56.25,
+            26.9,
+            56.75,
+        ),  # Jēkabpils, Līvāni, Preiļi; LT border ~56.12 at Aknīste => >=13 km
+        (
+            26.4,
+            55.98,
+            27.45,
+            56.60,
+        ),  # Rēzekne; SE corner pulled 0.03 N / 0.05 E inboard so its 12 km probes stay Latvian (the old corner's were Belarusian); RU east of 27.9 => ~24 km
+    ],
+    # Land borders with Portugal (west and south-west), France and Andorra
+    # (the Pyrenees) and Gibraltar; the sea is free on every other side,
+    # but Nominatim counts territorial waters as the coastal state's, so
+    # the southern edges also keep out of Algerian and Moroccan waters.
+    # Cores stay >=12 km inside every land border. Ceuta and Melilla are
+    # outside both hulls on purpose (Moroccan land borders), and the cores
+    # stop short of the Strait of Gibraltar, so nothing there resolves.
+    # Probed against Nominatim 2026-10-02 in two passes: 60 town markers
+    # first (Ceuta, Melilla, Tangier and Tarfaya sit outside every hull
+    # by design; Ciudad Rodrigo is a real Spanish town about 25 km from
+    # Portugal and was gapped by pulling its edge in), then an
+    # edge-and-corner sweep (every perimeter sample about every 0.1 deg,
+    # each probed at the edge and 12 km straight outward, corners also
+    # diagonally, sea allowed). The first sweep of the candidate boxes
+    # found 92 foreign hits (Minho, Arribes del Duero, Algerian coast,
+    # Moroccan waters off Fuerteventura); the boxes below are the
+    # adjusted set, 1,264 probes, zero foreign hits. The two Canarias boxes
+    # were then re-swept after the southern Gran Canaria and El Hierro
+    # change: 292 probes, zero foreign hits.
+    # Deliberate gaps, each an honest border band: Badajoz, Tui and the
+    # Minho valley, Ciudad Rodrigo, Ayamonte, Huelva (about 40 km from
+    # Portugal, yet west of the Andalusia core's 6.6 W edge; a future box
+    # there needs its own sweep), Irun and San Sebastián, the
+    # Campo de Gibraltar (Algeciras, La Línea, Tarifa), Puigcerdà, La Seu
+    # d'Urgell, Figueres and Jaca; Ceuta and Melilla; the open sea south
+    # of 37.4 N between 1 W and 4.5 E and south-east of Fuerteventura.
+    "ES": [
+        (
+            -9.3,
+            42.2,
+            -8.4,
+            43.8,
+        ),  # Galicia west of the Minho bend (Vigo, A Coruña); PT border at the Minho mouth 41.87 N
+        (
+            -8.4,
+            42.3,
+            -8.0,
+            43.8,
+        ),  # the Ribadavia stretch of the Minho valley; south edge 42.3 N because the 12 km probes from 42.2 N at 8.3 W and 8.2 W were Portuguese (Melgaço)
+        (
+            -8.0,
+            42.2,
+            -6.0,
+            43.8,
+        ),  # Galicia east (Ourense, Lugo), Asturias; PT (Verín side, border near 41.93 N) is ~30 km south of the 42.2 N edge
+        (
+            -6.0,
+            41.2,
+            -2.05,
+            43.8,
+        ),  # León, Burgos, Valladolid, Cantabria, Bilbao, Vitoria; PT (Zamora) <= -6.2 => >=14 km, FR (Irun -1.78) => >=20 km
+        (
+            -6.3,
+            40.2,
+            -2.05,
+            41.2,
+        ),  # Salamanca, Ávila, Segovia, Madrid; west edge 6.3 W gaps Ciudad Rodrigo on purpose and keeps clear of the Arribes del Duero (PT reaches 41.3 N at 6.5 W => about 19 km at the north-west corner)
+        (
+            -2.05,
+            41.2,
+            -1.2,
+            42.85,
+        ),  # Navarra south of Pamplona; FR border >= 43.0 => >=16 km
+        (
+            -1.2,
+            40.2,
+            0.3,
+            42.5,
+        ),  # Zaragoza, Huesca, Teruel; FR border >= 42.7 => >=22 km
+        (0.3, 40.6, 3.3, 42.2),  # Catalonia; FR/AD border >= 42.4 => >=22 km
+        (
+            -2.5,
+            36.7,
+            -1.0,
+            40.6,
+        ),  # Almería, Murcia, Alicante; sea to the south (Algeria's Cap Falcon, 35.77 N 0.8 W, is ~100 km from the south-east corner)
+        (
+            -1.0,
+            37.4,
+            4.5,
+            40.6,
+        ),  # Valencia coast and the Balearics; south edge 37.4 N because Algerian land and territorial waters reach past 37.04 N near Dellys (3.9 E); the old 36.7 N edge sat inside Algeria
+        (
+            -6.6,
+            36.3,
+            -2.5,
+            40.2,
+        ),  # Andalusia + Cáceres; PT (Huelva/Badajoz) <= -7.0 => >=35 km, Gibraltar 36.15 => >=16 km
+        (
+            -18.3,
+            27.6,
+            -14.6,
+            29.4,
+        ),  # western Canarias (El Hierro, La Palma, La Gomera, Tenerife, Gran Canaria); the nearest foreign territory is Western Sahara/Morocco, over 100 km east, so southern Gran Canaria and El Hierro resolve
+        (
+            -14.6,
+            28.0,
+            -13.4,
+            29.4,
+        ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; the waters south of Jandia's tip and the sea towards Africa gap
+    ],
+    # Nine land borders (DK, PL, CZ, AT, CH, FR, LU, BE, NL) and the North
+    # Sea and Baltic coast. Cores stay >=12 km inside every land border, and
+    # Danish, Dutch and Swiss waters count as foreign too, which is why the
+    # coastal edges are cut back from Als, Falster/Møn and Lake Constance.
+    # Probed against Nominatim 2026-10-02 in two passes: 87 town markers
+    # first (42 German cities that must resolve, 21 German border towns
+    # that must gap, 24 foreign towns inside the hull that must stay
+    # outside every core; Karlsruhe, which the candidate boxes left in a
+    # gap, was swapped for Heidelberg, and Hof for Selb, which the first
+    # box set left in a core), then an edge-and-corner sweep (every
+    # perimeter sample about every 0.1 deg, each probed at the edge and 12
+    # km straight outward, corners also diagonally, sea allowed). The
+    # candidate boxes drew 13 foreign hits (Danish waters off Als and
+    # Falster, the Czech Aš salient near Selb, Swiss land at Schaffhausen,
+    # Austrian land at the Salzach and near Kufstein, French land across
+    # the Rhine at Breisach and Strasbourg); the boxes below are the
+    # adjusted set, 22 boxes, 800 probes, zero foreign hits. An outward
+    # probe that landed inside another DE core was skipped, since that edge
+    # is internal and has no border behind it; that is why 800 probes were
+    # enough for 22 boxes. Per-box comments name the nearest foreign land
+    # and its distance from the box, by arithmetic (1 deg lat = 111 km,
+    # 1 deg lon = 111 * cos(lat) km) from a border crossing or border-side
+    # town whose coordinates were given from memory, so the figures are
+    # approximate (about 1 km) and not re-probed; the 12 km safety claim
+    # rests on the sweep, not on these comments. At sea, the neighbour's territorial waters sit nearer than its
+    # land, and the sweep's sea probes cover those.
+    # Deliberate gaps, each an honest border band or a coast margin: the 21
+    # border towns (Aachen, Trier, Saarbrücken, Konstanz, Passau, Görlitz,
+    # Frankfurt (Oder), Flensburg, Emden, Lörrach, Kehl, Garmisch,
+    # Berchtesgaden, Lindau, Kleve, Mönchengladbach, Gronau, Zittau, Selb,
+    # Pirmasens, Usedom's Ahlbeck), the Saarland, Karlsruhe and the Upper
+    # Rhine strip (Offenburg, Baden-Baden), the Vogtland round Hof, Cottbus
+    # and Lusatia east of 13.9 E, Rosenheim and the Alpine foothills, the
+    # Ems and Emsland strip (Nordhorn), Sylt and the Flensburg fjord coast,
+    # the Fehmarn Belt shore, Krefeld and the Lower Rhine west of 6.6 E,
+    # Rheine (just west of the 7.45 E edge), and the Allgäu and Lake
+    # Constance shore (Kempten, Friedrichshafen) south of 47.85 N. Cottbus,
+    # Karlsruhe, eastern Saarland (Neunkirchen) and Hof are wider gaps than
+    # their borders need: first-cut caution, each wants its own sweep
+    # before a box reaches it.
+    "DE": [
+        (7.45, 52.9, 9.7, 54.68),  # Bremen, Oldenburg; DK Padborg 16 km, NL 16 km
+        (9.7, 52.9, 10.9, 54.4),  # Hamburg, Kiel, Lübeck; DK land (Langeland) 37 km N
+        (10.9, 52.9, 11.3, 54.45),  # DK Rødbyhavn 22 km N, across the Fehmarn Belt
+        (11.3, 52.9, 12.6, 54.35),  # Schwerin, Rostock; DK Gedser 24 km N
+        (12.6, 52.9, 12.9, 54.4),  # DK Gedser 47 km NW; PL 83 km
+        (12.9, 52.9, 13.85, 54.68),  # Rügen; PL Oder (Hohenwutzen) 20 km SE
+        (
+            10.5,
+            50.95,
+            13.9,
+            52.9,
+        ),  # Berlin, Leipzig; PL Oder 15 km E, CZ (Bahratal, ~50.83 N) ~15 km at the SE corner
+        (
+            11.9,
+            50.7,
+            13.1,
+            50.95,
+        ),  # Chemnitz; CZ crest 30 km S mid-strip, ~20 km at the SE corner
+        (7.45, 51.6, 9.5, 52.9),  # Münster, Bielefeld; NL Bourtange 20 km
+        (6.6, 50.4, 9.5, 51.6),  # Ruhr, Cologne; BE Losheimergraben 15 km
+        (8.0, 51.3, 11.5, 52.9),  # Hanover, Harz; interior, NL 55 km
+        (7.5, 49.3, 10.5, 50.4),  # Rhine-Main, Mannheim; FR Hornbach 15 km
+        (8.0, 49.17, 10.5, 49.3),  # Sinsheim strip; FR Wissembourg 15 km
+        (8.6, 49.05, 10.5, 49.17),  # Heilbronn; FR Lauterbourg 28 km
+        (9.5, 49.05, 12.0, 50.0),  # Würzburg, Nuremberg; CZ Pomezí 21 km
+        (9.5, 50.0, 11.85, 50.95),  # Fulda, Coburg; CZ Aš salient 18 km E
+        (9.0, 47.85, 12.0, 49.05),  # Stuttgart, Munich; CH Kreuzlingen 22 km
+        (8.6, 47.95, 9.0, 49.05),  # Pforzheim; CH Schaffhausen tip 16 km
+        (
+            12.0,
+            47.95,
+            12.5,
+            48.3,
+        ),  # Wasserburg; AT Kufstein bulge (12.26 E, 47.74 N) ~23 km S
+        (
+            12.0,
+            48.3,
+            12.75,
+            49.05,
+        ),  # Regensburg, Landshut; AT Salzach at Burghausen ~16 km from the SE corner
+        (7.85, 47.95, 8.6, 48.1),  # Freiburg east; CH 16 km, FR Rhine 21 km
+        (8.1, 48.1, 8.6, 48.6),  # Black Forest; FR Rhine (Strasbourg) 22 km
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -382,6 +638,28 @@ _HULL: dict[str, list[Box]] = {
     # Grand Duchy on purpose: cores break the tie (#499), so Luxembourg City
     # keeps resolving LU.
     "BE": [(2.50, 49.49, 6.42, 51.51)],
+    # The national bounding box with a sea margin: Valga, Palanga, the
+    # Lithuanian and Belarusian border towns and Sõrve on Saaremaa sit
+    # inside it deliberately (border-band semantics; the EE core claims
+    # Sõrve). Overlaps the EE hull's southern band on purpose: cores decide.
+    "LV": [(20.8, 55.6, 28.3, 58.15)],
+    # Mainland + Balearics, with a sea margin; Portugal, the French and
+    # Andorran Pyrenees and Gibraltar sit inside it deliberately (cores
+    # decide). Ceuta (35.89) and Melilla (35.29) sit south of the floor
+    # on purpose: the North African enclaves gap as no-provider rather
+    # than borrow a mainland framing across the strait.
+    "ES": [(-9.4, 35.95, 4.5, 43.9), (-18.4, 27.5, -13.3, 29.5)],
+    # The national bounding box with a sea margin. It overlaps the DK, LU,
+    # BE and CH hulls on purpose (Sønderborg, Luxembourg City, Eupen and
+    # Verviers, Zurich), the DK Bornholm hull box (14.6-15.1 E, 54.9-55.1 N:
+    # western Bornholm, Rønne on the 55.1 N edge) and the SE hull's southern
+    # strip (10.9-15.1 E, 55.05-55.1 N: open sea), all harmless because no
+    # DE core comes near them. Strasbourg, Basel, Salzburg, Cheb, Szczecin and
+    # the Dutch frontier towns sit inside it (border-band semantics). Cores
+    # decide (#499): the DE cores keep clear of every neighbouring core, so
+    # Luxembourg City still resolves LU and Zurich CH, and no foreign town
+    # ever resolves DE.
+    "DE": [(5.8, 47.2, 15.1, 55.1)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
@@ -397,6 +675,9 @@ _MEASURE = {
     "EE": MEASURE_EU,
     "SI": MEASURE_EU,
     "BE": MEASURE_EU,
+    "LV": MEASURE_EU,
+    "ES": MEASURE_EU,
+    "DE": MEASURE_EU,
 }
 
 
@@ -428,7 +709,8 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             None,
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
-            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia and Belgium)",
+            "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, "
+            "Latvia, Spain and Germany)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

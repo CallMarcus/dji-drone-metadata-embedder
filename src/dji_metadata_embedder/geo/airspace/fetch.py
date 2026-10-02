@@ -34,6 +34,7 @@ from .caa_si import (
 from .caa_si import (
     discover_feed_url as discover_caa_si_url,
 )
+from .dipul import DIPUL_FEED, DIPUL_WFS, fetch_dipul_body, parse_dipul
 from .droneguide import (
     DRONEGUIDE_FEEDS,
     NO_TIMESTAMPS_NOTE,
@@ -53,8 +54,9 @@ from .dronezoner import (
     discover_feed_url as discover_dronezoner_url,
 )
 from .eans import EANS_FEEDS, parse_eans
-from .ed269 import ED269_FEEDS, parse_ed269
+from .ed269 import ED269_FEEDS, ed269_effective, parse_ed269
 from .ed318 import ED318_FEEDS, discover_feed_url, ed318_effective, parse_ed318
+from .enaire import ENAIRE_BASE, ENAIRE_FEED, fetch_enaire_body, parse_enaire
 from .evaluate import track_window
 from .jurisdiction import resolve_jurisdiction
 from .model import AirspaceError, SourceInfo, Zone
@@ -170,6 +172,27 @@ def fetch_zones(
         feed_name, license_line, caveat = FAA_FEED
         url = FAA_QUERY_URL
         note = None
+    elif code == "ES":
+        # Per-flight bbox like the FAA grid (#451): the infrastructure
+        # layer refuses whole-country pulls, and a padded, snapped box is
+        # what the endpoint learns about the flight.
+        x1, y1, x2, y2 = snap_bbox(_bbox(track))
+        key = f"{x1:g}_{y1:g}_{x2:g}_{y2:g}".replace("-", "m")
+        body_path = cache_dir / f"enaire-ES-{key}.json"
+        feed_name = ENAIRE_FEED.feed_name
+        license_line, caveat = ENAIRE_FEED.license, ENAIRE_FEED.caveat
+        url = ENAIRE_BASE
+        note = ENAIRE_FEED.note
+    elif code == "DE":
+        # Per-flight bbox like Spain and the FAA (#593): 31 per-category
+        # layers, one request each, cached as one body per snapped box.
+        x1, y1, x2, y2 = snap_bbox(_bbox(track))
+        key = f"{x1:g}_{y1:g}_{x2:g}_{y2:g}".replace("-", "m")
+        body_path = cache_dir / f"dipul-DE-{key}.json"
+        feed_name = DIPUL_FEED.feed_name
+        license_line, caveat = DIPUL_FEED.license, DIPUL_FEED.caveat
+        url = DIPUL_WFS
+        note = DIPUL_FEED.note
     elif code in ED269_FEEDS:
         feed = ED269_FEEDS[code]
         body_path = cache_dir / f"ed269-{code}.json"
@@ -245,8 +268,17 @@ def fetch_zones(
         if code == "US":
             doc = _load_faa_doc(body)
             return parse_faa(_faa_pages_from_doc(doc), source)
+        if code == "ES":
+            return parse_enaire(body, source)
+        if code == "DE":
+            return parse_dipul(body, source)
         if code in ED269_FEEDS:
-            return parse_ed269(body, source, no_ceiling_m=feed.no_ceiling_m)
+            return parse_ed269(
+                body,
+                source,
+                no_ceiling_m=feed.no_ceiling_m,
+                notes_path=feed.notes_path,
+            )
         if code in ED318_FEEDS:
             return parse_ed318(body, source)
         if code in DRONEZONER_FEEDS:
@@ -273,8 +305,17 @@ def fetch_zones(
                 body = json.dumps({"pages": [json.loads(p) for p in pages]}).encode(
                     "utf-8"
                 )
+            elif code == "ES":
+                body = fetch_enaire_body(_bbox(track), transport)
+            elif code == "DE":
+                body = fetch_dipul_body(_bbox(track), transport)
             elif code in ED269_FEEDS:
                 body = _fetch_url(url, transport)
+                if feed.edition_from_title:
+                    # The document states its own edition in its title
+                    # (#594); it rides in the record and the cache sidecar
+                    # like the ED-318 files' validFrom.
+                    effective = ed269_effective(body)
             elif code in ED318_FEEDS:
                 if feed318.file_url:
                     body = _fetch_url(url, transport)

@@ -33,7 +33,7 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
   on the flat or 3D flight map; `flightmap -f record` writes a printable
   flight record listing the zones each flight crossed. Covered so far:
   US, UK, Ireland, Switzerland, Luxembourg, Denmark, Sweden, Finland,
-  Estonia, Slovenia, Belgium. The map states facts about published zones;
+  Estonia, Slovenia, Belgium, Latvia, Spain, Germany. The map states facts about published zones;
   it never rules on whether a flight was legal.
 - **Convert telemetry** — SRT to GPX, CSV, GeoJSON, KML, CoT, or an HTML
   map, for use in other apps (Google Earth, GIS tools, video editors).
@@ -115,10 +115,11 @@ Every command accepts `--help` for its options.
   `dji-embed flightmap D:\Footage --airspace` — overlays published zones
   on the map (works with `--3d` too); `-f record` writes a printable
   flight record including the zones crossed. Covered: US, UK, Ireland,
-  Switzerland, Luxembourg, Denmark, Sweden, Finland, Estonia; flights
-  elsewhere simply get no overlay. Zone data is fetched from the
-  official feeds and cached beside the map (`--airspace-refresh` forces
-  a refetch). Needs exact positions, so it refuses `--redact fuzz`.
+  Switzerland, Luxembourg, Denmark, Sweden, Finland, Estonia, Slovenia,
+  Belgium, Latvia, Spain, Germany; flights elsewhere simply get no
+  overlay. Zone data is fetched from the official feeds and cached beside
+  the map (`--airspace-refresh` forces a refetch). Needs exact positions,
+  so it refuses `--redact fuzz`.
 - **"My 360° panoramas won't open / black viewer":** browsers block the 360°
   viewer on maps opened straight from disk (`file://`). Rebuild with
   `dji-embed photomap <folder> --serve`, or serve an existing map with

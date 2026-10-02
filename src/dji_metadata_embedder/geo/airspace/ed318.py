@@ -158,9 +158,13 @@ def _zone_name(props: dict, ident: str, where: str) -> str:
     raise AirspaceError(f"{where} ({ident}): unusable name {raw!r}")
 
 
-def _rings(
-    geometry: dict, ident: str, where: str
-) -> tuple[list[list[tuple[float, float]]], list[list[tuple[float, float]]]]:
+Ring = list[tuple[float, float]]
+
+
+def _parts(geometry: dict, ident: str, where: str) -> list[tuple[Ring, list[Ring]]]:
+    """Each polygon part of a GeoJSON Polygon/MultiPolygon as (exterior,
+    its own interior rings). Holes stay with their part: a MultiPolygon's
+    hole cuts only the part that publishes it (#593)."""
     gtype = geometry.get("type")
     coords = geometry.get("coordinates") or []
     if gtype == "Polygon":
@@ -171,9 +175,10 @@ def _rings(
         raise AirspaceError(
             f"{where} ({ident}): geometry type {gtype!r} is not supported"
         )
-    polygons: list[list[tuple[float, float]]] = []
-    holes: list[list[tuple[float, float]]] = []
+    parts: list[tuple[Ring, list[Ring]]] = []
     for poly in polys:
+        exterior: Ring | None = None
+        holes: list[Ring] = []
         for ring_index, ring in enumerate(poly):
             try:
                 parsed = [(float(x), float(y)) for x, y in ring]
@@ -183,8 +188,19 @@ def _rings(
                 ) from exc
             # GeoJSON ring order: 0 is an exterior, the rest are holes —
             # kept apart so the evaluator subtracts them (#422).
-            (polygons if ring_index == 0 else holes).append(parsed)
-    return polygons, holes
+            if ring_index == 0:
+                exterior = parsed
+            else:
+                holes.append(parsed)
+        if exterior is not None:
+            parts.append((exterior, holes))
+    return parts
+
+
+def _rings(geometry: dict, ident: str, where: str) -> tuple[list[Ring], list[Ring]]:
+    """Exteriors and the flat list of every hole (``Zone.holes``)."""
+    parts = _parts(geometry, ident, where)
+    return [ext for ext, _ in parts], [h for _, holes in parts for h in holes]
 
 
 def _point_circle(geometry: dict, ident: str, where: str) -> list[tuple[float, float]]:
@@ -305,11 +321,16 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
             unit = "ft" if str(layer.get("uom", "M")).upper() == "FT" else "m"
             lower = _limit(layer, "lower", unit, f"{where} ({ident})")
             upper = _limit(layer, "upper", unit, f"{where} ({ident})")
+        part_holes: list[list[Ring]] | None
         if geometry.get("type") == "Point":
             polygons = [_point_circle(geometry, ident, where)]
-            holes: list[list[tuple[float, float]]] = []
+            holes: list[Ring] = []
+            part_holes = None
         else:
-            polygons, holes = _rings(geometry, ident, where)
+            parts = _parts(geometry, ident, where)
+            polygons = [ext for ext, _ in parts]
+            holes = [h for _, part in parts for h in part]
+            part_holes = [part for _, part in parts]
         if not polygons:
             raise AirspaceError(f"{where} ({ident}): no polygon geometry")
         zones.append(
@@ -322,6 +343,7 @@ def parse_ed318(raw: bytes, source: SourceInfo) -> list[Zone]:
                 applicability=applicability,
                 polygons=polygons,
                 holes=holes,
+                part_holes=part_holes,
                 source=source,
                 native=feat,
             )

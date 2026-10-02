@@ -8,6 +8,7 @@ normalization must lose nothing.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -19,11 +20,23 @@ class AirspaceError(ValueError):
     field/position. All-or-nothing: one bad zone invalidates the feed."""
 
 
+# A fractional-seconds group ahead of the offset (or the end once "Z"
+# has become "+00:00"). Python 3.10's fromisoformat accepts only 3- or
+# 6-digit fractions; the drz.lv file writes two (#594), so the group is
+# padded to six before parsing.
+_FRACTION = re.compile(r"\.(\d{1,6})(?=[+-]\d{2}:\d{2}$|$)")
+
+
 def iso_utc(raw: str, where: str) -> datetime:
     """An ISO-8601 instant as the naive UTC datetime the evaluator compares
     (``Z`` and offsets both honoured); *where* names the field on error."""
+    text = _FRACTION.sub(
+        lambda m: "." + m.group(1).ljust(6, "0"),
+        raw.replace("Z", "+00:00"),
+        count=1,
+    )
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(text)
     except ValueError as exc:
         raise AirspaceError(f"{where}: {raw!r} is not an ISO datetime") from exc
     if dt.tzinfo is not None:
@@ -89,10 +102,19 @@ class Zone:
     passthrough). ``polygons`` are closed exterior rings of (lon, lat);
     ``holes`` are interior rings (GeoJSON ``coordinates[1:]``), kept apart
     so the evaluator subtracts them instead of counting them as zone
-    (#422). Grouping is zone-level, not per-polygon — sufficient for every
-    shape the live feeds publish (none has holes or multi-volume zones
-    today); a grouped model is the #424-era upgrade if a feed ever needs
-    it."""
+    (#422). ``holes`` is always the flat list of every interior ring, for
+    consumers that predate per-part grouping (the record's bounds, for one).
+
+    ``part_holes`` groups them per polygon: when set, ``part_holes[i]``
+    are the interior rings of ``polygons[i]`` and nothing else, so a hole
+    in one part never cuts another part, and a part lying inside another
+    part's hole (an island) still counts. dipul's residential-plot layer
+    (#593) forced it: one feature carries thousands of parts and holes,
+    and the zone-level convention painted every courtyard over every plot
+    and missed the islands. ``None`` means the older zone-level convention
+    still holds: every hole applies to every polygon. Feeds whose zones
+    are single-part, or which never publish MultiPolygons with holes,
+    leave it ``None``."""
 
     identifier: str
     name: str
@@ -103,6 +125,8 @@ class Zone:
     polygons: list[list[tuple[float, float]]]
     source: SourceInfo
     holes: list[list[tuple[float, float]]] = field(default_factory=list)
+    # Interior rings per polygon, parallel to ``polygons`` (class docstring).
+    part_holes: list[list[list[tuple[float, float]]]] | None = None
     native: dict = field(default_factory=dict)
     # Published activation status/schedule text, one line per activation
     # block, rendered verbatim and labelled as not evaluated (#503). The

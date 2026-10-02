@@ -621,3 +621,153 @@ def test_an_untimed_belgian_flight_sends_no_window_and_says_so(tmp_path):
     assert "not evaluated by the publisher" in (data.source.note or "")
     assert (tmp_path / "droneguide-BE-nowindow.json").exists()
     assert all(z.not_active_reason is None for z in data.zones)
+
+
+def test_a_latvian_flight_fetches_the_lgs_file_with_its_edition_and_notes(tmp_path):
+    # #594: drz.lv's stable export URL is fetched directly; the title stamp
+    # is the edition and the English message rides as the zone note.
+    fake = FakeTransport([(FIXTURES / "ed269-lv.json").read_bytes()])
+    lines = []
+    data = fetch_zones(
+        _track(56.95, 24.11), tmp_path, transport=fake, announce=lines.append
+    )
+    assert data.gap_reason is None and len(data.zones) == 6
+    assert fake.urls == ["https://drz.lv/api/v1/export-history/UASZoneVersion"]
+    assert data.source is not None
+    assert "Latvijas Gaisa Satiksme" in data.source.license
+    assert "paragraph 45" in data.source.license
+    assert "not evaluated" in (data.source.note or "")
+    assert data.source.effective == "2026-10-01"
+    banned = next(z for z in data.zones if z.identifier == "2fe5375")
+    assert banned.notes == [
+        "Flights are prohibited without the option to request authorisation."
+    ]
+    assert (tmp_path / "ed269-LV.json").exists()
+    meta = json.loads(
+        (tmp_path / "ed269-LV.json.meta.json").read_text(encoding="utf-8")
+    )
+    assert meta["effective"] == "2026-10-01"
+    assert any("Fetching" in ln and "drz.lv" in ln for ln in lines)
+
+
+def test_a_cached_latvian_body_keeps_its_edition(tmp_path):
+    first = FakeTransport([(FIXTURES / "ed269-lv.json").read_bytes()])
+    fetch_zones(_track(56.95, 24.11), tmp_path, transport=first)
+    second = FakeTransport([])
+    data = fetch_zones(_track(56.95, 24.11), tmp_path, transport=second)
+    assert second.urls == []
+    assert data.source is not None and data.source.effective == "2026-10-01"
+
+
+def _es_body() -> bytes:
+    return (FIXTURES / "enaire-es.json").read_bytes()
+
+
+def _es_pages() -> list[bytes]:
+    # The provider fetches one page per layer; hand back each layer's page.
+    layers = json.loads(_es_body())["layers"]
+    return [json.dumps(layers["2"][0]).encode(), json.dumps(layers["0"][0]).encode()]
+
+
+def test_a_spanish_flight_queries_both_enaire_layers_by_snapped_bbox(tmp_path):
+    # #451: per-flight bbox like the FAA grid; the record cites the service.
+    fake = FakeTransport(_es_pages())
+    lines = []
+    data = fetch_zones(
+        _track(40.42, -3.70), tmp_path, transport=fake, announce=lines.append
+    )
+    assert data.gap_reason is None and len(data.zones) == 10
+    assert len(fake.urls) == 2
+    assert fake.urls[0].startswith("https://servais.enaire.es/")
+    assert "/2/query?" in fake.urls[0]
+    assert "/0/query?" in fake.urls[1]
+    # Padded + snapped, never the raw point.
+    assert "geometry=-3.8%2C40.3%2C-3.6%2C40.5" in fake.urls[0]
+    assert data.source is not None
+    assert data.source.url.startswith("https://servais.enaire.es/")
+    assert "ENAIRE" in data.source.license and "caso 44348" in data.source.license
+    assert "Urbano" in (data.source.note or "")
+    assert data.source.effective is None
+    cached = [
+        p
+        for p in tmp_path.glob("enaire-ES-*.json")
+        if not p.name.endswith(".meta.json")
+    ]
+    assert [p.name for p in cached] == ["enaire-ES-m3.8_40.3_m3.6_40.5.json"]
+    assert any("Fetching" in ln and "servais.enaire.es" in ln for ln in lines)
+
+
+def test_a_cached_spanish_body_never_touches_the_network(tmp_path):
+    fetch_zones(_track(40.42, -3.70), tmp_path, transport=FakeTransport(_es_pages()))
+    second = FakeTransport([])
+    data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=second)
+    assert second.urls == [] and len(data.zones) == 10
+
+
+def test_an_enaire_maintenance_page_is_a_gap_and_never_cached(tmp_path):
+    fake = FakeTransport([b"<html>Error performing query operation</html>"])
+    data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=fake)
+    assert data.gap_reason is not None and "not JSON" in data.gap_reason
+    assert not list(tmp_path.glob("enaire-ES-*.json"))
+
+
+def test_an_enaire_failure_on_the_second_layer_is_a_gap_and_never_cached(tmp_path):
+    # Layer 2 answers; layer 0 then returns an HTML error page. Either layer
+    # failing must void the whole fetch, with nothing cached.
+    fake = FakeTransport([_es_pages()[0], b"<html>Error performing query</html>"])
+    data = fetch_zones(_track(40.42, -3.70), tmp_path, transport=fake)
+    assert len(fake.urls) == 2
+    assert data.gap_reason is not None and "not JSON" in data.gap_reason
+    assert not list(tmp_path.glob("enaire-ES-*"))
+
+
+def _de_pages() -> list[bytes]:
+    # One page per layer in registry order; absent layers get an empty page.
+    from dji_metadata_embedder.geo.airspace.dipul import DIPUL_LAYERS
+
+    layers = json.loads((FIXTURES / "dipul-de.json").read_bytes())["layers"]
+    empty = json.dumps(
+        {"type": "FeatureCollection", "totalFeatures": 0, "features": []}
+    ).encode()
+
+    def page(s: str) -> bytes:
+        if f"dipul:{s}" not in layers:
+            return empty
+        doc = layers[f"dipul:{s}"][0]
+        # The fixture stores bare pages; a live first page states its count.
+        return json.dumps({**doc, "totalFeatures": len(doc["features"])}).encode()
+
+    return [page(s) for s in DIPUL_LAYERS]
+
+
+def test_a_german_flight_queries_all_31_dipul_layers_by_snapped_bbox(tmp_path):
+    fake = FakeTransport(_de_pages())
+    lines = []
+    data = fetch_zones(
+        _track(52.52, 13.40), tmp_path, transport=fake, announce=lines.append
+    )
+    assert data.gap_reason is None and len(data.zones) == 12
+    assert len(fake.urls) == 31
+    prefix = "https://uas-betrieb.de/geoservices/dipul/wfs?"
+    assert all(u.startswith(prefix) for u in fake.urls)
+    # padded + snapped, lat,lon order
+    assert "bbox=52.4%2C13.3%2C52.6%2C13.5" in fake.urls[0]
+    assert data.source is not None and "dipul, CC-BY-ND 4.0" in data.source.license
+    assert data.source.effective is None
+    assert (tmp_path / "dipul-DE-13.3_52.4_13.5_52.6.json").exists()
+    assert any("Fetching" in ln and "uas-betrieb.de" in ln for ln in lines)
+
+
+def test_a_cached_german_body_never_touches_the_network(tmp_path):
+    fetch_zones(_track(52.52, 13.40), tmp_path, transport=FakeTransport(_de_pages()))
+    second = FakeTransport([])
+    data = fetch_zones(_track(52.52, 13.40), tmp_path, transport=second)
+    assert second.urls == [] and len(data.zones) == 12
+
+
+def test_a_dipul_maintenance_page_on_any_layer_is_a_gap_and_never_cached(tmp_path):
+    pages = _de_pages()
+    pages[5] = b"<html>Wartung</html>"
+    data = fetch_zones(_track(52.52, 13.40), tmp_path, transport=FakeTransport(pages))
+    assert data.gap_reason is not None and "not JSON" in data.gap_reason
+    assert not list(tmp_path.glob("dipul-DE-*.json"))

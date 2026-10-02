@@ -495,10 +495,11 @@ def test_valka_latvia_gaps_inside_the_hull_only():
     assert r.jurisdiction is None
 
 
-def test_riga_stays_outside_the_ee_hull_entirely():
-    r = resolve_jurisdiction(_track((56.95, 24.10)))
-    assert r.jurisdiction is None
-    assert r.gap_reason is not None and "Estonia" in r.gap_reason
+def test_riga_resolves_to_lv_never_ee():
+    # Riga (56.95) sits below the EE hull floor (57.45), so it was never an
+    # EE candidate; since #594 it resolves through the LV Riga core.
+    r = resolve_jurisdiction(_track((56.95, 24.1)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LV"
 
 
 def test_helsinki_still_resolves_fi_with_the_ee_hull_nearby():
@@ -663,3 +664,403 @@ def test_the_no_provider_message_lists_belgium():
     r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert r.jurisdiction is None
     assert r.gap_reason is not None and "Belgium" in r.gap_reason
+
+
+# --- Latvia (#594): land borders with EE, RU, BY and LT; the Baltic coast
+# is free but the Gulf of Riga and Irbe Strait are partly Estonian water.
+# Town markers were probed against Nominatim first; every core edge and
+# corner was then swept at 0.1 deg steps with 12 km outward probes: 432 probes, zero foreign (2026-10-01) -----------------------------
+
+
+def test_a_riga_flight_resolves_to_lv_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((56.95, 24.11)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "LV"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_latvian_cities_resolve_through_their_cores():
+    # Jūrmala, Jelgava, Liepāja, Ventspils, Kuldīga, Saldus, Talsi, Tukums,
+    # Sigulda, Ogre, Limbaži, Cēsis, Valmiera, Madona, Gulbene, Jēkabpils,
+    # Preiļi, Rēzekne.
+    for lat, lon in [
+        (56.97, 23.77),
+        (56.65, 23.71),
+        (56.51, 21.01),
+        (57.39, 21.56),
+        (56.97, 21.97),
+        (56.66, 22.49),
+        (57.24, 22.59),
+        (56.97, 23.15),
+        (57.15, 24.85),
+        (56.82, 24.60),
+        (57.51, 24.71),
+        (57.31, 25.27),
+        (57.54, 25.42),
+        (56.85, 26.22),
+        (57.17, 26.75),
+        (56.50, 25.86),
+        (56.29, 26.72),
+        (56.51, 27.33),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "LV", (lat, lon)
+
+
+def test_latvian_border_towns_gap_as_border_bands():
+    # Daugavpils (~12 km from LT), Krāslava, Bauska, Valka, Ainaži, Salacgrīva,
+    # Alūksne, Ludza, Zilupe, Rucava, Pape, the corner east of Valga and
+    # Kolka cape: inside the hull, deliberately outside every core.
+    for lat, lon in [
+        (55.87, 26.52),  # Daugavpils
+        (55.90, 27.17),  # Krāslava
+        (56.41, 24.19),  # Bauska
+        (57.78, 26.02),  # Valka
+        (57.86, 24.36),  # Ainaži
+        (57.75, 24.36),  # Salacgrīva
+        (57.42, 27.05),  # Alūksne
+        (56.55, 27.72),  # Ludza
+        (56.39, 28.12),  # Zilupe
+        (56.16, 21.16),  # Rucava
+        (56.16, 21.03),  # Pape
+        (57.58, 26.28),  # the former Estonian sliver of the Cēsis/Madona core
+        (57.75, 22.60),  # Kolka cape: the Irbe Strait margin gaps on purpose
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_towns_inside_the_lv_hull_never_resolve_to_lv():
+    # Valga, Palanga, Skuodas, Mažeikiai, Joniškis, Biržai, Zarasai,
+    # Turmantas, Braslaw, Pytalovo.
+    for lat, lon in [
+        (57.78, 26.05),
+        (55.92, 21.07),
+        (56.27, 21.53),
+        (56.31, 22.34),
+        (56.24, 23.61),
+        (56.20, 24.76),
+        (55.73, 26.25),
+        (55.70, 26.47),
+        (55.64, 27.04),
+        (57.06, 27.92),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+
+
+def test_sorve_still_resolves_to_ee_inside_the_overlapping_lv_hull():
+    # The LV hull's sea margin reaches Saaremaa's Sõrve tip; the EE core
+    # breaks the tie (#499 semantics).
+    r = resolve_jurisdiction(_track((57.92, 22.04)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "EE"
+
+
+def test_the_no_provider_message_lists_latvia():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Latvia" in r.gap_reason
+
+
+# --- Spain (#451): land borders with PT, FR, AD and Gibraltar; two hulls
+# (mainland + Balearics, Canarias); Ceuta and Melilla gap. Town markers +
+# a 0.1° edge-and-corner Nominatim sweep 2026-10-02 (es_nominatim.py,
+# es_edge_probe.py) -------------------------------------------------------
+
+
+def test_a_madrid_flight_resolves_to_es_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((40.42, -3.70)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "ES"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_spanish_cities_resolve_through_their_cores():
+    # Barcelona, Valencia, Seville, Zaragoza, Málaga, Murcia, Palma, Bilbao,
+    # Alicante, Córdoba, Valladolid, Vigo, Gijón, A Coruña, Granada,
+    # Vitoria, Santander, Pamplona, Huesca, Lleida, Girona, Cáceres,
+    # Salamanca, Zamora, León, Cádiz, Marbella, Mahón, Ibiza.
+    for lat, lon in [
+        (41.39, 2.17),
+        (39.47, -0.38),
+        (37.39, -5.99),
+        (41.65, -0.88),
+        (36.72, -4.42),
+        (37.99, -1.13),
+        (39.57, 2.65),
+        (43.26, -2.93),
+        (38.35, -0.48),
+        (37.88, -4.78),
+        (41.65, -4.72),
+        (42.24, -8.72),
+        (43.54, -5.66),
+        (43.37, -8.40),
+        (37.18, -3.60),
+        (42.85, -2.67),
+        (43.46, -3.80),
+        (42.81, -1.64),
+        (42.14, -0.41),
+        (41.62, 0.62),
+        (41.98, 2.82),
+        (39.47, -6.37),
+        (40.97, -5.66),
+        (41.50, -5.75),
+        (42.60, -5.57),
+        (36.53, -6.29),
+        (36.51, -4.88),
+        (39.89, 4.26),
+        (38.91, 1.43),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "ES", (lat, lon)
+
+
+def test_the_canary_islands_resolve_through_their_own_hull():
+    # Las Palmas, Tenerife, Lanzarote, Maspalomas, Mogan, Valverde (El
+    # Hierro), Santa Cruz de La Palma, Morro Jable (Fuerteventura).
+    for lat, lon in [
+        (28.12, -15.43),
+        (28.47, -16.25),
+        (28.96, -13.55),
+        (27.76, -15.59),
+        (27.88, -15.72),
+        (27.81, -17.92),
+        (28.68, -17.76),
+        (28.05, -14.35),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None and r.jurisdiction.code == "ES", (lat, lon)
+
+
+def test_the_waters_south_of_the_jandia_tip_gap_as_a_boundary():
+    r = resolve_jurisdiction(_track((27.95, -14.40)))
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "boundary" in r.gap_reason
+
+
+def test_spanish_border_towns_gap_as_border_bands():
+    # Badajoz, Tui, Irun, San Sebastián, Algeciras, La Línea, Tarifa,
+    # Ayamonte, Huelva, Ciudad Rodrigo, Puigcerdà, La Seu d'Urgell, Figueres, Jaca.
+    for lat, lon in [
+        (38.88, -6.97),
+        (42.05, -8.64),
+        (43.34, -1.79),
+        (43.32, -1.98),
+        (36.13, -5.45),
+        (36.17, -5.35),
+        (36.01, -5.60),
+        (37.21, -7.40),
+        (37.26, -6.95),
+        (40.60, -6.53),
+        (42.43, 1.93),
+        (42.36, 1.46),
+        (42.27, 2.96),
+        (42.57, -0.55),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_ceuta_melilla_and_madeira_are_outside_every_spanish_hull():
+    for lat, lon in [(35.89, -5.31), (35.29, -2.94), (32.65, -16.91)]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "no supported" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_towns_inside_the_es_hulls_never_resolve_to_es():
+    # Lisbon, Porto, Bragança, Elvas, Vila Real de Santo António, Perpignan,
+    # Bayonne, Andorra la Vella, Gibraltar, Tangier, Tarfaya, Oloron.
+    for lat, lon in [
+        (38.72, -9.14),
+        (41.15, -8.61),
+        (41.81, -6.76),
+        (38.88, -7.16),
+        (37.19, -7.42),
+        (42.70, 2.90),
+        (43.49, -1.47),
+        (42.51, 1.52),
+        (36.14, -5.35),
+        (35.78, -5.81),
+        (27.94, -12.93),
+        (43.19, -0.61),
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+
+
+def test_the_no_provider_message_lists_spain():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.gap_reason is not None and "Spain" in r.gap_reason
+
+
+# --- Germany (#593): land borders with nine neighbours (DK, PL, CZ, AT, CH,
+# FR, LU, BE, NL), sea north. Town markers + a 0.1° edge-and-corner
+# Nominatim sweep 2026-10-02 (de_nominatim.py, de_edge_probe.py) ----------
+
+
+def test_a_berlin_flight_resolves_to_de_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((52.52, 13.40), (52.53, 13.42)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "DE"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_german_cities_resolve_through_their_cores():
+    for lat, lon in [
+        (52.52, 13.40),  # Berlin
+        (53.55, 9.99),  # Hamburg
+        (48.14, 11.58),  # Munich
+        (50.94, 6.96),  # Cologne
+        (50.11, 8.68),  # Frankfurt
+        (48.78, 9.18),  # Stuttgart
+        (51.23, 6.78),  # Dusseldorf
+        (51.34, 12.37),  # Leipzig
+        (51.51, 7.47),  # Dortmund
+        (51.46, 7.01),  # Essen
+        (53.08, 8.80),  # Bremen
+        (51.05, 13.74),  # Dresden
+        (52.37, 9.73),  # Hannover
+        (49.45, 11.08),  # Nuremberg
+        (51.43, 6.76),  # Duisburg
+        (51.48, 7.22),  # Bochum
+        (51.26, 7.15),  # Wuppertal
+        (52.02, 8.53),  # Bielefeld
+        (50.74, 7.10),  # Bonn
+        (51.96, 7.63),  # Munster
+        (49.40, 8.69),  # Heidelberg
+        (49.49, 8.47),  # Mannheim
+        (48.37, 10.90),  # Augsburg
+        (50.08, 8.24),  # Wiesbaden
+        (54.32, 10.14),  # Kiel
+        (54.09, 12.10),  # Rostock
+        (52.13, 11.63),  # Magdeburg
+        (50.98, 11.03),  # Erfurt
+        (50.00, 8.27),  # Mainz
+        (51.31, 9.50),  # Kassel
+        (49.02, 12.10),  # Regensburg
+        (49.79, 9.94),  # Wurzburg
+        (47.99, 7.85),  # Freiburg
+        (48.40, 9.99),  # Ulm
+        (53.14, 8.21),  # Oldenburg
+        (52.28, 8.05),  # Osnabruck
+        (50.83, 12.92),  # Chemnitz
+        (51.48, 11.97),  # Halle
+        (52.40, 13.06),  # Potsdam
+        (53.87, 10.69),  # Lubeck
+        (53.63, 11.41),  # Schwerin
+        (49.95, 11.58),  # Bayreuth
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None, (lat, lon)
+        assert r.jurisdiction.code == "DE", (lat, lon)
+
+
+def test_german_border_towns_gap_as_border_bands():
+    for lat, lon in [
+        (50.78, 6.08),  # Aachen
+        (49.75, 6.64),  # Trier
+        (49.23, 6.99),  # Saarbrucken
+        (47.66, 9.18),  # Konstanz
+        (48.57, 13.46),  # Passau
+        (51.15, 14.99),  # Gorlitz
+        (52.35, 14.55),  # Frankfurt Oder
+        (54.78, 9.44),  # Flensburg
+        (53.37, 7.21),  # Emden
+        (47.61, 7.66),  # Lorrach
+        (48.57, 7.81),  # Kehl
+        (47.49, 11.10),  # Garmisch
+        (47.63, 13.00),  # Berchtesgaden
+        (47.55, 9.69),  # Lindau
+        (51.79, 6.14),  # Kleve
+        (51.19, 6.44),  # Monchengladbach
+        (52.21, 7.02),  # Gronau
+        (50.90, 14.81),  # Zittau
+        (50.17, 12.13),  # Selb
+        (49.20, 7.60),  # Pirmasens
+        (53.94, 14.19),  # Usedom Ahlbeck
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_declared_inland_and_coastal_gaps_stay_border_bands():
+    # Gaps the block comment declares: wider than their borders need
+    # (Hof, Karlsruhe, eastern Saarland, Cottbus) or deliberate (Rosenheim,
+    # Sylt, Krefeld, Rheine, Kempten, Friedrichshafen). A box that grows
+    # into one of them needs its own sweep first, and this test says so.
+    for lat, lon in [
+        (50.32, 11.92),  # Hof
+        (49.01, 8.40),  # Karlsruhe
+        (49.23, 6.99),  # Saarbrucken
+        (49.35, 7.18),  # Neunkirchen, eastern Saarland
+        (51.76, 14.33),  # Cottbus
+        (47.86, 12.13),  # Rosenheim
+        (54.91, 8.31),  # Sylt, Westerland
+        (51.34, 6.56),  # Krefeld
+        (52.28, 7.44),  # Rheine
+        (47.73, 10.31),  # Kempten
+        (47.65, 9.48),  # Friedrichshafen
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_towns_inside_the_de_hull_never_resolve_to_de():
+    for lat, lon in [
+        (48.57, 7.75),  # Strasbourg
+        (47.56, 7.59),  # Basel
+        (47.70, 8.63),  # Schaffhausen
+        (47.80, 13.04),  # Salzburg
+        (47.50, 9.75),  # Bregenz
+        (50.08, 12.37),  # Cheb
+        (50.77, 15.06),  # Liberec
+        (53.43, 14.55),  # Szczecin
+        (51.15, 15.01),  # Zgorzelec
+        (52.35, 14.56),  # Slubice
+        (54.91, 9.79),  # Sonderborg
+        (54.94, 8.86),  # Tonder
+        (53.22, 6.57),  # Groningen
+        (52.22, 6.90),  # Enschede
+        (51.84, 5.85),  # Nijmegen
+        (51.37, 6.17),  # Venlo
+        (50.89, 5.98),  # Heerlen
+        (50.59, 5.86),  # Verviers
+        (50.63, 6.03),  # Eupen
+        (49.36, 6.17),  # Thionville
+        (49.12, 6.18),  # Metz
+        (49.11, 7.07),  # Sarreguemines
+        (49.04, 7.95),  # Wissembourg
+        (47.58, 12.17),  # Kufstein
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+
+
+def test_existing_neighbours_keep_their_resolutions_inside_the_overlapping_de_hull():
+    # The DE hull (5.8-15.1 E, 47.2-55.1 N) overlaps the DK, LU, BE and CH
+    # hulls; cores decide. Every point here sits inside the DE hull by
+    # arithmetic. No BE core reaches into it, so the BE overlap is hull-only
+    # and has no tie-break case.
+    for (lat, lon), code in [
+        ((49.61, 6.13), "LU"),  # Luxembourg City
+        ((47.37, 8.54), "CH"),  # Zurich, 47.37 N > 47.2 N
+        ((54.77, 11.88), "DK"),  # Nykøbing Falster, Lolland-Falster core
+        ((55.10, 14.70), "DK"),  # Rønne, on the hull's 55.1 N edge
+        ((55.05, 14.90), "DK"),  # western Bornholm, strictly inside
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None, (lat, lon)
+        assert r.jurisdiction.code == code, (lat, lon)
+    # Sønderborg, Konstanz and Trier: inside two hulls, in no core.
+    for lat, lon in [(54.91, 9.79), (47.66, 9.18), (49.75, 6.64)]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_the_no_provider_message_lists_germany():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Germany" in r.gap_reason

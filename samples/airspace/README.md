@@ -42,6 +42,16 @@ verified on issue #413 (2026-07-29). Public data, no privacy concern.
   and its field names differ per folder. Tests wrap the KML into the live
   zip→kmz nesting in memory. Reproduced under the CAA site's terms of use
   (source marked, data content unchanged).
+- `ed269-lv.json` — Latvia ED-269 `UASZoneVersion` document (drz.lv, published
+  by Latvijas Gaisa Satiksme; free of charge for non-commercial use under
+  Cabinet Regulation No. 248 §45, confirmed in writing 2026-09-29; issue
+  #594, live shape verified 2026-10-01), trimmed to six real zones: one per
+  restriction class, one with two dated windows, one open-ended, three with
+  the weekday/hour `schedule` the parser shows but does not evaluate, and
+  one five-volume zone. Keeps the live file's title stamp (the edition),
+  its two-digit fractional seconds and its `extendedProperties.messageEng`.
+  Contact details of natural persons in `zoneAuthority` are replaced with
+  "redacted"; everything else is as published.
 
 The manual E2E step before merge re-fetches each live endpoint and confirms
 these shapes still match; `ed318-se.json` and `eans-ee.json` are synthetic,
@@ -60,3 +70,25 @@ drifting from reality unnoticed).
   live layer publishes Polygons only). The activity flags are set by hand
   for the fixture window. Reuse per the BCAA's letter ref G26-187
   (public-sector information, no individual authorisation).
+- `enaire-es.json` — Spain: ENAIRE's ZGUAS ArcGIS service (servais.enaire.es,
+  reuse authorised in writing by ENAIRE AIS, caso 44348, 2026-09-29; issue
+  #451, live shape verified 2026-10-01), in the provider's cache-body shape
+  (`layers` → layer id → pages). Twelve real features: an aerodrome zone with
+  a hole, an RVF zone in feet, a TMA with AMSL limits, a MultiPolygon, the
+  two different ultralight fields that share identifier `T0010`, three
+  pieces of one railway-protection identifier (`INF0224`), two `INF0824`
+  pieces with differing limits, and one sensitive-site zone. Contact details
+  are kept only for organisation domains, in the dedicated fields and inside
+  the published message text alike; private operators' emails and numbers
+  read "redacted". The `ZGUAS_Urbano` layer is absent on purpose.
+- `dipul-de.json` — Germany: dipul's anonymous WFS (uas-betrieb.de, CC BY-ND 4.0,
+  attribution "dipul, CC-BY-ND 4.0", use confirmed in writing by the dipul Service
+  Team 2026-09-28; issue #593, live shape verified 2026-10-02), in the provider's
+  cache-body shape (`layers` → `dipul:<layer>` → pages). Twelve real features
+  across eleven layers: nine from a central-Berlin box (railway, motorway, police,
+  embassy, open-air pool, BSL-4 lab, heliport with `type_code_detail`, waterway,
+  the § 17 "Berlin" restricted area with a ft MSL ceiling) plus the smallest
+  control zone (MultiPolygon, `U_CONTROL_ZONE_*`), the smallest temporary
+  restriction (U_NFZ with `start_time`/`end_time`, metres spelled `M`) and the
+  smallest restricted area with a flight-level ceiling (`FL`, datum `PA`).
+  Geometry and attributes are as published (CC BY-ND); facility names only.
