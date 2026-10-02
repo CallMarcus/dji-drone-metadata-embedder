@@ -87,3 +87,41 @@ def test_no_ceiling_zone_gets_no_label(serve_map, page):
         timeout=15000,
     )
     assert page.locator(".airspace-label").count() == 0
+
+
+# #593: a two-part zone. Part A carries a hole; part B is an island inside
+# that hole. Each exterior must carry only its own holes.
+_A = [[19.99, 9.99], [20.02, 9.99], [20.02, 10.02], [19.99, 10.02], [19.99, 9.99]]
+_HOLE = [[20.0, 10.0], [20.01, 10.0], [20.01, 10.01], [20.0, 10.01], [20.0, 10.0]]
+_B = [
+    [20.004, 10.004],
+    [20.006, 10.004],
+    [20.006, 10.006],
+    [20.004, 10.006],
+    [20.004, 10.004],
+]
+
+
+def _parted_zone(**over):
+    zone = _zone(**over)
+    zone["polygons"] = [_A, _B]
+    zone["holes"] = [_HOLE]
+    zone["part_holes"] = [[_HOLE], []]
+    return zone
+
+
+def test_each_part_carries_only_its_own_holes(serve_map, page):
+    html = flights_to_html(
+        [_flight()], "trip", airspace_json=_overlay([_parted_zone()])
+    )
+    serve_map(html)
+    page.wait_for_function(
+        "() => typeof zoneGroup !== 'undefined' && zoneGroup.getLayers().length === 2",
+        timeout=15000,
+    )
+    # Leaflet keeps [exterior, ...holes] per polygon: A has its hole, the
+    # island B has none (the zone-level convention gave B A's hole too).
+    ring_counts = page.evaluate(
+        "() => zoneGroup.getLayers().map(l => l.getLatLngs().length)"
+    )
+    assert ring_counts == [2, 1]

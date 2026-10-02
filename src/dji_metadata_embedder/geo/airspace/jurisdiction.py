@@ -497,6 +497,90 @@ _CORE: dict[str, list[Box]] = {
             29.4,
         ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; the waters south of Jandia's tip and the sea towards Africa gap
     ],
+    # Nine land borders (DK, PL, CZ, AT, CH, FR, LU, BE, NL) and the North
+    # Sea and Baltic coast. Cores stay >=12 km inside every land border, and
+    # Danish, Dutch and Swiss waters count as foreign too, which is why the
+    # coastal edges are cut back from Als, Falster/Møn and Lake Constance.
+    # Probed against Nominatim 2026-10-02 in two passes: 87 town markers
+    # first (42 German cities that must resolve, 21 German border towns
+    # that must gap, 24 foreign towns inside the hull that must stay
+    # outside every core; Karlsruhe, which the candidate boxes left in a
+    # gap, was swapped for Heidelberg, and Hof for Selb, which the first
+    # box set left in a core), then an edge-and-corner sweep (every
+    # perimeter sample about every 0.1 deg, each probed at the edge and 12
+    # km straight outward, corners also diagonally, sea allowed). The
+    # candidate boxes drew 13 foreign hits (Danish waters off Als and
+    # Falster, the Czech Aš salient near Selb, Swiss land at Schaffhausen,
+    # Austrian land at the Salzach and near Kufstein, French land across
+    # the Rhine at Breisach and Strasbourg); the boxes below are the
+    # adjusted set, 22 boxes, 800 probes, zero foreign hits. An outward
+    # probe that landed inside another DE core was skipped, since that edge
+    # is internal and has no border behind it; that is why 800 probes were
+    # enough for 22 boxes. Per-box comments name the nearest foreign land
+    # and its distance from the box, by arithmetic (1 deg lat = 111 km,
+    # 1 deg lon = 111 * cos(lat) km) from a border crossing or border-side
+    # town whose coordinates were given from memory, so the figures are
+    # approximate (about 1 km) and not re-probed; the 12 km safety claim
+    # rests on the sweep, not on these comments. At sea, the neighbour's territorial waters sit nearer than its
+    # land, and the sweep's sea probes cover those.
+    # Deliberate gaps, each an honest border band or a coast margin: the 21
+    # border towns (Aachen, Trier, Saarbrücken, Konstanz, Passau, Görlitz,
+    # Frankfurt (Oder), Flensburg, Emden, Lörrach, Kehl, Garmisch,
+    # Berchtesgaden, Lindau, Kleve, Mönchengladbach, Gronau, Zittau, Selb,
+    # Pirmasens, Usedom's Ahlbeck), the Saarland, Karlsruhe and the Upper
+    # Rhine strip (Offenburg, Baden-Baden), the Vogtland round Hof, Cottbus
+    # and Lusatia east of 13.9 E, Rosenheim and the Alpine foothills, the
+    # Ems and Emsland strip (Nordhorn), Sylt and the Flensburg fjord coast,
+    # the Fehmarn Belt shore, Krefeld and the Lower Rhine west of 6.6 E,
+    # Rheine (just west of the 7.45 E edge), and the Allgäu and Lake
+    # Constance shore (Kempten, Friedrichshafen) south of 47.85 N. Cottbus,
+    # Karlsruhe, eastern Saarland (Neunkirchen) and Hof are wider gaps than
+    # their borders need: first-cut caution, each wants its own sweep
+    # before a box reaches it.
+    "DE": [
+        (7.45, 52.9, 9.7, 54.68),  # Bremen, Oldenburg; DK Padborg 16 km, NL 16 km
+        (9.7, 52.9, 10.9, 54.4),  # Hamburg, Kiel, Lübeck; DK land (Langeland) 37 km N
+        (10.9, 52.9, 11.3, 54.45),  # DK Rødbyhavn 22 km N, across the Fehmarn Belt
+        (11.3, 52.9, 12.6, 54.35),  # Schwerin, Rostock; DK Gedser 24 km N
+        (12.6, 52.9, 12.9, 54.4),  # DK Gedser 47 km NW; PL 83 km
+        (12.9, 52.9, 13.85, 54.68),  # Rügen; PL Oder (Hohenwutzen) 20 km SE
+        (
+            10.5,
+            50.95,
+            13.9,
+            52.9,
+        ),  # Berlin, Leipzig; PL Oder 15 km E, CZ (Bahratal, ~50.83 N) ~15 km at the SE corner
+        (
+            11.9,
+            50.7,
+            13.1,
+            50.95,
+        ),  # Chemnitz; CZ crest 30 km S mid-strip, ~20 km at the SE corner
+        (7.45, 51.6, 9.5, 52.9),  # Münster, Bielefeld; NL Bourtange 20 km
+        (6.6, 50.4, 9.5, 51.6),  # Ruhr, Cologne; BE Losheimergraben 15 km
+        (8.0, 51.3, 11.5, 52.9),  # Hanover, Harz; interior, NL 55 km
+        (7.5, 49.3, 10.5, 50.4),  # Rhine-Main, Mannheim; FR Hornbach 15 km
+        (8.0, 49.17, 10.5, 49.3),  # Sinsheim strip; FR Wissembourg 15 km
+        (8.6, 49.05, 10.5, 49.17),  # Heilbronn; FR Lauterbourg 28 km
+        (9.5, 49.05, 12.0, 50.0),  # Würzburg, Nuremberg; CZ Pomezí 21 km
+        (9.5, 50.0, 11.85, 50.95),  # Fulda, Coburg; CZ Aš salient 18 km E
+        (9.0, 47.85, 12.0, 49.05),  # Stuttgart, Munich; CH Kreuzlingen 22 km
+        (8.6, 47.95, 9.0, 49.05),  # Pforzheim; CH Schaffhausen tip 16 km
+        (
+            12.0,
+            47.95,
+            12.5,
+            48.3,
+        ),  # Wasserburg; AT Kufstein bulge (12.26 E, 47.74 N) ~23 km S
+        (
+            12.0,
+            48.3,
+            12.75,
+            49.05,
+        ),  # Regensburg, Landshut; AT Salzach at Burghausen ~16 km from the SE corner
+        (7.85, 47.95, 8.6, 48.1),  # Freiburg east; CH 16 km, FR Rhine 21 km
+        (8.1, 48.1, 8.6, 48.6),  # Black Forest; FR Rhine (Strasbourg) 22 km
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -565,6 +649,17 @@ _HULL: dict[str, list[Box]] = {
     # on purpose: the North African enclaves gap as no-provider rather
     # than borrow a mainland framing across the strait.
     "ES": [(-9.4, 35.95, 4.5, 43.9), (-18.4, 27.5, -13.3, 29.5)],
+    # The national bounding box with a sea margin. It overlaps the DK, LU,
+    # BE and CH hulls on purpose (Sønderborg, Luxembourg City, Eupen and
+    # Verviers, Zurich), the DK Bornholm hull box (14.6-15.1 E, 54.9-55.1 N:
+    # western Bornholm, Rønne on the 55.1 N edge) and the SE hull's southern
+    # strip (10.9-15.1 E, 55.05-55.1 N: open sea), all harmless because no
+    # DE core comes near them. Strasbourg, Basel, Salzburg, Cheb, Szczecin and
+    # the Dutch frontier towns sit inside it (border-band semantics). Cores
+    # decide (#499): the DE cores keep clear of every neighbouring core, so
+    # Luxembourg City still resolves LU and Zurich CH, and no foreign town
+    # ever resolves DE.
+    "DE": [(5.8, 47.2, 15.1, 55.1)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
@@ -582,6 +677,7 @@ _MEASURE = {
     "BE": MEASURE_EU,
     "LV": MEASURE_EU,
     "ES": MEASURE_EU,
+    "DE": MEASURE_EU,
 }
 
 
@@ -614,7 +710,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
             "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, "
-            "Latvia and Spain)",
+            "Latvia, Spain and Germany)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:

@@ -102,6 +102,17 @@ These feeds are used:
   note, not drawn as a zone. The service states no edition date, only
   the fetch time is shown, and ENAIRE's caveat that the geometry is
   informative and the AIP normative rides with every Spanish record.
+- **Germany** flights query dipul's anonymous WFS (CC BY-ND 4.0,
+  attribution "dipul, CC-BY-ND 4.0", use confirmed in writing), one request
+  per category layer. As for the FAA grid and Spain, the bounding box sent
+  is padded and snapped outward to a 0.1° grid first. Geometry and
+  attributes pass through unchanged, as the licence requires; dipul's
+  category, legal reference and type code ride in the popup verbatim. The
+  § 21h LuftVO zones are shown as conditional because the paragraph permits
+  flight in them only under its stated conditions; § 17 flight restriction
+  areas need the authority's permission; dipul's temporary no-fly areas are
+  prohibited for their published window. No edition date is published, so
+  only the fetch time is shown.
 - **Every flight**, regardless of jurisdiction, fetches surface-height
   tiles from Mapterhorn (`tiles.mapterhorn.com`) for the surface-referenced
   height estimate, when the `[terrain]` extra is installed.
@@ -116,13 +127,12 @@ nothing without `-f record`; terrain tiles are unaffected by this flag).
 dji-embed flightmap ./flights -f record --airspace-refresh
 ```
 
-## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia, Spain — and an honest gap everywhere else
+## Coverage: US, Luxembourg, Finland, Switzerland, Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia, Spain, Germany — and an honest gap everywhere else
 
 Airspace lookup only resolves for flights that sit clearly inside the
 United States, Luxembourg, Finland, Switzerland, Ireland, the UK,
-Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia, or Spain. Everywhere else the record
-states
-the gap
+Denmark, Sweden, Estonia, Slovenia, Belgium, Latvia, Spain, or Germany. Everywhere else
+the record states the gap
 instead of guessing: *"no supported airspace data source for this
 location."*
 A flight near a jurisdiction boundary gaps the same way, deliberately,

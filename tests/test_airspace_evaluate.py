@@ -253,3 +253,94 @@ def test_not_applicable_lists_only_zones_the_flight_was_inside():
     report = evaluate(track, [timed_out_far, inactive_far, inactive_here])
     assert report.findings == []
     assert [z.identifier for z in report.not_applicable] == ["HERE"]
+
+
+# #593: holes per polygon part. Part A is the square with HOLE cut out of
+# it; part B is an island lying inside A's hole. With part_holes, A's hole
+# cuts only A, so B still counts.
+ISLAND = [(6.09, 49.09), (6.11, 49.09), (6.11, 49.11), (6.09, 49.11), (6.09, 49.09)]
+
+
+def _entered(zone, lat, lon):
+    track = Track(name="t", points=[_pt(lat, lon, 0)])
+    return evaluate(track, [zone], surface_heights_m=None).findings[0].entered
+
+
+def test_part_holes_cut_only_their_own_part():
+    z = _zone(polygons=[SQUARE, ISLAND], holes=[HOLE], part_holes=[[HOLE], []])
+    assert _entered(z, 49.1, 6.1)  # on the island B
+    assert not _entered(z, 49.06, 6.06)  # in A's hole, off the island
+    assert _entered(z, 49.175, 6.1)  # in A, clear of the hole
+
+
+def test_without_part_holes_every_hole_cuts_every_part():
+    # The zone-level contract (part_holes=None) a feed gets when it never
+    # groups: A's hole also cuts the island, so a point on B is missed.
+    # That is wrong for islands, which is why multi-part feeds with holes
+    # must set part_holes; this test pins the older contract as documented.
+    z = _zone(polygons=[SQUARE, ISLAND], holes=[HOLE])
+    assert z.part_holes is None
+    assert not _entered(z, 49.1, 6.1)  # the island is under-reported
+    assert not _entered(z, 49.06, 6.06)
+    assert _entered(z, 49.175, 6.1)
+
+
+def _reference_inside(lon, lat, zone):
+    """The pre-prefilter rule: plain ray casts, no bounding boxes."""
+    if zone.part_holes is not None:
+        return any(
+            point_in_ring(lon, lat, ring)
+            and not any(point_in_ring(lon, lat, h) for h in holes)
+            for ring, holes in zip(zone.polygons, zone.part_holes)
+        )
+    if not any(point_in_ring(lon, lat, ring) for ring in zone.polygons):
+        return False
+    return not any(point_in_ring(lon, lat, h) for h in zone.holes)
+
+
+def test_the_bounding_box_prefilter_never_changes_an_answer():
+    import random
+    from pathlib import Path
+
+    from dji_metadata_embedder.geo.airspace.dipul import parse_dipul
+    from dji_metadata_embedder.geo.airspace.ed318 import parse_ed318
+    from dji_metadata_embedder.geo.airspace.enaire import parse_enaire
+    from dji_metadata_embedder.geo.airspace.evaluate import _inside, _prepare
+
+    fixtures = Path(__file__).parent.parent / "samples" / "airspace"
+    zones = (
+        parse_dipul((fixtures / "dipul-de.json").read_bytes(), SRC)
+        + parse_ed318((fixtures / "ed318-ie.json").read_bytes(), SRC)
+        + parse_ed318((fixtures / "ed318-se.json").read_bytes(), SRC)
+        + parse_enaire((fixtures / "enaire-es.json").read_bytes(), SRC)
+        + [
+            _zone(polygons=[SQUARE, ISLAND], holes=[HOLE], part_holes=[[HOLE], []]),
+            _zone(polygons=[SQUARE, ISLAND], holes=[HOLE]),
+        ]
+    )
+    rng = random.Random(593)
+    inside_hits = 0
+    for zone in zones:
+        prep = _prepare(zone)
+        coords = [c for ring in zone.polygons for c in ring]
+        lo_lon = min(c[0] for c in coords)
+        hi_lon = max(c[0] for c in coords)
+        lo_lat = min(c[1] for c in coords)
+        hi_lat = max(c[1] for c in coords)
+        pad_lon = (hi_lon - lo_lon) * 0.2 + 1e-4
+        pad_lat = (hi_lat - lo_lat) * 0.2 + 1e-4
+        # Random points over (and around) the zone, plus its own vertices,
+        # where the box edges and the ray cast meet.
+        points = [
+            (
+                rng.uniform(lo_lon - pad_lon, hi_lon + pad_lon),
+                rng.uniform(lo_lat - pad_lat, hi_lat + pad_lat),
+            )
+            for _ in range(300)
+        ] + coords[:50]
+        for lon, lat in points:
+            p = _pt(lat, lon, 0)
+            got = _inside(p, zone, prep)
+            assert got == _reference_inside(lon, lat, zone), (zone.identifier, lon, lat)
+            inside_hits += got
+    assert inside_hits > 100  # the sample really exercised the inside branch

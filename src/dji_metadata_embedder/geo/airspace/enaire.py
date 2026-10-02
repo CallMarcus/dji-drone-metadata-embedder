@@ -39,7 +39,7 @@ from urllib.parse import urlencode
 
 from .arcgis import fetch_arcgis_pages
 from .arcgis_faa import snap_bbox
-from .ed318 import _rings
+from .ed318 import _parts
 from .model import (
     AirspaceError,
     Applicability,
@@ -196,7 +196,8 @@ class _Piece:
     upper: VerticalLimit | None
     applicability: list[Applicability]
     polygons: list[list[tuple[float, float]]]
-    holes: list[list[tuple[float, float]]]
+    # Interior rings per polygon, parallel to ``polygons`` (Zone.part_holes).
+    part_holes: list[list[list[tuple[float, float]]]]
     notes: list[str]
     native: dict = field(default_factory=dict)
 
@@ -265,7 +266,8 @@ def _piece(feat: object, where: str) -> _Piece:
         )
         if text
     ]
-    polygons, holes = _rings(feat.get("geometry") or {}, ident, where)
+    parts = _parts(feat.get("geometry") or {}, ident, where)
+    polygons = [ext for ext, _ in parts]
     if not polygons:
         raise AirspaceError(f"{where} ({ident}): no polygon geometry")
     return _Piece(
@@ -277,7 +279,7 @@ def _piece(feat: object, where: str) -> _Piece:
         upper=_limit(props, "upper", f"{where} ({ident})"),
         applicability=applicability,
         polygons=polygons,
-        holes=holes,
+        part_holes=[holes for _, holes in parts],
         notes=notes,
         native=feat,
     )
@@ -312,13 +314,11 @@ def parse_enaire(raw: bytes, source: SourceInfo) -> list[Zone]:
     zones: list[Zone] = []
     for ident, pieces in groups.items():
         buckets: dict[tuple, list[_Piece]] = {}
-        for n, piece in enumerate(pieces):
-            # Holes are zone-wide (the evaluator and renderers apply every
-            # hole to every polygon), so a holed piece merged with a piece
-            # lying inside its hole would under-report. A holed piece always
-            # gets its own bucket.
-            key = piece.key + (("holed", n),) if piece.holes else piece.key
-            buckets.setdefault(key, []).append(piece)
+        for piece in pieces:
+            # Holes ride per part (Zone.part_holes), so a holed piece merges
+            # like any other: a piece lying inside another's hole stays an
+            # island that counts, and no hole cuts a part it isn't in.
+            buckets.setdefault(piece.key, []).append(piece)
         for group in buckets.values():
             first = group[0]
             if len(buckets) == 1:
@@ -341,7 +341,13 @@ def parse_enaire(raw: bytes, source: SourceInfo) -> list[Zone]:
                     upper=first.upper,
                     applicability=list(first.applicability),
                     polygons=[ring for piece in group for ring in piece.polygons],
-                    holes=[ring for piece in group for ring in piece.holes],
+                    holes=[
+                        ring
+                        for piece in group
+                        for part in piece.part_holes
+                        for ring in part
+                    ],
+                    part_holes=[part for piece in group for part in piece.part_holes],
                     source=source,
                     native=first.native
                     if len(group) == 1

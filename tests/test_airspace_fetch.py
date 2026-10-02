@@ -719,3 +719,55 @@ def test_an_enaire_failure_on_the_second_layer_is_a_gap_and_never_cached(tmp_pat
     assert len(fake.urls) == 2
     assert data.gap_reason is not None and "not JSON" in data.gap_reason
     assert not list(tmp_path.glob("enaire-ES-*"))
+
+
+def _de_pages() -> list[bytes]:
+    # One page per layer in registry order; absent layers get an empty page.
+    from dji_metadata_embedder.geo.airspace.dipul import DIPUL_LAYERS
+
+    layers = json.loads((FIXTURES / "dipul-de.json").read_bytes())["layers"]
+    empty = json.dumps(
+        {"type": "FeatureCollection", "totalFeatures": 0, "features": []}
+    ).encode()
+
+    def page(s: str) -> bytes:
+        if f"dipul:{s}" not in layers:
+            return empty
+        doc = layers[f"dipul:{s}"][0]
+        # The fixture stores bare pages; a live first page states its count.
+        return json.dumps({**doc, "totalFeatures": len(doc["features"])}).encode()
+
+    return [page(s) for s in DIPUL_LAYERS]
+
+
+def test_a_german_flight_queries_all_31_dipul_layers_by_snapped_bbox(tmp_path):
+    fake = FakeTransport(_de_pages())
+    lines = []
+    data = fetch_zones(
+        _track(52.52, 13.40), tmp_path, transport=fake, announce=lines.append
+    )
+    assert data.gap_reason is None and len(data.zones) == 12
+    assert len(fake.urls) == 31
+    prefix = "https://uas-betrieb.de/geoservices/dipul/wfs?"
+    assert all(u.startswith(prefix) for u in fake.urls)
+    # padded + snapped, lat,lon order
+    assert "bbox=52.4%2C13.3%2C52.6%2C13.5" in fake.urls[0]
+    assert data.source is not None and "dipul, CC-BY-ND 4.0" in data.source.license
+    assert data.source.effective is None
+    assert (tmp_path / "dipul-DE-13.3_52.4_13.5_52.6.json").exists()
+    assert any("Fetching" in ln and "uas-betrieb.de" in ln for ln in lines)
+
+
+def test_a_cached_german_body_never_touches_the_network(tmp_path):
+    fetch_zones(_track(52.52, 13.40), tmp_path, transport=FakeTransport(_de_pages()))
+    second = FakeTransport([])
+    data = fetch_zones(_track(52.52, 13.40), tmp_path, transport=second)
+    assert second.urls == [] and len(data.zones) == 12
+
+
+def test_a_dipul_maintenance_page_on_any_layer_is_a_gap_and_never_cached(tmp_path):
+    pages = _de_pages()
+    pages[5] = b"<html>Wartung</html>"
+    data = fetch_zones(_track(52.52, 13.40), tmp_path, transport=FakeTransport(pages))
+    assert data.gap_reason is not None and "not JSON" in data.gap_reason
+    assert not list(tmp_path.glob("dipul-DE-*.json"))

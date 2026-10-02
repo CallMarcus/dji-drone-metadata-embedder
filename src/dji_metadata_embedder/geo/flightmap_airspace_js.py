@@ -76,12 +76,14 @@ airspace.zones.forEach(z => {
   const entered = z.entered.length > 0;
   const style = { color: '#4a6a8a', weight: entered ? 3 : 1.5,
                   fillColor: '#4a6a8a', fillOpacity: entered ? 0.15 : 0.08 };
-  z.polygons.forEach(ring => {
+  z.polygons.forEach((ring, i) => {
     // Subsequent rings render as holes (Leaflet native), keeping the map
-    // consistent with the evaluator's hole subtraction (#422). Zone-level
-    // holes attach to every exterior — right for single-volume zones,
-    // which is every zone either live feed publishes today.
-    const rings = [ring].concat(z.holes || []);
+    // consistent with the evaluator's hole subtraction (#422). With
+    // part_holes each exterior carries only its own holes (#593: one dipul
+    // residential feature has thousands of parts and courtyards); without
+    // it, the zone-level convention attaches every hole to every exterior.
+    const holes = z.part_holes ? (z.part_holes[i] || []) : (z.holes || []);
+    const rings = [ring].concat(holes);
     const poly = L.polygon(rings.map(r => r.map(c => [c[1], c[0]])), style)
       .bindPopup(zonePopupHtml(z)).addTo(zoneGroup);
     // Only a STATED ceiling earns a label — an unlabelled zone still has

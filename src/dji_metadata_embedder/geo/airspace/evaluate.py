@@ -7,6 +7,7 @@ against the matching datum and never across datums.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -73,15 +74,77 @@ def _applies(zone: Zone, window: tuple[datetime, datetime] | None) -> bool:
     return False
 
 
-def _inside(p: TrackPoint, zone: Zone) -> bool:
-    """Inside any exterior ring, minus the interior rings (holes) the
-    parsers keep in zone.holes (#422). Plain even-odd parity over one flat
-    list was rejected in review: it under-reports for overlapping
-    same-limit volumes — and an under-reporting record misleads in the one
-    direction it must not."""
-    if not any(point_in_ring(p.lon, p.lat, ring) for ring in zone.polygons):
+Ring = list[tuple[float, float]]
+BBox = tuple[float, float, float, float]  # min lon, min lat, max lon, max lat
+
+
+def _bbox(ring: Ring) -> BBox:
+    if not ring:  # an empty ring contains nothing; this box matches nothing
+        return (math.inf, math.inf, -math.inf, -math.inf)
+    lons = [c[0] for c in ring]
+    lats = [c[1] for c in ring]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def _in_ring(lon: float, lat: float, ring: Ring, box: BBox) -> bool:
+    # The box test is exact, not a heuristic: a point outside a ring's
+    # bounding box cannot be inside the ring, so skipping the ray cast
+    # never changes an answer. It keeps a 2,463-part dipul zone cheap for
+    # every track point that is nowhere near most of its parts (#593).
+    if not (box[0] <= lon <= box[2] and box[1] <= lat <= box[3]):
         return False
-    return not any(point_in_ring(p.lon, p.lat, hole) for hole in zone.holes)
+    return point_in_ring(lon, lat, ring)
+
+
+@dataclass
+class _Prepared:
+    """One zone's rings paired with their bounding boxes, built once per
+    ``evaluate`` call. ``parts`` is (exterior, its holes) per polygon when
+    the zone groups holes per part, else every polygon with every hole."""
+
+    parts: list[tuple[Ring, BBox, list[tuple[Ring, BBox]]]]
+    per_part: bool
+    zone_holes: list[tuple[Ring, BBox]]
+
+
+def _prepare(zone: Zone) -> _Prepared:
+    if zone.part_holes is not None:
+        return _Prepared(
+            parts=[
+                (ring, _bbox(ring), [(h, _bbox(h)) for h in holes])
+                for ring, holes in zip(zone.polygons, zone.part_holes, strict=True)
+            ],
+            per_part=True,
+            zone_holes=[],
+        )
+    return _Prepared(
+        parts=[(ring, _bbox(ring), []) for ring in zone.polygons],
+        per_part=False,
+        zone_holes=[(h, _bbox(h)) for h in zone.holes],
+    )
+
+
+def _inside(p: TrackPoint, zone: Zone, prepared: _Prepared | None = None) -> bool:
+    """Inside an exterior ring and outside the interior rings (holes) that
+    belong to it (#422). With ``zone.part_holes`` a part's holes cut only
+    that part (#593): a point counts if, for some part, it is inside the
+    exterior and in none of that part's holes, so an island part lying in
+    another part's hole is still entered. Without it, the zone-level
+    convention: inside any exterior, minus every hole. Plain even-odd
+    parity over one flat list was rejected in review: it under-reports for
+    overlapping same-limit volumes — and an under-reporting record misleads
+    in the one direction it must not."""
+    prep = prepared if prepared is not None else _prepare(zone)
+    lon, lat = p.lon, p.lat
+    if prep.per_part:
+        return any(
+            _in_ring(lon, lat, ring, box)
+            and not any(_in_ring(lon, lat, h, hb) for h, hb in holes)
+            for ring, box, holes in prep.parts
+        )
+    if not any(_in_ring(lon, lat, ring, box) for ring, box, _ in prep.parts):
+        return False
+    return not any(_in_ring(lon, lat, h, hb) for h, hb in prep.zone_holes)
 
 
 def evaluate(
@@ -99,17 +162,18 @@ def evaluate(
     window = track_window(track)
     report = AirspaceReport()
     for zone in zones:
+        prep = _prepare(zone)
         if zone.not_active_reason or not _applies(zone, window):
             # "Not applicable" is a statement about this flight: only a zone
             # the track was actually inside is listed (#562 — a country-wide
             # activity-flagged feed would otherwise list hundreds of zones
             # the flight never went near).
-            if any(_inside(p, zone) for p in track.points):
+            if any(_inside(p, zone, prep) for p in track.points):
                 report.not_applicable.append(zone)
             continue
         finding = ZoneFinding(zone=zone, entered=False)
         for i, p in enumerate(track.points):
-            if not _inside(p, zone):
+            if not _inside(p, zone, prep):
                 continue
             finding.entered = True
             if p.utc is not None:
