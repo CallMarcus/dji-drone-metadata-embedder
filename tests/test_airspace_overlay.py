@@ -125,6 +125,19 @@ def test_published_notes_reach_the_popup_data_only_when_present():
     assert all("notes" not in by_id[z.identifier] for z in zones[1:])
 
 
+def test_part_holes_ride_only_when_the_zone_groups_them():
+    # #593: the JS builders attach part_holes[i] to polygons[i]; feeds that
+    # never group keep the pinned shape (no key invented).
+    zones, source = _lu_zones()
+    zones[0].part_holes = [[] for _ in zones[0].polygons]
+    out = zones_to_overlay_json(
+        [_track_far()], [AirspaceData(zones=zones, source=source)]
+    )
+    by_id = {z["id"]: z for z in out["zones"]}
+    assert by_id[zones[0].identifier]["part_holes"] == zones[0].part_holes
+    assert all("part_holes" not in by_id[z.identifier] for z in zones[1:])
+
+
 def test_zone_dict_shape_and_source_footer():
     zones, source = _lu_zones()
     out = zones_to_overlay_json(

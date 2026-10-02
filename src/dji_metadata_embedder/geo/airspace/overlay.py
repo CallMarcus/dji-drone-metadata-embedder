@@ -101,6 +101,13 @@ def zones_to_overlay_json(
                     "applicability": [_fmt_window(w) for w in zone.applicability],
                     "polygons": zone.polygons,
                     "holes": zone.holes,
+                    # Holes per polygon part (#593), only when the parser
+                    # grouped them, so zone-level feeds keep their shape.
+                    **(
+                        {"part_holes": zone.part_holes}
+                        if zone.part_holes is not None
+                        else {}
+                    ),
                     # Published, unevaluated text (#503) — only when the
                     # zone carries any, so undated/plain feeds keep shape.
                     **(

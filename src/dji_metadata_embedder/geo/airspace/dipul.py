@@ -42,7 +42,7 @@ from urllib.parse import urlencode
 from urllib.request import Request
 
 from .arcgis_faa import snap_bbox
-from .ed318 import _rings
+from .ed318 import _parts
 from .model import (
     AirspaceError,
     Applicability,
@@ -341,7 +341,10 @@ def parse_dipul(raw: bytes, source: SourceInfo) -> list[Zone]:
                     notes.append(legal)
                 if type_code:
                     notes.append(f"{type_code} / {detail}" if detail else type_code)
-                polygons, holes = _rings(feat.get("geometry") or {}, ident, where)
+                # Holes stay with their own part: one residential-plot
+                # feature carries thousands of parts and courtyards (#593).
+                parts = _parts(feat.get("geometry") or {}, ident, where)
+                polygons = [ext for ext, _ in parts]
                 if not polygons:
                     raise AirspaceError(f"{where} ({ident}): no polygon geometry")
                 zones.append(
@@ -353,7 +356,8 @@ def parse_dipul(raw: bytes, source: SourceInfo) -> list[Zone]:
                         upper=_limit(props, "upper", f"{where} ({ident})"),
                         applicability=applicability,
                         polygons=polygons,
-                        holes=holes,
+                        holes=[h for _, holes in parts for h in holes],
+                        part_holes=[holes for _, holes in parts],
                         source=source,
                         native=feat,
                         notes=notes,

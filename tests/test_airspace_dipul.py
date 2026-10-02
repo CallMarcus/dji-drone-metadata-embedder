@@ -293,7 +293,7 @@ def test_a_duplicate_identifier_in_one_body_is_an_error():
         parse_dipul(json.dumps(doc).encode(), SRC)
 
 
-def test_a_multipolygon_with_a_hole_yields_two_polygons_and_one_hole():
+def test_a_multipolygon_hole_stays_with_its_own_part():
     outer1 = [[13.0, 52.0], [13.1, 52.0], [13.1, 52.1], [13.0, 52.0]]
     hole = [[13.02, 52.02], [13.05, 52.02], [13.05, 52.05], [13.02, 52.02]]
     outer2 = [[13.2, 52.0], [13.3, 52.0], [13.3, 52.1], [13.2, 52.0]]
@@ -306,7 +306,12 @@ def test_a_multipolygon_with_a_hole_yields_two_polygons_and_one_hole():
         SRC,
     )[0]
     assert len(z.polygons) == 2
-    assert len(z.holes) == 1
+    assert len(z.holes) == 1  # the flat union, for older consumers
+    # #593: the hole belongs to the first part only, never to the second.
+    assert z.part_holes == [
+        [[(13.02, 52.02), (13.05, 52.02), (13.05, 52.05), (13.02, 52.02)]],
+        [],
+    ]
 
 
 def test_an_altitude_with_no_unit_is_an_error():

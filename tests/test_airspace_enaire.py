@@ -14,7 +14,8 @@ from dji_metadata_embedder.geo.airspace.enaire import (
     parse_enaire,
     query_url,
 )
-from dji_metadata_embedder.geo.airspace.evaluate import point_in_ring
+from dji_metadata_embedder.geo.airspace.evaluate import evaluate
+from dji_metadata_embedder.geo.track import Track, TrackPoint
 
 FIXTURES = Path(__file__).parent.parent / "samples" / "airspace"
 SRC = SourceInfo(
@@ -59,6 +60,7 @@ def test_feet_and_amsl_limits_are_kept_as_published():
 def test_holes_and_multipolygons_keep_their_geometry():
     by = _by_id()
     assert len(by["LEBZ45"].polygons) == 1 and len(by["LEBZ45"].holes) == 1
+    assert by["LEBZ45"].part_holes == [by["LEBZ45"].holes]
     assert len(by["MUAV151"].polygons) == 2
 
 
@@ -249,7 +251,15 @@ def _ring(x0, y0, x1, y1):
     return [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]
 
 
-def test_a_holed_piece_never_merges_with_a_piece_inside_its_hole():
+def _entered(zone, lon, lat):
+    pt = TrackPoint(lat=lat, lon=lon, alt=0.0, timestamp="00:00:00,000")
+    return evaluate(Track(name="t", points=[pt]), [zone]).findings[0].entered
+
+
+def test_a_holed_piece_merges_and_keeps_its_hole_on_its_own_part():
+    # Holes ride per part (Zone.part_holes, #593), so a holed piece merges
+    # with a same-attribute piece lying inside its hole: the hole cuts only
+    # its own piece, and the island still counts.
     base = {"identifier": "X1", "type": "CONDITIONAL", "name": "A"}
     outer = {
         "type": "Polygon",
@@ -273,15 +283,18 @@ def test_a_holed_piece_never_merges_with_a_piece_inside_its_hole():
             {"layers": {"2": [{"type": "FeatureCollection", "features": order}]}}
         ).encode()
         zones = parse_enaire(body, SRC)
-        assert len(zones) == 2
-        holed = next(z for z in zones if z.holes)
-        plain = next(z for z in zones if not z.holes)
-        assert holed.identifier == "X1 [AAAA0001]"
-        assert plain.identifier == "X1 [BBBB0002]"
-        # A point in the hole is outside the holed zone and inside the other.
-        assert any(point_in_ring(5, 5, r) for r in holed.holes)
-        assert any(point_in_ring(5, 5, r) for r in plain.polygons)
-        assert not plain.holes
+        assert len(zones) == 1
+        z = zones[0]
+        assert z.identifier == "X1"
+        assert z.part_holes is not None
+        assert len(z.polygons) == len(z.part_holes) == 2
+        assert len(z.holes) == 1
+        # The hole is aligned with the outer piece, wherever it sits.
+        holed = [i for i, part in enumerate(z.part_holes) if part]
+        assert len(holed) == 1 and z.polygons[holed[0]][0] == (0.0, 0.0)
+        assert _entered(z, 5, 5)  # on the island inside the hole
+        assert not _entered(z, 4.2, 4.2)  # in the hole, off the island
+        assert _entered(z, 1, 1)  # the outer ring clear of the hole
 
 
 def test_a_truncated_trailing_tag_is_dropped_from_notes():

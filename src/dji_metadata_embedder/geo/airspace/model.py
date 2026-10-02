@@ -102,11 +102,19 @@ class Zone:
     passthrough). ``polygons`` are closed exterior rings of (lon, lat);
     ``holes`` are interior rings (GeoJSON ``coordinates[1:]``), kept apart
     so the evaluator subtracts them instead of counting them as zone
-    (#422). Grouping is zone-level, not per-polygon: holes apply to every
-    polygon of the zone. ENAIRE merges same-attribute pieces into
-    multi-polygon zones, so its parser keeps any holed piece a single-
-    polygon zone of its own; a grouped model is the #424-era upgrade if a
-    feed ever needs holes inside multi-volume zones."""
+    (#422). ``holes`` is always the flat list of every interior ring, for
+    consumers that predate per-part grouping (the record's bounds, for one).
+
+    ``part_holes`` groups them per polygon: when set, ``part_holes[i]``
+    are the interior rings of ``polygons[i]`` and nothing else, so a hole
+    in one part never cuts another part, and a part lying inside another
+    part's hole (an island) still counts. dipul's residential-plot layer
+    (#593) forced it: one feature carries thousands of parts and holes,
+    and the zone-level convention painted every courtyard over every plot
+    and missed the islands. ``None`` means the older zone-level convention
+    still holds: every hole applies to every polygon. Feeds whose zones
+    are single-part, or which never publish MultiPolygons with holes,
+    leave it ``None``."""
 
     identifier: str
     name: str
@@ -117,6 +125,8 @@ class Zone:
     polygons: list[list[tuple[float, float]]]
     source: SourceInfo
     holes: list[list[tuple[float, float]]] = field(default_factory=list)
+    # Interior rings per polygon, parallel to ``polygons`` (class docstring).
+    part_holes: list[list[list[tuple[float, float]]]] | None = None
     native: dict = field(default_factory=dict)
     # Published activation status/schedule text, one line per activation
     # block, rendered verbatim and labelled as not evaluated (#503). The
