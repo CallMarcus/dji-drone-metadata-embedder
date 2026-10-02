@@ -34,6 +34,8 @@ is permitted; nothing is clipped, merged or simplified here.
 from __future__ import annotations
 
 import json
+import math
+import re
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -200,6 +202,10 @@ def fetch_dipul_body(bbox: tuple[float, float, float, float], transport) -> byte
     return json.dumps({"layers": layers}).encode("utf-8")
 
 
+# Whole-reference match: "§ 17" or "§ 17, Abs. 1" but not "§ 170" or "§ 17a"
+# (the negative lookahead rejects a digit or letter right after the number).
+_LEGAL_17 = re.compile(r"^§ 17(?![0-9a-z])")
+_LEGAL_21H = re.compile(r"^§ 21h(?![0-9a-z])")
 _UNIT = {"m": "m", "ft": "ft", "fl": "FL"}
 _DATUM = {"AGL": "AGL", "MSL": "AMSL", "PA": "STD"}
 
@@ -230,6 +236,10 @@ def _limit(props: dict, side: str, where: str) -> VerticalLimit | None:
             raise AirspaceError(
                 f"{where}: {side}_limit_altitude {raw!r} is not a number"
             ) from exc
+    if not math.isfinite(value):
+        raise AirspaceError(
+            f"{where}: {side}_limit_altitude {published!r} is not finite"
+        )
     unit_raw = _text(props.get(f"{side}_limit_unit")) or ""
     unit = _UNIT.get(unit_raw.lower())
     if unit is None:
@@ -248,9 +258,9 @@ def _restriction(props: dict, where: str) -> str:
     legal = _text(props.get("legal_ref")) or ""
     if type_code == "U_NFZ":
         return "PROHIBITED"
-    if legal.startswith("§ 17"):
+    if _LEGAL_17.match(legal):
         return "REQ_AUTHORISATION"
-    if legal.startswith("§ 21h") or type_code == "KONTROLLZONE":
+    if _LEGAL_21H.match(legal) or type_code == "KONTROLLZONE":
         return "CONDITIONAL"
     if not type_code and not legal:
         raise AirspaceError(f"{where}: no legal_ref or type_code")

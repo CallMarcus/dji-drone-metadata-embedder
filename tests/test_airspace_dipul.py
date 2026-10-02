@@ -335,3 +335,21 @@ def test_fetch_body_raises_on_a_maintenance_page():
     bodies = [_page(0, 0)] * 3 + [b"<html>maintenance</html>"]
     with pytest.raises(AirspaceError, match="not JSON"):
         fetch_dipul_body((13.3, 52.4, 13.5, 52.6), FakeTransport(bodies))
+
+
+def test_legal_bases_match_as_whole_references_not_prefixes():
+    def restriction(legal):
+        props = {**BASE, "legal_ref": legal, "type_code": "NEUARTIG"}
+        return parse_dipul(_one("bahnanlagen", props), SRC)[0].restriction
+
+    assert restriction("§ 17, Abs. 1 LuftVO") == "REQ_AUTHORISATION"
+    assert restriction("§ 21h, Abs. 3 LuftVO") == "CONDITIONAL"
+    assert restriction("§ 170 LuftVO") == "NEUARTIG"
+    assert restriction("§ 17a LuftVO") == "NEUARTIG"
+    assert restriction("§ 21hx LuftVO") == "NEUARTIG"
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf", float("inf")])
+def test_a_non_finite_limit_is_an_error(bad):
+    with pytest.raises(AirspaceError, match="is not finite"):
+        parse_dipul(_one("bahnanlagen", {**BASE, "lower_limit_altitude": bad}), SRC)
