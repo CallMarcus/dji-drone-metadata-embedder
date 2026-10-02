@@ -892,3 +892,149 @@ def test_neighbouring_towns_inside_the_es_hulls_never_resolve_to_es():
 def test_the_no_provider_message_lists_spain():
     r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
     assert r.gap_reason is not None and "Spain" in r.gap_reason
+
+
+# --- Germany (#593): land borders with nine neighbours (DK, PL, CZ, AT, CH,
+# FR, LU, BE, NL), sea north. Town markers + a 0.1° edge-and-corner
+# Nominatim sweep 2026-10-02 (de_nominatim.py, de_edge_probe.py) ----------
+
+
+def test_a_berlin_flight_resolves_to_de_with_the_eu_measure():
+    r = resolve_jurisdiction(_track((52.52, 13.40), (52.53, 13.42)))
+    assert r.jurisdiction is not None and r.jurisdiction.code == "DE"
+    assert "2019/947" in r.jurisdiction.measure_note
+
+
+def test_german_cities_resolve_through_their_cores():
+    for lat, lon in [
+        (52.52, 13.40),  # Berlin
+        (53.55, 9.99),  # Hamburg
+        (48.14, 11.58),  # Munich
+        (50.94, 6.96),  # Cologne
+        (50.11, 8.68),  # Frankfurt
+        (48.78, 9.18),  # Stuttgart
+        (51.23, 6.78),  # Dusseldorf
+        (51.34, 12.37),  # Leipzig
+        (51.51, 7.47),  # Dortmund
+        (51.46, 7.01),  # Essen
+        (53.08, 8.80),  # Bremen
+        (51.05, 13.74),  # Dresden
+        (52.37, 9.73),  # Hannover
+        (49.45, 11.08),  # Nuremberg
+        (51.43, 6.76),  # Duisburg
+        (51.48, 7.22),  # Bochum
+        (51.26, 7.15),  # Wuppertal
+        (52.02, 8.53),  # Bielefeld
+        (50.74, 7.10),  # Bonn
+        (51.96, 7.63),  # Munster
+        (49.40, 8.69),  # Heidelberg
+        (49.49, 8.47),  # Mannheim
+        (48.37, 10.90),  # Augsburg
+        (50.08, 8.24),  # Wiesbaden
+        (54.32, 10.14),  # Kiel
+        (54.09, 12.10),  # Rostock
+        (52.13, 11.63),  # Magdeburg
+        (50.98, 11.03),  # Erfurt
+        (50.00, 8.27),  # Mainz
+        (51.31, 9.50),  # Kassel
+        (49.02, 12.10),  # Regensburg
+        (49.79, 9.94),  # Wurzburg
+        (47.99, 7.85),  # Freiburg
+        (48.40, 9.99),  # Ulm
+        (53.14, 8.21),  # Oldenburg
+        (52.28, 8.05),  # Osnabruck
+        (50.83, 12.92),  # Chemnitz
+        (51.48, 11.97),  # Halle
+        (52.40, 13.06),  # Potsdam
+        (53.87, 10.69),  # Lubeck
+        (53.63, 11.41),  # Schwerin
+        (49.95, 11.58),  # Bayreuth
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None, (lat, lon)
+        assert r.jurisdiction.code == "DE", (lat, lon)
+
+
+def test_german_border_towns_gap_as_border_bands():
+    for lat, lon in [
+        (50.78, 6.08),  # Aachen
+        (49.75, 6.64),  # Trier
+        (49.23, 6.99),  # Saarbrucken
+        (47.66, 9.18),  # Konstanz
+        (48.57, 13.46),  # Passau
+        (51.15, 14.99),  # Gorlitz
+        (52.35, 14.55),  # Frankfurt Oder
+        (54.78, 9.44),  # Flensburg
+        (53.37, 7.21),  # Emden
+        (47.61, 7.66),  # Lorrach
+        (48.57, 7.81),  # Kehl
+        (47.49, 11.10),  # Garmisch
+        (47.63, 13.00),  # Berchtesgaden
+        (47.55, 9.69),  # Lindau
+        (51.79, 6.14),  # Kleve
+        (51.19, 6.44),  # Monchengladbach
+        (52.21, 7.02),  # Gronau
+        (50.90, 14.81),  # Zittau
+        (50.17, 12.13),  # Selb
+        (49.20, 7.60),  # Pirmasens
+        (53.94, 14.19),  # Usedom Ahlbeck
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_neighbouring_towns_inside_the_de_hull_never_resolve_to_de():
+    for lat, lon in [
+        (48.57, 7.75),  # Strasbourg
+        (47.56, 7.59),  # Basel
+        (47.70, 8.63),  # Schaffhausen
+        (47.80, 13.04),  # Salzburg
+        (47.50, 9.75),  # Bregenz
+        (50.08, 12.37),  # Cheb
+        (50.77, 15.06),  # Liberec
+        (53.43, 14.55),  # Szczecin
+        (51.15, 15.01),  # Zgorzelec
+        (52.35, 14.56),  # Slubice
+        (54.91, 9.79),  # Sonderborg
+        (54.94, 8.86),  # Tonder
+        (53.22, 6.57),  # Groningen
+        (52.22, 6.90),  # Enschede
+        (51.84, 5.85),  # Nijmegen
+        (51.37, 6.17),  # Venlo
+        (50.89, 5.98),  # Heerlen
+        (50.59, 5.86),  # Verviers
+        (50.63, 6.03),  # Eupen
+        (49.36, 6.17),  # Thionville
+        (49.12, 6.18),  # Metz
+        (49.11, 7.07),  # Sarreguemines
+        (49.04, 7.95),  # Wissembourg
+        (47.58, 12.17),  # Kufstein
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+
+
+def test_existing_neighbours_keep_their_resolutions_inside_the_overlapping_de_hull():
+    # The DE hull overlaps the DK, LU, BE and CH hulls; cores decide.
+    for (lat, lon), code in [
+        ((49.61, 6.13), "LU"),  # Luxembourg City
+        ((47.37, 8.54), "CH"),  # Zurich
+        ((55.68, 12.57), "DK"),  # Copenhagen
+        ((50.85, 4.35), "BE"),  # Brussels
+        ((50.63, 5.57), "BE"),  # Liège, in the DE hull's western band
+    ]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is not None, (lat, lon)
+        assert r.jurisdiction.code == code, (lat, lon)
+    # Sønderborg, Konstanz and Trier: inside two hulls, in no core.
+    for lat, lon in [(54.91, 9.79), (47.66, 9.18), (49.75, 6.64)]:
+        r = resolve_jurisdiction(_track((lat, lon)))
+        assert r.jurisdiction is None, (lat, lon)
+        assert r.gap_reason is not None and "boundary" in r.gap_reason, (lat, lon)
+
+
+def test_the_no_provider_message_lists_germany():
+    r = resolve_jurisdiction(_track((48.85, 2.35)))  # Paris
+    assert r.jurisdiction is None
+    assert r.gap_reason is not None and "Germany" in r.gap_reason

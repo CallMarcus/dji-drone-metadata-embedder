@@ -497,6 +497,56 @@ _CORE: dict[str, list[Box]] = {
             29.4,
         ),  # eastern Canarias (Fuerteventura, Lanzarote); south edge 28.0 N and east edge -13.4 keep clear of the Moroccan waters Nominatim places south-east of Fuerteventura; the waters south of Jandia's tip and the sea towards Africa gap
     ],
+    # Nine land borders (DK, PL, CZ, AT, CH, FR, LU, BE, NL) and the North
+    # Sea and Baltic coast. Cores stay >=12 km inside every land border, and
+    # Danish, Dutch and Swiss waters count as foreign too, which is why the
+    # coastal edges are cut back from Als, Falster/Møn and Lake Constance.
+    # Probed against Nominatim 2026-10-02 in two passes: 87 town markers
+    # first (42 German cities that must resolve, 21 German border towns
+    # that must gap, 24 foreign towns inside the hull that must stay
+    # outside every core; Karlsruhe, which the candidate boxes left in a
+    # gap, was swapped for Heidelberg, and Hof for Selb, which the first
+    # box set left in a core), then an edge-and-corner sweep (every
+    # perimeter sample about every 0.1 deg, each probed at the edge and 12
+    # km straight outward, corners also diagonally, sea allowed). The
+    # candidate boxes drew 13 foreign hits (Danish waters off Als and
+    # Falster, the Czech Aš salient near Selb, Swiss land at Schaffhausen,
+    # Austrian land at the Salzach and near Kufstein, French land across
+    # the Rhine at Breisach and Strasbourg); the boxes below are the
+    # adjusted set, 22 boxes, 800 probes, zero foreign hits.
+    # Deliberate gaps, each an honest border band or a coast margin: the 21
+    # border towns (Aachen, Trier, Saarbrücken, Konstanz, Passau, Görlitz,
+    # Frankfurt (Oder), Flensburg, Emden, Lörrach, Kehl, Garmisch,
+    # Berchtesgaden, Lindau, Kleve, Mönchengladbach, Gronau, Zittau, Selb,
+    # Pirmasens, Usedom's Ahlbeck), the Saarland, Karlsruhe and the Upper
+    # Rhine strip (Offenburg, Baden-Baden), the Vogtland round Hof, Cottbus
+    # and Lusatia east of 13.9 E, Rosenheim and the Alpine foothills, the
+    # Ems and Emsland strip (Nordhorn), Sylt and the Flensburg fjord coast,
+    # and the Fehmarn Belt shore.
+    "DE": [
+        (7.45, 52.9, 9.7, 54.68),
+        (9.7, 52.9, 10.9, 54.4),
+        (10.9, 52.9, 11.3, 54.45),
+        (11.3, 52.9, 12.6, 54.35),
+        (12.6, 52.9, 12.9, 54.4),
+        (12.9, 52.9, 13.85, 54.68),
+        (10.5, 50.95, 13.9, 52.9),
+        (11.9, 50.7, 13.1, 50.95),
+        (7.45, 51.6, 9.5, 52.9),
+        (6.6, 50.4, 9.5, 51.6),
+        (8.0, 51.3, 11.5, 52.9),
+        (7.5, 49.3, 10.5, 50.4),
+        (8.0, 49.17, 10.5, 49.3),
+        (8.6, 49.05, 10.5, 49.17),
+        (9.5, 49.05, 12.0, 50.0),
+        (9.5, 50.0, 11.85, 50.95),
+        (9.0, 47.85, 12.0, 49.05),
+        (8.6, 47.95, 9.0, 49.05),
+        (12.0, 47.95, 12.5, 48.3),
+        (12.0, 48.3, 12.75, 49.05),
+        (7.85, 47.95, 8.6, 48.1),
+        (8.1, 48.1, 8.6, 48.6),
+    ],
 }
 _HULL: dict[str, list[Box]] = {
     "US": [
@@ -565,6 +615,14 @@ _HULL: dict[str, list[Box]] = {
     # on purpose: the North African enclaves gap as no-provider rather
     # than borrow a mainland framing across the strait.
     "ES": [(-9.4, 35.95, 4.5, 43.9), (-18.4, 27.5, -13.3, 29.5)],
+    # The national bounding box with a sea margin. It overlaps the DK, LU,
+    # BE and CH hulls on purpose (Sønderborg, Luxembourg City, Eupen and
+    # Verviers, Zurich), and Strasbourg, Basel, Salzburg, Cheb, Szczecin and
+    # the Dutch frontier towns sit inside it (border-band semantics). Cores
+    # decide (#499): the DE cores keep clear of every neighbouring core, so
+    # Luxembourg City still resolves LU and Zurich CH, and no foreign town
+    # ever resolves DE.
+    "DE": [(5.8, 47.2, 15.1, 55.1)],
 }
 # CH takes the EU measure: Regulation (EU) 2019/947 applies in Switzerland
 # since 2023-01-01 under the CH-EU air transport agreement.
@@ -582,6 +640,7 @@ _MEASURE = {
     "BE": MEASURE_EU,
     "LV": MEASURE_EU,
     "ES": MEASURE_EU,
+    "DE": MEASURE_EU,
 }
 
 
@@ -614,7 +673,7 @@ def resolve_jurisdiction(track: Track) -> Resolution:
             "no supported airspace data source for this location "
             "(covered: the US, Luxembourg, Finland, Switzerland, "
             "Ireland, the UK, Denmark, Sweden, Estonia, Slovenia, Belgium, "
-            "Latvia and Spain)",
+            "Latvia, Spain and Germany)",
         )
     cores = [code for code in hulls if _all_inside(track, _CORE[code])]
     if len(cores) != 1:
