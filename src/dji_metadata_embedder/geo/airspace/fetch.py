@@ -34,6 +34,7 @@ from .caa_si import (
 from .caa_si import (
     discover_feed_url as discover_caa_si_url,
 )
+from .dipul import DIPUL_FEED, DIPUL_WFS, fetch_dipul_body, parse_dipul
 from .droneguide import (
     DRONEGUIDE_FEEDS,
     NO_TIMESTAMPS_NOTE,
@@ -182,6 +183,16 @@ def fetch_zones(
         license_line, caveat = ENAIRE_FEED.license, ENAIRE_FEED.caveat
         url = ENAIRE_BASE
         note = ENAIRE_FEED.note
+    elif code == "DE":
+        # Per-flight bbox like Spain and the FAA (#593): 31 per-category
+        # layers, one request each, cached as one body per snapped box.
+        x1, y1, x2, y2 = snap_bbox(_bbox(track))
+        key = f"{x1:g}_{y1:g}_{x2:g}_{y2:g}".replace("-", "m")
+        body_path = cache_dir / f"dipul-DE-{key}.json"
+        feed_name = DIPUL_FEED.feed_name
+        license_line, caveat = DIPUL_FEED.license, DIPUL_FEED.caveat
+        url = DIPUL_WFS
+        note = DIPUL_FEED.note
     elif code in ED269_FEEDS:
         feed = ED269_FEEDS[code]
         body_path = cache_dir / f"ed269-{code}.json"
@@ -259,6 +270,8 @@ def fetch_zones(
             return parse_faa(_faa_pages_from_doc(doc), source)
         if code == "ES":
             return parse_enaire(body, source)
+        if code == "DE":
+            return parse_dipul(body, source)
         if code in ED269_FEEDS:
             return parse_ed269(
                 body,
@@ -294,6 +307,8 @@ def fetch_zones(
                 )
             elif code == "ES":
                 body = fetch_enaire_body(_bbox(track), transport)
+            elif code == "DE":
+                body = fetch_dipul_body(_bbox(track), transport)
             elif code in ED269_FEEDS:
                 body = _fetch_url(url, transport)
                 if feed.edition_from_title:
