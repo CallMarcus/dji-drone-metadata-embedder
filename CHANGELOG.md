@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-10-02
+
 ### Added
 
 - **airspace**: Latvia is the twelfth covered country: `-f record` and `--airspace` fetch LGS's daily ED-269 export of UAS geographical zones. LGS's English zone notes ride in the popup and the record, the file's own edition date appears in the source line, and ED-269 activation schedules are now shown as published text for every ED-269 country (free use under Cabinet Regulation No. 248 §45, confirmed in writing by LGS AIS) (#594) (#597) (fb93871)
@@ -27,24 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Dependency refresh: ruff 0.16.9, coverage 7.16.2, playwright 1.63, build 1.6.1 (#595) (9f4f193) and hatchling 1.32.4 (#596) (9e34018); urllib3 moves to 2.8.0 in the lock for three advisories published 2026-10-02 (HTTPS proxy TLS settings, unbounded chunk-size line, chunked-deflate loop)
-
-## [2.18.0] - 2026-10-02
-
-### Added
-
-- **geo**: Germany (dipul) UAS geographical zones (#593) (#599) (494ce9a)
-- **geo**: Latvia (LGS) UAS geographical zones (#594) (#597) (fb93871)
-- **geo**: Spain (ENAIRE) UAS geographical zones (#451) (#598) (3db32b4)
-
-### Maintenance
-
-- **deps**: Bump the production-deps group with 5 updates (#595) (9f4f193)
-- **deps-dev**: Bump hatchling from 1.32.0 to 1.32.4 in the development-deps group (#596) (9e34018)
-
-### Other
-
-- Prepare version 2.18.0 (#602) (17f046c)
-
 
 ## [2.17.0] - 2026-09-27
 
