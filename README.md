@@ -242,6 +242,7 @@ maps there's also `dji-embed photomap <folder> --serve`.
 | Map one flight in detail | `dji-embed convert html DJI_0001.SRT` |
 | Make videos searchable by location | `dji-embed embed /path/to/footage` |
 | Get a GPX track for Google Earth | `dji-embed convert gpx DJI_0001.SRT` |
+| Open a flight in DaVinci Resolve with the good bits marked | `dji-embed timeline /path/to/footage` |
 | See what metadata a file already has | `dji-embed check DJI_0001.MP4` |
 | Check my setup | `dji-embed doctor` |
 
@@ -469,6 +470,29 @@ GeoJSON/KML for down-looking footage (suppressed under `--redact`; see
 dji-embed convert geojson DJI_0001.SRT --footprint --model air3
 dji-embed convert kml DJI_0001.SRT --footprint --footprint-interval 5
 ```
+
+### `dji-embed timeline` - Editor Timeline With Flight Moments
+
+Builds one FCPXML timeline from a folder of clips, laid end to end in
+recording order, with the moments worth cutting to already marked. Open it
+in DaVinci Resolve (File > Import > Timeline) or another FCPXML editor.
+Your clips are only read.
+
+```bash
+dji-embed timeline /path/to/footage                  # writes <footage>/<folder>.fcpxml
+dji-embed timeline /path/to/footage --moments steady,rise
+dji-embed timeline /path/to/footage --no-video-gimbal   # faster; no camera moves on Air 3S and later
+```
+
+Markers come in three families. **Steady stretches** are spans where the
+aircraft and gimbal hold smooth, labelled hover or glide. **Reveals, tilts
+and pans** are gimbal moves. **Rises** are climbs with a level camera.
+Camera moves need gimbal angles: from the SRT on models that write them,
+otherwise from the video's own telemetry on the Air 3, Air 3S, Mini 4 Pro,
+Mavic 3 family and Mavic 4 Pro. Reading the video costs roughly 15 seconds
+per gigabyte. Neo 2 gets steady and rise markers only. The file holds
+absolute paths to your clips, so it can reveal folder or user names if you
+share it.
 
 ### `dji-embed flightmap` - Combined Flight Map
 

@@ -227,6 +227,27 @@ shared `DJI_..._D.SRT`.
 - The 360 projection metadata inside the `.OSV` is preserved by the stream-copy
   mux but is not parsed by this tool; only the SRT telemetry is read.
 
+### Timeline clips show as offline in Resolve
+
+The `.fcpxml` from `dji-embed timeline` points at your clips by their full
+path. If you moved or renamed the folder, or built the timeline inside WSL
+(paths start with `/mnt/c/`) and opened it in Windows Resolve, relink the
+media in Resolve or rebuild the timeline from where the clips now live,
+from Windows.
+
+### No reveal, tilt or pan markers on a clip
+
+These need gimbal angles. Mini 5 Pro, Neo and Avata 2 don't record them,
+ExifTool cannot yet decode Neo 2 video telemetry, and `--no-video-gimbal`
+skips reading them from Air 3S and later videos. The command's warnings
+name each clip this affects.
+
+### "exists and was not written by dji-embed"
+
+`dji-embed timeline` won't replace an `.fcpxml` it didn't write, because
+it may be a timeline you exported from your editor. Choose another output
+name with `-o`.
+
 ### Codec Compatibility Issues
 
 **Problem:** "Unsupported video codec" or encoding failures

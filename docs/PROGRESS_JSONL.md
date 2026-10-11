@@ -1,7 +1,7 @@
 # `--progress jsonl` — machine-readable progress events
 
 `map`, `photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`,
-`validate`, `verify-sun`, and `fetch-log` accept `--progress jsonl`. In
+`validate`, `verify-sun`, `fetch-log`, and `timeline` accept `--progress jsonl`. In
 this mode a command writes **one JSON object per line to stdout** and nothing
 else — human/informational output is suppressed, and warnings and log
 messages go to stderr. A non-zero exit code always means the run failed;
@@ -197,6 +197,21 @@ field, never by arrival order.
   to the remaining records; if any record failed, the stream still
   terminates with a single `error` event (not `result`) and a non-zero
   exit code, per the terminal rule.
+
+### `timeline`
+- `start` carries no `total`; one `progress` event per clip (`item` = file
+  name) carries it.
+- `warning` events (with `item` = file name) for: a clip left off the
+  timeline (unreadable or unsupported frame rate), a clip placed without
+  markers (no telemetry, undecodable model, out-of-range clock), skipped
+  marker families (no gimbal data, coarse position precision), and a gap of
+  more than 3 h between clips.
+- `outputs` = the one `.fcpxml` written. `summary`: `{"clips": N,
+  "placed": N, "omitted": N, "markers": {"steady": N, "reveal": N, "tilt":
+  N, "pan": N, "rise": N}, "gimbal": {"srt": N, "video": N, "none": N},
+  "slowmo_clips": N}`.
+- Refusing to overwrite an `.fcpxml` not written by dji-embed is a usage
+  error (exit 2) and ends in `error`.
 
 ## Relation to `--log-json`
 

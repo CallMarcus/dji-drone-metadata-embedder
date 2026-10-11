@@ -85,10 +85,66 @@ Swap `gpx` for `csv`, `geojson`, `kml`, `html`, or `cot` to pick the format.
 
 For detailed how-to guides such as creating Windows bundles or redacting location data, see the files in `docs/how-to`.
 
+## Editor timeline (DaVinci Resolve, FCPXML)
+
+`dji-embed timeline` turns a folder of clips into one FCPXML timeline for
+your editor. The clips sit end to end in the order they were recorded, and
+markers flag the moments worth cutting to.
+
+```bash
+dji-embed timeline D:\Drone\2026-08-15
+```
+
+This writes `2026-08-15.fcpxml` into the folder. In DaVinci Resolve, use
+File > Import > Timeline and pick it. Your clips are only read; if you move
+the folder later, relink the media in your editor.
+
+### What gets marked
+
+| Marker | Example label | Meaning |
+| --- | --- | --- |
+| Steady stretch | `Steady 6.2 s · hover at 45 m` | Aircraft and gimbal hold smooth for at least 4 s: usable b-roll. Hover or glide (with its speed). |
+| Reveal | `Reveal · tilt up 62°` | Gimbal tilts from looking down to near the horizon. |
+| Tilt | `Tilt down 40°` | Any other gimbal tilt of 25° or more. |
+| Pan | `Pan right 90°` | Camera heading sweeps 45° or more. An orbit shows as one long pan. |
+| Rise | `Rise 14 m` | Climb of 10 m or more with the camera level or unknown. |
+
+Durations in labels are what you see in the editor, so a slow-motion clip
+shows its slowed-down length. Each marker's note has the real-world
+duration and speed, and says when a clip was slow motion.
+
+### How moments are detected
+
+Positions are smoothed over one second and speeds measured over one-second
+spans, because DJI writes positions to about 0.1 m and raw differences
+would read that rounding as movement. Speeds carry "≈" for that reason.
+
+| Rule | Value |
+| --- | --- |
+| Steady: acceleration below | 0.5 m/s² |
+| Steady: gimbal turning slower than | 3 °/s |
+| Steady: minimum length | 4 s |
+| Tilt / pan: minimum sweep | 25° / 45° |
+| Tilt / pan: minimum mean rate | 3 °/s |
+| Reveal: starts at or below / ends at or above | -40° / -15° |
+| Rise: minimum climb and rate | 10 m at 1 m/s |
+| Rise: camera at or above | -20° |
+
+Camera moves need gimbal angles. The Avata 360 writes them into the SRT.
+The Air 3, Air 3S, Mini 4 Pro, Mavic 3 family and Mavic 4 Pro carry them in
+the video's own telemetry, which `timeline` reads when the SRT lacks them
+(roughly 15 seconds per gigabyte; `--no-video-gimbal` skips it). The Mini 5
+Pro, Neo and Avata 2 don't record gimbal angles at all, and ExifTool cannot
+yet decode the Neo 2's video telemetry, so those clips get steady and rise
+markers only.
+
+The `.fcpxml` contains no coordinates, but it does contain the full paths to
+your clips, which can reveal a user or folder name if you share the file.
+
 ## Scripting and frontends
 
 `map`, `photomap`, `flightmap`, `embed`, `check`, `doctor`, `convert`,
-`validate`, `verify-sun`, and `fetch-log` accept `--progress jsonl`,
+`validate`, `verify-sun`, `fetch-log`, and `timeline` accept `--progress jsonl`,
 which switches stdout to machine-readable progress events (one JSON object
 per line) for scripts and GUI frontends. The event contract is documented
 in [Progress Events (JSONL)](PROGRESS_JSONL.md).
