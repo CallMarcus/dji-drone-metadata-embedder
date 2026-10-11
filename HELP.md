@@ -92,6 +92,7 @@ dji-embed map <folder>          One HTML map of everything: photos, panoramas, f
 dji-embed photomap <folder>     HTML map of GPS-tagged photos (-r = subfolders too)
 dji-embed flightmap <folder>    HTML map of all flights (--airspace, --3d, -f record)
 dji-embed convert <fmt> <file>  SRT → gpx | csv | geojson | kml | cot | html
+dji-embed timeline <folder>     FCPXML editor timeline, flight moments marked (Resolve)
 dji-embed check <folder>        What metadata do these files already carry?
 dji-embed validate <folder>     Are SRT and MP4 in sync? (drift report)
 dji-embed serve <folder>        Serve an existing map locally (enables the 360° viewer)
@@ -137,6 +138,13 @@ Every command accepts `--help` for its options.
 - **"Export a flight for Google Earth / an editor":**
   `dji-embed convert kml DJI_0001.SRT` (or `gpx`, `csv`, …); add `-b` on a
   folder for batch.
+- **"Open my flight in DaVinci Resolve with the good bits marked":**
+  `dji-embed timeline D:\Footage` → writes `Footage.fcpxml` into the
+  folder; in Resolve use File > Import > Timeline. Clips are laid end to
+  end in recording order with markers for steady stretches, gimbal
+  reveals, tilts and pans, and climbs. Neo 2, Mini 5 Pro, Neo and Avata 2
+  clips get steady and climb markers only (no gimbal data). It refuses to
+  overwrite an `.fcpxml` it didn't write; pick another name with `-o`.
 - **"See my flights over real terrain in 3D":**
   `dji-embed flightmap D:\Footage --3d` → writes `flightmap-3d.html` (the
   flat `flightmap.html` is untouched); tracks follow the terrain surface,

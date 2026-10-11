@@ -200,6 +200,7 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
         rel = doc.get("RelativeAltitude", defaults["RelativeAltitude"])
         gy = doc.get("GimbalYaw", defaults["GimbalYaw"])
         gp = doc.get("GimbalPitch", defaults["GimbalPitch"])
+        ts = doc.get("TimeStamp")
         samples.append(
             TelemetrySample(
                 lat,
@@ -211,6 +212,7 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
                 focal_len=None,
                 gimbal_yaw=float(gy) if gy is not None else None,
                 gimbal_pitch=float(gp) if gp is not None else None,
+                real_s=float(ts) if ts is not None else None,
             )
         )
     return samples, saw_telemetry
