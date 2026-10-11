@@ -35,6 +35,11 @@ SWEEP_MIN_RATE = 3.0  # °/s real, mean over the sweep
 REVEAL_START_MAX_PITCH = -40.0
 REVEAL_END_MIN_PITCH = -15.0
 ANGLE_FLAT_EPS = 1.0  # degrees; trims the still ends off a sweep
+RISE_MIN_M = 10.0
+RISE_MIN_RATE = 1.0  # m/s real, mean over the climb
+RISE_REVERSAL_M = 1.0  # dips smaller than this don't end a climb
+RISE_MIN_PITCH = -20.0  # camera level or unknown; looking down is no reveal
+HEIGHT_FLAT_EPS = 0.2  # metres; trims the still ends off a climb
 
 
 @dataclass(frozen=True)
@@ -324,6 +329,36 @@ def _pans(series: MotionSeries) -> list[Moment]:
     return out
 
 
+def _rises(series: MotionSeries) -> list[Moment]:
+    out: list[Moment] = []
+    for rs, re_ in series.runs():
+        seg = series.height[rs : re_ + 1]
+        for a, b in _legs(seg, RISE_REVERSAL_M):
+            s, e = _refine(seg, a, b, HEIGHT_FLAT_EPS)
+            gain = seg[b] - seg[a]  # turning points; refined indices place it
+            real = series.real[rs + e] - series.real[rs + s]
+            if gain < RISE_MIN_M or real <= 0 or gain / real < RISE_MIN_RATE:
+                continue
+            pitches = [p for p in series.pitch[rs + s : rs + e + 1] if p is not None]
+            if any(p < RISE_MIN_PITCH for p in pitches):
+                continue
+            note = _note(
+                series,
+                f"real {real:.1f} s, ≈{gain / real:.1f} m/s",
+                camera_unknown=not pitches,
+            )
+            out.append(
+                Moment(
+                    "rise",
+                    series.cue[rs + s],
+                    series.cue[rs + e],
+                    f"Rise {gain:.0f} m",
+                    note,
+                )
+            )
+    return out
+
+
 def detect_moments(series: MotionSeries, kinds: frozenset[str] = KINDS) -> MomentReport:
     """Detect the requested moment kinds in one clip's motion series."""
     report = MomentReport()
@@ -346,6 +381,13 @@ def detect_moments(series: MotionSeries, kinds: frozenset[str] = KINDS) -> Momen
             report.moments.extend(_pans(series))
         else:
             report.notes.append("no gimbal data: reveals, tilts and pans skipped")
+    if "rise" in kinds:
+        if coarse_v:
+            report.notes.append(
+                f"height precision {series.v_quantum:.1f} m is too coarse for rises"
+            )
+        else:
+            report.moments.extend(_rises(series))
     report.moments.sort(key=lambda m: (m.start_s, m.kind))
     span = series.cue[-1] - series.cue[0]
     for kind in sorted({m.kind for m in report.moments}):
