@@ -130,7 +130,8 @@ def resolve_utc_offset(
 class TelemetrySample:
     """One GPS-fixed SRT block: position, raw cue time, absolute datetime, and
     optional footprint inputs (relative altitude, 35mm-equivalent focal length,
-    gimbal yaw/pitch) when the format carries them."""
+    gimbal yaw/pitch) when the format carries them. ``real_s`` is the real
+    recording clock when the source has one (DJI djmd ``TimeStamp``)."""
 
     lat: float
     lon: float
@@ -141,6 +142,9 @@ class TelemetrySample:
     focal_len: float | None = None
     gimbal_yaw: float | None = None
     gimbal_pitch: float | None = None
+    # Real elapsed seconds, arbitrary origin: only spans are meaningful. On
+    # slow-motion clips it advances slower than ``cue`` (playback time).
+    real_s: float | None = None
 
 
 def iso6709(lat: float, lon: float, alt: float = 0.0) -> str:
