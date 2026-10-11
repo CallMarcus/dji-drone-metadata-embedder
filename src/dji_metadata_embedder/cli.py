@@ -41,9 +41,11 @@ from .geo import (
 )
 from .geo.airspace import fetch as airspace_fetch
 from .geo.airspace.overlay import zones_to_overlay_json
+from .geo.fcpxml import is_our_fcpxml, write_fcpxml
 from .geo.flightlog import FlightLogError, merge_into_flights, parse_flight_log
 from .geo.logfetch import LogFetchError, cache_path, fetch_log
 from .geo.media import find_video_path, resolve_media
+from .geo.moments import KINDS as MOMENT_KINDS
 from .geo.panoedit import (
     DEFAULT_MAX_SERVE_WIDTH,
     PanoEditError,
@@ -52,6 +54,7 @@ from .geo.panoedit import (
 )
 from .geo.record import build_records
 from .geo.record_html import write_flight_record
+from .geo.timeline import TimelineError, build_timeline
 from .geo.videogimbal import (
     VideoGimbalReport,
     VideoGimbalUnavailable,
@@ -219,6 +222,7 @@ def main(ctx: click.Context, log_json: bool) -> None:
       embed     Embed telemetry from SRT files into MP4 videos
       validate  Validate SRT/MP4/MOV pairs and report drift
       convert   Convert SRT telemetry to GPX or CSV formats
+      timeline  Editor timeline (FCPXML) of a folder's clips with flight moments marked
       flightmap Map every flight in a folder (SRT logs or telemetry videos) on one map
       photomap  Map GPS-tagged still photos to an HTML/KML/GeoJSON map
       panoedit  Edit the opening view of 360° panoramas (drag, save, next)
@@ -635,6 +639,126 @@ def convert(
                 "converted": len(outputs),
                 "skipped": skipped,
                 "format": command,
+            },
+        )
+
+
+def _parse_moments(
+    ctx: click.Context, param: click.Parameter, value: str
+) -> frozenset[str]:
+    kinds = frozenset(k.strip().lower() for k in value.split(",") if k.strip())
+    unknown = sorted(kinds - MOMENT_KINDS)
+    if not kinds or unknown:
+        choices = ", ".join(sorted(MOMENT_KINDS))
+        detail = f" (unknown: {', '.join(unknown)})" if unknown else ""
+        raise click.BadParameter(f"choose from {choices}{detail}")
+    return kinds
+
+
+def _timeline_output(folder: Path, output: str | None) -> Path:
+    """Resolve -o and refuse to overwrite a timeline we did not write."""
+    default_name = (folder.resolve().name or "timeline") + ".fcpxml"
+    if output is None:
+        out = folder / default_name
+    elif Path(output).is_dir():
+        out = Path(output) / default_name
+    else:
+        out = Path(output)
+    if out.suffix.lower() != ".fcpxml":
+        raise click.BadParameter(
+            "the output must be an .fcpxml file", param_hint="-o/--output"
+        )
+    if out.exists() and not is_our_fcpxml(out):
+        raise click.UsageError(
+            f"{out} exists and was not written by dji-embed (it may be a timeline "
+            "you exported from your editor). Choose another name with -o."
+        )
+    return out
+
+
+@main.command()
+@click.argument("folder", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(),
+    help="Output .fcpxml file or directory (default: <folder>/<folder-name>.fcpxml).",
+)
+@click.option(
+    "--moments",
+    "kinds",
+    default="steady,reveal,rise",
+    show_default=True,
+    callback=_parse_moments,
+    help="Which moments to mark: steady, reveal (reveals, tilts and pans), rise.",
+)
+@click.option(
+    "--no-video-gimbal",
+    is_flag=True,
+    help="Don't read gimbal angles from the video when the SRT lacks them. "
+    "Saves roughly 15 seconds per GB of video; reveals, tilts and pans are "
+    "then skipped on those clips.",
+)
+@_progress_option
+@click.option("-v", "--verbose", is_flag=True)
+@click.option("-q", "--quiet", is_flag=True)
+def timeline(
+    folder: str,
+    output: str | None,
+    kinds: frozenset[str],
+    no_video_gimbal: bool,
+    progress_mode: str | None,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Build an editor timeline (FCPXML) of a folder's clips with flight moments marked.
+
+    Clips are laid end to end in recording order. Steady stretches, gimbal
+    reveals, tilts and pans, and altitude rises become markers. Opens in
+    DaVinci Resolve and other FCPXML editors. Your clips are only read.
+    """
+    progress = make_progress(progress_mode)
+    if progress.active:
+        quiet = True  # stdout belongs to the JSONL events
+    setup_logging(verbose, quiet)
+    src = Path(folder)
+    with _jsonl_terminal(progress, "timeline"):
+        out = _timeline_output(src, output)
+
+        def warn(message: str, item: str | None = None) -> None:
+            progress.warning(message, item=item)
+            if not progress.active:
+                click.echo(f"{item}: {message}" if item else message, err=True)
+
+        try:
+            result = build_timeline(
+                src,
+                kinds=kinds,
+                video_gimbal=not no_video_gimbal,
+                progress=progress.advance,
+                warn=warn,
+            )
+        except TimelineError as e:
+            raise click.ClickException(str(e))
+        try:
+            write_fcpxml(result.clips, src.resolve().name or "timeline", out)
+        except OSError as e:
+            raise click.ClickException(f"Could not write {out}: {e}")
+        counts = result.marker_counts()
+        if not quiet:
+            click.echo(f"Timeline written: {out}")
+            found = ", ".join(f"{n} {kind}" for kind, n in counts.items() if n)
+            click.echo(f"{len(result.clips)} clips, {found or 'no moments found'}")
+        progress.result(
+            ok=True,
+            outputs=[str(out.resolve())],
+            summary={
+                "clips": len(result.clips) + result.omitted,
+                "placed": len(result.clips),
+                "omitted": result.omitted,
+                "markers": counts,
+                "gimbal": result.gimbal,
+                "slowmo_clips": result.slowmo_clips,
             },
         )
 
