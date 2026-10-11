@@ -67,6 +67,8 @@ def _markers(
     out = []
     for m in moments:
         s = round(Fraction(m.start_s) / fd) * fd
+        if s >= duration:
+            continue  # telemetry outlasting the video: no footage to mark
         e = math.ceil(Fraction(m.end_s) / fd) * fd
         s = min(max(s, Fraction(0)), duration - fd)
         e = min(max(e, s + fd), duration)

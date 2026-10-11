@@ -208,3 +208,13 @@ def test_fmt_time():
 def test_empty_timeline_is_refused():
     with pytest.raises(ValueError):
         build_fcpxml([], "Flight")
+
+
+def test_markers_starting_after_the_clip_are_dropped(tmp_path):
+    """Telemetry can outlast the video (SRT longer than the MP4): a marker
+    for footage that doesn't exist must not be squeezed onto the last frame."""
+    clip = TimelineClip(
+        _facts(tmp_path), [_m(5.0, 8.0), _m(25.0, 30.0)]
+    )  # clip is 20.02 s
+    markers = list(_root([clip]).iter("marker"))
+    assert len(markers) == 1 and _t(markers[0].get("start")) < 6
