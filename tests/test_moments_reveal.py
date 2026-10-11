@@ -100,3 +100,23 @@ def test_pan_ends_where_the_turning_stops():
     (m,) = _found(series(26, yaw=yaw, pitch=lambda t: -20.0)).moments
     assert m.label == "Pan right 102°"  # 90° pan + 12 s of 1 °/s creep
     assert abs(m.start_s - 5) < 0.6 and m.end_s < 15.0
+
+
+def test_slow_drift_with_a_brief_burst_is_not_a_pan():
+    """Final review I1: the rate gate must use the window the marker covers,
+    not the whole leg's turn over that short window."""
+
+    def yaw(t):
+        burst = 0.0 if t < 20 else (10.0 if t >= 20.5 else 20.0 * (t - 20))
+        return 1.2 * t + burst  # 1.2 °/s drift, one 10° flick
+
+    assert _found(series(40, yaw=yaw, pitch=lambda t: -20.0)).moments == []
+
+
+def test_gimbal_recentre_snap_is_not_a_tilt():
+    """Final review M3 (Air 3S calibration): a 0.5 s 80° snap is a recentre
+    button press, not a shot."""
+    (pitch_moments) = _found(
+        series(20, yaw=lambda t: 0.0, pitch=lambda t: _ramp(t, 10, 10.5, -10, -90))
+    ).moments
+    assert pitch_moments == []

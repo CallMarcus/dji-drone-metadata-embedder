@@ -148,7 +148,14 @@ def _process(
     samples: list[TelemetrySample] = []
     source = "none"
     if srt is not None:
-        samples, source = parse_telemetry_samples(srt), "srt"
+        try:
+            samples, source = parse_telemetry_samples(srt), "srt"
+        except (OSError, ValueError) as exc:  # ValueError covers UnicodeDecodeError
+            warn(
+                f"SRT could not be read ({type(exc).__name__}); placed without markers",
+                path.name,
+            )
+            return TimelineClip(facts), "none", False
     elif facts.schema is not None:
         try:
             samples, source = extract_samples(path), "djmd"
@@ -161,11 +168,9 @@ def _process(
     if not samples:
         warn("no GPS telemetry; placed without markers", path.name)
         return TimelineClip(facts), "none", False
-    gimbal = (
-        _fill_gimbal(path, facts, samples, source, video_gimbal, warn)
-        if "reveal" in kinds
-        else "none"
-    )
+    # Every family uses the gimbal (steady: camera still; rise: camera level),
+    # so the fill doesn't depend on --moments; --no-video-gimbal opts out.
+    gimbal = _fill_gimbal(path, facts, samples, source, video_gimbal, warn)
     clock = slowmo_factor(samples, use_datetimes=source == "srt")
     if not clock.in_range:
         warn(

@@ -36,12 +36,20 @@ TILT_REVERSAL_DEG = 2.0
 PAN_MIN_DEG = 45.0
 PAN_REVERSAL_DEG = 3.0
 SWEEP_MIN_RATE = 3.0  # °/s real, mean over the sweep
+# A sweep shorter than this is a gimbal recentre snap (0.5 s, 160-180 °/s on
+# real Air 3S footage), not a shot.
+SWEEP_MIN_S = 1.0  # real seconds
 REVEAL_START_MAX_PITCH = -40.0
 REVEAL_END_MIN_PITCH = -15.0
 ANGLE_FLAT_EPS = 1.0  # degrees; trims the still ends off a sweep
 RISE_MIN_M = 10.0
 RISE_MIN_RATE = 1.0  # m/s real, mean over the climb
 RISE_REVERSAL_M = 1.0  # dips smaller than this don't end a climb
+# A climb is evaluated per sustained climbing run: below this climb rate the
+# aircraft is holding height (hover wobble, a pause after auto-takeoff),
+# which must neither join nor dilute the climb.
+RISE_CLIMBING_RATE = 0.5  # m/s
+RISE_BRIDGE_S = 0.5  # real seconds of slower climb bridged inside a run
 RISE_MIN_PITCH = -20.0  # camera level or unknown; looking down is no reveal
 HEIGHT_FLAT_EPS = 0.2  # metres; trims the still ends off a climb
 
@@ -315,9 +323,15 @@ def _sweeps(
             if trimmed is None:
                 continue
             ts, te = trimmed
-            delta = seg[b] - seg[a]
+            # Gate on the window the marker covers; the label keeps the
+            # leg's full turn (a slow creep is part of the camera's turn).
+            window = seg[te - rs] - seg[ts - rs]
             real = series.real[te] - series.real[ts]
-            if abs(delta) < min_deg or real <= 0 or abs(delta) / real < SWEEP_MIN_RATE:
+            if (
+                abs(window) < min_deg
+                or real < SWEEP_MIN_S
+                or abs(window) / real < SWEEP_MIN_RATE
+            ):
                 continue
             out.append((ts, te, seg[a], seg[b]))
     return out
@@ -365,34 +379,56 @@ def _pans(series: MotionSeries) -> list[Moment]:
     return out
 
 
+def _climbing_runs(series: MotionSeries, s: int, e: int) -> list[tuple[int, int]]:
+    """Sub-runs of [s, e] climbing at RISE_CLIMBING_RATE or more, bridging
+    slower stretches shorter than RISE_BRIDGE_S."""
+    runs: list[tuple[int, int]] = []
+    start: int | None = None
+    last_fast: int | None = None
+    for i in range(s, e + 1):
+        c = series.climb[i]
+        if c is not None and c >= RISE_CLIMBING_RATE:
+            if start is None:
+                start = i
+            elif last_fast is not None and (
+                series.real[i] - series.real[last_fast] >= RISE_BRIDGE_S
+            ):
+                runs.append((start, last_fast))
+                start = i
+            last_fast = i
+    if start is not None and last_fast is not None:
+        runs.append((start, last_fast))
+    return [(a, b) for a, b in runs if b > a]
+
+
 def _rises(series: MotionSeries) -> list[Moment]:
     out: list[Moment] = []
     for rs, re_ in series.runs():
         seg = series.height[rs : re_ + 1]
         for a, b in _legs(seg, RISE_REVERSAL_M):
-            s, e = _refine(seg, a, b, HEIGHT_FLAT_EPS)
-            gain = seg[b] - seg[a]  # turning points; refined indices place it
-            real = series.real[rs + e] - series.real[rs + s]
-            if gain < RISE_MIN_M or real <= 0 or gain / real < RISE_MIN_RATE:
-                continue
-            pitches = [p for p in series.pitch[rs + s : rs + e + 1] if p is not None]
-            if any(p < RISE_MIN_PITCH for p in pitches):
-                continue
-            note = _note(
-                series,
-                f"real {real:.1f} s, ≈{gain / real:.1f} m/s",
-                camera_unknown=not pitches,
-            )
-            out.append(
-                Moment(
-                    "rise",
-                    series.cue[rs + s],
-                    series.cue[rs + e],
-                    f"Rise {gain:.0f} m",
-                    note,
-                )
-            )
+            ra, rb = _refine(seg, a, b, HEIGHT_FLAT_EPS)
+            for s, e in _climbing_runs(series, rs + ra, rs + rb):
+                moment = _rise_moment(series, s, e)
+                if moment is not None:
+                    out.append(moment)
     return out
+
+
+def _rise_moment(series: MotionSeries, s: int, e: int) -> Moment | None:
+    """The rise over grid indices [s, e], or None if it doesn't qualify."""
+    gain = series.height[e] - series.height[s]
+    real = series.real[e] - series.real[s]
+    if gain < RISE_MIN_M or real <= 0 or gain / real < RISE_MIN_RATE:
+        return None
+    pitches = [p for p in series.pitch[s : e + 1] if p is not None]
+    if any(p < RISE_MIN_PITCH for p in pitches):
+        return None
+    note = _note(
+        series,
+        f"real {real:.1f} s, ≈{gain / real:.1f} m/s",
+        camera_unknown=not pitches,
+    )
+    return Moment("rise", series.cue[s], series.cue[e], f"Rise {gain:.0f} m", note)
 
 
 def detect_moments(series: MotionSeries, kinds: frozenset[str] = KINDS) -> MomentReport:

@@ -289,3 +289,36 @@ def test_golden_session(tmp_path):
         GOLDEN.parent.mkdir(parents=True, exist_ok=True)
         GOLDEN.write_text(text, encoding="utf-8", newline="\n")
     assert text == GOLDEN.read_text(encoding="utf-8")
+
+
+def test_unreadable_srt_places_the_clip_unmarked(tmp_path):
+    """Final review I3: one bad sidecar must not sink the session."""
+    _clip(tmp_path, "DJI_0001.MP4", series(20, with_dt=True))
+    (tmp_path / "DJI_0002.MP4").write_bytes(b"")
+    (tmp_path / "DJI_0002.SRT").write_bytes(
+        b"1\n00:00:00,000 --> 00:00:00,033\n\xff\xfe\n"
+    )
+    warn = Warnings()
+    r = tl.build_timeline(tmp_path, warn=warn, probe=_probe())
+    assert [c.facts.path.name for c in r.clips] == ["DJI_0001.MP4", "DJI_0002.MP4"]
+    assert r.clips[1].moments == [] and "SRT could not be read" in warn.text()
+
+
+def test_rise_only_run_still_reads_the_gimbal(tmp_path, monkeypatch):
+    """Final review M1: steady and rise use the gimbal too, so filtering to
+    rise must not skip the fill (a climb looking straight down is no rise)."""
+    climb = series(
+        30,
+        with_dt=True,
+        height=lambda t: 20.0 if t < 5 else 20.0 + min(30.0, 2.0 * (t - 5)),
+    )
+    _clip(tmp_path, "DJI_0001.MP4", climb)
+    monkeypatch.setattr(
+        tl,
+        "extract_samples",
+        lambda p: series(30, yaw=lambda t: 0.0, pitch=lambda t: -90.0),
+    )
+    r = tl.build_timeline(
+        tmp_path, kinds=frozenset({"rise"}), probe=_probe(schema=AIR3S)
+    )
+    assert r.marker_counts()["rise"] == 0 and r.gimbal["video"] == 1

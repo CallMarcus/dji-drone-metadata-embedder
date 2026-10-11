@@ -27,7 +27,7 @@
               <marker start="99099/10000s" duration="43043/5000s" value="Steady 8.6 s · hover at 45 m" note="real 8.6 s, mean speed ≈0.0 m/s"/>
             </asset-clip>
             <asset-clip ref="a2" offset="1001/50s" name="DJI_0002" start="0s" duration="1001/50s" tcFormat="NDF">
-              <marker start="49049/10000s" duration="151151/10000s" value="Rise 30 m" note="real 15.2 s, ≈2.0 m/s"/>
+              <marker start="49049/10000s" duration="151151/10000s" value="Rise 30 m" note="real 15.2 s, ≈1.9 m/s"/>
             </asset-clip>
             <asset-clip ref="a3" offset="1001/25s" name="air3S_clip" start="0s" duration="1001/50s" tcFormat="NDF"/>
             <asset-clip ref="a4" offset="3003/50s" name="neo2_clip" start="0s" duration="1001/50s" tcFormat="NDF"/>

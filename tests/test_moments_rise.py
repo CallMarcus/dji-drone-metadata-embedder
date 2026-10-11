@@ -1,3 +1,5 @@
+import math
+
 from dji_metadata_embedder.geo.moments import detect_moments
 from dji_metadata_embedder.geo.motion import build_motion
 from tests._series import series
@@ -49,3 +51,28 @@ def test_a_steady_climb_is_a_rise_and_never_also_steady():
         build_motion(series(20, height=lambda t: 20 + 2 * t, pitch=lambda t: -5.0))
     )
     assert {m.kind for m in r.moments} == {"rise"}
+
+
+def test_rise_after_a_wobbling_hover():
+    """Final review I2: altitude-hold wobble before the climb must not
+    dilute the climb rate below the threshold."""
+
+    def height(t):
+        if t < 10:
+            return 20.0 + 0.4 * math.sin(2 * math.pi * t / 6)
+        return 20.0 + min(15.0, 2.0 * (t - 10))
+
+    (m,) = _rises(series(30, height=height, pitch=lambda t: -5.0))
+    assert m.label == "Rise 15 m"
+
+
+def test_rise_after_auto_takeoff_and_long_hover():
+    def height(t):
+        if t < 2:
+            return 0.6 * t  # auto-takeoff to 1.2 m
+        if t < 32:
+            return 1.2
+        return 1.2 + min(40.0, 2.0 * (t - 32))
+
+    (m,) = _rises(series(60, height=height, pitch=lambda t: -5.0))
+    assert m.label == "Rise 40 m"
