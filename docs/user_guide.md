@@ -130,8 +130,9 @@ in the label.
 | Steady: minimum length | 4 s |
 | Tilt / pan: minimum sweep | 25° / 45° |
 | Tilt / pan: minimum mean rate | 3 °/s |
+| Tilt / pan: minimum duration | 1 s (shorter snaps are gimbal recentres) |
 | Reveal: starts at or below / ends at or above | -40° / -15° |
-| Rise: minimum climb and rate | 10 m at 1 m/s |
+| Rise: minimum climb and rate | 10 m at 1 m/s, within one stretch of climbing at 0.5 m/s or more |
 | Rise: camera at or above | -20° |
 
 Camera moves need gimbal angles. The Avata 360 writes them into the SRT.
