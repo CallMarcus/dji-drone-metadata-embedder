@@ -27,6 +27,14 @@ VERTICAL_MIN_CLIMB = 0.3  # m/s; vertical-dominant stretches are never steady
 GLIDE_SPLIT_DEG = 30.0  # split a glide where travel heading drifts this far
 MAX_QUANTUM_M = 0.5  # coarser position/height precision skips detection
 SLOWMO_NOTE_MIN = 1.5
+TILT_MIN_DEG = 25.0
+TILT_REVERSAL_DEG = 2.0
+PAN_MIN_DEG = 45.0
+PAN_REVERSAL_DEG = 3.0
+SWEEP_MIN_RATE = 3.0  # °/s real, mean over the sweep
+REVEAL_START_MAX_PITCH = -40.0
+REVEAL_END_MIN_PITCH = -15.0
+ANGLE_FLAT_EPS = 1.0  # degrees; trims the still ends off a sweep
 
 
 @dataclass(frozen=True)
@@ -198,6 +206,124 @@ def _steady(series: MotionSeries) -> list[Moment]:
     return _longest_per_class(out) if STEADY_LONGEST_ONLY else out
 
 
+def _legs(values: list[float], tol: float) -> list[tuple[int, int]]:
+    """Monotone legs of ``values`` between turning points, ignoring
+    reversals smaller than ``tol``. Returns (start, end) index pairs."""
+    legs: list[tuple[int, int]] = []
+    if len(values) < 2:
+        return legs
+    start, ext, direction = 0, 0, 0
+    for i in range(1, len(values)):
+        v = values[i]
+        if direction == 0:
+            if v - values[start] > tol:
+                direction, ext = 1, i
+            elif values[start] - v > tol:
+                direction, ext = -1, i
+        elif direction == 1:
+            if v > values[ext]:
+                ext = i
+            elif values[ext] - v > tol:
+                legs.append((start, ext))
+                start, ext, direction = ext, i, -1
+        else:
+            if v < values[ext]:
+                ext = i
+            elif v - values[ext] > tol:
+                legs.append((start, ext))
+                start, ext, direction = ext, i, 1
+    if direction != 0:
+        legs.append((start, ext))
+    return legs
+
+
+def _refine(values: list[float], s: int, e: int, eps: float) -> tuple[int, int]:
+    """Trim the still stretches off both ends of a leg."""
+    s0, e0 = s, e
+    while s < e and abs(values[s + 1] - values[s0]) <= eps:
+        s += 1
+    while e > s and abs(values[e - 1] - values[e0]) <= eps:
+        e -= 1
+    return s, e
+
+
+def _defined_runs(
+    series: MotionSeries, values: list[float | None]
+) -> list[tuple[int, int]]:
+    runs: list[tuple[int, int]] = []
+    start: int | None = None
+    for i, v in enumerate(values):
+        ok = series.valid[i] and v is not None
+        if ok and start is None:
+            start = i
+        elif not ok and start is not None:
+            runs.append((start, i - 1))
+            start = None
+    if start is not None:
+        runs.append((start, len(values) - 1))
+    return runs
+
+
+def _sweeps(
+    series: MotionSeries, values: list[float | None], tol: float, min_deg: float
+) -> list[tuple[int, int, float, float]]:
+    """(start index, end index, start angle, end angle) of qualifying sweeps."""
+    out: list[tuple[int, int, float, float]] = []
+    for rs, re_ in _defined_runs(series, values):
+        seg = [v for v in values[rs : re_ + 1] if v is not None]
+        for a, b in _legs(seg, tol):
+            # Magnitude between the turning points; the refined indices only
+            # place the marker. A slow sweep moves less than ANGLE_FLAT_EPS
+            # per grid step, so refining eats into the move itself.
+            s, e = _refine(seg, a, b, ANGLE_FLAT_EPS)
+            delta = seg[b] - seg[a]
+            real = series.real[rs + e] - series.real[rs + s]
+            if abs(delta) < min_deg or real <= 0 or abs(delta) / real < SWEEP_MIN_RATE:
+                continue
+            out.append((rs + s, rs + e, seg[a], seg[b]))
+    return out
+
+
+def _tilts(series: MotionSeries) -> list[Moment]:
+    out: list[Moment] = []
+    for s, e, start, end in _sweeps(
+        series, series.pitch, TILT_REVERSAL_DEG, TILT_MIN_DEG
+    ):
+        delta = end - start
+        real = series.real[e] - series.real[s]
+        if (
+            delta > 0
+            and start <= REVEAL_START_MAX_PITCH
+            and end >= REVEAL_END_MIN_PITCH
+        ):
+            kind, label = "reveal", f"Reveal · tilt up {delta:.0f}°"
+        else:
+            kind = "tilt"
+            label = f"Tilt {'up' if delta > 0 else 'down'} {abs(delta):.0f}°"
+        note = _note(series, f"real {real:.1f} s, {abs(delta) / real:.0f}°/s")
+        out.append(Moment(kind, series.cue[s], series.cue[e], label, note))
+    return out
+
+
+def _pans(series: MotionSeries) -> list[Moment]:
+    out: list[Moment] = []
+    for s, e, start, end in _sweeps(series, series.yaw, PAN_REVERSAL_DEG, PAN_MIN_DEG):
+        delta = end - start
+        real = series.real[e] - series.real[s]
+        side = "right" if delta > 0 else "left"
+        note = _note(series, f"real {real:.1f} s, {abs(delta) / real:.0f}°/s")
+        out.append(
+            Moment(
+                "pan",
+                series.cue[s],
+                series.cue[e],
+                f"Pan {side} {abs(delta):.0f}°",
+                note,
+            )
+        )
+    return out
+
+
 def detect_moments(series: MotionSeries, kinds: frozenset[str] = KINDS) -> MomentReport:
     """Detect the requested moment kinds in one clip's motion series."""
     report = MomentReport()
@@ -214,6 +340,12 @@ def detect_moments(series: MotionSeries, kinds: frozenset[str] = KINDS) -> Momen
             )
         else:
             report.moments.extend(_steady(series))
+    if "reveal" in kinds:
+        if series.gimbal_known:
+            report.moments.extend(_tilts(series))
+            report.moments.extend(_pans(series))
+        else:
+            report.notes.append("no gimbal data: reveals, tilts and pans skipped")
     report.moments.sort(key=lambda m: (m.start_s, m.kind))
     span = series.cue[-1] - series.cue[0]
     for kind in sorted({m.kind for m in report.moments}):
