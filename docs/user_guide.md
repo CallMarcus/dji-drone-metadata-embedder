@@ -103,7 +103,7 @@ the folder later, relink the media in your editor.
 
 | Marker | Example label | Meaning |
 | --- | --- | --- |
-| Steady stretch | `Steady 6.2 s · hover at 45 m` | Aircraft and gimbal hold smooth for at least 4 s: usable b-roll. Hover or glide (with its speed). |
+| Steady stretch | `Steady 6.2 s · hover at 45 m` | Aircraft and gimbal hold smooth for at least 4 s: usable b-roll. Hover (with height), glide (with its speed), or "at takeoff height" (usually on the ground before takeoff or after landing). |
 | Reveal | `Reveal · tilt up 62°` | Gimbal tilts from looking down to near the horizon. |
 | Tilt | `Tilt down 40°` | Any other gimbal tilt of 25° or more. |
 | Pan | `Pan right 90°` | Camera heading sweeps 45° or more. An orbit shows as one long pan. |
@@ -118,6 +118,10 @@ duration and speed, and says when a clip was slow motion.
 Positions are smoothed over one second and speeds measured over one-second
 spans, because DJI writes positions to about 0.1 m and raw differences
 would read that rounding as movement. Speeds carry "≈" for that reason.
+
+A tilt or pan marker covers the part of the move turning at least 3 °/s;
+a slow creep before or after it counts as still, but its angle is included
+in the label.
 
 | Rule | Value |
 | --- | --- |

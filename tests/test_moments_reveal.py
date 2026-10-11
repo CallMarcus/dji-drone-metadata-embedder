@@ -83,3 +83,20 @@ def test_no_gimbal_skips_the_family_with_a_note():
     assert (
         r.moments == [] and "no gimbal data: reveals, tilts and pans skipped" in r.notes
     )
+
+
+def test_pan_ends_where_the_turning_stops():
+    """Calibration (Air 3S, 2026-10-11): a slow creep after a pan kept the
+    marker open over seconds of near-stillness. The marker ends where the
+    camera stops turning at pan speed; the label keeps the full turn."""
+
+    def yaw(t):
+        if t < 5:
+            return 0.0
+        if t < 14:
+            return 10.0 * (t - 5)  # 10 °/s pan
+        return 90.0 + 1.0 * (t - 14)  # 1 °/s creep, slower than steady's limit
+
+    (m,) = _found(series(26, yaw=yaw, pitch=lambda t: -20.0)).moments
+    assert m.label == "Pan right 102°"  # 90° pan + 12 s of 1 °/s creep
+    assert abs(m.start_s - 5) < 0.6 and m.end_s < 15.0

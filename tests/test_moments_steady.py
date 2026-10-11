@@ -116,3 +116,10 @@ def test_tiny_clips_give_nothing():  # Review Focus 4
     one = detect_moments(build_motion(series(0)))
     assert one.moments == [] and one.notes == ["too little telemetry to detect moments"]
     assert detect_moments(build_motion(series(3))).moments == []
+
+
+def test_stretch_at_takeoff_height_is_not_called_a_hover():
+    """Calibration (Air 3S, 2026-10-11): before takeoff and after landing
+    the drone reads ~0 m above takeoff; "hover at 0 m" overclaims."""
+    (m,) = _steady(series(20, height=lambda t: 0.0))
+    assert m.label.endswith("· at takeoff height")

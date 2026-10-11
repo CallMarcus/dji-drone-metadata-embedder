@@ -23,6 +23,10 @@ STEADY_TRIM_S = 0.5  # real seconds off each end
 STEADY_LONGEST_ONLY = False  # calibration fallback: longest piece per class
 HOVER_MAX_SPEED = 0.5  # m/s
 HOVER_MAX_CLIMB = 0.3  # m/s
+# Within this of takeoff height a steady stretch is labelled "at takeoff
+# height": usually the drone on the ground before takeoff or after landing,
+# and "hover at 0 m" overclaims (calibration, Air 3S, 2026-10-11).
+TAKEOFF_HEIGHT_M = 1.0
 VERTICAL_MIN_CLIMB = 0.3  # m/s; vertical-dominant stretches are never steady
 GLIDE_SPLIT_DEG = 30.0  # split a glide where travel heading drifts this far
 MAX_QUANTUM_M = 0.5  # coarser position/height precision skips detection
@@ -175,7 +179,11 @@ def _steady_moment(series: MotionSeries, cls: str, s: int, e: int) -> Moment:
         label = f"Steady {play:.1f} s · hover"
         if series.height_is_relative:
             heights = series.height[s : e + 1]
-            label += f" at {sum(heights) / len(heights):.0f} m"
+            mean_h = sum(heights) / len(heights)
+            if abs(mean_h) < TAKEOFF_HEIGHT_M:
+                label = f"Steady {play:.1f} s · at takeoff height"
+            else:
+                label += f" at {mean_h:.0f} m"
     else:
         label = f"Steady {play:.1f} s · glide ≈{mean_v:.0f} m/s"
     note = _note(
@@ -269,8 +277,30 @@ def _defined_runs(
     return runs
 
 
+def _trim_slow(
+    rates: list[float | None], s: int, e: int, min_rate: float
+) -> tuple[int, int] | None:
+    """Trim a sweep's ends where the camera turns slower than ``min_rate``:
+    a slow creep after a pan is stillness to an editor (calibration, Air 3S,
+    2026-10-11), and must not hold the marker open."""
+
+    def slow(i: int) -> bool:
+        r = rates[i]
+        return r is None or abs(r) < min_rate
+
+    while s < e and slow(s):
+        s += 1
+    while e > s and slow(e):
+        e -= 1
+    return (s, e) if s < e else None
+
+
 def _sweeps(
-    series: MotionSeries, values: list[float | None], tol: float, min_deg: float
+    series: MotionSeries,
+    values: list[float | None],
+    rates: list[float | None],
+    tol: float,
+    min_deg: float,
 ) -> list[tuple[int, int, float, float]]:
     """(start index, end index, start angle, end angle) of qualifying sweeps."""
     out: list[tuple[int, int, float, float]] = []
@@ -281,18 +311,22 @@ def _sweeps(
             # place the marker. A slow sweep moves less than ANGLE_FLAT_EPS
             # per grid step, so refining eats into the move itself.
             s, e = _refine(seg, a, b, ANGLE_FLAT_EPS)
+            trimmed = _trim_slow(rates, rs + s, rs + e, SWEEP_MIN_RATE)
+            if trimmed is None:
+                continue
+            ts, te = trimmed
             delta = seg[b] - seg[a]
-            real = series.real[rs + e] - series.real[rs + s]
+            real = series.real[te] - series.real[ts]
             if abs(delta) < min_deg or real <= 0 or abs(delta) / real < SWEEP_MIN_RATE:
                 continue
-            out.append((rs + s, rs + e, seg[a], seg[b]))
+            out.append((ts, te, seg[a], seg[b]))
     return out
 
 
 def _tilts(series: MotionSeries) -> list[Moment]:
     out: list[Moment] = []
     for s, e, start, end in _sweeps(
-        series, series.pitch, TILT_REVERSAL_DEG, TILT_MIN_DEG
+        series, series.pitch, series.pitch_rate, TILT_REVERSAL_DEG, TILT_MIN_DEG
     ):
         delta = end - start
         real = series.real[e] - series.real[s]
@@ -312,7 +346,9 @@ def _tilts(series: MotionSeries) -> list[Moment]:
 
 def _pans(series: MotionSeries) -> list[Moment]:
     out: list[Moment] = []
-    for s, e, start, end in _sweeps(series, series.yaw, PAN_REVERSAL_DEG, PAN_MIN_DEG):
+    for s, e, start, end in _sweeps(
+        series, series.yaw, series.yaw_rate, PAN_REVERSAL_DEG, PAN_MIN_DEG
+    ):
         delta = end - start
         real = series.real[e] - series.real[s]
         side = "right" if delta > 0 else "left"
