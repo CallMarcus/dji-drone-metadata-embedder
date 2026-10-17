@@ -233,7 +233,7 @@ def run_all_validation_tests():
         if "Installation" in failed_tests[0]:
             print("\n📝 Start by fixing installation issues:")
             print("   1. pip install -e .")
-            print("   2. Install FFmpeg (see README.md)")
+            print("   2. Install FFmpeg (see docs/installation.md)")
             print("   3. Restart command prompt")
 
         return False

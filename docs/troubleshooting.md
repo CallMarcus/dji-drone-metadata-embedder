@@ -138,8 +138,9 @@ in the wrong environment — and without `--upgrade` it never updates anyway.
 and prints the exact upgrade command for the interpreter that owns *your*
 `dji-embed` (the literal `python.exe -m pip ...` path, `pipx upgrade`, or
 the winget/EXE route) — no PATH archaeology needed. The check is opt-in and
-only ever runs from `doctor`; see the README for details and the
-`DJIEMBED_NO_UPDATE_CHECK=1` opt-out.
+only ever runs from `doctor`; see the
+[command reference](cli-reference.md#dji-embed-doctor-system-diagnostics)
+for details and the `DJIEMBED_NO_UPDATE_CHECK=1` opt-out.
 
 **Diagnose** — find which interpreter owns the `dji-embed` that runs:
 

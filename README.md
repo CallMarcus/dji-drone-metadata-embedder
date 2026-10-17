@@ -50,16 +50,24 @@ Both include the full `dji-embed` command line too.
 
 ### Command line only
 
-You'll need Python 3.10+ and FFmpeg; ExifTool is optional but unlocks photo
-maps and newer drones.
+**Windows:** paste this into PowerShell. It installs Python if you don't
+have it, then `dji-embed`, FFmpeg and ExifTool.
 
-```bash
-pip install dji-drone-metadata-embedder   # Windows, Linux
-pipx install dji-drone-metadata-embedder  # macOS (after: brew install ffmpeg exiftool pipx)
+```powershell
+iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedder/master/tools/bootstrap.ps1 | iex
 ```
 
-winget, a one-line PowerShell installer, Intel Macs, Docker, and how to
-verify your download are all in the
+**macOS and Linux:** install FFmpeg and ExifTool, then the tool itself with
+`pipx` (needs Python 3.10+).
+
+```bash
+brew install ffmpeg exiftool pipx           # macOS
+sudo apt install ffmpeg exiftool pipx       # Debian/Ubuntu
+pipx install dji-drone-metadata-embedder
+```
+
+winget, plain `pip`, Intel Macs, Docker, and how to verify your download are
+all in the
 [installation guide](https://callmarcus.github.io/dji-drone-metadata-embedder/installation/).
 
 ### Your first map
@@ -96,7 +104,7 @@ opens the result in your browser.
 | See what metadata a file already has | `dji-embed check DJI_0001.MP4` |
 | Check my setup | `dji-embed doctor` |
 
-Every option for every command is in the
+Every command and all its options are in the
 [command reference](https://callmarcus.github.io/dji-drone-metadata-embedder/cli-reference/),
 or at the terminal via `dji-embed COMMAND --help`.
 

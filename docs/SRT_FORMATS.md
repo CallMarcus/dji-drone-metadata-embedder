@@ -220,25 +220,6 @@ if new_format_match:
     telemetry_data["altitudes"].append(alt)
 ```
 
-## Tested models (with sample fixtures)
-
-- **DJI Mini 3/4 Pro** - Square bracket format `[latitude: xx.xxx] [longitude: xx.xxx]`
-- **DJI Mini 5 Pro** - HTML-style bracket format with decimal aperture (`[fnum: 1.8]`)
-- **DJI Air 3** - HTML-style format with extended telemetry data
-- **DJI Air 3S** - HTML-style bracket format with decimal `focal_len` and HLG color mode (`[color_md: hlg]`); MP4 also carries embedded `djmd`/`dbgi` data streams
-- **DJI Mavic 4 Pro** - HTML-style bracket format with a tint on the colour-temperature token (`[ct: 5562, tint: 0]`); MP4 and `.LRF` carry embedded `djmd`/`dbgi` data streams incl. gimbal angles
-- **DJI Avata 360** - HTML-style bracket format with stabilization (`pp_*`) fields; footage ships as `.OSV` (360 video) + `.LRF` proxy
-- **DJI Neo 2** - HTML-style bracket format with stabilization (`pp_*`) fields; MP4 also carries embedded `djmd`/`dbgi` data streams
-- **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data
-- **DJI Mavic 3 Enterprise** - Extended format with RTK precision data
-- **DJI Matrice 300 (legacy-with-unit)** - `GPS(lat,lon,alt M)` with `BAROMETER:` colon notation
-- **DJI Phantom 4 RTK / P4P (compact single-line)** - `F/N, SS N, ISO N, EV N, GPS (lat, lon, alt), HOME (...), D, H, H.S, V.S, F.PRY, G.PRY`
-
-Community supported: DJI Air 2S, Mavic 3, and other models using similar
-SRT formats. Sidecar-less models (Air 3S, Mini 5 Pro, Mavic 4 Pro) and the
-non-DJI Parrot Anafi are read from the video's own telemetry track; see
-[MP4 Timed Metadata](MP4_TIMED_METADATA.md).
-
 ## Known Model-Format Mappings
 
 | Model | Format Type | Notes |
@@ -252,6 +233,7 @@ non-DJI Parrot Anafi are read from the video's own telemetry track; see
 | DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
 | DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams; audio recorded to a **separate same-basename `.m4a`** (see `--audio-sidecar`) |
 | DJI Air 3S | Format 3b | FrameCnt + decimal units; `color_md: hlg`; MP4 carries `djmd`/`dbgi` streams |
+| DJI Mavic 3 Enterprise | Format 3 (variant) | `FrameCnt` counter with `rtk_flag` RTK precision data |
 | DJI Mavic 4 Pro | Format 3b | FrameCnt + decimal units; `[ct: N, tint: N]`; MP4 and `.LRF` carry `djmd`/`dbgi` streams (gimbal via bundled ExifTool config) |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
@@ -260,6 +242,10 @@ non-DJI Parrot Anafi are read from the video's own telemetry track; see
 | DJI Phantom 4 RTK / P4P | Format 2c | P4 RTK compact single-line |
 | DJI Mavic Air 2 | Format 1 | Bracketed key-value pairs |
 | DJI FPV | Format 1 | May include additional flight data |
+
+Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro, Mavic 4 Pro and the
+non-DJI Parrot Anafi) is read from the video's own telemetry track; see
+[MP4 Timed Metadata](MP4_TIMED_METADATA.md).
 
 ## Special Considerations
 

@@ -104,7 +104,7 @@ test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
 | Change | Update |
 | --- | --- |
 | New CLI command/option | `docs/cli-reference.md` + `docs/user_guide.md` |
-| New DJI model support | `docs/SRT_FORMATS.md` + `README.md` model list |
+| New DJI model support | `docs/SRT_FORMATS.md` model table + the model name in `README.md` |
 | Mapping/geo features | `docs/geospatial.md` |
 | Common problem solved | `docs/troubleshooting.md` |
 | Anything an end-user's AI should know | `HELP.md` |
@@ -122,7 +122,8 @@ links.
 1. Get sample SRT (and ideally MP4) files.
 2. Add a parser pattern in `embedder.py` with the regex documented.
 3. Add fixtures under `samples/<model>/` and tests against them.
-4. Update `docs/SRT_FORMATS.md` and the README model list.
+4. Add a row to the model table in `docs/SRT_FORMATS.md` and the model's
+   name to the README's "Supported drones" paragraph.
 
 ## GUI design constraints (binding)
 
