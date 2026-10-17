@@ -115,6 +115,17 @@ dji-embed --help
 # Or install Python from python.org
 ```
 
+### "Command not found: dji-embed"
+
+The package installed, but its scripts folder isn't on your `PATH`. Either
+reinstall into your user directory or let `pipx` manage it:
+
+```bash
+python -m pip install --user dji-drone-metadata-embedder
+# or
+pipx install dji-drone-metadata-embedder
+```
+
 ### I updated, but `dji-embed --version` still shows the old version
 
 Almost always two different Pythons on the same machine (python.org,

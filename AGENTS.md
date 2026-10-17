@@ -103,11 +103,19 @@ test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
 
 | Change | Update |
 | --- | --- |
-| New CLI command/option | `README.md` + `docs/user_guide.md` |
+| New CLI command/option | `docs/cli-reference.md` + `docs/user_guide.md` |
 | New DJI model support | `docs/SRT_FORMATS.md` + `README.md` model list |
 | Mapping/geo features | `docs/geospatial.md` |
 | Common problem solved | `docs/troubleshooting.md` |
 | Anything an end-user's AI should know | `HELP.md` |
+
+The README is a short landing page for drone hobbyists, not a reference.
+Keep option tables, format details, and long notes in `docs/`; add to the
+README only a new row in its "Which command do I need?" table, a one-line
+feature bullet, or a model name. Link from it to the docs site
+(`https://callmarcus.github.io/dji-drone-metadata-embedder/...`) rather than
+to `docs/*.md`, because PyPI renders the README and can't resolve relative
+links.
 
 ## Adding support for a new DJI model
 

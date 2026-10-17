@@ -157,9 +157,11 @@ When adding new features or model support:
    - Include in [troubleshooting guide](docs/troubleshooting.md) if there are common issues
    - Add to [SRT_FORMATS.md](docs/SRT_FORMATS.md) for new format specifications
 
-2. **Update README**: Include new CLI options, supported models, or significant features
+2. **Update the reference docs**: new CLI options go in the [command reference](docs/cli-reference.md), new models in [SRT_FORMATS.md](docs/SRT_FORMATS.md). The README is a short landing page — touch it only when a change belongs in its "Which command do I need?" table, its feature summary, or its model list
 
 3. **Changelog**: Conventional commits automatically generate changelog entries
+
+Releases are maintainer-run; see [RELEASE.md](docs/RELEASE.md).
 
 ## 🔄 **Pull Request Guidelines**
 

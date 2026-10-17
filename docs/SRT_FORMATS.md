@@ -220,6 +220,25 @@ if new_format_match:
     telemetry_data["altitudes"].append(alt)
 ```
 
+## Tested models (with sample fixtures)
+
+- **DJI Mini 3/4 Pro** - Square bracket format `[latitude: xx.xxx] [longitude: xx.xxx]`
+- **DJI Mini 5 Pro** - HTML-style bracket format with decimal aperture (`[fnum: 1.8]`)
+- **DJI Air 3** - HTML-style format with extended telemetry data
+- **DJI Air 3S** - HTML-style bracket format with decimal `focal_len` and HLG color mode (`[color_md: hlg]`); MP4 also carries embedded `djmd`/`dbgi` data streams
+- **DJI Mavic 4 Pro** - HTML-style bracket format with a tint on the colour-temperature token (`[ct: 5562, tint: 0]`); MP4 and `.LRF` carry embedded `djmd`/`dbgi` data streams incl. gimbal angles
+- **DJI Avata 360** - HTML-style bracket format with stabilization (`pp_*`) fields; footage ships as `.OSV` (360 video) + `.LRF` proxy
+- **DJI Neo 2** - HTML-style bracket format with stabilization (`pp_*`) fields; MP4 also carries embedded `djmd`/`dbgi` data streams
+- **DJI Avata 2** - Legacy GPS format `GPS(lat,lon,alt)` with BAROMETER data
+- **DJI Mavic 3 Enterprise** - Extended format with RTK precision data
+- **DJI Matrice 300 (legacy-with-unit)** - `GPS(lat,lon,alt M)` with `BAROMETER:` colon notation
+- **DJI Phantom 4 RTK / P4P (compact single-line)** - `F/N, SS N, ISO N, EV N, GPS (lat, lon, alt), HOME (...), D, H, H.S, V.S, F.PRY, G.PRY`
+
+Community supported: DJI Air 2S, Mavic 3, and other models using similar
+SRT formats. Sidecar-less models (Air 3S, Mini 5 Pro, Mavic 4 Pro) and the
+non-DJI Parrot Anafi are read from the video's own telemetry track; see
+[MP4 Timed Metadata](MP4_TIMED_METADATA.md).
+
 ## Known Model-Format Mappings
 
 | Model | Format Type | Notes |
