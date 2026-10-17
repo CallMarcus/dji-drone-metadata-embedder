@@ -26,6 +26,7 @@ nav:
       - Flight records: how-to/flight-record.md
       - Windows Quick Setup: how-to/windows-bundle.md
   - Reference:
+      - Command Reference: cli-reference.md
       - API Reference: api.md
       - SRT Formats: SRT_FORMATS.md
       - MP4 Timed Metadata: MP4_TIMED_METADATA.md

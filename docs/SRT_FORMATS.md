@@ -233,6 +233,7 @@ if new_format_match:
 | DJI Avata 360 | Format 3b | FrameCnt + decimal units; `.OSV`/`.LRF` video, `pp_*` stabilization fields |
 | DJI Neo 2 | Format 3b | FrameCnt + decimal units; `pp_*` stabilization fields; MP4 carries `djmd`/`dbgi` streams; audio recorded to a **separate same-basename `.m4a`** (see `--audio-sidecar`) |
 | DJI Air 3S | Format 3b | FrameCnt + decimal units; `color_md: hlg`; MP4 carries `djmd`/`dbgi` streams |
+| DJI Mavic 3 Enterprise | Format 3 (variant) | `FrameCnt` counter with `rtk_flag` RTK precision data |
 | DJI Mavic 4 Pro | Format 3b | FrameCnt + decimal units; `[ct: N, tint: N]`; MP4 and `.LRF` carry `djmd`/`dbgi` streams (gimbal via bundled ExifTool config) |
 | DJI Mavic Pro | Format 2 | GPS function format |
 | DJI Phantom 4 | Format 2 | GPS function format |
@@ -241,6 +242,10 @@ if new_format_match:
 | DJI Phantom 4 RTK / P4P | Format 2c | P4 RTK compact single-line |
 | DJI Mavic Air 2 | Format 1 | Bracketed key-value pairs |
 | DJI FPV | Format 1 | May include additional flight data |
+
+Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro, Mavic 4 Pro and the
+non-DJI Parrot Anafi) is read from the video's own telemetry track; see
+[MP4 Timed Metadata](MP4_TIMED_METADATA.md).
 
 ## Special Considerations
 

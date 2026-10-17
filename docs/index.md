@@ -7,6 +7,7 @@ Use the guides in this site to embed GPS data in your footage, map where you've 
 - [Installation](installation.md)
 - [Desktop App](desktop-app.md) — the workspace for Windows and macOS, no terminal needed
 - [User Guide](user_guide.md)
+- [Command Reference](cli-reference.md) — every command and option
 - [Maps & Panoramas](geospatial.md) — photo maps, flight maps, the 360° viewer
 - [Decision Table](decision-table.md)
 - [Recipes](recipes.md)

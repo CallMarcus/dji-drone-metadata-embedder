@@ -135,10 +135,9 @@ dji-embed --version
 
 ## 📱 DJI Model Compatibility
 
-The maintained model list lives in one place — the **Supported DJI Models** section of the README (mirrored in the format specifications at [SRT Formats](SRT_FORMATS.md)). Highlights:
+The maintained model list, with the telemetry format each model writes, lives in [SRT Formats](SRT_FORMATS.md#known-model-format-mappings).
 
-- Ten models are fully tested with sample fixtures, from Mini 3/4/5 Pro and Air 3/3S to Avata 2/360, Neo 2, Mavic 3 Enterprise, Matrice 300, and Phantom 4 RTK/P4P.
-- Sidecar-less footage (Air 3S, Mini 5 Pro, Neo 2) can be read straight from the MP4's embedded track — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md).
+- Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro and other recent models, plus the Parrot Anafi) is read straight from the video's embedded track — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md) for the ExifTool version each model needs.
 - **Other models** may work with similar formats — run `dji-embed validate` on a sample first, or open an issue with a short `.SRT` file and we'll add a parser.
 
 ---
@@ -165,10 +164,10 @@ The maintained model list lives in one place — the **Supported DJI Models** se
    - Check exit codes for success/failure
 
 ### Get More Help:
-- **Full CLI reference**: See README.md
-- **Troubleshooting**: See docs/troubleshooting.md  
-- **How-to guides**: See docs/how-to/
-- **File formats**: See docs/SRT_FORMATS.md
+- **Full CLI reference**: [Command Reference](cli-reference.md)
+- **Troubleshooting**: [Troubleshooting](troubleshooting.md)
+- **How-to guides**: [Embed GPS](how-to/embed-gps.md), [Generate GPX](how-to/generate-gpx.md), [Flight records](how-to/flight-record.md)
+- **File formats**: [SRT Formats](SRT_FORMATS.md)
 
 ---
 

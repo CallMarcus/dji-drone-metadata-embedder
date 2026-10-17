@@ -166,7 +166,7 @@ pip install -e .
 **"FFmpeg not found"**
 ```bash
 # Download FFmpeg and add to PATH
-# See main README.md for detailed instructions
+# See docs/installation.md for detailed instructions
 ```
 
 **"No test data found"**
@@ -227,7 +227,7 @@ If validation tests fail:
 1. **Check the detailed output** for specific error messages
 2. **Review individual test results** to isolate issues
 3. **Verify dependencies** using the installation test
-4. **Check README.md** for installation instructions
+4. **Check docs/installation.md** for installation instructions
 5. **Submit an issue** with test output if problems persist
 
 The validation tests are designed to give you confidence that your DJI Metadata Embedder installation is production-ready and will handle your drone footage correctly.

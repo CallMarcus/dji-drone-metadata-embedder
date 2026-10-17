@@ -150,6 +150,27 @@ copy in your user directory.
 docker run --rm -v "$PWD":/data callmarcus/dji-embed embed /data
 ```
 
+## Verify your download (optional)
+
+Windows binaries and the installer are Authenticode code-signed from v1.23.0
+onwards — right-click the file → **Properties → Digital Signatures** and you
+should see "Open Source Developer, Marcus Westermark" (issued by Certum).
+
+Every release also ships `SHA256SUMS` files alongside the binaries, and
+release builds (v1.23.0 onwards) carry [build provenance attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
+— a Sigstore-signed proof that the file you downloaded was produced by this
+repository's public build workflow. With the [GitHub CLI](https://cli.github.com/):
+
+```powershell
+gh attestation verify dji-metadata-embedder-setup-<version>.exe -R CallMarcus/dji-drone-metadata-embedder
+```
+
+The same works for `dji-embed.exe`, `dji-embed-macos-arm64.zip` and the
+macOS DMG. PyPI wheels are attested separately by PyPI's
+[Trusted Publishing](https://docs.pypi.org/attestations/) — see the
+"provenance" details on each file at
+[pypi.org](https://pypi.org/project/dji-drone-metadata-embedder/#files).
+
 ## Upgrading
 
 `dji-embed doctor` tells you when a newer version exists, and names the
