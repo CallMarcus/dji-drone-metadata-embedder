@@ -210,7 +210,8 @@ own old version, which reads like a failed upgrade.
 The [desktop app](desktop-app.md) — folder in, map or telemetry out, no
 terminal — comes with the Windows installer and the macOS DMG. For
 viewing maps from any OS there's `dji-embed photomap <folder> --serve`.
-See the [User Guide](user_guide.md#web-ui-deprecated) for details.
+See [Mapping still photos](user_guide.md#mapping-still-photos) in the User
+Guide for details.
 
 <details>
 <summary>Advanced</summary>
