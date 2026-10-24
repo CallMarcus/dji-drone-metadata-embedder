@@ -16,8 +16,8 @@ def test_python_version():
     version = sys.version_info
     print(f"   Python {version.major}.{version.minor}.{version.micro}")
 
-    if version < (3, 10):
-        raise RuntimeError("❌ Python 3.10+ required")
+    if version < (3, 11):
+        raise RuntimeError("❌ Python 3.11+ required")
 
     print("   ✅ Python version OK")
     return True

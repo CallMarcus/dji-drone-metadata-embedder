@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -73,7 +73,7 @@ class AirspaceData:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _bbox(track: Track) -> tuple[float, float, float, float]:
@@ -343,7 +343,7 @@ def fetch_zones(
             else:
                 page = _fetch_url(url, transport)
                 zip_url, effective = discover_aixm_url(
-                    page, url, today=datetime.now(timezone.utc).date()
+                    page, url, today=datetime.now(UTC).date()
                 )
                 body = extract_xml(_fetch_url(zip_url, transport))
             fetched = _now_iso()

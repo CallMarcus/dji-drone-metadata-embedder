@@ -5,7 +5,7 @@ needing to manage a Python environment manually.
 
 ## Option 1: pipx
 
-1. [Install Python](https://www.python.org/) 3.10 or newer.
+1. [Install Python](https://www.python.org/) 3.11 or newer.
 2. Open **PowerShell** and install `pipx`:
    ```powershell
    python -m pip install --user pipx

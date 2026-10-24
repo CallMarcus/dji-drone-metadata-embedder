@@ -51,7 +51,7 @@ artifact or the Docker image).
 GitHub Actions workflows in `.github/workflows/`:
 
 - `ci.yml` – runs `ruff` + `mypy` + `pytest` on Windows and Linux across
-  Python 3.10–3.12, plus the desktop-app test suite (`gui` job,
+  Python 3.11, 3.12 and 3.14, plus the desktop-app test suite (`gui` job,
   `dotnet test gui/DjiEmbed.Gui.sln`). This is the authoritative PR gate.
 - `release-pypi.yml`, `release-exe.yml`, `release-installer.yml`,
   `release-winget.yml` – triggered on `vX.Y.Z` tags (winget is dispatched

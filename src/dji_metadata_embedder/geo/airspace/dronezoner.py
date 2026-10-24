@@ -40,7 +40,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import timezone
+from datetime import UTC
 from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin
 
@@ -206,7 +206,7 @@ def _applicability(props: dict, where: str) -> list[Applicability]:
         # Naive UTC, like ed269._utc: Track.utc is naive, and the
         # evaluator's window comparison must never mix awareness (#520).
         if parsed.tzinfo is not None:
-            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            parsed = parsed.astimezone(UTC).replace(tzinfo=None)
         return parsed
 
     return [

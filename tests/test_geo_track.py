@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from dji_metadata_embedder import mp4_telemetry as mt
@@ -117,9 +117,8 @@ def test_auto_detected_offset_is_recorded_too(tmp_path):
     srt = tmp_path / "clip.SRT"
     srt.write_bytes(CLIP.read_bytes())
     import os
-    from datetime import timezone
 
-    mtime = datetime(2026, 5, 17, 6, 28, 30, tzinfo=timezone.utc).timestamp()
+    mtime = datetime(2026, 5, 17, 6, 28, 30, tzinfo=UTC).timestamp()
     os.utime(srt, (mtime, mtime))
     assert build_track(srt).local_offset == timedelta(hours=2)
 

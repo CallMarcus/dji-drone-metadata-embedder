@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from ..mp4_telemetry import is_video
@@ -106,7 +106,7 @@ def build_track(
         return build_track_from_samples(
             path.stem, samples, redact, assume_utc=True, tz_offset=tz_offset
         )
-    mtime_utc = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).replace(
+    mtime_utc = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).replace(
         tzinfo=None
     )
     return build_track_from_samples(

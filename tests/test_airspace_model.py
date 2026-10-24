@@ -37,8 +37,8 @@ def test_flight_level_limits_render_as_fl_numbers():
     ],
 )
 def test_iso_utc_accepts_any_fractional_second_width(raw):
-    # Python 3.10's fromisoformat takes only 3- or 6-digit fractions; the
-    # feeds do not care, so the parser must not either.
+    # The feeds write whatever fraction width they like (drz.lv uses two),
+    # so the parser must not care either.
     assert iso_utc(raw, "t") == datetime(2026, 6, 30, 21, 0)
 
 

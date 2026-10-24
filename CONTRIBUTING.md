@@ -89,7 +89,7 @@ The project supports major DJI models (Mini 3/4 Pro, Air 3, Avata 2, Mavic 3 Ent
 ### Testing Requirements
 - **All changes must be tested**: Add tests for new functionality
 - **Use sample fixtures**: Test with provided samples in `/samples` directory
-- **Cross-platform**: Tests must pass on Windows and Linux (Python 3.10-3.12)
+- **Cross-platform**: Tests must pass on Windows and Linux (Python 3.11, 3.12 and 3.14)
 - **CLI smoke tests**: Include basic CLI tests for new commands or options
 
 ### Example: Adding New DJI Format Support

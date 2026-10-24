@@ -70,7 +70,7 @@ Two ways to use it — same engine:
 | Situation | Do this |
 | --- | --- |
 | **Windows, simplest** | Download `dji-metadata-embedder-setup-<version>.exe` from the GitHub Releases page. One installer = app + CLI + FFmpeg + ExifTool, nothing else needed. Installers from v1.23.0 onwards are code-signed (publisher: "Open Source Developer, Marcus Westermark"); SmartScreen may still warn while the certificate builds reputation — click **More info → Run anyway**. Older releases are unsigned. The app remembers your window size and recent folders (stored locally in %APPDATA%\DjiEmbed\state.json — delete that file to reset). |
-| Windows, CLI only | `winget install CallMarcus.DJIMetadataEmbedder` (portable exe), or `pip install dji-drone-metadata-embedder` with Python 3.10–3.12. |
+| Windows, CLI only | `winget install CallMarcus.DJIMetadataEmbedder` (portable exe), or `pip install dji-drone-metadata-embedder` with Python 3.11 or newer. |
 | **macOS, simplest** (Apple Silicon, macOS 14+) | Download the signed, notarized `dji-metadata-embedder-<version>-macos-arm64.dmg` from the GitHub Releases page and drag the app to Applications. FFmpeg/ExifTool come from Homebrew (`brew install ffmpeg exiftool`). State lives in ~/Library/Application Support/DjiEmbed/state.json. |
 | macOS, CLI only (any Mac, Intel included) | `brew install pipx ffmpeg exiftool` then `pipx install dji-drone-metadata-embedder` (plain `pip3` is blocked on Homebrew Python). |
 | Linux | `pip install dji-drone-metadata-embedder` (or pipx) + `ffmpeg`/`exiftool` from your package manager. |
