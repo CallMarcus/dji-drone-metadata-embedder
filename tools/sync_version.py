@@ -23,13 +23,8 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
 from pathlib import Path
-
-try:  # Python >=3.11
-    import tomllib  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10
-    import tomli as tomllib  # type: ignore
-
 
 # ---------------------------------------------------------------------------
 # Configuration

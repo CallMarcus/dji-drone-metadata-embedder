@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from click.testing import CliRunner
 
@@ -377,7 +377,7 @@ def _gimbal_folder(tmp_path):
     folder = _folder(tmp_path, {"DJI_0001.SRT": srt})
     # mtime at the recording end so tz auto-detection resolves offset 0
     # (SRT wall-clock == UTC), matching the log's UTC column exactly.
-    end = (T0 + timedelta(seconds=3)).replace(tzinfo=timezone.utc).timestamp()
+    end = (T0 + timedelta(seconds=3)).replace(tzinfo=UTC).timestamp()
     os.utime(folder / "DJI_0001.SRT", (end, end))
     log = folder / "log.csv"
     log.write_text(GIMBAL_LOG, encoding="utf-8")

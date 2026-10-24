@@ -17,9 +17,9 @@ jobs:
       matrix:
         os: ['ubuntu-22.04']
         python-version:
-          - '3.10'
           - '3.11'
           - '3.12'
+          - '3.14'
         # Add a single Windows leg so the ExifTool-backed photomap / MP4
         # timed-metadata tests actually run on Windows (path, subprocess and
         # encoding handling differ). One Python version keeps CI cost down.

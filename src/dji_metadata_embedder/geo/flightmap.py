@@ -16,7 +16,7 @@ import logging
 import posixpath
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import median
 from xml.sax.saxutils import escape
@@ -314,7 +314,7 @@ def scan_flights(
                         if on_video_gimbal is not None:
                             on_video_gimbal(report)
                     mtime_utc = datetime.fromtimestamp(
-                        path.stat().st_mtime, tz=timezone.utc
+                        path.stat().st_mtime, tz=UTC
                     ).replace(tzinfo=None)
                     track = build_track_from_samples(
                         name, samples, tz_offset=tz_offset, mtime_utc=mtime_utc

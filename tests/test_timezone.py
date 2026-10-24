@@ -7,7 +7,7 @@ whichever lands closest to a quarter-hour boundary.
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -112,7 +112,7 @@ def test_gpx_falls_back_when_offset_implausible(tmp_path):
     srt.write_text(_HTML_SRT)
     # mtime ~2.5 years after the recorded 2024-01-01 wall clock -> no
     # plausible timezone explains it.
-    mtime = datetime(2026, 7, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+    mtime = datetime(2026, 7, 1, 12, 0, 0, tzinfo=UTC).timestamp()
     os.utime(srt, (mtime, mtime))
     out = tmp_path / "clip.gpx"
     extract_telemetry_to_gpx(srt, out)
@@ -162,7 +162,7 @@ def test_gpx_autodetects_offset_from_mtime(tmp_path):
     srt = tmp_path / "clip.SRT"
     srt.write_text(_HTML_SRT)
     # mtime = recording end in UTC for a UTC+2 local clock: 12:00:33 - 2h.
-    mtime = datetime(2024, 1, 1, 10, 0, 33, tzinfo=timezone.utc).timestamp()
+    mtime = datetime(2024, 1, 1, 10, 0, 33, tzinfo=UTC).timestamp()
     os.utime(srt, (mtime, mtime))
     out = tmp_path / "clip.gpx"
     extract_telemetry_to_gpx(srt, out)

@@ -58,7 +58,7 @@ iwr -useb https://raw.githubusercontent.com/CallMarcus/dji-drone-metadata-embedd
 ```
 
 **macOS and Linux:** install FFmpeg and ExifTool, then the tool itself with
-`pipx` (needs Python 3.10+).
+`pipx` (needs Python 3.11+).
 
 ```bash
 brew install ffmpeg exiftool pipx           # macOS

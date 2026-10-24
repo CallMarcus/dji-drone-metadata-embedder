@@ -8,7 +8,7 @@ provided for convenience.
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -121,9 +121,9 @@ def extract_telemetry_to_gpx(
         offset = timedelta(0)
     else:
         # Resolve the local->UTC offset for points that carry an absolute datetime.
-        mtime_utc = datetime.fromtimestamp(
-            srt_path.stat().st_mtime, tz=timezone.utc
-        ).replace(tzinfo=None)
+        mtime_utc = datetime.fromtimestamp(srt_path.stat().st_mtime, tz=UTC).replace(
+            tzinfo=None
+        )
         offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     def _point_time(point: dict) -> str | None:
@@ -138,7 +138,7 @@ def extract_telemetry_to_gpx(
     if abs_times and offset is not None:
         metadata_time = (abs_times[0] - offset).strftime("%Y-%m-%dT%H:%M:%SZ")
     else:
-        metadata_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        metadata_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Write GPX file
     gpx_header = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -215,9 +215,9 @@ def summarize_sun(
         offset = timedelta(0)
     else:
         abs_times = [p["datetime"] for p in points if p["datetime"] is not None]
-        mtime_utc = datetime.fromtimestamp(
-            srt_path.stat().st_mtime, tz=timezone.utc
-        ).replace(tzinfo=None)
+        mtime_utc = datetime.fromtimestamp(srt_path.stat().st_mtime, tz=UTC).replace(
+            tzinfo=None
+        )
         offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
     track: list[tuple[datetime, float, float]] = []  # (utc, azimuth, elevation)
@@ -502,9 +502,9 @@ def extract_telemetry_to_csv(
 
     # Resolve the single local->UTC offset, then fill UTC + solar columns.
     abs_times = [dt for dt, _, _ in solar_inputs if dt is not None]
-    mtime_utc = datetime.fromtimestamp(
-        srt_path.stat().st_mtime, tz=timezone.utc
-    ).replace(tzinfo=None)
+    mtime_utc = datetime.fromtimestamp(srt_path.stat().st_mtime, tz=UTC).replace(
+        tzinfo=None
+    )
     offset = resolve_utc_offset(abs_times, tz_offset, mtime_utc)
     if offset is not None:
         for row, (abs_dt, lat_val, lon_val) in zip(rows, solar_inputs):

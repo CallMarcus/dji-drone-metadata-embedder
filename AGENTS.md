@@ -59,8 +59,9 @@ uv run ruff format --check .   # or `uv run ruff format .` to apply
 uv run mypy
 ```
 
-CI enforces all four on Linux and Windows (Python 3.10–3.12) plus the GUI
-test suite. If you touched `gui/`, also run `dotnet test gui/DjiEmbed.Gui.sln`.
+CI enforces all four on Linux and Windows (Python 3.11, 3.12 and 3.14) plus
+the GUI test suite. If you touched `gui/`, also run
+`dotnet test gui/DjiEmbed.Gui.sln`.
 
 ## Conventions
 

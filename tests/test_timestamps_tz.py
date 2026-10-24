@@ -9,7 +9,7 @@ any zone.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dji_metadata_embedder import telemetry_converter
@@ -40,7 +40,7 @@ class _SplitClock(datetime):
     def now(cls, tz=None):  # type: ignore[override]
         if tz is None:
             return cls(2026, 1, 1, 12, 0, 0)
-        return cls(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc).astimezone(tz)
+        return cls(2026, 1, 1, 10, 0, 0, tzinfo=UTC).astimezone(tz)
 
 
 def test_gpx_fallback_metadata_time_is_utc(tmp_path, monkeypatch):

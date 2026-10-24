@@ -78,7 +78,7 @@ on `uv.lock`, so lock-file changes automatically invalidate the cache.
 
 ### `uv sync` fails locally
 
-1. Make sure your Python version is supported (3.10+). `uv` can install a
+1. Make sure your Python version is supported (3.11+). `uv` can install a
    matching interpreter for you with `uv python install 3.12`.
 2. Upgrade `uv` itself: `uv self update` (or reinstall from
    <https://docs.astral.sh/uv/>).
