@@ -40,7 +40,10 @@ dev = [
     "ruff==0.16.9",
     "mypy==2.3.1",
     "jsonschema==4.26.0",
-    "pillow==12.3.0",
+    # Pillow 13 (the only line with the 2026-10 security fixes) needs
+    # Python 3.11+, so 3.10 stays on the last 12.x.
+    "pillow==12.3.0; python_version < '3.11'",
+    "pillow==13.0.0; python_version >= '3.11'",
 ]
 # Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
 # (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
@@ -70,8 +73,11 @@ terrain = [
     # nothing about it, and a panorama rendition without its GPano tags
     # would be framed differently from the original. The code still checks
     # and falls back to serving originals, so an older Pillow injected by
-    # hand degrades rather than misleads.
-    "pillow>=11.0",
+    # hand degrades rather than misleads. On 3.11+ the floor is 13.0, the
+    # first release with the 2026-10 decoder security fixes (13 dropped
+    # 3.10, which keeps the 11.0 floor). The shipped apps build on 3.12.
+    "pillow>=11.0; python_version < '3.11'",
+    "pillow>=13.0; python_version >= '3.11'",
 ]
 [project.urls]
 Homepage = "https://github.com/CallMarcus/dji-drone-metadata-embedder"
