@@ -35,19 +35,19 @@ dynamic = ["version"]
 # requirements.lock prior to the uv migration (#164), so `uv sync` reproduces
 # the historical CI behaviour exactly. Bump them in a dedicated PR.
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-cov==7.1.0",
-    "coverage==7.16.2",
-    "ruff==0.16.9",
-    "mypy==2.3.1",
+    "coverage==7.17.0",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
     "jsonschema==4.26.0",
     "pillow==13.0.0",
 ]
 # Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
 # (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
 browser = [
-    "pytest-playwright==0.9.0",
-    "playwright==1.63.0",
+    "pytest-playwright==0.10.0",
+    "playwright==1.64.1",
     # Local-machine sharding (`pytest tests/browser -n 2`); the suite is
     # parallel-safe (ephemeral server ports, atomic asset-cache writes).
     # CI stays serial: one SwiftShader Chromium saturates its 4 vCPUs.
