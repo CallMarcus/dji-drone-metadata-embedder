@@ -110,8 +110,11 @@ include = [
 # family-level `select` cannot reproduce them and a 413-code list would
 # rot. Stability comes from the ruff pin in the dev extra instead: a bump
 # arrives as a PR that must pass CI, so any new rule is a reviewed
-# decision, never a side effect of an upgrade.
+# decision, never a side effect of an upgrade. That cuts both ways: ruff
+# 0.17 dropped seven DTZ rules from its defaults, and "DTZ" below keeps the
+# whole family on, because naive datetimes in src stay a reviewed choice.
 extend-select = [
+    "DTZ",
     "E401", "E402", "E701", "E702", "E703", "E711", "E712", "E713", "E714",
     "E721", "E731", "E741", "E742", "E743",
     "F403", "F405", "F406", "F722",
