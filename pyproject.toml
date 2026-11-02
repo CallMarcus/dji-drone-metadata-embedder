@@ -35,19 +35,19 @@ dynamic = ["version"]
 # requirements.lock prior to the uv migration (#164), so `uv sync` reproduces
 # the historical CI behaviour exactly. Bump them in a dedicated PR.
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-cov==7.1.0",
-    "coverage==7.16.2",
-    "ruff==0.16.9",
-    "mypy==2.3.1",
+    "coverage==7.17.0",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
     "jsonschema==4.26.0",
     "pillow==13.0.0",
 ]
 # Browser-behaviour tests (tests/browser, Track B spec 2026-07-21): heavy
 # (Chromium download), so kept out of `dev`. CI runs them in a dedicated job.
 browser = [
-    "pytest-playwright==0.9.0",
-    "playwright==1.63.0",
+    "pytest-playwright==0.10.0",
+    "playwright==1.64.1",
     # Local-machine sharding (`pytest tests/browser -n 2`); the suite is
     # parallel-safe (ephemeral server ports, atomic asset-cache writes).
     # CI stays serial: one SwiftShader Chromium saturates its 4 vCPUs.
@@ -110,8 +110,11 @@ include = [
 # family-level `select` cannot reproduce them and a 413-code list would
 # rot. Stability comes from the ruff pin in the dev extra instead: a bump
 # arrives as a PR that must pass CI, so any new rule is a reviewed
-# decision, never a side effect of an upgrade.
+# decision, never a side effect of an upgrade. That cuts both ways: ruff
+# 0.17 dropped seven DTZ rules from its defaults, and "DTZ" below keeps the
+# whole family on, because naive datetimes in src stay a reviewed choice.
 extend-select = [
+    "DTZ",
     "E401", "E402", "E701", "E702", "E703", "E711", "E712", "E713", "E714",
     "E721", "E731", "E741", "E742", "E743",
     "F403", "F405", "F406", "F722",
