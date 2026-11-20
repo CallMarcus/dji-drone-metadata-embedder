@@ -25,8 +25,11 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
 - **Map your footage** — `photomap` pins every GPS-tagged photo (JPG/JPEG/
   DNG) on an interactive HTML map with thumbnails; 360° panoramas get their
   own orange pins and an in-page viewer. `flightmap` draws every flight in
-  a folder on one map, from `.SRT` logs or from the telemetry inside
-  sidecar-less DJI and Parrot Anafi videos. `map` combines both: photos,
+  a folder on one map, from `.SRT` logs, Autel `.ass` sidecars, or the
+  telemetry inside sidecar-less DJI, Parrot Anafi, and Autel EVO videos.
+  Autel support is provisional: it follows published subtitle samples, not
+  a recording checked in this project, and Autel clocks are local time
+  (pass `--tz-offset` when the file date is wrong). `map` combines both: photos,
   panoramas and flight tracks on a single map, subfolders included.
 - **Airspace awareness** — `flightmap --airspace` overlays official drone
   zones (FAA UAS Facility Maps in the US, the national feeds in Europe)

@@ -1,4 +1,4 @@
-"""ExifTool-backed extractor for MP4 timed metadata (DJI djmd/dbgi, Parrot mett).
+"""ExifTool-backed extractor for MP4 timed metadata (DJI djmd/dbgi, Parrot mett, Autel tx3g).
 
 Reads the per-sample protobuf telemetry ExifTool decodes from a DJI MP4/MOV and
 normalises it to the canonical :class:`~dji_metadata_embedder.utilities.TelemetrySample`
@@ -115,6 +115,11 @@ _PARROT_KEY = "FrameView"
 # Anafi 4K fw 1.8.2); the Anafi Ai writes `...videometadataproto` (untested).
 _PARROT_META_TYPE = "com.parrot.videometadata"
 
+# Sample-description format of the Autel EVO subtitle track ExifTool decodes
+# in Process_tx3g (ExifTool >= 13.00). Yuneec uses the same format atom;
+# only a payload that starts with HOME( is Autel, which extraction checks.
+_AUTEL_META_FORMAT = "tx3g"
+
 
 def _parrot_sample(doc: dict) -> TelemetrySample | None:
     """Map one Parrot V3 record (ExifTool ``Parrot.pm`` tag names) to a sample.
@@ -148,11 +153,62 @@ def _parrot_sample(doc: dict) -> TelemetrySample | None:
         focal_len=None,
         gimbal_yaw=heading,
         gimbal_pitch=pitch,
+        dt_is_utc=True,
+    )
+
+
+def _is_autel_doc(doc: dict) -> bool:
+    """True for an ExifTool tx3g record, not a DJI protobuf sample.
+
+    DJI names absolute height ``AbsoluteAltitude``. Autel uses
+    ``GPSAltitude`` (Parrot does too, and is dispatched earlier via
+    ``FrameView``). A HOME line with no GPS fix still carries
+    ``GPSHomeLatitude``.
+    """
+    if "AbsoluteAltitude" in doc:
+        return False
+    return "GPSAltitude" in doc or "GPSHomeLatitude" in doc
+
+
+def _autel_sample(doc: dict) -> TelemetrySample | None:
+    """Map one Autel tx3g record to a sample.
+
+    ExifTool has already applied hemisphere signs, so latitude and
+    longitude are ordinary signed degrees and ``GPSDateTime`` is the
+    subtitle clock with no ``Z`` (local wall time, not confirmed UTC).
+    ``G.PRY`` is written ``(pitch, roll, yaw)``. ExifTool stores those
+    three numbers under ``GimbalYaw``, ``GimbalPitch``, ``GimbalRoll`` in
+    that source order, so the names do not match the axes: the 2023 EVO II
+    sample's third components agree (aircraft heading and gimbal heading)
+    and the middle gimbal component is 0 (stabilised roll). Footprints
+    need the real pitch (first component, negative = down) and the real
+    yaw (third). Unverified against a recording held in this repo.
+    """
+    lat = doc.get("GPSLatitude")
+    lon = doc.get("GPSLongitude")
+    if lat is None or lon is None:
+        return None
+    lat, lon = float(lat), float(lon)
+    if abs(lat) > 90.0 or abs(lon) > 180.0 or not is_gps_fix(lat, lon):
+        return None
+    pitch = doc.get("GimbalYaw")
+    yaw = doc.get("GimbalRoll")
+    return TelemetrySample(
+        lat,
+        lon,
+        float(doc.get("GPSAltitude", 0.0)),
+        _sample_time_to_cue(doc.get("SampleTime", 0.0)),
+        _parse_gps_datetime(doc.get("GPSDateTime", "")),
+        rel_alt=None,
+        focal_len=None,
+        gimbal_yaw=float(yaw) if yaw is not None else None,
+        gimbal_pitch=float(pitch) if pitch is not None else None,
+        dt_is_utc=False,
     )
 
 
 def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
-    """Map ExifTool ``-g3 -j`` JSON (DJI or Parrot records) to samples and whether telemetry was decoded.
+    """Map ExifTool ``-g3 -j`` JSON (DJI, Parrot, or Autel) to samples.
 
     ``data`` is ExifTool's JSON: a one-element list whose object holds ``Doc1 …
     DocN`` per-sample sub-documents. Returns ``(samples, saw_telemetry)`` where
@@ -187,6 +243,12 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
             if sample is not None:
                 samples.append(sample)
             continue
+        if _is_autel_doc(doc):
+            saw_telemetry = True
+            sample = _autel_sample(doc)
+            if sample is not None:
+                samples.append(sample)
+            continue
         if any(key in doc for key in _TELEMETRY_KEYS):
             saw_telemetry = True
         lat = doc.get("GPSLatitude")
@@ -213,6 +275,7 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
                 gimbal_yaw=float(gy) if gy is not None else None,
                 gimbal_pitch=float(gp) if gp is not None else None,
                 real_s=float(ts) if ts is not None else None,
+                dt_is_utc=True,
             )
         )
     return samples, saw_telemetry
@@ -297,6 +360,9 @@ def probe(path: Path) -> str | None:
     ``dvtm_Air3s.proto;model_name:FC9113;…``), or ``"djmd"`` when it has none.
     Parrot: ``parrot:videometadata3`` (the suffix is whatever follows
     :data:`_PARROT_META_TYPE` in the track's MIME type).
+    Autel: ``autel:tx3g`` when a subtitle sample description is
+    :data:`_AUTEL_META_FORMAT`. Yuneec and ordinary captions use that atom
+    too; extraction ignores a track that does not decode as Autel telemetry.
     """
     proc = _run(
         [
@@ -316,6 +382,8 @@ def probe(path: Path) -> str | None:
     m = re.search(re.escape(_PARROT_META_TYPE) + r"(\w*)", out)
     if m:
         return f"parrot:videometadata{m.group(1)}"
+    if re.search(rf"\b{re.escape(_AUTEL_META_FORMAT)}\b", out):
+        return "autel:tx3g"
     return None
 
 
@@ -335,9 +403,19 @@ def extract_samples(path: Path) -> list[TelemetrySample]:
     if schema is None:
         raise Mp4TelemetryError(
             f"No embedded telemetry found in {path.name}; is there a sidecar "
-            f".SRT for this clip?"
+            f".SRT or .ASS for this clip?"
         )
     if not saw_telemetry:
+        if schema.startswith("autel:"):
+            ver = exiftool_version() or "unknown"
+            floor = decode_floor(schema)
+            raise Mp4TelemetryError(
+                f"Subtitle track ({schema}) in {path.name} did not decode as "
+                f"Autel EVO telemetry with ExifTool {ver} (needs >= {floor}). "
+                f"Yuneec and other tx3g subtitles are not Autel telemetry. "
+                f"Run: dji-embed doctor --install exiftool "
+                f"(see docs/MP4_TIMED_METADATA.md)."
+            )
         if schema.startswith("parrot:"):
             ver = exiftool_version() or "unknown"
             raise Mp4TelemetryError(

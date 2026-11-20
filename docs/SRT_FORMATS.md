@@ -78,6 +78,41 @@ G.PRY (-24.4°, 0.0°, 110.4°)
 `G.PRY (p, r, y)`. These tokens are documented for future work; the
 parser currently extracts GPS + camera and ignores the rest.
 
+### Autel EVO `.ass` sidecar
+
+Used by: Autel EVO, EVO II, and (reported, not checked here) Nano+ and EVO Max 4T, when **subtitle .ASS file** is enabled. The file sits next to the MP4 under the same basename, the same pairing rule as a DJI `.SRT`.
+
+This is **not verified against a recording in this repository**. No public raw `.ass` was available. The two shapes below are the 2019 record pasted in the autelpilots write-up and the 2023 EVO II record quoted by ExifTool. Treat both as provisional.
+
+2019, signed, longitude first, four decimal places (~10 m), and a firmware bug that inserts a minus after the decimal:
+
+```
+HOME(-117.9606, 33.6324) 2019.9.8 16:49:24
+GPS(W: -117.-9605, N: 33.6323, -37) ReH:0
+ISO:100 SHUTTER:1000 EV:0 F-NUM:2.8
+```
+
+Later letter style (the same text ExifTool reads from the embedded track; a sidecar of this shape is accepted too):
+
+```
+HOME(W: 109.318642, N: 40.769371) 2023-09-12 10:28:07
+GPS(W: 109.339287, N: 40.768574, 2371.76m)
+G.PRY (-51.1°, 0.0°, -58.9°)
+```
+
+**Fields parsed:**
+
+- `HOME` and `GPS` are **longitude, then latitude** — the opposite of every DJI family. Hemisphere letters set the sign (`W`/`S` negative); a leading minus is kept when there is no letter. `W: -117.-9605` normalises to `-117.9605`.
+- `GPS` altitude is metres, with or without an `m` suffix. It can be negative.
+- `ReH` is height above the home point (relative altitude).
+- `G.PRY (pitch, roll, yaw)` feeds the camera footprint (pitch negative = down, yaw = heading). Roll is ignored. `F.PRY` is the aircraft and is not stored.
+- The date is a wall clock, `YYYY.M.D HH:MM:SS` or `YYYY-MM-DD HH:MM:SS`, local time, not UTC. `--tz-offset` and the file-mtime estimate apply, as they do for a DJI SRT.
+- ASS `Dialogue` lines under `[Events]` are the samples. `\\N` is a line break. Cue times (`H:MM:SS.cs`) are converted to SRT cues.
+
+`embed` does not mux the `.ass` file. It converts the cues to an SRT text track (the payload text is unchanged) and reads coordinates from the Autel parser, so the longitude-first HOME line is not swapped by the DJI regex.
+
+A signed `HOME(lon, lat)` whose longitude is within ±90 and whose cue has none of the Autel markers (`GPS(W:)`, `ReH`, a broken decimal) is indistinguishable from DJI's latitude-first `HOME(lat, lon)` and is left as DJI. The published 2019 sample is not in that overlap: its longitude is past 90, and the GPS line carries hemisphere letters.
+
 ### Format 3: Comprehensive Format
 
 Used by: DJI Mavic 3, DJI Air 2S
@@ -240,12 +275,15 @@ if new_format_match:
 | DJI Avata 2 | Format 2 | GPS function format with BAROMETER data |
 | DJI Matrice 300 RTK | Format 2b | Legacy-with-unit (`0.0M` altitude) |
 | DJI Phantom 4 RTK / P4P | Format 2c | P4 RTK compact single-line |
+| Autel EVO / EVO II | `.ass` sidecar | Longitude-first `HOME`/`GPS`; 2019 signed values and later hemisphere letters. Not yet checked against a real file. See [MP4 Timed Metadata](MP4_TIMED_METADATA.md) for the embedded tx3g track |
 | DJI Mavic Air 2 | Format 1 | Bracketed key-value pairs |
 | DJI FPV | Format 1 | May include additional flight data |
 
-Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro, Mavic 4 Pro and the
-non-DJI Parrot Anafi) is read from the video's own telemetry track; see
-[MP4 Timed Metadata](MP4_TIMED_METADATA.md).
+Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro, Mavic 4 Pro, the
+Parrot Anafi, and Autel EVO video with an embedded subtitle track) is read
+from the video's own telemetry track; see
+[MP4 Timed Metadata](MP4_TIMED_METADATA.md). Autel `.ass` sidecars are read
+directly.
 
 ## Special Considerations
 

@@ -114,6 +114,8 @@ Tested with sample footage: Mini 3 Pro, Mini 4 Pro, Mini 5 Pro, Air 3,
 Air 3S, Mavic 4 Pro, Mavic 3 Enterprise, Avata 2, Avata 360, Neo 2,
 Matrice 300 and Phantom 4 RTK. The Air 2S, Mavic 3 and other models with
 similar telemetry work too, and the Parrot Anafi works for maps and exports.
+Autel EVO `.ass` sidecars and embedded subtitle telemetry are read as well;
+that support is not yet checked against a real recording.
 Newer drones that store telemetry inside the video need a recent ExifTool;
 `dji-embed doctor` tells you if yours is too old. Format details are in
 [SRT formats](https://callmarcus.github.io/dji-drone-metadata-embedder/SRT_FORMATS/).

@@ -1,12 +1,13 @@
 """Multi-flight folder scan and exporters (GeoJSON, KML) for ``flightmap``.
 
-A directory of DJI ``.SRT`` sidecars is parsed straight into :class:`Track`
-objects with no external tool. Videos that have no sidecar are probed for an
-embedded telemetry track (DJI ``djmd``/``dbgi``, Parrot ``mett``) and, when
-they carry one, read through ExifTool; plain videos are ignored, so scanning
-an archive of clips stays fast. The resulting track list is the single model
-every flightmap writer consumes: GeoJSON and KML here, the combined HTML map
-in :mod:`.flightmap_html`.
+A directory of DJI ``.SRT`` or Autel ``.ass`` sidecars is parsed straight
+into :class:`Track` objects with no external tool. Videos that have no
+sidecar are probed for an embedded telemetry track (DJI ``djmd``/``dbgi``,
+Parrot ``mett``, Autel ``tx3g``) and, when they carry one, read through
+ExifTool; plain videos are ignored, so scanning an archive of clips stays
+fast. The resulting track list is the single model every flightmap writer
+consumes: GeoJSON and KML here, the combined HTML map in
+:mod:`.flightmap_html`.
 """
 
 from __future__ import annotations
@@ -33,9 +34,10 @@ from .videogimbal import VideoGimbalReport
 
 logger = logging.getLogger(__name__)
 
-# Both cases so case-sensitive filesystems match DJI's .SRT and renamed .srt;
-# identical paths matched twice (case-insensitive filesystems) dedupe via set.
-_SRT_PATTERNS = ("*.SRT", "*.srt")
+# Both cases so case-sensitive filesystems match DJI's .SRT and Autel's .ASS
+# alongside renamed lowercase copies. Identical paths matched twice
+# (case-insensitive filesystems) dedupe via set.
+_SRT_PATTERNS = ("*.SRT", "*.srt", "*.ASS", "*.ass")
 
 # Videos considered when they have no SRT beside them (same suffix set as
 # mp4_telemetry.VIDEO_SUFFIXES, both cases for case-sensitive filesystems).
@@ -79,10 +81,11 @@ class _ScanEntry:
     gaps are measured on these rather than on the resolved UTC in the track:
     both segments share the same unknown offset, so the gap is exact even when
     timezone auto-detection fails, and it never falls back to file mtimes,
-    which zip/cloud copies rewrite. Entries built from a sidecar-less video
-    carry absolute UTC here instead (its telemetry has no local clock), so
-    the join check refuses to compare an SRT flight against a video flight;
-    two segments of the same kind still compare correctly with each other.
+    which zip/cloud copies rewrite. Entries built from a DJI or Parrot video
+    carry absolute UTC here instead (``utc`` is set), so the join check
+    refuses to compare an SRT flight against that video; Autel tx3g is a
+    local clock like an SRT (``utc`` clear). Two segments of the same kind
+    still compare correctly with each other.
     """
 
     track: Track
@@ -256,7 +259,8 @@ def scan_flights(
     Videos with no SRT of the same stem are probed with ``probe_video``
     (default :func:`~dji_metadata_embedder.mp4_telemetry.probe`); those
     reporting a telemetry track are read with ``extract`` (default
-    ExifTool) and mapped like SRTs, their sample times already UTC. Plain
+    ExifTool) and mapped like SRTs. DJI and Parrot sample times are already
+    UTC; Autel tx3g times are local and use the SRT offset estimate. Plain
     videos are ignored, not skipped. When ExifTool is missing, no video is
     read and ``on_unread_videos(names)`` is called once with their display
     names so the caller can say so; the SRTs still map.
@@ -290,16 +294,27 @@ def scan_flights(
                 on_file(index, len(files_sorted), name)
             try:
                 if is_video(path):
-                    # Embedded telemetry: GPSDateTime is absolute UTC, so no
-                    # mtime fallback and no timezone resolution.
                     samples = (extract or videogimbal.extract_samples)(path)
                     if not samples:
                         skipped.append(name)
                         continue
-                    track = build_track_from_samples(
-                        name, samples, assume_utc=True, tz_offset=tz_offset
-                    )
+                    # DJI/Parrot GPSDateTime is absolute UTC. Autel tx3g is
+                    # a local wall clock (dt_is_utc clear) and uses the same
+                    # mtime estimate as an SRT.
+                    utc = all(sample.dt_is_utc for sample in samples)
+                    if utc:
+                        track = build_track_from_samples(
+                            name, samples, assume_utc=True, tz_offset=tz_offset
+                        )
+                    else:
+                        mtime_utc = datetime.fromtimestamp(
+                            path.stat().st_mtime, tz=UTC
+                        ).replace(tzinfo=None)
+                        track = build_track_from_samples(
+                            name, samples, tz_offset=tz_offset, mtime_utc=mtime_utc
+                        )
                 else:
+                    utc = False
                     samples = load_samples(path)
                     if not samples:
                         skipped.append(name)
@@ -323,9 +338,7 @@ def scan_flights(
                 logger.warning("Skipping %s: %s", path, exc)
                 skipped.append(name)
                 continue
-            entries.append(
-                _ScanEntry(track, samples[0].dt, samples[-1].dt, utc=is_video(path))
-            )
+            entries.append(_ScanEntry(track, samples[0].dt, samples[-1].dt, utc=utc))
     finally:
         util_logger.removeFilter(tz_warnings)
     if tz_warnings.count:

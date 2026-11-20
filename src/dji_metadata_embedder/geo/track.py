@@ -94,15 +94,19 @@ def build_track(
 ) -> Track:
     """Build a :class:`Track` from a DJI ``.SRT`` or a video (MP4/MOV).
 
-    SRT ``dt`` is local wall-clock, so its UTC is resolved from ``tz_offset`` or
-    the file mtime (unchanged behaviour). A video's ``dt`` is already absolute
-    UTC (ExifTool ``GPSDateTime``), so it is used directly with a zero offset.
+    SRT and Autel ``.ass`` ``dt`` values are local wall-clock, so their UTC is
+    resolved from ``tz_offset`` or the file mtime. A DJI or Parrot video's
+    ``dt`` is already absolute UTC (``dt_is_utc``), so it is used directly
+    with a zero offset. An Autel tx3g video is local despite being a video:
+    its samples clear ``dt_is_utc`` and take the same offset estimate.
     ``redact`` mirrors the embed pipeline: ``"drop"`` empties the track,
     ``"fuzz"`` coarsens to ~100 m, ``"none"`` keeps coordinates.
     """
     path = Path(srt_file)
     samples = load_samples(path)
-    if is_video(path):
+    # Empty samples are vacuously UTC, which keeps a datetimeless video on
+    # the historical path. Autel tx3g clears the flag on every sample.
+    if is_video(path) and all(sample.dt_is_utc for sample in samples):
         return build_track_from_samples(
             path.stem, samples, redact, assume_utc=True, tz_offset=tz_offset
         )

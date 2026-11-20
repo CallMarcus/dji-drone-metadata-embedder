@@ -110,9 +110,10 @@ Options:
 
 ## `dji-embed convert` - Export Telemetry
 
-Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML
-map. On sidecar-less models (Air 3S, Mini 5 Pro, …) the input can be the MP4
-itself.
+Convert SRT or Autel `.ass` telemetry to GPX, CSV, GeoJSON, KML, CoT, or a
+standalone HTML map. On sidecar-less models (Air 3S, Mini 5 Pro, Autel EVO
+with an embedded subtitle track, …) the input can be the MP4 itself. Autel
+clocks are local time, not UTC; see [MP4 Timed Metadata](MP4_TIMED_METADATA.md).
 
 ```bash
 dji-embed convert gpx DJI_0001.SRT               # GPS track for Google Earth
