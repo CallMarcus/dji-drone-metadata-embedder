@@ -137,7 +137,7 @@ dji-embed --version
 
 The maintained model list, with the telemetry format each model writes, lives in [SRT Formats](SRT_FORMATS.md#known-model-format-mappings).
 
-- Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro and other recent models, plus the Parrot Anafi) is read straight from the video's embedded track — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md) for the ExifTool version each model needs.
+- Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro and other recent models, the Parrot Anafi, GoPro Hero 5–11 / 13 / Max, and Insta360 or Osmo Action clips recorded with a GPS remote or the phone app) is read straight from the video's embedded track — see [MP4 Timed Metadata](MP4_TIMED_METADATA.md). Hero 12 has no GPS.
 - **Other models** may work with similar formats — run `dji-embed validate` on a sample first, or open an issue with a short `.SRT` file and we'll add a parser.
 
 ---

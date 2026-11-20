@@ -35,7 +35,9 @@ likely mode is picked for you. The **Mode** strip offers:
   with playback. Needs your flight logs, your drone videos, or both.
   Some drones write the telemetry inside the video instead of a
   `.SRT` (Parrot Anafi, and DJI models such as the Air 3S, Mini 5 Pro
-  and Neo). Those clips are read with ExifTool, which is slower than
+  and Neo), and so do GoPro Hero 5–11, 13 and Max, plus Insta360 and
+  Osmo Action when a GPS remote or the phone app was recording. Those
+  clips are read with ExifTool, which is slower than
   reading a `.SRT`. A **3D terrain map** toggle renders the flights
   draped over real terrain instead (writes `flightmap-3d.html`, so
   the flat map is never overwritten). An **Airspace zones** option

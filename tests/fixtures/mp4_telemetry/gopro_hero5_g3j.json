@@ -1,0 +1,233 @@
+[
+  {
+    "SourceFile": "hero5.mp4",
+    "Doc1": {
+      "SampleTime": 0,
+      "SampleDuration": 1.001,
+      "DeviceName": "Camera",
+      "GPSMeasureMode": 3,
+      "GPSDateTime": "2017:04:17 17:31:03.000",
+      "GPSHPositioningError": 6.06,
+      "GPSLatitude": 33.1264969,
+      "GPSLongitude": -117.3273542,
+      "GPSAltitude": -20.184,
+      "GPSSpeed": 0.6012
+    },
+    "Doc1-1": {
+      "GPSLatitude": 33.1264969,
+      "GPSLongitude": -117.3273541,
+      "GPSAltitude": -20.146,
+      "GPSSpeed": 0.6408
+    },
+    "Doc1-2": {
+      "GPSLatitude": 33.1264968,
+      "GPSLongitude": -117.3273541,
+      "GPSAltitude": -20.102,
+      "GPSSpeed": 0.5832
+    },
+    "Doc1-3": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273541,
+      "GPSAltitude": -20.088,
+      "GPSSpeed": 0.5796
+    },
+    "Doc1-4": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273542,
+      "GPSAltitude": -20.091,
+      "GPSSpeed": 0.6552
+    },
+    "Doc1-5": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273543,
+      "GPSAltitude": -20.089,
+      "GPSSpeed": 0.6984
+    },
+    "Doc1-6": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273544,
+      "GPSAltitude": -20.075,
+      "GPSSpeed": 0.7308
+    },
+    "Doc1-7": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273545,
+      "GPSAltitude": -20.068,
+      "GPSSpeed": 0.7812
+    },
+    "Doc1-8": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273547,
+      "GPSAltitude": -20.048,
+      "GPSSpeed": 0.8496
+    },
+    "Doc1-9": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273549,
+      "GPSAltitude": -20.036,
+      "GPSSpeed": 0.9504
+    },
+    "Doc1-10": {
+      "GPSLatitude": 33.1264967,
+      "GPSLongitude": -117.3273551,
+      "GPSAltitude": -20.035,
+      "GPSSpeed": 1.0224
+    },
+    "Doc1-11": {
+      "GPSLatitude": 33.1264968,
+      "GPSLongitude": -117.3273554,
+      "GPSAltitude": -20.035,
+      "GPSSpeed": 1.1448
+    },
+    "Doc1-12": {
+      "GPSLatitude": 33.1264969,
+      "GPSLongitude": -117.3273557,
+      "GPSAltitude": -20.041,
+      "GPSSpeed": 1.3608
+    },
+    "Doc1-13": {
+      "GPSLatitude": 33.1264969,
+      "GPSLongitude": -117.3273562,
+      "GPSAltitude": -20.03,
+      "GPSSpeed": 1.6524
+    },
+    "Doc1-14": {
+      "GPSLatitude": 33.126497,
+      "GPSLongitude": -117.3273566,
+      "GPSAltitude": -20.023,
+      "GPSSpeed": 1.926
+    },
+    "Doc1-15": {
+      "GPSLatitude": 33.1264971,
+      "GPSLongitude": -117.3273571,
+      "GPSAltitude": -20.037,
+      "GPSSpeed": 2.1024
+    },
+    "Doc1-16": {
+      "GPSLatitude": 33.1264972,
+      "GPSLongitude": -117.3273575,
+      "GPSAltitude": -20.039,
+      "GPSSpeed": 2.2284
+    },
+    "Doc1-17": {
+      "GPSLatitude": 33.1264973,
+      "GPSLongitude": -117.3273579,
+      "GPSAltitude": -20.041,
+      "GPSSpeed": 2.4336
+    },
+    "Doc2": {
+      "SampleTime": 1.001,
+      "SampleDuration": 1.001,
+      "DeviceName": "Camera",
+      "GPSMeasureMode": 3,
+      "GPSDateTime": "2017:04:17 17:31:03.985",
+      "GPSHPositioningError": 6.06,
+      "GPSLatitude": 33.1264974,
+      "GPSLongitude": -117.3273584,
+      "GPSAltitude": -20.054,
+      "GPSSpeed": 2.6136
+    },
+    "Doc2-1": {
+      "GPSLatitude": 33.1264976,
+      "GPSLongitude": -117.3273589,
+      "GPSAltitude": -20.071,
+      "GPSSpeed": 2.6928
+    },
+    "Doc2-2": {
+      "GPSLatitude": 33.1264977,
+      "GPSLongitude": -117.3273591,
+      "GPSAltitude": -20.079,
+      "GPSSpeed": 2.6064
+    },
+    "Doc2-3": {
+      "GPSLatitude": 33.1264979,
+      "GPSLongitude": -117.3273595,
+      "GPSAltitude": -20.09,
+      "GPSSpeed": 2.6856
+    },
+    "Doc2-4": {
+      "GPSLatitude": 33.126498,
+      "GPSLongitude": -117.32736,
+      "GPSAltitude": -20.118,
+      "GPSSpeed": 2.8152
+    },
+    "Doc2-5": {
+      "GPSLatitude": 33.1264983,
+      "GPSLongitude": -117.3273604,
+      "GPSAltitude": -20.156,
+      "GPSSpeed": 2.9232
+    },
+    "Doc2-6": {
+      "GPSLatitude": 33.1264986,
+      "GPSLongitude": -117.3273608,
+      "GPSAltitude": -20.147,
+      "GPSSpeed": 2.9196
+    },
+    "Doc2-7": {
+      "GPSLatitude": 33.1264989,
+      "GPSLongitude": -117.3273613,
+      "GPSAltitude": -20.17,
+      "GPSSpeed": 3.096
+    },
+    "Doc2-8": {
+      "GPSLatitude": 33.1264993,
+      "GPSLongitude": -117.327362,
+      "GPSAltitude": -20.204,
+      "GPSSpeed": 3.384
+    },
+    "Doc2-9": {
+      "GPSLatitude": 33.1264998,
+      "GPSLongitude": -117.3273627,
+      "GPSAltitude": -20.194,
+      "GPSSpeed": 3.5928
+    },
+    "Doc2-10": {
+      "GPSLatitude": 33.1265005,
+      "GPSLongitude": -117.3273631,
+      "GPSAltitude": -20.127,
+      "GPSSpeed": 3.6252
+    },
+    "Doc2-11": {
+      "GPSLatitude": 33.1265011,
+      "GPSLongitude": -117.3273635,
+      "GPSAltitude": -20.099,
+      "GPSSpeed": 3.6792
+    },
+    "Doc2-12": {
+      "GPSLatitude": 33.1265017,
+      "GPSLongitude": -117.3273639,
+      "GPSAltitude": -20.142,
+      "GPSSpeed": 3.7404
+    },
+    "Doc2-13": {
+      "GPSLatitude": 33.126502,
+      "GPSLongitude": -117.327364,
+      "GPSAltitude": -20.23,
+      "GPSSpeed": 3.6468
+    },
+    "Doc2-14": {
+      "GPSLatitude": 33.1265025,
+      "GPSLongitude": -117.3273644,
+      "GPSAltitude": -20.293,
+      "GPSSpeed": 3.7044
+    },
+    "Doc2-15": {
+      "GPSLatitude": 33.1265032,
+      "GPSLongitude": -117.3273649,
+      "GPSAltitude": -20.279,
+      "GPSSpeed": 3.7476
+    },
+    "Doc2-16": {
+      "GPSLatitude": 33.1265043,
+      "GPSLongitude": -117.3273652,
+      "GPSAltitude": -20.237,
+      "GPSSpeed": 3.6396
+    },
+    "Doc2-17": {
+      "GPSLatitude": 33.1265052,
+      "GPSLongitude": -117.3273654,
+      "GPSAltitude": -20.231,
+      "GPSSpeed": 3.6504
+    }
+  }
+]

@@ -185,6 +185,22 @@ def test_convert_batch_includes_mp4(monkeypatch, tmp_path):
     assert (tmp_path / "a.geojson").exists()
 
 
+def test_convert_batch_includes_360_and_skips_lrv_proxy(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: json.loads(_FIX.read_text())
+    )
+    (tmp_path / "GS010001.360").write_bytes(b"\x00")
+    (tmp_path / "GH010001.MP4").write_bytes(b"\x00")
+    (tmp_path / "GH010001.LRV").write_bytes(b"\x00")
+    (tmp_path / "only.lrv").write_bytes(b"\x00")
+    res = CliRunner().invoke(main, ["convert", "geojson", str(tmp_path), "--batch"])
+    assert res.exit_code == 0, res.output
+    assert (tmp_path / "GS010001.geojson").exists()
+    assert (tmp_path / "GH010001.geojson").exists()
+    assert (tmp_path / "only.geojson").exists()
+    assert not (tmp_path / "GH010001.lrv.geojson").exists()
+
+
 def test_convert_mp4_too_old_exiftool_clean_error(monkeypatch, tmp_path):
     # Stream present but nothing decoded (Neo-2 style) -> extract_samples raises.
     monkeypatch.setattr(

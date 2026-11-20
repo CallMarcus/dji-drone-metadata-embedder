@@ -112,7 +112,10 @@ Options:
 
 Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML
 map. On sidecar-less models (Air 3S, Mini 5 Pro, …) the input can be the MP4
-itself.
+itself. GoPro Hero 5–11, 13 and Max (`.mp4`, `.360`, `.lrv`) and Insta360
+(`.insv`, GPS only with a remote or the phone app) work the same way; Hero
+12 has no GPS. Details are in
+[MP4 Timed Metadata](MP4_TIMED_METADATA.md).
 
 ```bash
 dji-embed convert gpx DJI_0001.SRT               # GPS track for Google Earth
