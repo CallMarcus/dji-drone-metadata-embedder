@@ -78,10 +78,6 @@ EXIFTOOL_FLOORS: dict[str, tuple[str, str]] = {
     # Verified on real footage at the 13.59 pin (2026-08-26); the gimbal block
     # comes from dji-embed's bundled ExifTool config, not ExifTool itself.
     "dvtm_Mavic4.proto": ("Mavic 4 Pro", "13.59"),
-    # Autel tx3g subtitles. Below the DJI baseline, so `doctor` still reports
-    # 13.05 as the floor for the tool as a whole; the Autel-specific error
-    # names 13.00.
-    "autel:tx3g": ("Autel EVO", "13.00"),
 }
 
 _INSTALL_HINT = "run: dji-embed doctor --install exiftool"

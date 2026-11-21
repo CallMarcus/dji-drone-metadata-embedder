@@ -3,10 +3,10 @@
 A directory of DJI ``.SRT`` or Autel ``.ass`` sidecars is parsed straight
 into :class:`Track` objects with no external tool. Videos that have no
 sidecar are probed for an embedded telemetry track (DJI ``djmd``/``dbgi``,
-Parrot ``mett``, Autel ``tx3g``) and, when they carry one, read through
-ExifTool; plain videos are ignored, so scanning an archive of clips stays
-fast. The resulting track list is the single model every flightmap writer
-consumes: GeoJSON and KML here, the combined HTML map in
+Parrot ``mett``, GoPro ``gpmd``, Insta360) and, when they carry one, read
+through ExifTool; plain videos are ignored, so scanning an archive of clips
+stays fast. The resulting track list is the single model every flightmap
+writer consumes: GeoJSON and KML here, the combined HTML map in
 :mod:`.flightmap_html`.
 """
 
@@ -23,7 +23,13 @@ from statistics import median
 from xml.sax.saxutils import escape
 
 from .. import utilities
-from ..mp4_telemetry import Mp4TelemetryError, is_video, probe
+from ..mp4_telemetry import (
+    Mp4TelemetryError,
+    drop_proxy_duplicates,
+    is_video,
+    probe,
+    video_globs,
+)
 from ..utilities import TelemetrySample, load_samples, redact_coords
 from ..utils.exiftool import exiftool_available
 from . import videogimbal
@@ -41,7 +47,7 @@ _SRT_PATTERNS = ("*.SRT", "*.srt", "*.ASS", "*.ass")
 
 # Videos considered when they have no SRT beside them (same suffix set as
 # mp4_telemetry.VIDEO_SUFFIXES, both cases for case-sensitive filesystems).
-_VIDEO_PATTERNS = ("*.MP4", "*.mp4", "*.MOV", "*.mov")
+_VIDEO_PATTERNS = video_globs()
 
 
 def _sidecarless_videos(root: Path, recursive: bool, srts: set[Path]) -> list[Path]:
@@ -50,7 +56,9 @@ def _sidecarless_videos(root: Path, recursive: bool, srts: set[Path]) -> list[Pa
     videos: set[Path] = set()
     for pattern in _VIDEO_PATTERNS:
         videos.update(root.rglob(pattern) if recursive else root.glob(pattern))
-    return sorted(v for v in videos if v.with_suffix("") not in stems)
+    return drop_proxy_duplicates(
+        sorted(v for v in videos if v.with_suffix("") not in stems)
+    )
 
 
 def _display_name(path: Path, root: Path, recursive: bool) -> str:
@@ -81,11 +89,10 @@ class _ScanEntry:
     gaps are measured on these rather than on the resolved UTC in the track:
     both segments share the same unknown offset, so the gap is exact even when
     timezone auto-detection fails, and it never falls back to file mtimes,
-    which zip/cloud copies rewrite. Entries built from a DJI or Parrot video
-    carry absolute UTC here instead (``utc`` is set), so the join check
-    refuses to compare an SRT flight against that video; Autel tx3g is a
-    local clock like an SRT (``utc`` clear). Two segments of the same kind
-    still compare correctly with each other.
+    which zip/cloud copies rewrite. Entries built from a sidecar-less video
+    carry absolute UTC here instead (its telemetry has no local clock), so
+    the join check refuses to compare an SRT flight against a video flight;
+    two segments of the same kind still compare correctly with each other.
     """
 
     track: Track
@@ -259,8 +266,7 @@ def scan_flights(
     Videos with no SRT of the same stem are probed with ``probe_video``
     (default :func:`~dji_metadata_embedder.mp4_telemetry.probe`); those
     reporting a telemetry track are read with ``extract`` (default
-    ExifTool) and mapped like SRTs. DJI and Parrot sample times are already
-    UTC; Autel tx3g times are local and use the SRT offset estimate. Plain
+    ExifTool) and mapped like SRTs, their sample times already UTC. Plain
     videos are ignored, not skipped. When ExifTool is missing, no video is
     read and ``on_unread_videos(names)`` is called once with their display
     names so the caller can say so; the SRTs still map.
@@ -269,6 +275,11 @@ def scan_flights(
     files: set[Path] = set()
     for pattern in _SRT_PATTERNS:
         files.update(root.rglob(pattern) if recursive else root.glob(pattern))
+    # An .ass that is ordinary captions is not a flight log, and must not
+    # pass for the sidecar of the video beside it.
+    files = {
+        f for f in files if f.suffix.lower() != ".ass" or utilities.is_autel_ass(f)
+    }
     videos = _sidecarless_videos(root, recursive, files)
     if videos and not exiftool_available():
         if on_unread_videos is not None:
@@ -294,27 +305,16 @@ def scan_flights(
                 on_file(index, len(files_sorted), name)
             try:
                 if is_video(path):
+                    # Embedded telemetry: GPSDateTime is absolute UTC, so no
+                    # mtime fallback and no timezone resolution.
                     samples = (extract or videogimbal.extract_samples)(path)
                     if not samples:
                         skipped.append(name)
                         continue
-                    # DJI/Parrot GPSDateTime is absolute UTC. Autel tx3g is
-                    # a local wall clock (dt_is_utc clear) and uses the same
-                    # mtime estimate as an SRT.
-                    utc = all(sample.dt_is_utc for sample in samples)
-                    if utc:
-                        track = build_track_from_samples(
-                            name, samples, assume_utc=True, tz_offset=tz_offset
-                        )
-                    else:
-                        mtime_utc = datetime.fromtimestamp(
-                            path.stat().st_mtime, tz=UTC
-                        ).replace(tzinfo=None)
-                        track = build_track_from_samples(
-                            name, samples, tz_offset=tz_offset, mtime_utc=mtime_utc
-                        )
+                    track = build_track_from_samples(
+                        name, samples, assume_utc=True, tz_offset=tz_offset
+                    )
                 else:
-                    utc = False
                     samples = load_samples(path)
                     if not samples:
                         skipped.append(name)
@@ -338,7 +338,9 @@ def scan_flights(
                 logger.warning("Skipping %s: %s", path, exc)
                 skipped.append(name)
                 continue
-            entries.append(_ScanEntry(track, samples[0].dt, samples[-1].dt, utc=utc))
+            entries.append(
+                _ScanEntry(track, samples[0].dt, samples[-1].dt, utc=is_video(path))
+            )
     finally:
         util_logger.removeFilter(tz_warnings)
     if tz_warnings.count:

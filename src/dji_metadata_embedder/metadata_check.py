@@ -53,8 +53,22 @@ def run_exiftool(path: Path) -> dict | None:
         return None
 
 
+def probe_schema(path: Path) -> str | None:
+    """The embedded telemetry track ``convert`` and ``flightmap`` would read.
+
+    ``None`` when there is none, or when ExifTool is missing or cannot open
+    the file: ``check`` reports what it can see and never fails on this.
+    """
+    from .mp4_telemetry import Mp4TelemetryError, probe
+
+    try:
+        return probe(path)
+    except (Mp4TelemetryError, OSError):
+        return None
+
+
 def check_file(path: Path) -> dict[str, bool]:
-    """Check a single media file for GPS, altitude, creation time and embedded telemetry (DJI djmd/dbgi or Parrot mett)."""
+    """Check a single media file for GPS, altitude, creation time and embedded telemetry (DJI, Parrot, GoPro or Insta360)."""
     ffprobe_data = run_ffprobe(path) or {}
     exif_data = run_exiftool(path) or {}
 
@@ -72,12 +86,18 @@ def check_file(path: Path) -> dict[str, bool]:
     # SRT — and that a default (MP4) embed will not carry it over (#478).
     # Parrot Anafi clips embed theirs in a `mett` track (#323); ffprobe only
     # sees the generic `mett` tag, which other devices use too, so the
-    # ExifTool MetaType is the discriminator there.
-    embedded_telemetry = any(
-        s.get("codec_tag_string") in ("djmd", "dbgi")
-        for s in ffprobe_data.get("streams", [])
-        if s.get("codec_type") == "data"
-    ) or "com.parrot.videometadata" in str(exif_data.get("MetaType", ""))
+    # ExifTool MetaType is the discriminator there. GoPro GPMF and Insta360
+    # (#276) need the telemetry probe: plain `exiftool -j` keeps one
+    # MetaFormat per file and GoPro's last track is `fdsc`, not `gpmd`.
+    embedded_telemetry = (
+        any(
+            s.get("codec_tag_string") in ("djmd", "dbgi")
+            for s in ffprobe_data.get("streams", [])
+            if s.get("codec_type") == "data"
+        )
+        or "com.parrot.videometadata" in str(exif_data.get("MetaType", ""))
+        or probe_schema(path) is not None
+    )
 
     return {
         "gps": gps_present,

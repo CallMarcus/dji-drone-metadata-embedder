@@ -25,11 +25,13 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
 - **Map your footage** — `photomap` pins every GPS-tagged photo (JPG/JPEG/
   DNG) on an interactive HTML map with thumbnails; 360° panoramas get their
   own orange pins and an in-page viewer. `flightmap` draws every flight in
-  a folder on one map, from `.SRT` logs, Autel `.ass` sidecars, or the
-  telemetry inside sidecar-less DJI, Parrot Anafi, and Autel EVO videos.
-  Autel support is provisional: it follows published subtitle samples, not
-  a recording checked in this project, and Autel clocks are local time
-  (pass `--tz-offset` when the file date is wrong). `map` combines both: photos,
+  a folder on one map, from `.SRT` logs or from the telemetry inside
+  sidecar-less DJI and Parrot Anafi videos, and GoPro clips that recorded
+  GPS (Hero 5–11, 13 and Max; Hero 12 has no GPS). Autel EVO `.ass`
+  sidecars are read like an `.SRT`, but that support is provisional: it
+  follows published samples, not a real recording, and Autel clocks are
+  local time (pass `--tz-offset` when the file date is wrong).
+  `map` combines both: photos,
   panoramas and flight tracks on a single map, subfolders included.
 - **Airspace awareness** — `flightmap --airspace` overlays official drone
   zones (FAA UAS Facility Maps in the US, the national feeds in Europe)
@@ -166,8 +168,11 @@ Every command accepts `--help` for its options.
 - Photos without GPS are skipped and counted; `-v` lists which ones.
   Phones/drones only geotag when location was enabled at capture time.
 - Supported drones include Mini 3/4/5 Pro, Air 3/3S, Avata 2/360, Neo 2,
-  Mavic 3 Enterprise, Matrice 300, Phantom 4 RTK — and photo mapping works
-  for **any** GPS-tagged photos, not just DJI's.
+  Mavic 3 Enterprise, Matrice 300, Phantom 4 RTK. Action-camera GPS also
+  maps: GoPro Hero 5–11, 13 and Max (Hero 12 has no GPS). Insta360 and
+  DJI Osmo Action are wired up the same way but untested on real files,
+  and they record GPS only with a GPS remote or the phone app, so do not
+  promise a user they will work. Photo mapping works for **any** GPS-tagged photos, not just DJI's.
 - The desktop app is a front end over the same CLI: anything the app does,
   the `dji-embed` command can do with more options.
 - Nothing is ever uploaded, with one opt-in exception: `fetch-log` sends

@@ -15,6 +15,7 @@ from .dat_parser import parse_v13 as parse_dat_v13
 from .utilities import (
     apply_redaction,
     autel_ass_to_srt,
+    is_autel_ass,
     is_gps_fix,
     parse_autel_ass_text,
     parse_home,
@@ -169,14 +170,19 @@ _VIDEO_EXTENSIONS = ("mp4", "osv", "lrf")
 def _paired_subtitle(video_path: Path) -> Path | None:
     """Same-stem telemetry sidecar: an SRT if one exists, else an Autel ``.ass``.
 
-    SRT wins when both are present so a DJI folder is unchanged. Both cases
+    SRT wins when both are present so a DJI folder is unchanged. An ``.ass``
+    holding ordinary captions is not telemetry and is passed over. Both cases
     are tried because cameras write uppercase extensions and some tools
     rename them.
     """
     for ext in (".srt", ".SRT", ".ass", ".ASS"):
         cand = video_path.with_suffix(ext)
-        if cand.is_file():
-            return cand
+        if not cand.is_file():
+            continue
+        # .ass is a general subtitle format: only Autel telemetry pairs.
+        if ext.lower() == ".ass" and not is_autel_ass(cand):
+            continue
+        return cand
     return None
 
 

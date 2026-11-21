@@ -95,6 +95,17 @@ def test_find_video_path_prefers_mp4_over_mov_and_is_none_when_absent(tmp_path):
     assert find_video_path(tmp_path, "DJI_0001") == tmp_path / "DJI_0001.MP4"
 
 
+def test_find_video_path_finds_action_cam_containers_and_prefers_full_res(tmp_path):
+    (tmp_path / "GS010001.360").write_bytes(b"")
+    assert find_video_path(tmp_path, "GS010001") == tmp_path / "GS010001.360"
+    (tmp_path / "VID.insv").write_bytes(b"")
+    assert find_video_path(tmp_path, "VID") == tmp_path / "VID.insv"
+    (tmp_path / "GH010001.LRV").write_bytes(b"")
+    assert find_video_path(tmp_path, "GH010001") == tmp_path / "GH010001.LRV"
+    (tmp_path / "GH010001.MP4").write_bytes(b"")
+    assert find_video_path(tmp_path, "GH010001") == tmp_path / "GH010001.MP4"
+
+
 # --- enrich_from_video ---
 
 

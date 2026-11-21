@@ -1,29 +1,25 @@
-"""Autel EVO telemetry: tx3g samples inside the MP4, and .ass sidecars (#324).
+"""Autel EVO ``.ass`` telemetry sidecars (#324).
 
 The coordinate fixtures are the two published records, not files from a drone:
 the 2019 .ass line from the autelpilots write-up, and the 2023 EVO II text
-ExifTool quotes in Process_tx3g. Nothing here was read from a real recording.
+ExifTool quotes in Process_tx3g, laid out as a sidecar would carry it. Nothing
+here was read from a real recording.
 """
 
 import json
-import os
 import subprocess
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from dji_metadata_embedder import mp4_telemetry as mt
 from dji_metadata_embedder.embedder import DJIMetadataEmbedder
 from dji_metadata_embedder.geo.flightmap import scan_flights
-from dji_metadata_embedder.geo.track import build_track
 from dji_metadata_embedder.telemetry_converter import (
     extract_telemetry_to_csv,
     extract_telemetry_to_gpx,
 )
 from dji_metadata_embedder.utilities import Home, load_samples, parse_home
-
-FIXTURES = Path(__file__).parent / "fixtures" / "mp4_telemetry"
 
 # 2019 sidecar (autelpilots): signed, longitude first, and the firmware bug
 # that writes an extra minus after the decimal (``-117.-9605``).
@@ -59,136 +55,6 @@ ASS_2023 = (
     "GPS(W: 109.339287, N: 40.768574, 2371.76m)\\N"
     "G.PRY (-51.1°, 0.0°, -58.9°)\n"
 )
-
-
-def _load(name):
-    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
-
-
-def _autel_video(monkeypatch, tmp_path, mtime):
-    video = tmp_path / "evo.mp4"
-    video.write_bytes(b"\x00")
-    os.utime(video, (mtime, mtime))
-    monkeypatch.setattr(
-        mt, "_run_exiftool_json", lambda p: _load("autel_evo2_g3j.json")
-    )
-    return video
-
-
-# --- embedded tx3g (ExifTool JSON) ---
-
-
-def test_samples_from_exiftool_maps_autel_evo2():
-    samples, saw = mt._samples_from_exiftool(_load("autel_evo2_g3j.json"))
-    assert saw is True
-    assert len(samples) == 2
-    first, second = samples
-    # ExifTool has already applied the hemisphere letters.
-    assert (first.lat, first.lon) == (40.768574, -109.339287)
-    assert first.alt == 2371.76  # GPSAltitude, metres, not DJI AbsoluteAltitude
-    assert first.cue == "00:00:00,000"
-    assert first.dt == datetime(2023, 9, 12, 10, 28, 7)
-    # Local wall clock. DJI/Parrot samples are true UTC; this one is not.
-    assert getattr(first, "dt_is_utc", True) is False
-    # G.PRY is (pitch, roll, yaw). ExifTool stores that order under the
-    # names GimbalYaw, GimbalPitch, GimbalRoll. Footprints need real pitch
-    # (down is negative) and real yaw (the component that matches F.PRY).
-    assert first.gimbal_pitch == pytest.approx(-51.1)
-    assert first.gimbal_yaw == pytest.approx(-58.9)
-    assert first.rel_alt is None
-    assert second.cue == "00:00:01,000"
-    assert second.gimbal_pitch == pytest.approx(-50.0)
-    assert second.gimbal_yaw == pytest.approx(-58.0)
-    assert second.dt == datetime(2023, 9, 12, 10, 28, 8)
-
-
-def test_autel_video_time_uses_mtime_offset_not_true_utc(monkeypatch, tmp_path):
-    # Sample clock 10:28:07, file mtime 02:28:07 UTC → +08:00 (the sample's
-    # longitude is in China). A DJI-style zero offset would leave 10:28Z.
-    mtime = datetime(2023, 9, 12, 2, 28, 7, tzinfo=UTC).timestamp()
-    video = _autel_video(monkeypatch, tmp_path, mtime)
-    track = build_track(video)
-    assert track.points[0].utc == datetime(2023, 9, 12, 2, 28, 7)
-    assert track.local_offset == timedelta(hours=8)
-    assert track.points[0].gimbal_pitch == pytest.approx(-51.1)
-
-
-def test_autel_video_honours_explicit_tz_offset(monkeypatch, tmp_path):
-    video = _autel_video(monkeypatch, tmp_path, mtime=0)
-    track = build_track(video, tz_offset=timedelta(hours=8))
-    assert track.points[0].utc == datetime(2023, 9, 12, 2, 28, 7)
-    assert track.local_offset == timedelta(hours=8)
-
-
-def test_gpx_from_autel_mp4_shifts_local_clock(monkeypatch, tmp_path):
-    mtime = datetime(2023, 9, 12, 2, 28, 7, tzinfo=UTC).timestamp()
-    video = _autel_video(monkeypatch, tmp_path, mtime)
-    text = extract_telemetry_to_gpx(video, tmp_path / "evo.gpx").read_text()
-    assert "2023-09-12T02:28:07Z" in text
-    assert "2023-09-12T10:28:07Z" not in text
-
-
-def test_csv_from_autel_mp4_shifts_local_clock(monkeypatch, tmp_path):
-    mtime = datetime(2023, 9, 12, 2, 28, 7, tzinfo=UTC).timestamp()
-    video = _autel_video(monkeypatch, tmp_path, mtime)
-    import csv
-
-    rows = list(csv.DictReader(extract_telemetry_to_csv(video).open()))
-    assert rows[0]["datetime_utc"] == "2023-09-12T02:28:07Z"
-    assert rows[0]["abs_altitude"] == "2371.76"
-
-
-def test_scan_flights_treats_autel_tx3g_time_as_local(monkeypatch, tmp_path):
-    from dji_metadata_embedder.geo import flightmap as fm
-
-    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
-    mtime = datetime(2023, 9, 12, 2, 28, 7, tzinfo=UTC).timestamp()
-    _autel_video(monkeypatch, tmp_path, mtime)
-    tracks, skipped = scan_flights(tmp_path, probe_video=lambda p: "autel:tx3g")
-    assert skipped == []
-    assert tracks[0].points[0].utc == datetime(2023, 9, 12, 2, 28, 7)
-    assert tracks[0].local_offset == timedelta(hours=8)
-
-
-def test_probe_recognises_autel_tx3g_track(monkeypatch, tmp_path):
-    out = (
-        "MetaFormat                      : tx3g\n"
-        "HandlerType                     : sbtl\n"
-    )
-    monkeypatch.setattr(
-        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
-    )
-    video = tmp_path / "evo.mp4"
-    video.write_bytes(b"\x00")
-    assert mt.probe(video) == "autel:tx3g"
-
-
-def test_clip_probe_schema_recognises_tx3g():
-    from dji_metadata_embedder.geo.clipprobe import _schema
-
-    assert _schema({"Track2": {"MetaFormat": "tx3g"}}) == "autel:tx3g"
-
-
-def test_autel_decode_floor_is_13_00():
-    from dji_metadata_embedder.utils.exiftool import decode_floor
-
-    assert decode_floor("autel:tx3g") == "13.00"
-
-
-def test_undecoded_autel_track_names_exiftool_13(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}]
-    )
-    monkeypatch.setattr(mt, "probe", lambda p: "autel:tx3g")
-    monkeypatch.setattr(mt, "exiftool_version", lambda: "12.76")
-    video = tmp_path / "evo.mp4"
-    video.write_bytes(b"\x00")
-    with pytest.raises(mt.Mp4TelemetryError) as exc:
-        mt.extract_samples(video)
-    message = str(exc.value)
-    assert "13.00" in message
-    assert "12.76" in message
-    assert "autel:tx3g" in message
 
 
 # --- HOME: Autel is longitude-first and must be tried before the DJI regex ---
@@ -238,7 +104,6 @@ def test_load_samples_reads_2019_ass_and_normalizes_the_broken_longitude(tmp_pat
     assert sample.rel_alt == pytest.approx(0.0)
     assert sample.cue == "00:00:00,000"
     assert sample.dt == datetime(2019, 9, 8, 16, 49, 24)
-    assert getattr(sample, "dt_is_utc", True) is False
     assert sample.gimbal_yaw is None
 
 
@@ -310,23 +175,24 @@ def test_csv_from_ass_keeps_longitude_first(tmp_path):
     assert rows[0]["datetime_utc"] == "2019-09-08T16:49:24Z"
 
 
+class _Progress:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def add_task(self, *args, **kwargs):
+        return 0
+
+    def update(self, *args, **kwargs):
+        return None
+
+    def advance(self, *args, **kwargs):
+        return None
+
+
 def test_embedder_converts_ass_to_an_srt_track(tmp_path, monkeypatch):
-    class _Progress:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def add_task(self, *args, **kwargs):
-            return 0
-
-        def update(self, *args, **kwargs):
-            return None
-
-        def advance(self, *args, **kwargs):
-            return None
-
     video = tmp_path / "EVO_0001.mp4"
     video.write_bytes(b"fake mp4")
     (tmp_path / "EVO_0001.ass").write_text(ASS_2019, encoding="utf-8")
@@ -358,3 +224,100 @@ def test_embedder_converts_ass_to_an_srt_track(tmp_path, monkeypatch):
     lat, lon = summary["first_gps"]
     assert lat == pytest.approx(33.6323)
     assert lon == pytest.approx(-117.9605)
+
+
+# --- review follow-ups ---
+
+# An ordinary subtitle file: same container, no telemetry.
+ASS_CAPTIONS = (
+    "[Script Info]\n"
+    "\n"
+    "[Events]\n"
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, "
+    "Effect, Text\n"
+    "Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,Hello there\n"
+)
+
+
+def test_csv_from_ass_carries_the_home_point_when_asked(tmp_path):
+    import csv
+
+    path = tmp_path / "clip.ass"
+    path.write_text(ASS_2019, encoding="utf-8")
+    rows = list(
+        csv.DictReader(
+            extract_telemetry_to_csv(
+                path, tmp_path / "clip.csv", tz_offset=timedelta(0), extract_home=True
+            ).open(encoding="utf-8")
+        )
+    )
+    # Longitude-first HOME(-117.9606, 33.6324).
+    assert float(rows[0]["home_lat"]) == pytest.approx(33.6324)
+    assert float(rows[0]["home_lon"]) == pytest.approx(-117.9606)
+    assert rows[0]["home_alt"] == ""
+
+
+def test_csv_from_ass_has_no_home_columns_unless_asked(tmp_path):
+    path = tmp_path / "clip.ass"
+    path.write_text(ASS_2019, encoding="utf-8")
+    header = (
+        extract_telemetry_to_csv(path, tmp_path / "clip.csv", tz_offset=timedelta(0))
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    assert "home_lat" not in header
+
+
+def test_caption_ass_is_not_a_flight(tmp_path):
+    # A folder of edited clips with ordinary subtitles must not report
+    # "flights with no GPS telemetry".
+    (tmp_path / "EVO_0001.ass").write_text(ASS_2019, encoding="utf-8")
+    (tmp_path / "holiday.ass").write_text(ASS_CAPTIONS, encoding="utf-8")
+    tracks, skipped = scan_flights(tmp_path, probe_video=lambda p: None)
+    assert [t.name for t in tracks] == ["EVO_0001"]
+    assert skipped == []
+
+
+def test_caption_ass_does_not_hide_its_video_from_the_probe(tmp_path, monkeypatch):
+    # A caption file beside a clip is not that clip's telemetry sidecar, so
+    # the video still gets probed for an embedded track.
+    from dji_metadata_embedder.geo import flightmap as fm
+
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    (tmp_path / "GX010001.ass").write_text(ASS_CAPTIONS, encoding="utf-8")
+    (tmp_path / "GX010001.MP4").write_bytes(b"")
+    probed: list[str] = []
+
+    def probe(path):
+        probed.append(Path(path).name)
+
+    scan_flights(tmp_path, probe_video=probe)
+    assert probed == ["GX010001.MP4"]
+
+
+def test_undecodable_ass_is_still_reported_not_silently_dropped(tmp_path):
+    # UTF-16 cannot be told apart from captions without decoding it, so it
+    # stays in the scan and surfaces as a skipped file.
+    (tmp_path / "EVO_0002.ass").write_bytes(ASS_2019.encode("utf-16"))
+    tracks, skipped = scan_flights(tmp_path, probe_video=lambda p: None)
+    assert tracks == []
+    assert skipped == ["EVO_0002"]
+
+
+def test_embedder_does_not_mux_a_caption_ass_as_telemetry(tmp_path, monkeypatch):
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"fake mp4")
+    (tmp_path / "clip.ass").write_text(ASS_CAPTIONS, encoding="utf-8")
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+
+    def fake_run(cmd, *args, **kwargs):
+        assert "ffmpeg" not in str(cmd[0]).lower(), "caption file was embedded"
+        return subprocess.CompletedProcess(cmd, 0, "10.0\n", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr("dji_metadata_embedder.embedder.Progress", _Progress)
+    embedder = DJIMetadataEmbedder(str(tmp_path), output_dir=str(out_dir))
+    result = embedder.process_directory(use_exiftool=False)
+    assert result["processed"] == 0
+    assert any("clip.mp4" in w for w in result["warnings"])

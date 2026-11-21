@@ -1,17 +1,24 @@
-# MP4 Timed Metadata (sidecar-less footage: DJI, Parrot, and Autel)
+# MP4 Timed Metadata (sidecar-less footage: DJI, Parrot, action cameras)
 
 Newer DJI models (Air 3S, Mini 5 Pro, and others) record telemetry **inside the
 MP4** as DJI's `djmd`/`dbgi` protobuf timed-metadata track, with no sidecar
-`.SRT`. `dji-embed` reads it via ExifTool, so the `convert` exporters and
-`verify-sun` work directly on the video:
+`.SRT`. GoPro cameras do the same with their own track (Insta360 and DJI Osmo
+Action too, though those two are untested here). `dji-embed` reads all of them
+via ExifTool, so the `convert` exporters
+and `verify-sun` work directly on the video:
 
     dji-embed convert gpx     DJI_0001.MP4
     dji-embed convert geojson DJI_0001.MP4 --redact fuzz
     dji-embed verify-sun      DJI_0001.MP4
 
-Input is auto-detected by extension: `.mp4`/`.mov` use the ExifTool extractor,
+Input is auto-detected by extension: `.mp4`/`.mov`, plus GoPro Max `.360`,
+GoPro low-res `.lrv` and Insta360 `.insv`, use the ExifTool extractor;
 `.srt` uses the subtitle parser. A folder of clips works with
-`dji-embed convert geojson FOLDER --batch`.
+`dji-embed convert geojson FOLDER --batch`. When a `.lrv` proxy sits beside
+its full-res file, the batch (and `flightmap`) read the full-res file and
+leave the proxy alone. That covers a shared name (`GOPR0001.MP4` /
+`GOPR0001.LRV`) and the Hero 6+ scheme, where `GL010001.LRV` is the proxy of
+`GH010001.MP4`, `GX010001.MP4` or `GS010001.360`. A `.lrv` on its own is read.
 
 ## ExifTool version matters
 
@@ -24,7 +31,6 @@ ExifTool decodes each model's protobuf schema in a specific release:
 | Air 3S | 13.39 |
 | Mini 5 Pro | 13.52 |
 | Mavic 4 Pro | 13.59 (verified; may work earlier) |
-| Autel EVO (tx3g subtitles) | 13.00 (unverified against a file we hold) |
 
 Newer models land in later releases — check the ExifTool change history. If your
 ExifTool is too old, the stream is recognised but no GPS is decoded, and
@@ -50,10 +56,6 @@ supported model. To use a specific binary instead, set
 Parrot records carry no wall-clock time; their UTC is the file's QuickTime
 `CreateDate` (UTC by specification) plus each sample's offset, so a wrong
 camera clock shifts the whole clip by the same amount.
-Autel tx3g times are the subtitle's wall clock with no zone. ExifTool marks
-them as likely local and does not append a `Z`. `dji-embed` treats them as
-local and applies `--tz-offset` or the file-mtime estimate, the same way it
-does for an SRT. A wrong guess shifts sun position and GPX `<time>`.
 Field coverage varies by model (e.g. Air 3S includes gimbal angles; Mini 5 Pro
 is GPS + altitude only). CSV from an MP4 fills geo/altitude/`datetime_utc`/solar
 columns; SRT-only camera columns (iso, shutter, …) stay blank.
@@ -83,42 +85,62 @@ merge into the MP4 it does not already carry), and the CSV camera columns stay
 blank. The Anafi Ai writes a protobuf variant (`...videometadataproto`); it is
 recognised but untested, and `dji-embed` says so if it decodes nothing.
 
-## Autel EVO (embedded tx3g)
+`flightmap` and `map` now also read videos that have no `.SRT` beside them:
+each such video costs one quick ExifTool header probe, and those that carry a
+telemetry track (Parrot, sidecar-less DJI models, GoPro GPMF, Insta360) are
+read in full, roughly 15 seconds per gigabyte. Videos with an `.SRT`, and
+plain videos without telemetry, are not read in full.
 
-Some Autel firmware muxes the same telemetry the `.ass` sidecar carries
-(see [SRT formats](SRT_FORMATS.md)) into the MP4 as a `tx3g` subtitle track.
-ExifTool 13.00 and later decodes that track in `Process_tx3g`. `dji-embed`
-asks ExifTool for it (`probe` reports `autel:tx3g`) and maps:
+## GoPro (Hero 5–11, 13, Max)
 
-| ExifTool tag | Sample field | Meaning |
-|--------------|--------------|---------|
-| `GPSLatitude` / `GPSLongitude` | lat/lon | WGS84. ExifTool has already applied the `N`/`S`/`E`/`W` letters from the longitude-first `GPS()` line |
-| `GPSAltitude` | abs. altitude | metres, as written (the sample uses an `m` suffix) |
-| `GimbalYaw`, `GimbalRoll` | gimbal pitch, gimbal yaw | see below |
-| `GPSDateTime` | local datetime | subtitle clock, no `Z`; not treated as UTC |
-| `SampleTime` | cue | offset into the clip |
+GoPro records GPS in a GPMF (`gpmd`) timed-metadata track inside `.mp4`,
+`.360` (Max) and `.lrv`. ExifTool has decoded that track for years, so the
+DJI version table above does not apply. Checked with ExifTool 13.64 on
+GoPro's public Hero 5, Hero 8 and Max clips
+(`gopro/gpmf-parser` samples). Hero 6, 7, 9–11 and 13 use the same GPMF GPS
+track (Hero 13 writes the newer GPS9 record); they were not re-checked on
+separate footage.
 
-**Gimbal axes.** The subtitle writes `G.PRY (pitch, roll, yaw)`. ExifTool
-stores those three numbers, in that order, under the names `GimbalYaw`,
-`GimbalPitch`, `GimbalRoll`. On the published 2023 EVO II sample the third
-components of `F.PRY` and `G.PRY` agree (-59.0° and -58.9°) and the middle
-gimbal component is 0°, which is a stabilised roll, so the names do not
-match the axes. `dji-embed` reads `GimbalYaw` as pitch (negative = down)
-and `GimbalRoll` as yaw so camera footprints point the right way. This
-reading is an interpretation of that one published sample. It has not been
-checked on a real file.
+| Models | GPS in the file |
+|--------|-----------------|
+| Hero 5–11, 13, Max | Yes, once the receiver has a fix |
+| Hero 12 | No GPS receiver |
 
-Not read: ISO, shutter, aperture, EV, aircraft `F.PRY`, and the per-sample
-`GPSHomeLatitude` / `GPSHomeLongitude`. `--extract-home` still works for an
-`.ass` sidecar, because that path reads the text. Yuneec drones and ordinary
-caption tracks also use a `tx3g` atom; if the payload does not decode as
-Autel telemetry, `dji-embed` says so instead of inventing a track.
+What `dji-embed` maps:
 
-`flightmap` and `map` also read videos that have no `.SRT` or `.ass` beside
-them: each such video costs one quick ExifTool header probe, and those that
-carry a telemetry track (Parrot, Autel, or sidecar-less DJI models) are read
-in full, roughly 15 seconds per gigabyte. Videos with an `.SRT` or `.ass`,
-and plain videos without telemetry, are not read in full.
+| GoPro tag | Sample field | Meaning |
+|-----------|--------------|---------|
+| `GPSLatitude`/`GPSLongitude` | lat/lon | WGS84 |
+| `GPSAltitude` | abs. altitude | WGS84 ellipsoid height, metres. Coastal clips can read negative; this is not mean sea level |
+| `SampleTime` + `SampleDuration` | cue | one GPMF sample holds the fixes for about a second (often 18). Each fix is kept and spaced across that second |
+| `GPSDateTime` | datetime | UTC of the sample; later fixes in the same second are offset from it |
+| `GPSMeasureMode`, `GPSHPositioningError` / `GPSDOP` | (filter) | mode 0, or the 99.99 no-lock sentinel, is dropped. A real lock with DOP around 4–6 is kept |
+
+The published Hero 8 sample never locks (mode 0 and error 99.99 for the
+whole clip, with coordinates that are not 0,0). It produces no track.
+Gimbal angles are not in this stream, so 3D camera footprints stay estimated.
+
+## Insta360 and DJI Osmo Action (untested)
+
+Nothing in this section has been run on a real recording; a sample clip
+with GPS is welcome. These cameras do not record GPS by themselves.
+
+- **Insta360** (X3, X4, X5, Ace Pro and similar) writes a GPS track only
+  when paired with the GPS Action Remote or the phone app. ExifTool reads
+  it from the `.insv` trailer (`GPSLatitude` / `GPSLongitude` /
+  `GPSAltitude`). `flightmap` recognises the trailer, and a `camm` handler
+  when the camera wrote one.
+- **DJI Osmo Action 4, 5 and 6** write `GPSAltitude` (not the drone
+  `AbsoluteAltitude` tag) in their `djmd` track, and only with the GPS
+  remote or the DJI app.
+
+Both go through the same extractor as GoPro and the drones, including
+`--redact`. This has **not** been checked against a real Insta360 or Osmo
+Action recording — only against ExifTool's published tag names and the
+GoPro samples above. A clip that decodes but never got a fix yields an
+empty track. A GoPro, Insta360 or Osmo Action file with a metadata track
+and no GPS samples at all raises an error that names the cause (Hero 12,
+or no remote/app) instead of asking for a sidecar `.SRT`.
 
 ## Bundled ExifTool config
 
@@ -131,6 +153,4 @@ layout ExifTool names `GimbalInfo` on the Air 3/Air 3S), so
 `-config <that file>` yourself. An ExifTool too old to know the table being
 extended ignores the config.
 
-> UTC note: DJI and Parrot MP4 times are intrinsic, so `--tz-offset` is
-> ignored for those videos. Autel tx3g times are local; `--tz-offset` and
-> the mtime estimate apply, as they do for an SRT or an `.ass` sidecar.
+> UTC note: an MP4's time is intrinsic, so `--tz-offset` is ignored for video.

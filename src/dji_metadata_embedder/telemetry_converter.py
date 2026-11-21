@@ -19,6 +19,7 @@ from .geo.solar import sun_position
 # Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
 # import these from here:
 from .utilities import (  # noqa: F401
+    Home,
     TelemetrySample,
     _parse_srt_datetime,
     estimate_utc_offset,
@@ -77,10 +78,8 @@ def load_gps_points(path: Path) -> tuple[list[dict[str, Any]], bool]:
     """Return GPS points (``_parse_gps_points`` shape) and whether they are UTC.
 
     SRT and Autel ``.ass``: datetimes are local wall-clock -> ``is_utc=False``.
-    DJI/Parrot video: ``load_samples`` (ExifTool ``GPSDateTime`` is absolute
-    UTC) -> ``is_utc=True``, so callers apply a zero local->UTC offset.
-    Autel tx3g video: the samples carry a local clock (``dt_is_utc`` false),
-    so callers use the same offset estimate as an SRT.
+    Video: ``load_samples`` (ExifTool ``GPSDateTime`` is absolute UTC)
+    -> ``is_utc=True``, so callers apply a zero local->UTC offset.
     """
     from .mp4_telemetry import is_video
     from .utilities import load_samples
@@ -98,7 +97,7 @@ def load_gps_points(path: Path) -> tuple[list[dict[str, Any]], bool]:
             }
             for s in samples
         ]
-        return points, is_video(path) and all(s.dt_is_utc for s in samples)
+        return points, is_video(path)
     return _parse_gps_points(path.read_text(encoding="utf-8")), False
 
 
@@ -354,14 +353,18 @@ def _csv_from_samples(
     *,
     times_are_utc: bool = True,
     local_offset: timedelta | None = None,
+    home_columns: bool = False,
+    home: Home | None = None,
 ) -> Path:
     """Write CSV rows from samples.
 
-    ``times_are_utc`` (DJI/Parrot video): ``dt`` is already UTC. Otherwise
+    ``times_are_utc`` (video): ``dt`` is already UTC. Otherwise
     ``local_offset`` is the local->UTC shift from ``--tz-offset`` or the
     mtime estimate; ``None`` leaves the UTC and solar columns blank, the
     same fallback as an SRT whose timezone could not be detected. Camera
-    columns that only DJI SRT text carries stay blank.
+    columns that only DJI SRT text carries stay blank. ``home_columns`` adds
+    ``home_lat``/``home_lon``/``home_alt`` (``--extract-home``), filled from
+    ``home`` when the source has one.
     """
     import csv
 
@@ -394,10 +397,17 @@ def _csv_from_samples(
                 az, el = sun_position(lat, lon, utc)
                 row["sun_azimuth"] = f"{az:.3f}"
                 row["sun_elevation"] = f"{el:.3f}"
+        if home is not None:
+            row["home_lat"] = f"{home.lat}"
+            row["home_lon"] = f"{home.lon}"
+            row["home_alt"] = "" if home.alt is None else f"{home.alt}"
         rows.append(row)
 
+    columns = list(_CSV_COLUMNS)
+    if home_columns:
+        columns += ["home_lat", "home_lon", "home_alt"]
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
+        writer = csv.DictWriter(f, fieldnames=columns, restval="")
         writer.writeheader()
         writer.writerows(rows)
     logger.info("CSV file created: %s", output_path)
@@ -438,14 +448,22 @@ def extract_telemetry_to_csv(
 
     if is_video(srt_path) or srt_path.suffix.lower() == ".ass":
         samples = load_samples(srt_path)
-        times_are_utc = is_video(srt_path) and all(s.dt_is_utc for s in samples)
+        times_are_utc = is_video(srt_path)
         offset = None if times_are_utc else _csv_offset(srt_path, samples, tz_offset)
+        # HOME is sidecar text; a video has none to read here.
+        sidecar_home = None
+        if extract_home and not is_video(srt_path):
+            sidecar_home = redact_home(
+                parse_home(srt_path.read_text(encoding="utf-8-sig")), redact
+            )
         return _csv_from_samples(
             samples,
             output_path,
             redact,
             times_are_utc=times_are_utc,
             local_offset=offset,
+            home_columns=extract_home and not is_video(srt_path),
+            home=sidecar_home,
         )
 
     home_cols: list[str] = []

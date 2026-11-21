@@ -134,12 +134,6 @@ class TelemetrySample:
     inputs (relative altitude, 35mm-equivalent focal length, gimbal yaw/pitch)
     when the format carries them. ``real_s`` is the real recording clock when
     the source has one (DJI djmd ``TimeStamp``).
-
-    ``dt_is_utc`` is True when ``dt`` is already UTC (DJI protobuf
-    ``GPSDateTime``, Parrot ``CreateDate`` + sample offset) and False when it
-    is a local wall clock (SRT, Autel ``.ass``, Autel tx3g). The default is
-    True so a hand-built video sample keeps the historical "video time is
-    UTC" assumption; parsers for local clocks set it False.
     """
 
     lat: float
@@ -154,7 +148,6 @@ class TelemetrySample:
     # Real elapsed seconds, arbitrary origin: only spans are meaningful. On
     # slow-motion clips it advances slower than ``cue`` (playback time).
     real_s: float | None = None
-    dt_is_utc: bool = True
 
 
 def iso6709(lat: float, lon: float, alt: float = 0.0) -> str:
@@ -263,7 +256,6 @@ def parse_telemetry_samples(srt_path: Path) -> list[TelemetrySample]:
                         focal_len=focal_len,
                         gimbal_yaw=gimbal_yaw,
                         gimbal_pitch=gimbal_pitch,
-                        dt_is_utc=False,
                     )
                 )
     return samples
@@ -524,10 +516,31 @@ def parse_autel_ass_text(text: str) -> list[TelemetrySample]:
                 rel_alt=float(relative.group(1)) if relative else None,
                 gimbal_pitch=float(pry.group(1)) if pry else None,
                 gimbal_yaw=float(pry.group(3)) if pry else None,
-                dt_is_utc=False,
             )
         )
     return samples
+
+
+# Every Autel cue carries a GPS( token; ordinary captions never do.
+_AUTEL_GPS_TOKEN_RE = re.compile(r"GPS\s*\(")
+
+
+def is_autel_ass(path: Path) -> bool:
+    """True when an ``.ass`` file is Autel telemetry, not ordinary captions.
+
+    ``.ass`` is a general subtitle format, so a folder of edited clips can
+    hold caption files that are nobody's flight log. A file that cannot be
+    read or decoded counts as telemetry: the loader then reports it, which
+    is better than dropping a real sidecar without a word.
+    """
+    try:
+        text = Path(path).read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return True
+    return any(
+        _AUTEL_GPS_TOKEN_RE.search(payload)
+        for _start, _end, payload in _iter_ass_dialogues(text)
+    )
 
 
 def autel_ass_to_srt(text: str) -> str:

@@ -61,7 +61,13 @@ from .geo.videogimbal import (
     schema_carries_gimbal,
 )
 from .metadata_check import check_metadata, media_files_in
-from .mp4_telemetry import _EXIFTOOL_INSTALL_HINT, Mp4TelemetryError, probe
+from .mp4_telemetry import (
+    _EXIFTOOL_INSTALL_HINT,
+    Mp4TelemetryError,
+    drop_proxy_duplicates,
+    probe,
+    video_globs,
+)
 from .progress import NullProgress, make_progress
 from .telemetry_converter import (
     extract_telemetry_to_csv,
@@ -609,16 +615,7 @@ def convert(
         outputs: list[Path] = []
         skipped = 0
         if batch:
-            patterns = (
-                "*.SRT",
-                "*.srt",
-                "*.ASS",
-                "*.ass",
-                "*.MP4",
-                "*.mp4",
-                "*.MOV",
-                "*.mov",
-            )
+            patterns = ("*.SRT", "*.srt", "*.ASS", "*.ass", *video_globs())
             seen: set[Path] = set()
             targets: list[Path] = []
             for pattern in patterns:
@@ -626,6 +623,7 @@ def convert(
                     if path not in seen:
                         seen.add(path)
                         targets.append(path)
+            targets = drop_proxy_duplicates(targets)
             for index, path in enumerate(targets, start=1):
                 progress.advance(index, len(targets), item=path.name)
                 try:
@@ -1204,9 +1202,9 @@ def flightmap(
 
     Reads the .SRT and Autel .ass telemetry sidecars (fast) and, for videos
     that have no sidecar, the telemetry track inside the MP4/MOV itself (DJI
-    djmd/dbgi on the Air 3S, Mini 5 Pro and others; Parrot Anafi; Autel EVO
-    tx3g), opened only for those files via ExifTool. Each flight is its own
-    coloured track with a
+    djmd/dbgi on the Air 3S, Mini 5 Pro and others; Parrot Anafi), opened
+    only for those files via ExifTool. Each flight is its own coloured track
+    with a
     summary popup, as HTML, KML, or GeoJSON. Recordings split at the 4 GB
     file limit are chained back into one flight (see --join-gap).
     """

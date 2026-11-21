@@ -154,8 +154,6 @@ def _schema(groups: dict[str, dict[str, Any]]) -> str | None:
     m = re.search(re.escape(_PARROT_META_TYPE) + r"(\w*)", text)
     if m:
         return f"parrot:videometadata{m.group(1)}"
-    if re.search(r"\btx3g\b", text):
-        return "autel:tx3g"
     return None
 
 

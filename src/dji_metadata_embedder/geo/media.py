@@ -12,12 +12,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..mp4_telemetry import VIDEO_SUFFIX_PREFERENCE
 from .links import link_href
 from .track import Track
 
-# Ordered by how DJI writes them. Low-res ``.LRF`` proxies are deliberately
-# excluded: they sit beside the real footage and would silently win.
-_VIDEO_SUFFIXES = (".MP4", ".mp4", ".MOV", ".mov")
+# Ordered full-res containers first. DJI ``.LRF`` proxies stay excluded:
+# they sit beside the real footage and would silently win. GoPro ``.lrv``
+# is last in :data:`VIDEO_SUFFIX_PREFERENCE` for the same reason, and is
+# still found when it is the only video.
+_VIDEO_SUFFIXES = VIDEO_SUFFIX_PREFERENCE
 
 
 def find_video_path(root: Path, name: str) -> Path | None:
@@ -36,7 +39,7 @@ def find_video_path(root: Path, name: str) -> Path | None:
     parent, stem = target.parent, target.name
     if not parent.is_dir():
         return None
-    rank = {suffix.lower(): i for i, suffix in enumerate(_VIDEO_SUFFIXES)}
+    rank = {suffix: i for i, suffix in enumerate(_VIDEO_SUFFIXES)}
     best: tuple[int, Path] | None = None
     for entry in parent.iterdir():
         if entry.is_file() and entry.stem == stem:

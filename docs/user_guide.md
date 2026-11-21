@@ -160,14 +160,18 @@ log lines.
 
 ### Sidecar-less footage (MP4 with embedded telemetry)
 
-Newer DJI models record telemetry inside the MP4 instead of a `.SRT`. Pass the
-video directly — `convert` and `verify-sun` auto-detect it:
+Newer DJI models record telemetry inside the MP4 instead of a `.SRT`, and
+GoPro cameras do the same (Hero 5–11, 13 and Max; Hero 12 has no GPS).
+Insta360 `.insv` and Osmo Action clips take the same route but are untested
+on real files. Pass the video directly — `convert` and `verify-sun`
+auto-detect it:
 
     dji-embed convert gpx DJI_0001.MP4
     dji-embed verify-sun  DJI_0001.MP4
 
-This needs a recent ExifTool (see `docs/MP4_TIMED_METADATA.md`). `--tz-offset`
-is ignored for MP4 input because its embedded time is already UTC.
+DJI models need a recent ExifTool; GoPro GPMF does not (see
+`docs/MP4_TIMED_METADATA.md`). `--tz-offset` is ignored for video input
+because its embedded time is already UTC.
 
 ## Mapping still photos
 
