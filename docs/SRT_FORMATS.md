@@ -115,7 +115,7 @@ G.PRY (-51.1°, 0.0°, -58.9°)
 
 A signed `HOME(lon, lat)` whose longitude is within ±90 and whose cue has none of the Autel markers (`GPS(W:)`, `ReH`, a broken decimal) is indistinguishable from DJI's latitude-first `HOME(lat, lon)` and is left as DJI. The published 2019 sample is not in that overlap: its longitude is past 90, and the GPS line carries hemisphere letters.
 
-Some Autel firmware also writes this text into the MP4 as a subtitle track. That track is **not read**: use the `.ass` sidecar.
+Some Autel firmware also writes this text into the MP4 as a subtitle track. That track is **not read**, and a video carrying it is refused with an error that says so: its clock is local time and ExifTool labels its gimbal angles in a different order, so reading it as an ordinary telemetry track would give wrong UTC times and camera directions. Use the `.ass` sidecar.
 
 ### Format 3: Comprehensive Format
 

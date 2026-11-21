@@ -1,0 +1,53 @@
+[
+  {
+    "SourceFile": "synthetic-autel-evo2.mp4",
+    "Synthetic": "NOT FROM A REAL FILE. ExifTool 13.59 -ee -j -g3 -n output for an MP4 built with ffmpeg, whose mov_text track carries the 2023 EVO II text quoted in Image::ExifTool::QuickTimeStream Process_tx3g.",
+    "Doc1": {
+      "SampleTime": 0,
+      "SampleDuration": 1,
+      "Text": "HOME(W: 109.318642, N: 40.769371) 2023-09-12 10:28:07\nGPS(W: 109.339287, N: 40.768574, 2371.76m)\nHDR ISO:100 SHUTTER:1000 EV:-0.7 F-NUM:1.8\nF.PRY (1.0°, -3.7°, -59.0°), G.PRY (-51.1°, 0.0°, -58.9°)",
+      "GPSDateTime": "2023:09:12 10:28:07",
+      "GPSHomeLatitude": 40.769371,
+      "GPSHomeLongitude": -109.318642,
+      "GPSLatitude": 40.768574,
+      "GPSLongitude": -109.339287,
+      "GPSAltitude": 2371.76,
+      "ISO": 100,
+      "ExposureTime": 0.001,
+      "ExposureCompensation": -0.7,
+      "FNumber": 1.8,
+      "Yaw": 1.0,
+      "Pitch": -3.7,
+      "Roll": -59.0,
+      "GimbalYaw": -51.1,
+      "GimbalPitch": 0.0,
+      "GimbalRoll": -58.9
+    },
+    "Doc2": {
+      "SampleTime": 1,
+      "SampleDuration": 1,
+      "Text": "HOME(W: 109.318642, N: 40.769371) 2023-09-12 10:28:08\nGPS(W: 109.339300, N: 40.768600, 2372.00m)\nHDR ISO:100 SHUTTER:1000 EV:-0.7 F-NUM:1.8\nF.PRY (1.0°, -3.7°, -59.0°), G.PRY (-51.1°, 0.0°, -58.9°)",
+      "GPSDateTime": "2023:09:12 10:28:08",
+      "GPSHomeLatitude": 40.769371,
+      "GPSHomeLongitude": -109.318642,
+      "GPSLatitude": 40.7686,
+      "GPSLongitude": -109.3393,
+      "GPSAltitude": 2372.0,
+      "ISO": 100,
+      "ExposureTime": 0.001,
+      "ExposureCompensation": -0.7,
+      "FNumber": 1.8,
+      "Yaw": 1.0,
+      "Pitch": -3.7,
+      "Roll": -59.0,
+      "GimbalYaw": -51.1,
+      "GimbalPitch": 0.0,
+      "GimbalRoll": -58.9
+    },
+    "Doc3": {
+      "SampleTime": 2,
+      "SampleDuration": 0,
+      "Text": ""
+    }
+  }
+]

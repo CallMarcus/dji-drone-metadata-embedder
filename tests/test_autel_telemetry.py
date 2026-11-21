@@ -321,3 +321,41 @@ def test_embedder_does_not_mux_a_caption_ass_as_telemetry(tmp_path, monkeypatch)
     result = embedder.process_directory(use_exiftool=False)
     assert result["processed"] == 0
     assert any("clip.mp4" in w for w in result["warnings"])
+
+
+# --- embedded subtitle track: refused, not half-read ---
+
+
+def _autel_video_json():
+    fixture = Path(__file__).parent / "fixtures" / "mp4_telemetry"
+    return json.loads((fixture / "autel_evo2_g3j.json").read_text(encoding="utf-8"))
+
+
+def test_embedded_autel_subtitle_track_is_refused(monkeypatch, tmp_path):
+    # ExifTool decodes this track, and the generic mapper would take it: the
+    # local clock would pass for UTC and G.PRY's (pitch, roll, yaw) would land
+    # under ExifTool's GimbalYaw/GimbalPitch labels, i.e. swapped. Until a
+    # real file confirms the format (#324) the video is refused with a
+    # pointer to the sidecar.
+    from dji_metadata_embedder import mp4_telemetry as mt
+
+    video = tmp_path / "EVO_0001.MP4"
+    video.write_bytes(b"\x00")
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _autel_video_json())
+    monkeypatch.setattr(mt, "probe", lambda p: None)
+    with pytest.raises(mt.Mp4TelemetryError) as excinfo:
+        mt.extract_samples(video)
+    message = str(excinfo.value)
+    assert "Autel" in message
+    assert ".ass" in message
+    assert "EVO_0001.MP4" in message
+
+
+def test_gopro_and_dji_records_are_not_mistaken_for_autel():
+    from dji_metadata_embedder import mp4_telemetry as mt
+
+    gopro = [{"Doc1": {"GPSLatitude": 33.1, "GPSLongitude": -117.3, "GPSAltitude": 5}}]
+    dji = [{"Doc1": {"GPSLatitude": 60.1, "GPSLongitude": 24.9, "AbsoluteAltitude": 9}}]
+    assert mt._is_autel_subtitle_track(gopro) is False
+    assert mt._is_autel_subtitle_track(dji) is False
+    assert mt._is_autel_subtitle_track(_autel_video_json()) is True
