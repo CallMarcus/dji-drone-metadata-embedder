@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-11-21
+
 ### Added
 
 - **timeline**: new `dji-embed timeline` command builds one FCPXML timeline from a folder of clips, laid end to end in recording order, with the moments worth cutting to (steady stretches, gimbal reveals, tilts and pans, altitude rises) already marked on each clip. Slow-motion clips get their own time scale so markers stay on the move. Import it in DaVinci Resolve or another FCPXML editor; the clips are only read (#604) (f469f9f)
@@ -29,36 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Pillow moves to 13.0.0 for the October 2026 security fixes, which were not backported to 12.x. The Windows and macOS apps bundle Pillow, so this is the first release whose apps carry the fixed version (#608) (a8d94e9)
-
-## [2.19.0] - 2026-11-21
-
-### Added
-
-- **gui**: Recognise action-camera files and Autel .ass sidecars (#615) (8328449)
-- **timeline**: Editor timeline (FCPXML) with flight moments as markers (#604) (f469f9f)
-- Read Autel EVO .ass telemetry sidecars (#613) (f489f2c)
-- Read action-camera GPS through the MP4 telemetry path (#612) (f3e6f09)
-
-### Fixed
-
-- **deps**: Ship Pillow 13.0.0 for the 2026-10 security fixes (#608) (a8d94e9)
-
-### Documentation
-
-- Repoint installation's --serve link at the user guide section (#606) (2e40084)
-- Slim README into a landing page, move reference to docs (#605) (a774c55)
-
-### Maintenance
-
-- **deps**: Bump certifi from 2026.2.25 to 2026.10.19 (#607) (1e65cc0)
-- **deps**: Bump the production-deps group with 6 updates (#610) (c4c7a1d)
-- **deps-dev**: Bump hatchling from 1.32.4 to 1.33.0 in the development-deps group (#611) (b5e6538)
-🚨 - Drop Python 3.10, test 3.14 instead (#609) (fdc4b6d) **[BREAKING]**
-
-### Other
-
-- Prepare version 2.19.0 (#618) (d509c35)
-
 
 ## [2.18.0] - 2026-10-02
 
