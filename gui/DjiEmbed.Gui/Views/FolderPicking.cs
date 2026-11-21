@@ -55,9 +55,18 @@ internal static class FolderPicking
     }
 
     /// <summary>Extensions the SOURCE area accepts as a single file (M4a):
-    /// the telemetry sources <c>convert</c> reads.</summary>
+    /// the telemetry sources <c>convert</c> reads. Beyond .SRT/.MP4/.MOV
+    /// that is an Autel <c>.ass</c> sidecar and the action-camera
+    /// containers (GoPro <c>.360</c>/<c>.lrv</c>, Insta360 <c>.insv</c>),
+    /// #614.</summary>
     private static readonly string[] SourceFileExtensions =
-        [".srt", ".mp4", ".mov"];
+        [".srt", ".ass", ".mp4", ".mov", ".360", ".insv", ".lrv"];
+
+    /// <summary>File-dialog globs for <see cref="SourceFileExtensions"/>,
+    /// both cases: the dialog filter is case-sensitive on Linux/macOS.</summary>
+    private static readonly string[] SourceFilePatterns =
+        [.. SourceFileExtensions.SelectMany(
+            e => new[] { "*" + e, "*" + e.ToUpperInvariant() })];
 
     /// <summary>Photo extensions the SOURCE area accepts as a single file:
     /// resolved to the photo's folder, because the photo modes (Photo map,
@@ -200,14 +209,12 @@ internal static class FolderPicking
                 [
                     new FilePickerFileType("All supported")
                     {
-                        Patterns = ["*.srt", "*.SRT", "*.mp4", "*.MP4",
-                                    "*.mov", "*.MOV", "*.jpg", "*.JPG",
+                        Patterns = [.. SourceFilePatterns, "*.jpg", "*.JPG",
                                     "*.jpeg", "*.JPEG"],
                     },
                     new FilePickerFileType("Telemetry sources")
                     {
-                        Patterns = ["*.srt", "*.SRT", "*.mp4", "*.MP4",
-                                    "*.mov", "*.MOV"],
+                        Patterns = SourceFilePatterns,
                     },
                     new FilePickerFileType("Photos")
                     {

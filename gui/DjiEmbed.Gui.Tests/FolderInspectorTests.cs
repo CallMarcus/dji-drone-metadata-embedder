@@ -301,4 +301,66 @@ public class FolderInspectorTests : IDisposable
         Assert.True(c.HasVideos);
         Assert.Equal(srtTime, c.NewestFlightLogUtc);
     }
+
+    // --- #614: action-camera containers and Autel .ass sidecars ---
+
+    [Theory]
+    [InlineData("GS010001.360")]   // GoPro Max
+    [InlineData("VID_0001.insv")]  // Insta360
+    [InlineData("GL010001.LRV")]   // GoPro proxy on its own
+    public void An_action_camera_file_is_a_flight_source_but_not_an_embed_video(
+        string name)
+    {
+        // The CLI's flightmap and convert read these for the GPS inside
+        // them; embed and validate do not take them, so HasVideos (which
+        // gates those modes) stays false.
+        Touch(name);
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasTelemetryVideos);
+        Assert.True(c.HasTopLevelTelemetryVideos);
+        Assert.False(c.HasVideos);
+        Assert.False(c.HasTopLevelVideos);
+        Assert.False(c.HasFlightLogs);
+    }
+
+    [Fact]
+    public void A_nested_action_camera_file_is_not_top_level()
+    {
+        Touch("day1", "GS010001.360");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasTelemetryVideos);
+        Assert.False(c.HasTopLevelTelemetryVideos);
+    }
+
+    [Fact]
+    public void An_action_camera_file_dates_the_flight_sources()
+    {
+        Touch("GS010001.360");
+        var when = new DateTime(2026, 11, 20, 10, 0, 0, DateTimeKind.Utc);
+        Stamp(when, "GS010001.360");
+        Assert.Equal(when, FolderInspector.Inspect(_dir).NewestFlightLogUtc);
+    }
+
+    [Theory]
+    [InlineData("EVO_0001.ass")]
+    [InlineData("EVO_0001.ASS")]
+    public void An_autel_ass_sidecar_is_a_flight_log(string name)
+    {
+        Touch(name);
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasFlightLogs);
+        Assert.True(c.HasTopLevelFlightLogs);
+        Assert.NotNull(c.NewestFlightLogUtc);
+    }
+
+    [Fact]
+    public void A_video_beside_its_ass_sidecar_is_paired_not_a_telemetry_video()
+    {
+        Touch("EVO_0001.ass");
+        Touch("EVO_0001.MP4");
+        var c = FolderInspector.Inspect(_dir);
+        Assert.True(c.HasFlightLogs);
+        Assert.True(c.HasVideos);
+        Assert.False(c.HasTelemetryVideos);
+    }
 }

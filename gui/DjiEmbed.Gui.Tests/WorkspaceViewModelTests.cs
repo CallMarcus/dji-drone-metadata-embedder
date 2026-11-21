@@ -2701,4 +2701,82 @@ public class WorkspaceViewModelTests : IDisposable
             + "Pick the folder that contains your footage.",
             vm.ErrorMessage);
     }
+
+    // --- #614: action-camera containers and Autel .ass sidecars ---
+
+    private string MakeFolderWith(params string[] names)
+    {
+        var folder = Path.Combine(_dir, "footage-" + Guid.NewGuid().ToString("N")[..6]);
+        foreach (var name in names)
+        {
+            var path = Path.Combine(folder, name);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "");
+        }
+        return folder;
+    }
+
+    [Theory]
+    [InlineData("GS010001.360")]
+    [InlineData("VID_0001.insv")]
+    [InlineData("EVO_0001.ass")]
+    public async Task A_folder_of_action_camera_or_autel_files_suggests_flight_map(
+        string name)
+    {
+        var vm = Vm("cli");
+        await vm.SetFolderAsync(MakeFolderWith(name));
+        Assert.Equal(WorkspaceModeKind.FlightMap, vm.SuggestedMode?.Kind);
+    }
+
+    [Fact]
+    public async Task Convert_runs_batch_on_a_folder_of_action_camera_files()
+    {
+        var argsFile = Path.Combine(_dir, "args-convert-360.txt");
+        var cli = FakeCli.WriteArgvLinesRecorder(_dir, argsFile, ConvertStream);
+        var vm = Vm(cli);
+        await vm.SetFolderAsync(MakeFolderWith("GS010001.360"));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Done, vm.Step);
+        Assert.Contains("-b", File.ReadAllLines(argsFile));
+    }
+
+    [Fact]
+    public async Task Convert_says_nested_when_action_camera_files_are_in_subfolders()
+    {
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolderWith(Path.Combine("day1", "GS010001.360")));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Convert);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.StartsWith("Those files are in subfolders", vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Embed_still_refuses_a_folder_of_action_camera_files()
+    {
+        // embed takes MP4-family drone video only; a .360 folder must not
+        // reach the CLI and come back as an empty "Done".
+        var vm = Vm(Path.Combine(_dir, "does-not-exist"));
+        await vm.SetFolderAsync(MakeFolderWith("GS010001.360"));
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Embed);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.StartsWith("No videos (.MP4) were found", vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Verify_check_blocks_an_ass_file_with_guidance()
+    {
+        var vm = Vm("cli");
+        vm.SetFile("/clips/EVO_0001.ASS");
+        vm.SelectedMode = WorkspaceMode.Of(WorkspaceModeKind.Verify);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.Equal(FlowStep.Failed, vm.Step);
+        Assert.Equal(
+            "Check metadata reads the video or photo itself — a .ASS "
+            + "flight log has no embedded metadata to check. Use Sun "
+            + "check for flight logs.",
+            vm.ErrorMessage);
+    }
 }

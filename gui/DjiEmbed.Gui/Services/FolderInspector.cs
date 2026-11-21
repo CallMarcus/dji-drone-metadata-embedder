@@ -19,6 +19,11 @@ public sealed record FolderContents(
 /// videos for the telemetry track inside them (Parrot Anafi, sidecar-less
 /// DJI), so they count as flight sources. Whether one really carries
 /// telemetry is again the CLI's call at run time.
+/// Action-camera containers (#614: GoPro <c>.360</c>/<c>.lrv</c>, Insta360
+/// <c>.insv</c>) are telemetry videos too, but never <em>videos</em>:
+/// flightmap and convert read their GPS, while embed, check and validate
+/// (the modes HasVideos gates) do not take them. An Autel <c>.ass</c>
+/// sidecar is a flight log exactly like an .SRT.
 /// Also records the newest write time per media kind, which is what tells
 /// an existing map it has been outrun by new footage (#328). Paired videos
 /// contribute no timestamp (their SRT carries it); telemetry videos do.
@@ -53,6 +58,10 @@ public static class FolderInspector
         // gets read at run time.
         var srtStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var videos = new List<(string Path, string Key, bool TopLevel)>();
+        // Action-camera containers go through the same pairing pass but
+        // leave hasVideos alone (see the class remarks). A GoPro .lrv proxy
+        // beside its full-res clip needs no special case here: the full-res
+        // file already sets the same flags, and the CLI drops the proxy.
         // Embed never receives -o (CommandBuilder.cs), so its output always
         // lands at <root>/processed/<stem>_metadata.mp4 with no .SRT beside
         // it. Left uncorrected, every Embed run would make its own copies
@@ -77,7 +86,8 @@ public static class FolderInspector
             var topLevel = string.Equals(
                 Path.GetDirectoryName(file), root,
                 StringComparison.OrdinalIgnoreCase);
-            if (ext.Equals(".srt", StringComparison.OrdinalIgnoreCase))
+            if (ext.Equals(".srt", StringComparison.OrdinalIgnoreCase)
+                || ext.Equals(".ass", StringComparison.OrdinalIgnoreCase))
             {
                 hasFlightLogs = true;
                 newestFlightLog = Newer(newestFlightLog, File.GetLastWriteTimeUtc(file));
@@ -96,6 +106,12 @@ public static class FolderInspector
             {
                 hasVideos = true;
                 topVideos |= topLevel;
+                videos.Add((file, StemKey(file), topLevel));
+            }
+            else if (ext.Equals(".360", StringComparison.OrdinalIgnoreCase)
+                     || ext.Equals(".insv", StringComparison.OrdinalIgnoreCase)
+                     || ext.Equals(".lrv", StringComparison.OrdinalIgnoreCase))
+            {
                 videos.Add((file, StemKey(file), topLevel));
             }
         }
