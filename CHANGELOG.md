@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-11-21
+
 ### Added
 
 - **timeline**: new `dji-embed timeline` command builds one FCPXML timeline from a folder of clips, laid end to end in recording order, with the moments worth cutting to (steady stretches, gimbal reveals, tilts and pans, altitude rises) already marked on each clip. Slow-motion clips get their own time scale so markers stay on the move. Import it in DaVinci Resolve or another FCPXML editor; the clips are only read (#604) (f469f9f)
