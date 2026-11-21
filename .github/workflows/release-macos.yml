@@ -48,7 +48,7 @@ permissions:
   contents: read
 
 # A PR push mid-notarization should cancel the obsolete run (each one costs
-# a macos-14 slot and a real notary submission); release runs never cancel.
+# a macos-15 slot and a real notary submission); release runs never cancel.
 concurrency:
   group: release-macos-${{ github.event.pull_request.number || github.event.workflow_run.head_branch || inputs.version }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -64,7 +64,7 @@ jobs:
           || (github.event_name == 'workflow_run'
               && github.event.workflow_run.conclusion == 'success'
               && startsWith(github.event.workflow_run.head_branch, 'v')) }}
-    runs-on: macos-14
+    runs-on: macos-15
     # Notarization budget: a routine submission takes single-digit minutes,
     # but this young account gets extended vetting — 2026-07-31 observed
     # 30m, ~40m, 2h20m, then >3h on successive submissions, with the Apple
@@ -221,7 +221,7 @@ jobs:
     # notarization. PR proof runs execute this chain too (three real
     # submissions per proof run — the paths filter above keeps that rare).
     needs: build
-    runs-on: macos-14
+    runs-on: macos-15
     # Two sequential notary submissions (app zip, then DMG); see the build
     # job's note on this young account's vetting latency. 150 min poll
     # deadline each + build/publish time, under GitHub's 360-min job cap.

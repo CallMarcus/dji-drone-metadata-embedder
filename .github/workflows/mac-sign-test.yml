@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   sign-and-notarize:
-    runs-on: macos-14
+    runs-on: macos-15
     # Generous: a new account's first notary submissions get extended
     # vetting (the maiden run sat In Progress past 20 minutes); routine
     # submissions take single-digit minutes.

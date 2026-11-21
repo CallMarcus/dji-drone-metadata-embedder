@@ -1,7 +1,7 @@
 """Assemble the macOS .app bundle for the DjiEmbed GUI (#414 Stage D).
 
 Pure helpers (unit-tested on any OS via tests/test_macos_bundle.py) plus a
-thin CLI used by .github/workflows/release-macos.yml on the macos-14
+thin CLI used by .github/workflows/release-macos.yml on the macos-15
 runner. Layout contract: the GUI publish output and the CLI live together
 in Contents/MacOS (CliLocator finds dji-embed beside the GUI executable,
 same as the Windows installer layout).
