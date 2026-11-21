@@ -141,7 +141,8 @@ a seventh mode — 360° views, fronting the `panoedit` opening-view
 editor — was added after the 2.0 arc (#440). Options stay curated,
 not exhaustive: they arrive in M3+, one *Advanced* expander per mode for the
 long tail, exotic flags remain CLI-only. As of M4a, the SOURCE door also
-accepts a single telemetry file (`.SRT`/`.MP4`/`.MOV`), not just a folder,
+accepts a single telemetry file (`.SRT`/`.MP4`/`.MOV`; since #614 also
+Autel `.ass` and the action-camera `.360`/`.insv`/`.lrv`), not just a folder,
 and Convert turns it (or a folder) into GPX/CSV/GeoJSON/KML/an HTML map/CoT.
 As of M4b the sixth mode, Verify footage, merges `check` / `validate` /
 `verify-sun` behind a sub-action switch and renders their result

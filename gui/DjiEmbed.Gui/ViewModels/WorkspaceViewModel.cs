@@ -1017,12 +1017,15 @@ public partial class WorkspaceViewModel : FlowViewModel
             // content one: check reads embedded metadata and a .SRT
             // sidecar has none — say so instead of showing three ✗ (#346
             // discipline).
-            if (vopts.SubAction == VerifySubAction.Check
-                && vfile.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
+            var sidecar =
+                vfile.EndsWith(".srt", StringComparison.OrdinalIgnoreCase) ? ".SRT"
+                : vfile.EndsWith(".ass", StringComparison.OrdinalIgnoreCase) ? ".ASS"
+                : null;
+            if (vopts.SubAction == VerifySubAction.Check && sidecar is not null)
             {
                 Fail("Check metadata reads the video or photo itself — a "
-                     + ".SRT flight log has no embedded metadata to check. "
-                     + "Use Sun check for flight logs.");
+                     + sidecar + " flight log has no embedded metadata to "
+                     + "check. Use Sun check for flight logs.");
                 return;
             }
             ResetPreview();
@@ -1135,10 +1138,13 @@ public partial class WorkspaceViewModel : FlowViewModel
                     CommandBuilder.Embed(folder, embed)));
                 return;
             case WorkspaceModeKind.Convert
-                when !(contents.HasTopLevelFlightLogs || contents.HasTopLevelVideos):
-                // convert -b globs one directory level (SRT/MP4/MOV) and has no
+                when !(contents.HasTopLevelFlightLogs || contents.HasTopLevelVideos
+                       || contents.HasTopLevelTelemetryVideos):
+                // convert -b globs one directory level (flight logs, videos
+                // and the action-camera containers, #614) and has no
                 // recursive flag at all — same reach rule as embed (#333/#338).
                 Fail(contents.HasFlightLogs || contents.HasVideos
+                     || contents.HasTelemetryVideos
                     ? "Those files are in subfolders — Convert reads only the "
                       + "folder you pick. Pick the subfolder that holds the "
                       + "flight logs or videos."

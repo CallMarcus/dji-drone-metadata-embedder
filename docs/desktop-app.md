@@ -36,7 +36,11 @@ likely mode is picked for you. The **Mode** strip offers:
   Some drones write the telemetry inside the video instead of a
   `.SRT` (Parrot Anafi, and DJI models such as the Air 3S, Mini 5 Pro
   and Neo). Those clips are read with ExifTool, which is slower than
-  reading a `.SRT`. A **3D terrain map** toggle renders the flights
+  reading a `.SRT`. GoPro footage that recorded GPS maps the same way
+  (Hero 5–11, 13 and Max, including `.360` and `.lrv` files; Hero 12
+  has no GPS), and so does an Autel EVO `.ass` flight log, which is
+  provisional until checked against a real recording. Insta360 `.insv`
+  files are accepted but untested. A **3D terrain map** toggle renders the flights
   draped over real terrain instead (writes `flightmap-3d.html`, so
   the flat map is never overwritten). An **Airspace zones** option
   overlays official zone data on either map (US FAA, plus ED-269
@@ -49,7 +53,7 @@ likely mode is picked for you. The **Mode** strip offers:
   files themselves (as copies — originals are never touched).
 - **Convert telemetry** — one flight log or video into GPX, KML, CSV,
   GeoJSON, CoT or a standalone web map, for Google Earth and mapping
-  tools.
+  tools. Takes the same files as Flight map, GoPro and Autel included.
 - **Verify** — checks embedded metadata, video/log pairing drift, or
   cross-checks the recorded time and place against the sun's position.
 - **360° views** — opens the panorama opening-view editor

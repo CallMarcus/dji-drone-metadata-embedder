@@ -28,6 +28,10 @@ public class FolderPickingTests : IDisposable
 
     [Theory]
     [InlineData("clip.SRT", false, "file")]   // telemetry file accepted
+    [InlineData("EVO_0001.ass", false, "file")]   // Autel sidecar (#614)
+    [InlineData("GS010001.360", false, "file")]   // GoPro Max
+    [InlineData("VID_0001.INSV", false, "file")]  // Insta360
+    [InlineData("GL010001.lrv", false, "file")]   // GoPro proxy
     [InlineData("movie.mkv", false, "none")]  // wrong extension ignored
     [InlineData("clip.srt", true, "folder")]  // folder in payload wins
     public void Drop_resolution_prefers_folders_then_telemetry_files(
