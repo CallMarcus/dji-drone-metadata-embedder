@@ -180,6 +180,29 @@ runs:
         # "token initialized" - the old cert probe just couldn't see the
         # certificate; see cert_visible above.)
         LOGIN_OK=""
+        # TEMP-DIAG: screenshots encrypted to a throwaway maintainer key, so the
+        # public artifact never exposes what is on the login screen.
+        cat > "$RUNNER_TEMP/diag-pub.pem" <<'PEM'
+        -----BEGIN PUBLIC KEY-----
+        MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA1xA7+BlscR+kj0Z0XLRP
+        fcpcLGwDJ66ZRoqQpsMTe6BDq4GIdCZ6WfdYFketbUulFkfIzxX92UP96Li1Nc1y
+        kTCgRiRd+/Nqz0jiuI1LSBPB/PoLvBdWzckN/cr5s9jqcOBLpxNMOEP29kh6CVQz
+        70vbEuKdUIDN6wnwYiBI6JiChroDMdNSvKn/DNH/bIKn1SSMGnbE3uGHW/EDmj6T
+        scbH3i4a2xHGjOl2LU9fN/mp4WfyPINyPFBiFv9v3WAK35wQHwU8g31IPoLgS2HN
+        rYvmU+Ku/z0x5qYeCrE5aqLqQa617ECnoGddH1iPwWZ4pqkSP+/1IUp7g05OA+Hv
+        rlMBqhGJLDDWJZondpf0zte4M/bRk5q/UIpmlM1zEn5FrFrtrCZ3HFwvy8Fp7Xvx
+        x2GLDDoV/5rEWYxA/yjERZLgXzZ2XgMZrGTnEoxAs3coz9v1vYssVWill+KtR3c8
+        YDMnJaLIBRbuAdk9jXFj0Kuk4ZJpJo6sDtENskMTQ7p3AgMBAAE=
+        -----END PUBLIC KEY-----
+        PEM
+        shot() {
+          mkdir -p "$RUNNER_TEMP/certum-diag" "$RUNNER_TEMP/diag-tmp"
+          timeout 15 xwd -root -silent -out "$RUNNER_TEMP/diag-tmp/$1.xwd" || return 0
+          openssl rand -hex 32 > "$RUNNER_TEMP/diag-tmp/k"
+          openssl enc -aes-256-cbc -pbkdf2 -pass "file:$RUNNER_TEMP/diag-tmp/k" -in "$RUNNER_TEMP/diag-tmp/$1.xwd" -out "$RUNNER_TEMP/certum-diag/$1.xwd.enc"
+          openssl pkeyutl -encrypt -pubin -inkey "$RUNNER_TEMP/diag-pub.pem" -pkeyopt rsa_padding_mode:oaep -in "$RUNNER_TEMP/diag-tmp/k" -out "$RUNNER_TEMP/certum-diag/$1.key.enc"
+          rm -f "$RUNNER_TEMP/diag-tmp/$1.xwd" "$RUNNER_TEMP/diag-tmp/k"
+        }
         (apt-get update -qq && apt-get install -y -qq x11-apps) >/dev/null 2>&1 || echo "TEMP-DIAG: x11-apps install failed"
         for login_attempt in 1; do
           # Let the embedded web page finish loading/reloading + autofill.
@@ -193,14 +216,7 @@ runs:
           timeout 15 xdotool windowraise "$WID" || true
           sleep 1
 
-          # Diagnostic: the screen before anything is typed. First attempt
-          # only: on a retry the form may still show the user id typed
-          # earlier, and this repository's artifacts are public. Uploaded
-          # only when the job fails.
-          if [ "$login_attempt" = 1 ]; then
-            mkdir -p "$RUNNER_TEMP/certum-diag"
-            timeout 15 xwd -root -silent -out "$RUNNER_TEMP/certum-diag/before-login.xwd" || true
-          fi
+          shot before-login
 
           OTP="$(python3 "$RUNNER_TEMP/otp.py")"
           echo "::add-mask::$OTP"
@@ -212,14 +228,16 @@ runs:
           # extras look disabled - so geometry clicks are the only drive
           # that works. It was also never the weak spot: see the outage
           # post-mortem above.)
-          xdotool mousemove $((BX + BW/2)) $((BY + BH*39/100)) click 1; sleep 1
+          xdotool mousemove $((BX + BW/2)) $((BY + BH*55/100)) click 1; sleep 1
           xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
           xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
           xdotool key Tab; sleep 1
           xdotool key --clearmodifiers ctrl+a; xdotool key --clearmodifiers Delete
           xdotool type --clearmodifiers --delay 50 "$OTP"
-          xdotool mousemove $((BX + BW/2)) $((BY + BH*76/100)) click 1
+          shot typed
+          xdotool key Return
           sleep 8
+          shot after-submit
 
           # "Logon successful" dialog: the token does NOT activate until its
           # Close button (bottom-centre) is clicked. Re-find the window (its
@@ -228,6 +246,7 @@ runs:
           timeout 15 xdotool windowactivate --sync "$WID" || true
           xdotool mousemove $((BX + BW/2)) $((BY + BH*94/100)) click 1
           sleep 3
+          shot after-close
 
           # Token slots (diagnostic only — the slot can enumerate before the
           # certificate objects load, so it proves nothing by itself).
