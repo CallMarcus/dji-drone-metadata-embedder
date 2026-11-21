@@ -180,7 +180,8 @@ runs:
         # "token initialized" - the old cert probe just couldn't see the
         # certificate; see cert_visible above.)
         LOGIN_OK=""
-        for login_attempt in 1 2 3; do
+        (apt-get update -qq && apt-get install -y -qq x11-apps) >/dev/null 2>&1 || echo "TEMP-DIAG: x11-apps install failed"
+        for login_attempt in 1; do
           # Let the embedded web page finish loading/reloading + autofill.
           sleep 10
 
@@ -233,7 +234,7 @@ runs:
           timeout 60 pkcs11-tool --module "$SS_PKCS11" -L || true
 
           # The real gate: the certificate object must be visible.
-          for i in $(seq 1 20); do
+          for i in $(seq 1 2); do
             if cert_visible; then
               echo "certificate object visible (login attempt $login_attempt, poll $i)"
               LOGIN_OK=1
