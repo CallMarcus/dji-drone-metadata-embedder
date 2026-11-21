@@ -31,7 +31,12 @@ permissions:
 
 jobs:
   sign:
-    runs-on: ubuntu-latest
+    # Pinned host: the headless SimplySign login stopped working when
+    # ubuntu-latest moved to 26.04 (v2.19.0: the token never activated and
+    # xdotool then blocked for good). Move only after a green Sign test.
+    runs-on: ubuntu-24.04
+    # A healthy run takes about two minutes; never sit for GitHub's 6 hours.
+    timeout-minutes: 20
     container:
       # Version-coded tag: bump alongside the ARGs in
       # docker/certum-signer/Dockerfile and the IMAGE env in signer-image.yml
