@@ -192,10 +192,14 @@ runs:
           timeout 15 xdotool windowraise "$WID" || true
           sleep 1
 
-          # Diagnostic: the screen before anything is typed (no user id or
-          # OTP on it yet). Uploaded only when the job fails.
-          mkdir -p "$RUNNER_TEMP/certum-diag"
-          timeout 15 xwd -root -silent -out "$RUNNER_TEMP/certum-diag/before-login-$login_attempt.xwd" || true
+          # Diagnostic: the screen before anything is typed. First attempt
+          # only: on a retry the form may still show the user id typed
+          # earlier, and this repository's artifacts are public. Uploaded
+          # only when the job fails.
+          if [ "$login_attempt" = 1 ]; then
+            mkdir -p "$RUNNER_TEMP/certum-diag"
+            timeout 15 xwd -root -silent -out "$RUNNER_TEMP/certum-diag/before-login.xwd" || true
+          fi
 
           OTP="$(python3 "$RUNNER_TEMP/otp.py")"
           echo "::add-mask::$OTP"
