@@ -31,11 +31,12 @@ permissions:
 
 jobs:
   sign:
-    # Pinned host: the headless SimplySign login stopped working when
-    # ubuntu-latest moved to 26.04 (v2.19.0: the token never activated and
-    # xdotool then blocked for good). Move only after a green Sign test.
+    # Pinned host, so a move of ubuntu-latest can't change what the GUI
+    # drive runs on unannounced. Move only after a green Sign test.
     runs-on: ubuntu-24.04
-    # A healthy run takes about two minutes; never sit for GitHub's 6 hours.
+    # A healthy run takes about two minutes. When the login fails, the
+    # PKCS#11 probes block for a minute each, which once held a release
+    # for 20 minutes per leg with no output.
     timeout-minutes: 20
     container:
       # Version-coded tag: bump alongside the ARGs in
