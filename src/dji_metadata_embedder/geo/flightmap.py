@@ -2,9 +2,10 @@
 
 A directory of DJI ``.SRT`` sidecars is parsed straight into :class:`Track`
 objects with no external tool. Videos that have no sidecar are probed for an
-embedded telemetry track (DJI ``djmd``/``dbgi``, Parrot ``mett``) and, when
-they carry one, read through ExifTool; plain videos are ignored, so scanning
-an archive of clips stays fast. The resulting track list is the single model
+embedded telemetry track (DJI ``djmd``/``dbgi``, Parrot ``mett``, GoPro
+``gpmd``, Insta360) and, when they carry one, read through ExifTool; plain
+videos are ignored, so scanning an archive of clips stays fast. The resulting
+track list is the single model
 every flightmap writer consumes: GeoJSON and KML here, the combined HTML map
 in :mod:`.flightmap_html`.
 """
@@ -22,7 +23,13 @@ from statistics import median
 from xml.sax.saxutils import escape
 
 from .. import utilities
-from ..mp4_telemetry import Mp4TelemetryError, is_video, probe
+from ..mp4_telemetry import (
+    Mp4TelemetryError,
+    drop_proxy_duplicates,
+    is_video,
+    probe,
+    video_globs,
+)
 from ..utilities import TelemetrySample, load_samples, redact_coords
 from ..utils.exiftool import exiftool_available
 from . import videogimbal
@@ -39,7 +46,7 @@ _SRT_PATTERNS = ("*.SRT", "*.srt")
 
 # Videos considered when they have no SRT beside them (same suffix set as
 # mp4_telemetry.VIDEO_SUFFIXES, both cases for case-sensitive filesystems).
-_VIDEO_PATTERNS = ("*.MP4", "*.mp4", "*.MOV", "*.mov")
+_VIDEO_PATTERNS = video_globs()
 
 
 def _sidecarless_videos(root: Path, recursive: bool, srts: set[Path]) -> list[Path]:
@@ -48,7 +55,9 @@ def _sidecarless_videos(root: Path, recursive: bool, srts: set[Path]) -> list[Pa
     videos: set[Path] = set()
     for pattern in _VIDEO_PATTERNS:
         videos.update(root.rglob(pattern) if recursive else root.glob(pattern))
-    return sorted(v for v in videos if v.with_suffix("") not in stems)
+    return drop_proxy_duplicates(
+        sorted(v for v in videos if v.with_suffix("") not in stems)
+    )
 
 
 def _display_name(path: Path, root: Path, recursive: bool) -> str:

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -941,7 +942,10 @@ def _video_sample(cue, dt):
     )
 
 
-@pytest.mark.parametrize("video_name", ["P2690514.MP4", "P2690514.MOV"])
+@pytest.mark.parametrize(
+    "video_name",
+    ["P2690514.MP4", "P2690514.MOV", "GS010001.360", "VID_001.insv", "GH010001.LRV"],
+)
 def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(
     tmp_path, monkeypatch, video_name
 ):
@@ -955,12 +959,33 @@ def test_scan_flights_maps_a_sidecarless_video_that_carries_telemetry(
     tracks, skipped = scan_flights(
         tmp_path, probe_video=lambda p: "parrot:videometadata3", extract=fake_extract
     )
-    assert [t.name for t in tracks] == ["DJI_0001", "P2690514"]
+    assert [t.name for t in tracks] == ["DJI_0001", Path(video_name).stem]
     video = tracks[1]
     assert video.points[0].utc == datetime(2025, 9, 22, 21, 27, 56)  # already UTC
     assert (video.points[0].gimbal_yaw, video.points[0].gimbal_pitch) == (40.0, -88.0)
     assert video.points[0].rel_alt == 40.0
     assert skipped == []
+
+
+def test_scan_flights_skips_lrv_proxy_when_full_res_is_present(tmp_path, monkeypatch):
+    monkeypatch.setattr(fm, "exiftool_available", lambda: True)
+    (tmp_path / "GH010001.MP4").write_bytes(b"")
+    (tmp_path / "GH010001.LRV").write_bytes(b"")
+    probed: list[str] = []
+
+    def probe(path):
+        probed.append(Path(path).name)
+        return "gopro:gpmd"
+
+    tracks, _ = scan_flights(
+        tmp_path,
+        probe_video=probe,
+        extract=lambda p: [
+            _video_sample("00:00:00,000", datetime(2019, 11, 18, 23, 44, 42))
+        ],
+    )
+    assert probed == ["GH010001.MP4"]
+    assert [t.name for t in tracks] == ["GH010001"]
 
 
 def test_scan_flights_tz_offset_sets_local_offset_for_a_video_track(

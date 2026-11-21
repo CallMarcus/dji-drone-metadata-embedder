@@ -1,0 +1,113 @@
+[
+  {
+    "SourceFile": "max-360mode.mp4",
+    "Doc1": {
+      "SampleTime": 0,
+      "SampleDuration": 1.001,
+      "DeviceName": "GoPro Max",
+      "GPSMeasureMode": 3,
+      "GPSDateTime": "2019:11:18 23:44:42.590",
+      "GPSHPositioningError": 1.78,
+      "GPSLatitude": 33.1266719,
+      "GPSLongitude": -117.3273063,
+      "GPSAltitude": -22.18,
+      "GPSSpeed": 2.9628
+    },
+    "Doc1-1": {
+      "GPSLatitude": 33.1266723,
+      "GPSLongitude": -117.3273068,
+      "GPSAltitude": -22.096,
+      "GPSSpeed": 3.942
+    },
+    "Doc1-2": {
+      "GPSLatitude": 33.1266729,
+      "GPSLongitude": -117.3273073,
+      "GPSAltitude": -21.99,
+      "GPSSpeed": 4.896
+    },
+    "Doc1-3": {
+      "GPSLatitude": 33.1266731,
+      "GPSLongitude": -117.3273075,
+      "GPSAltitude": -21.915,
+      "GPSSpeed": 3.7728
+    },
+    "Doc1-4": {
+      "GPSLatitude": 33.1266733,
+      "GPSLongitude": -117.3273077,
+      "GPSAltitude": -21.803,
+      "GPSSpeed": 4.446
+    },
+    "Doc1-5": {
+      "GPSLatitude": 33.1266735,
+      "GPSLongitude": -117.327308,
+      "GPSAltitude": -21.705,
+      "GPSSpeed": 3.8772
+    },
+    "Doc1-6": {
+      "GPSLatitude": 33.1266741,
+      "GPSLongitude": -117.3273082,
+      "GPSAltitude": -21.655,
+      "GPSSpeed": 4.464
+    },
+    "Doc1-7": {
+      "GPSLatitude": 33.1266745,
+      "GPSLongitude": -117.3273083,
+      "GPSAltitude": -21.603,
+      "GPSSpeed": 4.2912
+    },
+    "Doc1-8": {
+      "GPSLatitude": 33.1266753,
+      "GPSLongitude": -117.3273085,
+      "GPSAltitude": -21.587,
+      "GPSSpeed": 4.8816
+    },
+    "Doc1-9": {
+      "GPSLatitude": 33.1266759,
+      "GPSLongitude": -117.3273087,
+      "GPSAltitude": -21.599,
+      "GPSSpeed": 4.5468
+    },
+    "Doc1-10": {
+      "GPSLatitude": 33.1266762,
+      "GPSLongitude": -117.3273087,
+      "GPSAltitude": -21.606,
+      "GPSSpeed": 3.3876
+    },
+    "Doc1-11": {
+      "GPSLatitude": 33.1266765,
+      "GPSLongitude": -117.3273089,
+      "GPSAltitude": -21.58,
+      "GPSSpeed": 2.9304
+    },
+    "Doc1-12": {
+      "GPSLatitude": 33.1266769,
+      "GPSLongitude": -117.3273091,
+      "GPSAltitude": -21.569,
+      "GPSSpeed": 3.0672
+    },
+    "Doc1-13": {
+      "GPSLatitude": 33.1266773,
+      "GPSLongitude": -117.3273093,
+      "GPSAltitude": -21.561,
+      "GPSSpeed": 3.1068
+    },
+    "Doc1-14": {
+      "GPSLatitude": 33.1266777,
+      "GPSLongitude": -117.3273096,
+      "GPSAltitude": -21.555,
+      "GPSSpeed": 3.3156
+    },
+    "Doc1-15": {
+      "GPSLatitude": 33.1266781,
+      "GPSLongitude": -117.3273099,
+      "GPSAltitude": -21.543,
+      "GPSSpeed": 3.1752
+    },
+    "Doc1-16": {
+      "GPSLatitude": 33.1266785,
+      "GPSLongitude": -117.3273103,
+      "GPSAltitude": -21.529,
+      "GPSSpeed": 3.3048
+    }
+  }
+]

@@ -1,0 +1,125 @@
+[
+  {
+    "SourceFile": "hero8.mp4",
+    "Doc1": {
+      "SampleTime": 0,
+      "SampleDuration": 1.001,
+      "DeviceName": "HERO8 Black",
+      "GPSMeasureMode": 0,
+      "GPSDateTime": "2019:11:18 23:42:08.645",
+      "GPSHPositioningError": 99.99,
+      "GPSLatitude": 42.0266244,
+      "GPSLongitude": -129.2943386,
+      "GPSAltitude": 9540.24,
+      "GPSSpeed": 0
+    },
+    "Doc1-1": {
+      "GPSLatitude": 42.0264665,
+      "GPSLongitude": -129.2940227,
+      "GPSAltitude": 9540.182,
+      "GPSSpeed": 0
+    },
+    "Doc1-2": {
+      "GPSLatitude": 42.0263085,
+      "GPSLongitude": -129.2937068,
+      "GPSAltitude": 9540.123,
+      "GPSSpeed": 0
+    },
+    "Doc1-3": {
+      "GPSLatitude": 42.5784019,
+      "GPSLongitude": -129.5169115,
+      "GPSAltitude": 9745.102,
+      "GPSSpeed": 0
+    },
+    "Doc1-4": {
+      "GPSLatitude": 42.5782498,
+      "GPSLongitude": -129.5165875,
+      "GPSAltitude": 9745.046,
+      "GPSSpeed": 0
+    },
+    "Doc1-5": {
+      "GPSLatitude": 42.0258347,
+      "GPSLongitude": -129.2927592,
+      "GPSAltitude": 9539.947,
+      "GPSSpeed": 0
+    },
+    "Doc1-6": {
+      "GPSLatitude": 42.0256767,
+      "GPSLongitude": -129.2924433,
+      "GPSAltitude": 9539.889,
+      "GPSSpeed": 0
+    },
+    "Doc1-7": {
+      "GPSLatitude": 42.5777935,
+      "GPSLongitude": -129.5156154,
+      "GPSAltitude": 9744.876,
+      "GPSSpeed": 0
+    },
+    "Doc1-8": {
+      "GPSLatitude": 42.5776414,
+      "GPSLongitude": -129.5152914,
+      "GPSAltitude": 9744.82,
+      "GPSSpeed": 0
+    },
+    "Doc1-9": {
+      "GPSLatitude": 42.2650395,
+      "GPSLongitude": -129.388038,
+      "GPSAltitude": 9628.708,
+      "GPSSpeed": 0
+    },
+    "Doc1-10": {
+      "GPSLatitude": 42.264884,
+      "GPSLongitude": -129.3877186,
+      "GPSAltitude": 9628.65,
+      "GPSSpeed": 0
+    },
+    "Doc1-11": {
+      "GPSLatitude": 42.2647286,
+      "GPSLongitude": -129.3873992,
+      "GPSAltitude": 9628.593,
+      "GPSSpeed": 0
+    },
+    "Doc1-12": {
+      "GPSLatitude": 41.7054229,
+      "GPSLongitude": -129.1632083,
+      "GPSAltitude": 9421.185,
+      "GPSSpeed": 0
+    },
+    "Doc1-13": {
+      "GPSLatitude": 41.7052616,
+      "GPSLongitude": -129.162897,
+      "GPSAltitude": 9421.125,
+      "GPSSpeed": 0
+    },
+    "Doc1-14": {
+      "GPSLatitude": 38.4333443,
+      "GPSLongitude": -127.9287949,
+      "GPSAltitude": 8220.372,
+      "GPSSpeed": 0
+    },
+    "Doc1-15": {
+      "GPSLatitude": 38.4331488,
+      "GPSLongitude": -127.9285289,
+      "GPSAltitude": 8220.301,
+      "GPSSpeed": 0
+    },
+    "Doc1-16": {
+      "GPSLatitude": 38.4329532,
+      "GPSLongitude": -127.9282629,
+      "GPSAltitude": 8220.23,
+      "GPSSpeed": 0
+    },
+    "Doc1-17": {
+      "GPSLatitude": 38.0412669,
+      "GPSLongitude": -127.7882955,
+      "GPSAltitude": 8078.376,
+      "GPSSpeed": 0
+    },
+    "Doc1-18": {
+      "GPSLatitude": 37.6652955,
+      "GPSLongitude": -127.6554009,
+      "GPSAltitude": 7942.678,
+      "GPSSpeed": 0
+    }
+  }
+]

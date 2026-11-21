@@ -1,6 +1,6 @@
 import json
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -431,3 +431,315 @@ def test_quat_to_heading_pitch_rejects_malformed_input():
         mt.quat_to_heading_pitch("1 0 0")
     with pytest.raises(ValueError):
         mt.quat_to_heading_pitch("a b c d")
+
+
+# --- action cameras (GoPro GPMF, Osmo Action, Insta360) ---
+#
+# Fixtures are trimmed excerpts of `exiftool -ee -j -g3 -n` (ExifTool 13.64)
+# on the public clips in https://github.com/gopro/gpmf-parser/tree/main/samples
+# (hero5.mp4, hero8.mp4, max-360mode.mp4). Binary sensor blobs are omitted;
+# every GPS number is ExifTool's own.
+
+
+def test_gps_altitude_used_when_absolute_altitude_is_absent():
+    # GoPro GPMF and Osmo Action 4/5/6 (dvtm_ac203 GPSAltitude) do not
+    # write the DJI AbsoluteAltitude tag.
+    samples, saw = mt._samples_from_exiftool(_docs({"GPSAltitude": 42.5}))
+    assert saw is True
+    assert samples[0].alt == 42.5
+
+
+def test_absolute_altitude_still_wins_when_both_tags_exist():
+    samples, _ = mt._samples_from_exiftool(
+        _docs({"AbsoluteAltitude": 10.0, "GPSAltitude": 99.0})
+    )
+    assert samples[0].alt == 10.0
+
+
+def test_gpmf_subsamples_keep_altitude_and_drop_nofix_group():
+    # ExifTool -g3 splits one GPMF burst into DocN plus DocN-1, DocN-2, …
+    # Fix quality (GPSF/GPSP) is stored only on the parent; the rest of
+    # the burst inherits it. A mode-0 / 99.99 group is GoPro's no-lock
+    # sentinel and must not become track points.
+    data = [
+        {
+            "Doc1": {
+                "SampleTime": 0,
+                "SampleDuration": 1.0,
+                "GPSMeasureMode": 3,
+                "GPSHPositioningError": 1.5,
+                "GPSDateTime": "2017:04:17 17:31:03.000",
+                "GPSLatitude": 33.1,
+                "GPSLongitude": -117.3,
+                "GPSAltitude": -20.0,
+            },
+            "Doc1-1": {
+                "GPSLatitude": 33.1001,
+                "GPSLongitude": -117.3001,
+                "GPSAltitude": -19.5,
+            },
+            "Doc2": {
+                "SampleTime": 1.0,
+                "SampleDuration": 1.0,
+                "GPSMeasureMode": 0,
+                "GPSHPositioningError": 99.99,
+                "GPSLatitude": 1.0,
+                "GPSLongitude": 2.0,
+                "GPSAltitude": 9000.0,
+            },
+            "Doc2-1": {
+                "GPSLatitude": 1.1,
+                "GPSLongitude": 2.1,
+                "GPSAltitude": 9001.0,
+            },
+        }
+    ]
+    samples, saw = mt._samples_from_exiftool(data)
+    assert saw is True
+    assert len(samples) == 2
+    assert (samples[0].lat, samples[0].alt, samples[0].cue) == (
+        33.1,
+        -20.0,
+        "00:00:00,000",
+    )
+    assert samples[1].lat == 33.1001
+    assert samples[1].alt == -19.5
+    assert samples[1].cue == "00:00:00,500"
+    assert samples[1].dt == datetime(2017, 4, 17, 17, 31, 3, 500000)
+
+
+def test_samples_from_exiftool_maps_gopro_hero5():
+    samples, saw = mt._samples_from_exiftool(_load("gopro_hero5_g3j.json"))
+    assert saw is True
+    # Two 1-second GPS5 bursts, 18 fixes each. DOP 6.06 is a real lock
+    # (the no-fix sentinel is 99.99) and must be kept.
+    assert len(samples) == 36
+    first, second = samples[0], samples[1]
+    assert (first.lat, first.lon, first.alt) == (33.1264969, -117.3273542, -20.184)
+    assert first.cue == "00:00:00,000"
+    assert first.dt == datetime(2017, 4, 17, 17, 31, 3)
+    assert (second.lat, second.alt) == (33.1264969, -20.146)
+    assert second.cue == "00:00:00,055"
+    # The next burst is stamped 0.985 s later, inside the 1.001 s sample, so
+    # the 18 fixes share 0.985 s and the track never steps back in time.
+    assert second.dt == datetime(2017, 4, 17, 17, 31, 3) + timedelta(seconds=0.985 / 18)
+    assert [s.dt for s in samples] == sorted(s.dt for s in samples)
+    # 1.001 s truncates to 1000 ms in the shared cue formatter (float × 1000).
+    assert samples[18].cue == "00:00:01,000"
+    assert samples[18].alt == -20.054
+    assert samples[18].dt == datetime(2017, 4, 17, 17, 31, 3, 985000)
+    assert all(s.alt != 0.0 for s in samples)
+
+
+def test_samples_from_exiftool_maps_gopro_max():
+    samples, saw = mt._samples_from_exiftool(_load("gopro_max_g3j.json"))
+    assert saw is True
+    assert len(samples) == 17
+    first = samples[0]
+    assert (first.lat, first.lon, first.alt) == (33.1266719, -117.3273063, -22.18)
+    assert first.dt == datetime(2019, 11, 18, 23, 44, 42, 590000)
+    assert samples[1].alt == -22.096
+
+
+def test_samples_from_exiftool_drops_gopro_hero8_nofix_burst():
+    # The published hero8 clip never locks: every burst is GPSMeasureMode 0
+    # and GPSHPositioningError 99.99, with coordinates that are not (0, 0).
+    samples, saw = mt._samples_from_exiftool(_load("gopro_hero8_g3j.json"))
+    assert saw is True
+    assert samples == []
+
+
+def test_locked_dop_is_kept_and_sentinel_is_not():
+    kept, _ = mt._samples_from_exiftool(
+        _docs({"GPSMeasureMode": 3, "GPSHPositioningError": 6.06, "GPSAltitude": 4.0})
+    )
+    dropped, saw = mt._samples_from_exiftool(
+        _docs({"GPSMeasureMode": 2, "GPSDOP": 99.99, "GPSAltitude": 4.0})
+    )
+    assert len(kept) == 1 and kept[0].alt == 4.0
+    assert dropped == [] and saw is True
+
+
+def test_load_samples_accepts_action_cam_containers(monkeypatch, tmp_path):
+    monkeypatch.setattr(mt, "_run_exiftool_json", lambda p: _load("gopro_max_g3j.json"))
+    for name in ("clip.360", "clip.INSV", "clip.LRV"):
+        path = tmp_path / name
+        path.write_bytes(b"\x00")
+        assert len(load_samples(path)) == 17
+
+
+def test_probe_recognises_gopro_gpmd_when_another_track_follows(monkeypatch, tmp_path):
+    # Without -a, ExifTool prints only the last MetaFormat. On Hero and Max
+    # clips that is fdsc, so the gpmd GPS track is invisible.
+    out = (
+        "MetaFormat                      : gpmd\n"
+        "MetaFormat                      : fdsc\n"
+        "HandlerType                     : NRT Metadata\n"
+    )
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "GH010123.MP4"
+    f.write_bytes(b"\x00")
+    assert mt.probe(f) == "gopro:gpmd"
+
+
+def test_probe_requests_duplicate_tags_and_handler_type(monkeypatch, tmp_path):
+    seen: list[list[str]] = []
+
+    def fake_run(args):
+        seen.append(list(args))
+        return subprocess.CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(mt, "_run", fake_run)
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00")
+    mt.probe(f)
+    assert "-a" in seen[0]
+    assert "-HandlerType" in seen[0]
+
+
+def test_probe_recognises_insta360_camm_handler(monkeypatch, tmp_path):
+    out = "HandlerType                     : camm\n"
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, out, "")
+    )
+    f = tmp_path / "VID.mp4"
+    f.write_bytes(b"\x00" * 64)
+    assert mt.probe(f) == "insta360:camm"
+
+
+def test_probe_recognises_insta360_trailer_magic(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mt, "_run", lambda args: subprocess.CompletedProcess([], 0, "", "")
+    )
+    f = tmp_path / "VID_001.insv"
+    f.write_bytes(b"mp4-bytes" + b"8db42d694ccc418790edff439fe026bf")
+    assert mt.probe(f) == "insta360"
+
+
+def test_undecoded_gopro_error_does_not_claim_a_dji_version_floor(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}]
+    )
+    monkeypatch.setattr(mt, "probe", lambda p: "gopro:gpmd")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "13.64")
+    f = tmp_path / "HERO12.MP4"
+    f.write_bytes(b"\x00")
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    msg = str(exc.value)
+    assert "Hero 12" in msg
+    assert ">=" not in msg
+
+
+def test_undecoded_insta360_error_mentions_the_remote(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}]
+    )
+    monkeypatch.setattr(mt, "probe", lambda p: "insta360")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "13.64")
+    f = tmp_path / "VID.insv"
+    f.write_bytes(b"\x00")
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    msg = str(exc.value)
+    assert "GPS" in msg
+    assert "remote" in msg.lower() or "app" in msg.lower()
+    assert ">=" not in msg
+
+
+def test_undecoded_osmo_action_error_mentions_the_remote(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mt, "_run_exiftool_json", lambda p: [{"Doc1": {"SampleTime": 0}}]
+    )
+    monkeypatch.setattr(mt, "probe", lambda p: "dvtm_ac204.proto")
+    monkeypatch.setattr(mt, "exiftool_version", lambda: "13.64")
+    f = tmp_path / "DJI_0001.MP4"
+    f.write_bytes(b"\x00")
+    with pytest.raises(mt.Mp4TelemetryError) as exc:
+        mt.extract_samples(f)
+    msg = str(exc.value)
+    assert "Osmo Action" in msg
+    assert ">=" not in msg
+
+
+def test_proxy_dropped_when_gopro_names_it_gl_beside_gh_gx_or_gs():
+    # Hero 6 and later do not share a stem with their proxy: the full-res
+    # file is GH (AVC), GX (HEVC) or GS (Max .360) and the proxy is GL with
+    # the same chapter and clip digits. Older cameras (GOPR0005) do share it.
+    paths = [
+        Path("card/GX010001.MP4"),
+        Path("card/GL010001.LRV"),
+        Path("card/GH010002.MP4"),
+        Path("card/GL010002.LRV"),
+        Path("card/GS010003.360"),
+        Path("card/GL010003.LRV"),
+        Path("card/GL010004.LRV"),
+        Path("card/GOPR0005.MP4"),
+        Path("card/GOPR0005.LRV"),
+        Path("other/GL010001.LRV"),
+    ]
+    assert mt.drop_proxy_duplicates(paths) == [
+        Path("card/GX010001.MP4"),
+        Path("card/GH010002.MP4"),
+        Path("card/GS010003.360"),
+        Path("card/GL010004.LRV"),
+        Path("card/GOPR0005.MP4"),
+        Path("other/GL010001.LRV"),
+    ]
+
+
+def _burst(start, sample_time, fixes):
+    docs = {
+        "DocN": {
+            "SampleTime": sample_time,
+            "SampleDuration": 1.0,
+            "GPSMeasureMode": 3,
+            "GPSHPositioningError": 1.5,
+            "GPSDateTime": start,
+            "GPSLatitude": 33.1,
+            "GPSLongitude": -117.3,
+        }
+    }
+    for k in range(1, fixes):
+        docs[f"DocN-{k}"] = {"GPSLatitude": 33.1 + k / 1e4, "GPSLongitude": -117.3}
+    return docs
+
+
+def _bursts(*bursts):
+    root = {}
+    for n, docs in enumerate(bursts, start=1):
+        for key, doc in docs.items():
+            root[key.replace("DocN", f"Doc{n}")] = doc
+    return [root]
+
+
+def test_burst_is_spaced_up_to_the_next_gps_time_not_past_it():
+    # The camera stamps the next burst 0.7 s later although the MP4 sample
+    # lasts 1.0 s (hero5.mp4: 0.985 s against 1.001 s). Spacing the fixes over
+    # the sample duration put the last one after the next burst's first.
+    data = _bursts(
+        _burst("2017:04:17 17:31:03.000", 0, 4),
+        _burst("2017:04:17 17:31:03.700", 1.0, 4),
+    )
+    samples, _ = mt._samples_from_exiftool(data)
+    times = [s.dt for s in samples]
+    assert times == sorted(times)
+    assert samples[3].dt == datetime(2017, 4, 17, 17, 31, 3, 525000)
+    assert samples[4].dt == datetime(2017, 4, 17, 17, 31, 3, 700000)
+    # Cue time is playback time and still follows the sample duration.
+    assert samples[3].cue == "00:00:00,750"
+
+
+def test_burst_keeps_the_sample_duration_across_a_gps_time_gap():
+    # A dropped second (max-360mode.mp4 has one) must not stretch the burst
+    # before it across the hole.
+    data = _bursts(
+        _burst("2019:11:18 23:44:42.000", 0, 4),
+        _burst("2019:11:18 23:44:44.000", 1.0, 4),
+    )
+    samples, _ = mt._samples_from_exiftool(data)
+    assert samples[3].dt == datetime(2019, 11, 18, 23, 44, 42, 750000)

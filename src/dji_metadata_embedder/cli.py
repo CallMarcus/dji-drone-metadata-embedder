@@ -61,7 +61,13 @@ from .geo.videogimbal import (
     schema_carries_gimbal,
 )
 from .metadata_check import check_metadata, media_files_in
-from .mp4_telemetry import _EXIFTOOL_INSTALL_HINT, Mp4TelemetryError, probe
+from .mp4_telemetry import (
+    _EXIFTOOL_INSTALL_HINT,
+    Mp4TelemetryError,
+    drop_proxy_duplicates,
+    probe,
+    video_globs,
+)
 from .progress import NullProgress, make_progress
 from .telemetry_converter import (
     extract_telemetry_to_csv,
@@ -609,7 +615,7 @@ def convert(
         outputs: list[Path] = []
         skipped = 0
         if batch:
-            patterns = ("*.SRT", "*.srt", "*.MP4", "*.mp4", "*.MOV", "*.mov")
+            patterns = ("*.SRT", "*.srt", *video_globs())
             seen: set[Path] = set()
             targets: list[Path] = []
             for pattern in patterns:
@@ -617,6 +623,7 @@ def convert(
                     if path not in seen:
                         seen.add(path)
                         targets.append(path)
+            targets = drop_proxy_duplicates(targets)
             for index, path in enumerate(targets, start=1):
                 progress.advance(index, len(targets), item=path.name)
                 try:
