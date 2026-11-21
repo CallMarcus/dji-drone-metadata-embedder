@@ -186,9 +186,16 @@ runs:
 
           find_window
           [ -n "$WID" ] || { echo "no SimplySign window on attempt $login_attempt"; sleep 5; continue; }
-          xdotool windowactivate --sync "$WID" || xdotool windowactivate "$WID" || true
-          xdotool windowraise "$WID" || true
+          # `--sync` waits for the window manager to confirm; if the app has
+          # stopped answering it waits for ever, so bound it.
+          timeout 15 xdotool windowactivate --sync "$WID" || timeout 15 xdotool windowactivate "$WID" || true
+          timeout 15 xdotool windowraise "$WID" || true
           sleep 1
+
+          # Diagnostic: the screen before anything is typed (no user id or
+          # OTP on it yet). Uploaded only when the job fails.
+          mkdir -p "$RUNNER_TEMP/certum-diag"
+          timeout 15 xwd -root -silent -out "$RUNNER_TEMP/certum-diag/before-login-$login_attempt.xwd" || true
 
           OTP="$(python3 "$RUNNER_TEMP/otp.py")"
           echo "::add-mask::$OTP"
@@ -213,7 +220,7 @@ runs:
           # Close button (bottom-centre) is clicked. Re-find the window (its
           # content changed).
           find_window
-          xdotool windowactivate --sync "$WID" || true
+          timeout 15 xdotool windowactivate --sync "$WID" || true
           xdotool mousemove $((BX + BW/2)) $((BY + BH*94/100)) click 1
           sleep 3
 
@@ -232,6 +239,12 @@ runs:
           done
           [ -n "$LOGIN_OK" ] && break
           echo "login attempt $login_attempt did not activate the token; retrying"
+          # Diagnostic: which windows exist now (titles only), and whether
+          # the app is still alive.
+          for w in $(timeout 15 xdotool search --name '' 2>/dev/null); do
+            echo "window $w: $(timeout 5 xdotool getwindowname "$w" 2>/dev/null || true)"
+          done
+          pgrep -a SimplySign || echo "SimplySign process is gone"
         done
         if [ -z "$LOGIN_OK" ]; then
           echo "::error::certificate never appeared on the token"

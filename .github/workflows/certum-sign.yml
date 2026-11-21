@@ -59,6 +59,14 @@ jobs:
         uses: ./.github/actions/certum-sign
         with:
           files-glob: work/${{ inputs.files-glob }}
+      - name: Upload login diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: certum-diag-${{ inputs.signed-artifact }}
+          path: ${{ runner.temp }}/certum-diag
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Upload signed artifact
         uses: actions/upload-artifact@v7
         with:
