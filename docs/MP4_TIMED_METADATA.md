@@ -2,8 +2,9 @@
 
 Newer DJI models (Air 3S, Mini 5 Pro, and others) record telemetry **inside the
 MP4** as DJI's `djmd`/`dbgi` protobuf timed-metadata track, with no sidecar
-`.SRT`. GoPro, Insta360 and DJI Osmo Action cameras do the same with their own
-tracks. `dji-embed` reads all of them via ExifTool, so the `convert` exporters
+`.SRT`. GoPro cameras do the same with their own track (Insta360 and DJI Osmo
+Action too, though those two are untested here). `dji-embed` reads all of them
+via ExifTool, so the `convert` exporters
 and `verify-sun` work directly on the video:
 
     dji-embed convert gpx     DJI_0001.MP4
@@ -119,9 +120,10 @@ The published Hero 8 sample never locks (mode 0 and error 99.99 for the
 whole clip, with coordinates that are not 0,0). It produces no track.
 Gimbal angles are not in this stream, so 3D camera footprints stay estimated.
 
-## Insta360 and DJI Osmo Action
+## Insta360 and DJI Osmo Action (untested)
 
-These cameras do not record GPS by themselves.
+Nothing in this section has been run on a real recording; a sample clip
+with GPS is welcome. These cameras do not record GPS by themselves.
 
 - **Insta360** (X3, X4, X5, Ace Pro and similar) writes a GPS track only
   when paired with the GPS Action Remote or the phone app. ExifTool reads

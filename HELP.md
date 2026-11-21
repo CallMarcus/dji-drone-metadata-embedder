@@ -26,10 +26,8 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
   DNG) on an interactive HTML map with thumbnails; 360° panoramas get their
   own orange pins and an in-page viewer. `flightmap` draws every flight in
   a folder on one map, from `.SRT` logs or from the telemetry inside
-  sidecar-less DJI and Parrot Anafi videos, and action cameras that
-  recorded GPS (GoPro Hero 5–11, 13 and Max; Insta360 and DJI Osmo Action
-  only when a GPS remote or the phone app was paired — Hero 12 has no GPS).
-  `map` combines both: photos,
+  sidecar-less DJI and Parrot Anafi videos, and GoPro clips that recorded
+  GPS (Hero 5–11, 13 and Max; Hero 12 has no GPS). `map` combines both: photos,
   panoramas and flight tracks on a single map, subfolders included.
 - **Airspace awareness** — `flightmap --airspace` overlays official drone
   zones (FAA UAS Facility Maps in the US, the national feeds in Europe)
@@ -167,9 +165,10 @@ Every command accepts `--help` for its options.
   Phones/drones only geotag when location was enabled at capture time.
 - Supported drones include Mini 3/4/5 Pro, Air 3/3S, Avata 2/360, Neo 2,
   Mavic 3 Enterprise, Matrice 300, Phantom 4 RTK. Action-camera GPS also
-  maps: GoPro Hero 5–11, 13 and Max (Hero 12 has no GPS); Insta360 and
-  DJI Osmo Action only when a GPS remote or the phone app recorded the
-  track. Photo mapping works for **any** GPS-tagged photos, not just DJI's.
+  maps: GoPro Hero 5–11, 13 and Max (Hero 12 has no GPS). Insta360 and
+  DJI Osmo Action are wired up the same way but untested on real files,
+  and they record GPS only with a GPS remote or the phone app, so do not
+  promise a user they will work. Photo mapping works for **any** GPS-tagged photos, not just DJI's.
 - The desktop app is a front end over the same CLI: anything the app does,
   the `dji-embed` command can do with more options.
 - Nothing is ever uploaded, with one opt-in exception: `fetch-log` sends

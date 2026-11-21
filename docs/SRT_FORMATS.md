@@ -244,9 +244,9 @@ if new_format_match:
 | DJI FPV | Format 1 | May include additional flight data |
 
 Footage with no `.SRT` sidecar (Air 3S, Mini 5 Pro, Mavic 4 Pro, the
-Parrot Anafi, GoPro Hero 5–11 / 13 / Max, and Insta360 or DJI Osmo Action
-clips that were recorded with a GPS remote or the phone app) is read from
-the video's own telemetry track. Hero 12 has no GPS. See
+Parrot Anafi, and GoPro Hero 5–11 / 13 / Max) is read from the video's own
+telemetry track. Hero 12 has no GPS; Insta360 and DJI Osmo Action are
+untested. See
 [MP4 Timed Metadata](MP4_TIMED_METADATA.md).
 
 ## Special Considerations

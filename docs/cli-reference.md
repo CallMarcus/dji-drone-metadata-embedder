@@ -112,9 +112,9 @@ Options:
 
 Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML
 map. On sidecar-less models (Air 3S, Mini 5 Pro, …) the input can be the MP4
-itself. GoPro Hero 5–11, 13 and Max (`.mp4`, `.360`, `.lrv`) and Insta360
-(`.insv`, GPS only with a remote or the phone app) work the same way; Hero
-12 has no GPS. Details are in
+itself. GoPro Hero 5–11, 13 and Max (`.mp4`, `.360`, `.lrv`) work the same
+way; Hero 12 has no GPS. Insta360 (`.insv`) is accepted but untested on a
+real file. Details are in
 [MP4 Timed Metadata](MP4_TIMED_METADATA.md).
 
 ```bash
@@ -672,8 +672,8 @@ dji-embed check /path/to/footage
 
 `check` uses `ffprobe` for QuickTime tags and `exiftool` for EXIF data
 when available. `embedded_telemetry` is set for any track `convert` and
-`flightmap` can read: DJI `djmd`/`dbgi`, Parrot Anafi, GoPro GPMF and
-Insta360. Pass `--verbose` for debug output or `--quiet` to only
+`flightmap` can read: DJI `djmd`/`dbgi`, Parrot Anafi and GoPro GPMF
+(Insta360 too, untested). Pass `--verbose` for debug output or `--quiet` to only
 show warnings and errors. `--progress jsonl` switches stdout to
 machine-readable events (see [Progress Events](PROGRESS_JSONL.md)).
 

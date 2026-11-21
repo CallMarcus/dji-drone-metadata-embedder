@@ -161,9 +161,9 @@ log lines.
 ### Sidecar-less footage (MP4 with embedded telemetry)
 
 Newer DJI models record telemetry inside the MP4 instead of a `.SRT`, and
-action cameras do the same (GoPro Hero 5–11, 13 and Max; Insta360 `.insv`
-and Osmo Action only when a GPS remote or the phone app was recording;
-Hero 12 has no GPS). Pass the video directly — `convert` and `verify-sun`
+GoPro cameras do the same (Hero 5–11, 13 and Max; Hero 12 has no GPS).
+Insta360 `.insv` and Osmo Action clips take the same route but are untested
+on real files. Pass the video directly — `convert` and `verify-sun`
 auto-detect it:
 
     dji-embed convert gpx DJI_0001.MP4

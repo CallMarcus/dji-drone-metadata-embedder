@@ -114,10 +114,8 @@ Tested with sample footage: Mini 3 Pro, Mini 4 Pro, Mini 5 Pro, Air 3,
 Air 3S, Mavic 4 Pro, Mavic 3 Enterprise, Avata 2, Avata 360, Neo 2,
 Matrice 300 and Phantom 4 RTK. The Air 2S, Mavic 3 and other models with
 similar telemetry work too, and the Parrot Anafi works for maps and exports.
-GoPro Hero 5–11, 13 and Max map from the GPS in the video (Hero 12 has no
-GPS). Insta360 and DJI Osmo Action map only when a GPS remote or the phone
-app was recording. Newer drones that store telemetry inside the video need
-a recent ExifTool;
+GoPro Hero 5–11, 13 and Max map from the GPS in the video. Newer drones
+that store telemetry inside the video need a recent ExifTool;
 `dji-embed doctor` tells you if yours is too old. Format details are in
 [SRT formats](https://callmarcus.github.io/dji-drone-metadata-embedder/SRT_FORMATS/).
 

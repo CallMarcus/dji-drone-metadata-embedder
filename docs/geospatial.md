@@ -171,8 +171,8 @@ marker, a summary popup (start time, duration, altitude range, GPS point
 count), and a layer control to toggle flights. SRT sidecars are read
 directly; a sidecar-less video is probed for an embedded telemetry track and,
 when it carries one, read via ExifTool. That includes GoPro `.mp4`/`.360`/`.lrv`
-and Insta360 `.insv` (GPS only when a remote or the phone app recorded it;
-GoPro Hero 12 has no GPS). A video that already has an `.SRT`
+(Hero 12 has no GPS); Insta360 `.insv` is accepted but untested on a real
+file. A video that already has an `.SRT`
 is never opened by the scan, so a folder of paired SRT/MP4 clips stays fast.
 
 The GeoJSON output is one `LineString` feature per flight carrying the same
