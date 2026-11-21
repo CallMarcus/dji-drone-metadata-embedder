@@ -40,6 +40,13 @@ VIDEO_SUFFIX_PREFERENCE = (".mp4", ".mov", ".360", ".insv", ".lrv")
 
 _PROXY_SUFFIXES = {".lrv"}
 
+# GoPro Hero 6 and later name the proxy ``GL`` + chapter (2 digits) + clip
+# (4 digits), beside a full-res ``GH`` (AVC), ``GX`` (HEVC) or ``GS`` (Max
+# ``.360``) with the same six digits. Older cameras reuse the stem
+# (``GOPR0001.MP4`` / ``GOPR0001.LRV``).
+_GOPRO_PROXY_STEM_RE = re.compile(r"^GL(\d{6})$", re.IGNORECASE)
+_GOPRO_FULL_RES_PREFIXES = ("GH", "GX", "GS")
+
 
 def is_video(path: Path) -> bool:
     """True when ``path`` is a video we can probe for embedded telemetry."""
@@ -57,21 +64,30 @@ def video_globs() -> tuple[str, ...]:
 
 
 def drop_proxy_duplicates(paths: list[Path]) -> list[Path]:
-    """Drop a ``.lrv`` proxy when a full-res file of the same stem is present.
+    """Drop a ``.lrv`` proxy when its full-res file is in the same folder.
 
-    A lone ``.lrv`` is kept: it carries the same GPMF track as the missing
-    full-res file. Input order is preserved.
+    The full-res file either shares the stem or, on Hero 6 and later, is the
+    ``GH``/``GX``/``GS`` clip with the proxy's digits. A lone ``.lrv`` is
+    kept: it carries the same GPMF track as the missing full-res file. Input
+    order is preserved.
     """
     primaries = {
-        path.with_suffix("")
+        (path.parent, path.stem.upper())
         for path in paths
         if path.suffix.lower() not in _PROXY_SUFFIXES
     }
+
+    def has_full_res(proxy: Path) -> bool:
+        stems = [proxy.stem.upper()]
+        match = _GOPRO_PROXY_STEM_RE.match(proxy.stem)
+        if match:
+            stems += [prefix + match.group(1) for prefix in _GOPRO_FULL_RES_PREFIXES]
+        return any((proxy.parent, stem) in primaries for stem in stems)
+
     return [
         path
         for path in paths
-        if path.suffix.lower() not in _PROXY_SUFFIXES
-        or path.with_suffix("") not in primaries
+        if path.suffix.lower() not in _PROXY_SUFFIXES or not has_full_res(path)
     ]
 
 
@@ -323,7 +339,11 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
     }
     samples: list[TelemetrySample] = []
     saw_telemetry = False
-    for group in groups:
+    starts = [
+        _parse_gps_datetime(str(_first_present(group, "GPSDateTime") or ""))
+        for group in groups
+    ]
+    for position, group in enumerate(groups):
         if any(_PARROT_KEY in doc for doc in group):
             saw_telemetry = True
             for doc in group:
@@ -347,6 +367,18 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
             and doc.get("GPSLongitude") is not None
         ]
         count = len(located)
+        # The burst's fixes span the time to the next burst's GPS stamp. That
+        # is usually a little under the MP4 sample duration (hero5.mp4: 0.985 s
+        # against 1.001 s), and spacing over the duration would put the last
+        # fix after the next burst's first. Across a dropped second the
+        # duration is the better guess, so the stamp only ever shortens it.
+        clock_span = duration
+        start = starts[position]
+        following = starts[position + 1] if position + 1 < len(starts) else None
+        if start is not None and following is not None:
+            until_next = (following - start).total_seconds()
+            if 0.0 < until_next < duration:
+                clock_span = until_next
         for index, doc in enumerate(located):
             mode = doc.get("GPSMeasureMode", inherited_mode)
             error = doc.get("GPSHPositioningError", doc.get("GPSDOP", inherited_error))
@@ -362,15 +394,14 @@ def _samples_from_exiftool(data: list) -> tuple[list[TelemetrySample], bool]:
                 alt = float(doc["AbsoluteAltitude"])
             else:
                 alt = float(doc.get("GPSAltitude", 0.0))
-            offset = (duration * index / count) if count else 0.0
             if "SampleTime" in doc:
                 cue_s = float(doc["SampleTime"])
             else:
-                cue_s = base_time + offset
+                cue_s = base_time + duration * index / count
             if "GPSDateTime" in doc:
                 when = _parse_gps_datetime(str(doc.get("GPSDateTime", "")))
             else:
-                when = _shift_datetime(base_dt, offset)
+                when = _shift_datetime(base_dt, clock_span * index / count)
             rel = doc.get("RelativeAltitude", defaults["RelativeAltitude"])
             gy = doc.get("GimbalYaw", defaults["GimbalYaw"])
             gp = doc.get("GimbalPitch", defaults["GimbalPitch"])

@@ -520,7 +520,10 @@ def test_samples_from_exiftool_maps_gopro_hero5():
     assert first.dt == datetime(2017, 4, 17, 17, 31, 3)
     assert (second.lat, second.alt) == (33.1264969, -20.146)
     assert second.cue == "00:00:00,055"
-    assert second.dt == datetime(2017, 4, 17, 17, 31, 3) + timedelta(seconds=1.001 / 18)
+    # The next burst is stamped 0.985 s later, inside the 1.001 s sample, so
+    # the 18 fixes share 0.985 s and the track never steps back in time.
+    assert second.dt == datetime(2017, 4, 17, 17, 31, 3) + timedelta(seconds=0.985 / 18)
+    assert [s.dt for s in samples] == sorted(s.dt for s in samples)
     # 1.001 s truncates to 1000 ms in the shared cue formatter (float × 1000).
     assert samples[18].cue == "00:00:01,000"
     assert samples[18].alt == -20.054
@@ -661,3 +664,82 @@ def test_undecoded_osmo_action_error_mentions_the_remote(monkeypatch, tmp_path):
     msg = str(exc.value)
     assert "Osmo Action" in msg
     assert ">=" not in msg
+
+
+def test_proxy_dropped_when_gopro_names_it_gl_beside_gh_gx_or_gs():
+    # Hero 6 and later do not share a stem with their proxy: the full-res
+    # file is GH (AVC), GX (HEVC) or GS (Max .360) and the proxy is GL with
+    # the same chapter and clip digits. Older cameras (GOPR0005) do share it.
+    paths = [
+        Path("card/GX010001.MP4"),
+        Path("card/GL010001.LRV"),
+        Path("card/GH010002.MP4"),
+        Path("card/GL010002.LRV"),
+        Path("card/GS010003.360"),
+        Path("card/GL010003.LRV"),
+        Path("card/GL010004.LRV"),
+        Path("card/GOPR0005.MP4"),
+        Path("card/GOPR0005.LRV"),
+        Path("other/GL010001.LRV"),
+    ]
+    assert mt.drop_proxy_duplicates(paths) == [
+        Path("card/GX010001.MP4"),
+        Path("card/GH010002.MP4"),
+        Path("card/GS010003.360"),
+        Path("card/GL010004.LRV"),
+        Path("card/GOPR0005.MP4"),
+        Path("other/GL010001.LRV"),
+    ]
+
+
+def _burst(start, sample_time, fixes):
+    docs = {
+        "DocN": {
+            "SampleTime": sample_time,
+            "SampleDuration": 1.0,
+            "GPSMeasureMode": 3,
+            "GPSHPositioningError": 1.5,
+            "GPSDateTime": start,
+            "GPSLatitude": 33.1,
+            "GPSLongitude": -117.3,
+        }
+    }
+    for k in range(1, fixes):
+        docs[f"DocN-{k}"] = {"GPSLatitude": 33.1 + k / 1e4, "GPSLongitude": -117.3}
+    return docs
+
+
+def _bursts(*bursts):
+    root = {}
+    for n, docs in enumerate(bursts, start=1):
+        for key, doc in docs.items():
+            root[key.replace("DocN", f"Doc{n}")] = doc
+    return [root]
+
+
+def test_burst_is_spaced_up_to_the_next_gps_time_not_past_it():
+    # The camera stamps the next burst 0.7 s later although the MP4 sample
+    # lasts 1.0 s (hero5.mp4: 0.985 s against 1.001 s). Spacing the fixes over
+    # the sample duration put the last one after the next burst's first.
+    data = _bursts(
+        _burst("2017:04:17 17:31:03.000", 0, 4),
+        _burst("2017:04:17 17:31:03.700", 1.0, 4),
+    )
+    samples, _ = mt._samples_from_exiftool(data)
+    times = [s.dt for s in samples]
+    assert times == sorted(times)
+    assert samples[3].dt == datetime(2017, 4, 17, 17, 31, 3, 525000)
+    assert samples[4].dt == datetime(2017, 4, 17, 17, 31, 3, 700000)
+    # Cue time is playback time and still follows the sample duration.
+    assert samples[3].cue == "00:00:00,750"
+
+
+def test_burst_keeps_the_sample_duration_across_a_gps_time_gap():
+    # A dropped second (max-360mode.mp4 has one) must not stretch the burst
+    # before it across the hole.
+    data = _bursts(
+        _burst("2019:11:18 23:44:42.000", 0, 4),
+        _burst("2019:11:18 23:44:44.000", 1.0, 4),
+    )
+    samples, _ = mt._samples_from_exiftool(data)
+    assert samples[3].dt == datetime(2019, 11, 18, 23, 44, 42, 750000)

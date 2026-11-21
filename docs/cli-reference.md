@@ -671,7 +671,9 @@ dji-embed check /path/to/footage
 ```
 
 `check` uses `ffprobe` for QuickTime tags and `exiftool` for EXIF data
-when available. Pass `--verbose` for debug output or `--quiet` to only
+when available. `embedded_telemetry` is set for any track `convert` and
+`flightmap` can read: DJI `djmd`/`dbgi`, Parrot Anafi, GoPro GPMF and
+Insta360. Pass `--verbose` for debug output or `--quiet` to only
 show warnings and errors. `--progress jsonl` switches stdout to
 machine-readable events (see [Progress Events](PROGRESS_JSONL.md)).
 

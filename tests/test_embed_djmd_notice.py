@@ -11,6 +11,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from dji_metadata_embedder import metadata_check
 from dji_metadata_embedder.embedder import (
     DJIMetadataEmbedder,
@@ -150,12 +152,38 @@ class TestCheckReportsEmbeddedTelemetry:
     def _check(self, monkeypatch, ffprobe_data):
         monkeypatch.setattr(metadata_check, "run_ffprobe", lambda p: ffprobe_data)
         monkeypatch.setattr(metadata_check, "run_exiftool", lambda p: {})
+        monkeypatch.setattr(metadata_check, "probe_schema", lambda p: None)
         return metadata_check.check_file(Path("clip.mp4"))
 
     def _check_with_exif(self, monkeypatch, ffprobe_data, exif_data):
         monkeypatch.setattr(metadata_check, "run_ffprobe", lambda p: ffprobe_data)
         monkeypatch.setattr(metadata_check, "run_exiftool", lambda p: exif_data)
+        monkeypatch.setattr(metadata_check, "probe_schema", lambda p: None)
         return metadata_check.check_file(Path("clip.mp4"))
+
+    @pytest.mark.parametrize("schema", ["gopro:gpmd", "insta360:camm", "insta360"])
+    def test_action_cam_track_sets_flag(self, monkeypatch, schema):
+        # GoPro GPMF and Insta360 (#276). Plain `exiftool -j` keeps only the
+        # last track's MetaFormat (GoPro's `fdsc`), so the flag comes from the
+        # same probe convert and flightmap use.
+        monkeypatch.setattr(metadata_check, "run_ffprobe", lambda p: None)
+        monkeypatch.setattr(metadata_check, "run_exiftool", lambda p: {})
+        monkeypatch.setattr(metadata_check, "probe_schema", lambda p: schema)
+        result = metadata_check.check_file(Path("GX010001.MP4"))
+        assert result["embedded_telemetry"] is True
+
+    def test_probe_failure_reports_false(self, monkeypatch, tmp_path):
+        # No ExifTool, or a file it cannot open: `check` reports, never raises.
+        from dji_metadata_embedder import mp4_telemetry
+
+        def boom(path):
+            raise mp4_telemetry.Mp4TelemetryError("no exiftool")
+
+        monkeypatch.setattr(metadata_check, "run_ffprobe", lambda p: None)
+        monkeypatch.setattr(metadata_check, "run_exiftool", lambda p: {})
+        monkeypatch.setattr(mp4_telemetry, "probe", boom)
+        result = metadata_check.check_file(tmp_path / "clip.mp4")
+        assert result["embedded_telemetry"] is False
 
     def test_djmd_stream_sets_flag(self, monkeypatch):
         result = self._check(

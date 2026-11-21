@@ -13,9 +13,11 @@ and `verify-sun` work directly on the video:
 Input is auto-detected by extension: `.mp4`/`.mov`, plus GoPro Max `.360`,
 GoPro low-res `.lrv` and Insta360 `.insv`, use the ExifTool extractor;
 `.srt` uses the subtitle parser. A folder of clips works with
-`dji-embed convert geojson FOLDER --batch`. When a full-res file and a
-`.lrv` proxy share a name, the batch (and `flightmap`) read the full-res
-file and leave the proxy alone. A `.lrv` on its own is read.
+`dji-embed convert geojson FOLDER --batch`. When a `.lrv` proxy sits beside
+its full-res file, the batch (and `flightmap`) read the full-res file and
+leave the proxy alone. That covers a shared name (`GOPR0001.MP4` /
+`GOPR0001.LRV`) and the Hero 6+ scheme, where `GL010001.LRV` is the proxy of
+`GH010001.MP4`, `GX010001.MP4` or `GS010001.360`. A `.lrv` on its own is read.
 
 ## ExifTool version matters
 
