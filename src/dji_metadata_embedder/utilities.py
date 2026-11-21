@@ -128,10 +128,13 @@ def resolve_utc_offset(
 
 @dataclass
 class TelemetrySample:
-    """One GPS-fixed SRT block: position, raw cue time, absolute datetime, and
-    optional footprint inputs (relative altitude, 35mm-equivalent focal length,
-    gimbal yaw/pitch) when the format carries them. ``real_s`` is the real
-    recording clock when the source has one (DJI djmd ``TimeStamp``)."""
+    """One GPS-fixed telemetry record.
+
+    Position, raw cue time, absolute datetime, and the optional footprint
+    inputs (relative altitude, 35mm-equivalent focal length, gimbal yaw/pitch)
+    when the format carries them. ``real_s`` is the real recording clock when
+    the source has one (DJI djmd ``TimeStamp``).
+    """
 
     lat: float
     lon: float
@@ -259,15 +262,18 @@ def parse_telemetry_samples(srt_path: Path) -> list[TelemetrySample]:
 
 
 def load_samples(path: Path) -> list[TelemetrySample]:
-    """Load telemetry samples from a DJI ``.SRT`` or a video source.
+    """Load telemetry samples from an SRT, an Autel ``.ass``, or a video.
 
-    SRT files are parsed directly; videos are read via the ExifTool-backed
-    :mod:`dji_metadata_embedder.mp4_telemetry` extractor. Imported lazily to
-    avoid a module-load cycle (``mp4_telemetry`` imports from this module).
+    SRT and ``.ass`` files are parsed directly. Videos are read via the
+    ExifTool-backed :mod:`dji_metadata_embedder.mp4_telemetry` extractor.
+    Imported lazily to avoid a module-load cycle (``mp4_telemetry`` imports
+    from this module).
     """
     from .mp4_telemetry import extract_samples, is_video
 
     path = Path(path)
+    if path.suffix.lower() == ".ass":
+        return parse_autel_ass_text(path.read_text(encoding="utf-8-sig"))
     if is_video(path):
         return extract_samples(path)
     return parse_telemetry_samples(path)
@@ -305,9 +311,260 @@ class Home:
     alt: float | None = None
 
 
+# Autel number: optional fraction, and the 2019 firmware bug that writes a
+# second minus immediately after the decimal (``-117.-9605``). The sign in
+# front of the integer is the real sign; the extra minus is dropped by
+# :func:`_normalize_autel_number`.
+_AUTEL_NUM = r"([+-]?\d+(?:\.-?\d*)?)"
+_AUTEL_HEMI = rf"([NSEW])\s*:\s*{_AUTEL_NUM}"
+# Letter form, either axis first: HOME(W: 109.3, N: 40.7) / HOME(S: 33.9, E: 18.4).
+_AUTEL_HOME_HEMI_RE = re.compile(rf"HOME\s*\(\s*{_AUTEL_HEMI}\s*,\s*{_AUTEL_HEMI}\s*\)")
+# Signed two-component form, longitude first when it is Autel:
+# HOME(-117.9606, 33.6324). A closing paren (no third altitude component)
+# leaves DJI's ``HOME (lat, lon, altm)`` to the lat-first regex below.
+_AUTEL_HOME_SIGNED_RE = re.compile(rf"HOME\s*\(\s*{_AUTEL_NUM}\s*,\s*{_AUTEL_NUM}\s*\)")
+# GPS with hemisphere letters, then altitude (optional ``m``).
+_AUTEL_GPS_HEMI_RE = re.compile(
+    rf"GPS\s*\(\s*{_AUTEL_HEMI}\s*,\s*{_AUTEL_HEMI}\s*,\s*{_AUTEL_NUM}\s*m?"
+)
+# GPS(lon, lat, alt) with no letters. Only used inside an .ass cue, where
+# longitude-first is the Autel convention; DJI SRT GPS is lat-first and is
+# parsed elsewhere.
+_AUTEL_GPS_SIGNED_RE = re.compile(
+    rf"GPS\s*\(\s*{_AUTEL_NUM}\s*,\s*{_AUTEL_NUM}\s*,\s*{_AUTEL_NUM}\s*m?"
+)
+# G.PRY (pitch, roll, yaw) — same component order as DJI's token. The degree
+# symbol is optional. Roll is not stored; footprints use pitch and yaw.
+_AUTEL_GPRY_RE = re.compile(
+    r"G\.PRY\s*\(\s*([+-]?\d+\.?\d*)\s*°?\s*,\s*"
+    r"([+-]?\d+\.?\d*)\s*°?\s*,\s*([+-]?\d+\.?\d*)"
+)
+_AUTEL_REH_RE = re.compile(r"ReH\s*:\s*([+-]?\d+\.?\d*)")
+# 2019.9.8 16:49:24 and 2023-09-12 10:28:07. Not DJI's millisecond form.
+_AUTEL_DT_RE = re.compile(
+    r"(?<!\d)(\d{4})[.-](\d{1,2})[.-](\d{1,2})[ T](\d{1,2}):(\d{2}):(\d{2})"
+)
+_ASS_TIME_RE = re.compile(r"(\d+):(\d{2}):(\d{2})\.(\d{1,3})")
+# A two-component signed HOME whose magnitudes both fit in a latitude is
+# indistinguishable from DJI Format 2 unless the rest of the cue is Autel.
+# DJI never writes a hemisphere letter inside GPS(), a ReH token, or a minus
+# sign after the decimal point. F.PRY is intentionally absent: DJI Format 2c
+# uses it on a latitude-first HOME.
+_AUTEL_CONTEXT_RE = re.compile(r"GPS\s*\(\s*[NSEW]\s*:|ReH\s*:|\d+\.-\d+")
+_BROKEN_DECIMAL_RE = re.compile(r"(\d)\.-(\d)")
+
+
+def _normalize_autel_number(raw: str) -> float:
+    """Parse an Autel coordinate or altitude, repairing ``-117.-9605``.
+
+    The extra minus sits after the decimal and is not a second sign. The
+    sign in front of the integer part is kept.
+    """
+    return float(_BROKEN_DECIMAL_RE.sub(r"\1.\2", raw.strip()))
+
+
+def _signed_by_hemisphere(letter: str | None, raw: str) -> float:
+    """Apply an ``N``/``S``/``E``/``W`` letter, or keep the numeric sign.
+
+    When a letter is present it wins: ``W: -117.-9605`` and ``W: 109.3``
+    are both west. The 2019 letters repeat the sign; the 2023 letters are
+    the only sign.
+    """
+    value = _normalize_autel_number(raw)
+    if letter is None:
+        return value
+    magnitude = abs(value)
+    if letter.upper() in ("S", "W"):
+        return -magnitude
+    return magnitude
+
+
+def _pair_by_hemisphere(
+    letter_a: str, raw_a: str, letter_b: str, raw_b: str
+) -> tuple[float, float] | None:
+    """Return ``(lat, lon)`` from two lettered components, in either order."""
+    coords: dict[str, float] = {}
+    for letter, raw in ((letter_a, raw_a), (letter_b, raw_b)):
+        if letter.upper() in ("N", "S"):
+            axis = "lat"
+        elif letter.upper() in ("E", "W"):
+            axis = "lon"
+        else:
+            return None
+        if axis in coords:
+            return None
+        coords[axis] = _signed_by_hemisphere(letter, raw)
+    if "lat" not in coords or "lon" not in coords:
+        return None
+    return coords["lat"], coords["lon"]
+
+
+def _parse_autel_home(text: str) -> "Home | None":
+    """Longitude-first Autel HOME, or ``None`` when the line is DJI's.
+
+    Letter form is unambiguous. The signed two-component form is Autel when
+    the first magnitude cannot be a latitude (``|lon| > 90``) or the
+    surrounding text carries an Autel marker. Anything else is left for the
+    DJI latitude-first regex, including ``HOME (lat, lon, altm)``.
+    """
+    hemi = _AUTEL_HOME_HEMI_RE.search(text)
+    if hemi:
+        pair = _pair_by_hemisphere(
+            hemi.group(1), hemi.group(2), hemi.group(3), hemi.group(4)
+        )
+        if pair is None:
+            return None
+        lat, lon = pair
+        return Home(lat=lat, lon=lon)
+    signed = _AUTEL_HOME_SIGNED_RE.search(text)
+    if signed is None:
+        return None
+    first = _normalize_autel_number(signed.group(1))
+    second = _normalize_autel_number(signed.group(2))
+    if abs(second) > 90.0:
+        return None
+    if abs(first) > 90.0 or _AUTEL_CONTEXT_RE.search(text):
+        return Home(lat=second, lon=first)
+    return None
+
+
+def _ass_time_to_cue(value: str) -> str:
+    """ASS ``H:MM:SS.cs`` (1–3 fractional digits) to an SRT ``HH:MM:SS,mmm`` cue."""
+    match = _ASS_TIME_RE.fullmatch(value.strip())
+    if match is None:
+        return ""
+    hours, minutes, seconds, frac = match.groups()
+    millis = int(frac) * (10 ** (3 - len(frac)))
+    return f"{int(hours):02d}:{minutes}:{seconds},{millis:03d}"
+
+
+def _iter_ass_dialogues(text: str):
+    """Yield ``(start, end, payload)`` for Dialogue lines inside ``[Events]``."""
+    in_events = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        lowered = line.lower()
+        if lowered == "[events]":
+            in_events = True
+            continue
+        if in_events and line.startswith("[") and line.endswith("]"):
+            break
+        if not in_events or not lowered.startswith("dialogue:"):
+            continue
+        body = line.split(":", 1)[1].lstrip()
+        # The text field is last and may itself contain commas.
+        parts = body.split(",", 9)
+        if len(parts) < 10:
+            continue
+        yield parts[1].strip(), parts[2].strip(), parts[9]
+
+
+def _autel_datetime(text: str) -> datetime | None:
+    match = _AUTEL_DT_RE.search(text)
+    if match is None:
+        return None
+    year, month, day, hour, minute, second = (int(group) for group in match.groups())
+    try:
+        # Naive on purpose: Autel writes the camera's wall clock, not UTC.
+        return datetime(year, month, day, hour, minute, second)  # noqa: DTZ001
+    except ValueError:
+        return None
+
+
+def parse_autel_ass_text(text: str) -> list[TelemetrySample]:
+    """Parse an Autel ``.ass`` document into GPS-fixed samples.
+
+    Dialogue payloads are split on the ASS hard break ``\\N``. Both the
+    2019 signed style (``GPS(W: -117.-9605, N: 33.6323, -37)``, longitude
+    first, broken decimals) and the later letter style (``GPS(W: 109.3, N:
+    40.7, 2371.76m)``, unsigned magnitudes) are accepted. Timestamps are
+    local. Gimbal ``G.PRY`` is pitch, roll, yaw.
+    """
+    samples: list[TelemetrySample] = []
+    for start, _end, payload in _iter_ass_dialogues(text):
+        body = payload.replace("\\N", "\n").replace("\\n", "\n")
+        lat: float | None = None
+        lon: float | None = None
+        alt: float | None = None
+        hemi = _AUTEL_GPS_HEMI_RE.search(body)
+        if hemi:
+            pair = _pair_by_hemisphere(
+                hemi.group(1), hemi.group(2), hemi.group(3), hemi.group(4)
+            )
+            if pair is None:
+                continue
+            lat, lon = pair
+            alt = _normalize_autel_number(hemi.group(5))
+        else:
+            signed = _AUTEL_GPS_SIGNED_RE.search(body)
+            if signed is None:
+                continue
+            lon = _normalize_autel_number(signed.group(1))
+            lat = _normalize_autel_number(signed.group(2))
+            alt = _normalize_autel_number(signed.group(3))
+        if abs(lat) > 90.0 or abs(lon) > 180.0 or not is_gps_fix(lat, lon):
+            continue
+        relative = _AUTEL_REH_RE.search(body)
+        pry = _AUTEL_GPRY_RE.search(body)
+        samples.append(
+            TelemetrySample(
+                lat,
+                lon,
+                alt,
+                _ass_time_to_cue(start),
+                _autel_datetime(body),
+                rel_alt=float(relative.group(1)) if relative else None,
+                gimbal_pitch=float(pry.group(1)) if pry else None,
+                gimbal_yaw=float(pry.group(3)) if pry else None,
+            )
+        )
+    return samples
+
+
+# Every Autel cue carries a GPS( token; ordinary captions never do.
+_AUTEL_GPS_TOKEN_RE = re.compile(r"GPS\s*\(")
+
+
+def is_autel_ass(path: Path) -> bool:
+    """True when an ``.ass`` file is Autel telemetry, not ordinary captions.
+
+    ``.ass`` is a general subtitle format, so a folder of edited clips can
+    hold caption files that are nobody's flight log. A file that cannot be
+    read or decoded counts as telemetry: the loader then reports it, which
+    is better than dropping a real sidecar without a word.
+    """
+    try:
+        text = Path(path).read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return True
+    return any(
+        _AUTEL_GPS_TOKEN_RE.search(payload)
+        for _start, _end, payload in _iter_ass_dialogues(text)
+    )
+
+
+def autel_ass_to_srt(text: str) -> str:
+    """Render Autel ASS dialogue cues as an SRT document.
+
+    Cue times become ``HH:MM:SS,mmm`` and ``\\N`` hard breaks become real
+    newlines. The payload text is kept as the drone wrote it (including a
+    broken decimal); this is the subtitle track, not the parsed track.
+    """
+    blocks: list[str] = []
+    for index, (start, end, payload) in enumerate(_iter_ass_dialogues(text), start=1):
+        body = payload.replace("\\N", "\n").replace("\\n", "\n").strip()
+        cue_start = _ass_time_to_cue(start)
+        cue_end = _ass_time_to_cue(end) or cue_start
+        blocks.append(f"{index}\n{cue_start} --> {cue_end}\n{body}\n")
+    return "\n".join(blocks)
+
+
 # Two documented SRT variants (docs/SRT_FORMATS.md):
 #   HOME(39.906206,116.391400) D=5.2m H=1.5m            -> no space, no altitude
 #   HOME (-58.847509, -34.232707, -57.98m), D 698.70m,  -> space, altitude with trailing m
+# Latitude first. Autel HOME is longitude-first and is handled by
+# :func:`_parse_autel_home` before this regex runs; applying this pattern to
+# ``HOME(-117.9606, 33.6324)`` would swap the axes.
 _HOME_RE = re.compile(
     r"HOME\s*\(\s*([+-]?\d+\.?\d*)\s*,\s*([+-]?\d+\.?\d*)"
     r"(?:\s*,\s*([+-]?\d+\.?\d*)\s*m?)?\s*\)"
@@ -315,11 +572,16 @@ _HOME_RE = re.compile(
 
 
 def parse_home(text: str) -> "Home | None":
-    """Return the first HOME point in SRT *text*, or ``None``.
+    """Return the first HOME point in *text*, or ``None``.
 
-    The caller is responsible for gating on the opt-in flag; this function does
+    Autel lines are tried first. They are longitude-first (the opposite of
+    every DJI family), so the DJI regex above would swap their axes. The
+    caller is responsible for gating on the opt-in flag; this function does
     not check it. HOME is constant within a file, so the first match is used.
     """
+    autel = _parse_autel_home(text)
+    if autel is not None:
+        return autel
     m = _HOME_RE.search(text)
     if not m:
         return None

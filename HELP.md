@@ -27,7 +27,11 @@ Free, open-source (MIT) tool for DJI drone footage. Everything runs locally.
   own orange pins and an in-page viewer. `flightmap` draws every flight in
   a folder on one map, from `.SRT` logs or from the telemetry inside
   sidecar-less DJI and Parrot Anafi videos, and GoPro clips that recorded
-  GPS (Hero 5–11, 13 and Max; Hero 12 has no GPS). `map` combines both: photos,
+  GPS (Hero 5–11, 13 and Max; Hero 12 has no GPS). Autel EVO `.ass`
+  sidecars are read like an `.SRT`, but that support is provisional: it
+  follows published samples, not a real recording, and Autel clocks are
+  local time (pass `--tz-offset` when the file date is wrong).
+  `map` combines both: photos,
   panoramas and flight tracks on a single map, subfolders included.
 - **Airspace awareness** — `flightmap --airspace` overlays official drone
   zones (FAA UAS Facility Maps in the US, the national feeds in Europe)

@@ -553,16 +553,50 @@ def probe(path: Path) -> str | None:
     return None
 
 
+# ExifTool emits this tag only for an Autel EVO subtitle (``tx3g``) record:
+# it comes from the lettered ``HOME(W: …, N: …)`` line (QuickTimeStream.pl
+# ``Process_tx3g``). No DJI, Parrot or action-camera record carries it.
+_AUTEL_SUBTITLE_KEY = "GPSHomeLatitude"
+
+
+def _is_autel_subtitle_track(data: list) -> bool:
+    """True when ExifTool's JSON holds Autel EVO subtitle-track records."""
+    if not data:
+        return False
+    return any(
+        isinstance(doc, dict) and _AUTEL_SUBTITLE_KEY in doc
+        for key, doc in data[0].items()
+        if _DOC_KEY_RE.match(key)
+    )
+
+
 def extract_samples(path: Path) -> list[TelemetrySample]:
     """Extract GPS-fixed telemetry samples from a video via ExifTool.
 
     Raises :class:`Mp4TelemetryError` when there is no telemetry track, or a
     DJI track is present but this ExifTool cannot decode the model, or a
-    Parrot, GoPro, Insta360 or Osmo Action track yields nothing. A clip that
-    decodes but never acquired a GPS fix yields an empty list (not an error).
+    Parrot, GoPro, Insta360 or Osmo Action track yields nothing, or the
+    video carries an Autel EVO subtitle track (not supported; its ``.ass``
+    sidecar is). A clip that decodes but never acquired a GPS fix yields an
+    empty list (not an error).
     """
     path = Path(path)
-    samples, saw_telemetry = _samples_from_exiftool(_run_exiftool_json(path))
+    data = _run_exiftool_json(path)
+    if _is_autel_subtitle_track(data):
+        # ExifTool decodes these records, so the generic mapping below would
+        # accept them, and get two things wrong: the subtitle clock is local
+        # time, not UTC, and ExifTool files G.PRY's (pitch, roll, yaw) under
+        # GimbalYaw/GimbalPitch/GimbalRoll in that order. Refusing beats a
+        # confident wrong sun position or camera footprint (#324).
+        raise Mp4TelemetryError(
+            f"{path.name} carries an Autel EVO subtitle telemetry track, "
+            f"which is not supported yet: its clock is local time and its "
+            f"gimbal angles are labelled in a different order, so reading "
+            f"it as-is would give wrong UTC times and camera directions. "
+            f"Use the .ass sidecar recorded beside the video instead "
+            f"(see docs/SRT_FORMATS.md)."
+        )
+    samples, saw_telemetry = _samples_from_exiftool(data)
     if samples:
         return samples
     schema = probe(path)

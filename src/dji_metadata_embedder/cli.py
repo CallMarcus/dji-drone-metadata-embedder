@@ -546,7 +546,7 @@ def convert(
     verbose: bool,
     quiet: bool,
 ) -> None:
-    """Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML map.
+    """Convert SRT or Autel .ass telemetry to GPX, CSV, GeoJSON, KML, CoT, or HTML.
 
     The html format embeds the flight data but loads Leaflet and the map tiles
     from the internet, so the produced file needs a connection to render.
@@ -615,7 +615,7 @@ def convert(
         outputs: list[Path] = []
         skipped = 0
         if batch:
-            patterns = ("*.SRT", "*.srt", *video_globs())
+            patterns = ("*.SRT", "*.srt", "*.ASS", "*.ass", *video_globs())
             seen: set[Path] = set()
             targets: list[Path] = []
             for pattern in patterns:
@@ -1200,10 +1200,11 @@ def flightmap(
 ) -> None:
     """Map every flight in a folder on one combined map.
 
-    Reads the .SRT telemetry sidecars (fast) and, for videos that have no
-    sidecar, the telemetry track inside the MP4/MOV itself (DJI djmd/dbgi on
-    the Air 3S, Mini 5 Pro and others; Parrot Anafi), opened only for those
-    files via ExifTool. Each flight is its own coloured track with a
+    Reads the .SRT and Autel .ass telemetry sidecars (fast) and, for videos
+    that have no sidecar, the telemetry track inside the MP4/MOV itself (DJI
+    djmd/dbgi on the Air 3S, Mini 5 Pro and others; Parrot Anafi), opened
+    only for those files via ExifTool. Each flight is its own coloured track
+    with a
     summary popup, as HTML, KML, or GeoJSON. Recordings split at the 4 GB
     file limit are chained back into one flight (see --join-gap).
     """
@@ -1305,7 +1306,8 @@ def flightmap(
                     + _EXIFTOOL_INSTALL_HINT
                 )
             raise click.ClickException(
-                f"No .SRT telemetry files or telemetry-carrying videos found in {src}"
+                "No .SRT/.ASS telemetry files or telemetry-carrying videos "
+                f"found in {src}"
                 + ("" if recursive else " (use -r to scan subdirectories)")
             )
         if not tracks:

@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import subprocess
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,15 @@ from typing import Any
 from rich.progress import Progress
 
 from .dat_parser import parse_v13 as parse_dat_v13
-from .utilities import apply_redaction, is_gps_fix, parse_home, setup_logging
+from .utilities import (
+    apply_redaction,
+    autel_ass_to_srt,
+    is_autel_ass,
+    is_gps_fix,
+    parse_autel_ass_text,
+    parse_home,
+    setup_logging,
+)
 from .utils import system_info
 
 logger = logging.getLogger(__name__)
@@ -156,6 +165,42 @@ def _validate_embedded_output(original_path: Path, temp_path: Path) -> bool:
 # Matching is case-insensitive; cameras emit upper-case extensions while some
 # tools rewrite them lower-case.
 _VIDEO_EXTENSIONS = ("mp4", "osv", "lrf")
+
+
+def _paired_subtitle(video_path: Path) -> Path | None:
+    """Same-stem telemetry sidecar: an SRT if one exists, else an Autel ``.ass``.
+
+    SRT wins when both are present so a DJI folder is unchanged. An ``.ass``
+    holding ordinary captions is not telemetry and is passed over. Both cases
+    are tried because cameras write uppercase extensions and some tools
+    rename them.
+    """
+    for ext in (".srt", ".SRT", ".ass", ".ASS"):
+        cand = video_path.with_suffix(ext)
+        if not cand.is_file():
+            continue
+        # .ass is a general subtitle format: only Autel telemetry pairs.
+        if ext.lower() == ".ass" and not is_autel_ass(cand):
+            continue
+        return cand
+    return None
+
+
+def _write_ass_as_srt(ass_path: Path) -> Path:
+    """Render an Autel ``.ass`` sidecar to a temporary SubRip file.
+
+    The MP4 ``mov_text`` and Matroska ``srt`` muxers take an SRT input. The
+    cue text is the drone's own lines (``\\N`` becomes a newline); the
+    coordinates are not rewritten. The caller deletes the file.
+    """
+    fd, name = tempfile.mkstemp(prefix="djiembed-", suffix=".srt")
+    os.close(fd)
+    path = Path(name)
+    path.write_text(
+        autel_ass_to_srt(ass_path.read_text(encoding="utf-8-sig")),
+        encoding="utf-8",
+    )
+    return path
 
 
 def discover_video_files(directory: Path) -> list[Path]:
@@ -467,6 +512,49 @@ class DJIMetadataEmbedder:
 
         return telemetry_data
 
+    def _telemetry_from_autel(self, ass_path: Path) -> dict[str, Any]:
+        """The ``parse_dji_srt`` dict, filled from an Autel ``.ass`` sidecar.
+
+        Coordinates come from the longitude-first parser, so a HOME or GPS
+        line is not swapped the way the DJI regex would swap it.
+        """
+        samples = parse_autel_ass_text(ass_path.read_text(encoding="utf-8-sig"))
+        coords = [(s.lat, s.lon) for s in samples]
+        alts = [s.alt for s in samples]
+        rels = [s.rel_alt for s in samples if s.rel_alt is not None]
+        cues = [s.cue for s in samples if s.cue]
+        telemetry: dict[str, Any] = {
+            "gps_coords": coords,
+            "altitudes": alts,
+            "rel_altitudes": rels,
+            "speeds": [],
+            "timestamps": cues,
+            "camera_info": [],
+            "first_gps": None,
+            "avg_gps": None,
+            "max_altitude": max(alts) if alts else None,
+            "flight_duration": None,
+            "srt_counts": [],
+            "diff_times": [],
+            "barometers": [],
+        }
+        valid = [c for c in coords if is_gps_fix(c[0], c[1])]
+        if valid:
+            telemetry["first_gps"] = valid[0]
+            telemetry["avg_gps"] = (
+                sum(c[0] for c in valid) / len(valid),
+                sum(c[1] for c in valid) / len(valid),
+            )
+        if rels:
+            telemetry["max_rel_altitude"] = max(rels)
+        if len(cues) > 1:
+            telemetry["flight_duration"] = (
+                f"{cues[0].split(',')[0]} - {cues[-1].split(',')[0]}"
+            )
+        if self.extract_home:
+            telemetry["home"] = parse_home(ass_path.read_text(encoding="utf-8-sig"))
+        return telemetry
+
     def embed_metadata_ffmpeg(
         self,
         video_path: Path,
@@ -695,22 +783,33 @@ class DJIMetadataEmbedder:
 
         # The caller owns the display when it passes a callback.
         bar = Progress(disable=True) if on_progress is not None else Progress()
+        # Temp SRT rendered from an .ass sidecar. Deleted at the start of the
+        # next iteration and after the loop, so a ``continue`` cannot leak it.
+        pending_srt: Path | None = None
         with bar as progress:
             task = progress.add_task("Processing videos", total=len(video_files))
             for index, video_path in enumerate(video_files, start=1):
+                if pending_srt is not None:
+                    pending_srt.unlink(missing_ok=True)
+                    pending_srt = None
                 if on_progress is not None:
                     on_progress(index, len(video_files), video_path.name)
-                # Look for corresponding SRT file
-                srt_path = video_path.with_suffix(".srt")
-                if not srt_path.exists():
-                    srt_path = video_path.with_suffix(".SRT")
-
-                if not srt_path.exists():
-                    warning_msg = f"No SRT file found for: {video_path.name}"
+                subtitle = _paired_subtitle(video_path)
+                if subtitle is None:
+                    warning_msg = (
+                        f"No SRT or ASS telemetry file found for: {video_path.name}"
+                    )
                     logger.warning(warning_msg)
                     result["warnings"].append(warning_msg)
                     progress.advance(task)
                     continue
+                if subtitle.suffix.lower() == ".ass":
+                    pending_srt = _write_ass_as_srt(subtitle)
+                    srt_path = pending_srt
+                    ass_path: Path | None = subtitle
+                else:
+                    srt_path = subtitle
+                    ass_path = None
 
                 progress.update(task, description=video_path.name)
                 logger.debug("Processing %s", video_path.name)
@@ -742,8 +841,12 @@ class DJIMetadataEmbedder:
                         logger.warning(warning_msg)
                         result["warnings"].append(warning_msg)
 
-                # Parse SRT telemetry
-                telemetry = self.parse_dji_srt(srt_path)
+                # Parse the sidecar. An .ass file is longitude-first Autel
+                # text; the temp SRT muxed below is only the subtitle track.
+                if ass_path is not None:
+                    telemetry = self._telemetry_from_autel(ass_path)
+                else:
+                    telemetry = self.parse_dji_srt(srt_path)
                 apply_redaction(telemetry, self.redact)
 
                 # Optionally parse DAT telemetry
@@ -907,6 +1010,8 @@ class DJIMetadataEmbedder:
                         except OSError:
                             pass
                     progress.advance(task)
+        if pending_srt is not None:
+            pending_srt.unlink(missing_ok=True)
 
         result["processed"] = success_count
 

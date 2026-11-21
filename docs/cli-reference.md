@@ -111,7 +111,8 @@ Options:
 ## `dji-embed convert` - Export Telemetry
 
 Convert SRT telemetry to GPX, CSV, GeoJSON, KML, CoT, or a standalone HTML
-map. On sidecar-less models (Air 3S, Mini 5 Pro, …) the input can be the MP4
+map. An Autel EVO `.ass` sidecar is accepted the same way (provisional, see
+[SRT formats](SRT_FORMATS.md)). On sidecar-less models (Air 3S, Mini 5 Pro, …) the input can be the MP4
 itself. GoPro Hero 5–11, 13 and Max (`.mp4`, `.360`, `.lrv`) work the same
 way; Hero 12 has no GPS. Insta360 (`.insv`) is accepted but untested on a
 real file. Details are in

@@ -1,13 +1,13 @@
 """Multi-flight folder scan and exporters (GeoJSON, KML) for ``flightmap``.
 
-A directory of DJI ``.SRT`` sidecars is parsed straight into :class:`Track`
-objects with no external tool. Videos that have no sidecar are probed for an
-embedded telemetry track (DJI ``djmd``/``dbgi``, Parrot ``mett``, GoPro
-``gpmd``, Insta360) and, when they carry one, read through ExifTool; plain
-videos are ignored, so scanning an archive of clips stays fast. The resulting
-track list is the single model
-every flightmap writer consumes: GeoJSON and KML here, the combined HTML map
-in :mod:`.flightmap_html`.
+A directory of DJI ``.SRT`` or Autel ``.ass`` sidecars is parsed straight
+into :class:`Track` objects with no external tool. Videos that have no
+sidecar are probed for an embedded telemetry track (DJI ``djmd``/``dbgi``,
+Parrot ``mett``, GoPro ``gpmd``, Insta360) and, when they carry one, read
+through ExifTool; plain videos are ignored, so scanning an archive of clips
+stays fast. The resulting track list is the single model every flightmap
+writer consumes: GeoJSON and KML here, the combined HTML map in
+:mod:`.flightmap_html`.
 """
 
 from __future__ import annotations
@@ -40,9 +40,10 @@ from .videogimbal import VideoGimbalReport
 
 logger = logging.getLogger(__name__)
 
-# Both cases so case-sensitive filesystems match DJI's .SRT and renamed .srt;
-# identical paths matched twice (case-insensitive filesystems) dedupe via set.
-_SRT_PATTERNS = ("*.SRT", "*.srt")
+# Both cases so case-sensitive filesystems match DJI's .SRT and Autel's .ASS
+# alongside renamed lowercase copies. Identical paths matched twice
+# (case-insensitive filesystems) dedupe via set.
+_SRT_PATTERNS = ("*.SRT", "*.srt", "*.ASS", "*.ass")
 
 # Videos considered when they have no SRT beside them (same suffix set as
 # mp4_telemetry.VIDEO_SUFFIXES, both cases for case-sensitive filesystems).
@@ -274,6 +275,11 @@ def scan_flights(
     files: set[Path] = set()
     for pattern in _SRT_PATTERNS:
         files.update(root.rglob(pattern) if recursive else root.glob(pattern))
+    # An .ass that is ordinary captions is not a flight log, and must not
+    # pass for the sidecar of the video beside it.
+    files = {
+        f for f in files if f.suffix.lower() != ".ass" or utilities.is_autel_ass(f)
+    }
     videos = _sidecarless_videos(root, recursive, files)
     if videos and not exiftool_available():
         if on_unread_videos is not None:

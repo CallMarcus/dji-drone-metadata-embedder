@@ -19,6 +19,7 @@ from .geo.solar import sun_position
 # Re-exported for backwards compatibility — cli.py and tests/test_timezone.py
 # import these from here:
 from .utilities import (  # noqa: F401
+    Home,
     TelemetrySample,
     _parse_srt_datetime,
     estimate_utc_offset,
@@ -76,19 +77,27 @@ def _parse_gps_points(content: str) -> list[dict[str, Any]]:
 def load_gps_points(path: Path) -> tuple[list[dict[str, Any]], bool]:
     """Return GPS points (``_parse_gps_points`` shape) and whether they are UTC.
 
-    SRT: parse the text (datetimes are local wall-clock) -> ``is_utc=False``.
-    Video: read via ``load_samples`` (ExifTool ``GPSDateTime`` is absolute UTC)
+    SRT and Autel ``.ass``: datetimes are local wall-clock -> ``is_utc=False``.
+    Video: ``load_samples`` (ExifTool ``GPSDateTime`` is absolute UTC)
     -> ``is_utc=True``, so callers apply a zero local->UTC offset.
     """
     from .mp4_telemetry import is_video
     from .utilities import load_samples
 
-    if is_video(path):
+    path = Path(path)
+    if is_video(path) or path.suffix.lower() == ".ass":
+        samples = load_samples(path)
         points = [
-            {"lat": s.lat, "lon": s.lon, "ele": s.alt, "time": s.cue, "datetime": s.dt}
-            for s in load_samples(path)
+            {
+                "lat": s.lat,
+                "lon": s.lon,
+                "ele": s.alt,
+                "time": s.cue,
+                "datetime": s.dt,
+            }
+            for s in samples
         ]
-        return points, True
+        return points, is_video(path)
     return _parse_gps_points(path.read_text(encoding="utf-8")), False
 
 
@@ -338,13 +347,24 @@ _CSV_COLUMNS = (
 
 
 def _csv_from_samples(
-    samples: list[TelemetrySample], output_path: Path, redact: str = "none"
+    samples: list[TelemetrySample],
+    output_path: Path,
+    redact: str = "none",
+    *,
+    times_are_utc: bool = True,
+    local_offset: timedelta | None = None,
+    home_columns: bool = False,
+    home: Home | None = None,
 ) -> Path:
-    """Write CSV rows from video-sourced samples (UTC is intrinsic).
+    """Write CSV rows from samples.
 
-    Fills geo, altitude, ``datetime_utc`` and solar columns; camera columns that
-    only the SRT text carries (iso/shutter/fnum/ev/ct/tint/color_md/focal_len)
-    stay blank.
+    ``times_are_utc`` (video): ``dt`` is already UTC. Otherwise
+    ``local_offset`` is the local->UTC shift from ``--tz-offset`` or the
+    mtime estimate; ``None`` leaves the UTC and solar columns blank, the
+    same fallback as an SRT whose timezone could not be detected. Camera
+    columns that only DJI SRT text carries stay blank. ``home_columns`` adds
+    ``home_lat``/``home_lon``/``home_alt`` (``--extract-home``), filled from
+    ``home`` when the source has one.
     """
     import csv
 
@@ -366,20 +386,43 @@ def _csv_from_samples(
         if s.rel_alt is not None:
             row["rel_altitude"] = f"{s.rel_alt}"
         row["abs_altitude"] = f"{s.alt}"
-        if s.dt is not None:
-            row["datetime_utc"] = s.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        utc = None
+        if s.dt is not None and times_are_utc:
+            utc = s.dt
+        elif s.dt is not None and local_offset is not None:
+            utc = s.dt - local_offset
+        if utc is not None:
+            row["datetime_utc"] = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
             if lat is not None and lon is not None and is_gps_fix(lat, lon):
-                az, el = sun_position(lat, lon, s.dt)
+                az, el = sun_position(lat, lon, utc)
                 row["sun_azimuth"] = f"{az:.3f}"
                 row["sun_elevation"] = f"{el:.3f}"
+        if home is not None:
+            row["home_lat"] = f"{home.lat}"
+            row["home_lon"] = f"{home.lon}"
+            row["home_alt"] = "" if home.alt is None else f"{home.alt}"
         rows.append(row)
 
+    columns = list(_CSV_COLUMNS)
+    if home_columns:
+        columns += ["home_lat", "home_lon", "home_alt"]
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(_CSV_COLUMNS))
+        writer = csv.DictWriter(f, fieldnames=columns, restval="")
         writer.writeheader()
         writer.writerows(rows)
     logger.info("CSV file created: %s", output_path)
     return output_path
+
+
+def _csv_offset(
+    path: Path, samples: list[TelemetrySample], tz_offset: timedelta | None
+) -> timedelta | None:
+    """Local->UTC offset for samples whose ``dt`` is a wall clock."""
+    abs_times = [s.dt for s in samples if s.dt is not None]
+    mtime_utc = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).replace(
+        tzinfo=None
+    )
+    return resolve_utc_offset(abs_times, tz_offset, mtime_utc)
 
 
 def extract_telemetry_to_csv(
@@ -403,8 +446,25 @@ def extract_telemetry_to_csv(
     from .mp4_telemetry import is_video
     from .utilities import load_samples
 
-    if is_video(srt_path):
-        return _csv_from_samples(load_samples(srt_path), output_path, redact)
+    if is_video(srt_path) or srt_path.suffix.lower() == ".ass":
+        samples = load_samples(srt_path)
+        times_are_utc = is_video(srt_path)
+        offset = None if times_are_utc else _csv_offset(srt_path, samples, tz_offset)
+        # HOME is sidecar text; a video has none to read here.
+        sidecar_home = None
+        if extract_home and not is_video(srt_path):
+            sidecar_home = redact_home(
+                parse_home(srt_path.read_text(encoding="utf-8-sig")), redact
+            )
+        return _csv_from_samples(
+            samples,
+            output_path,
+            redact,
+            times_are_utc=times_are_utc,
+            local_offset=offset,
+            home_columns=extract_home and not is_video(srt_path),
+            home=sidecar_home,
+        )
 
     home_cols: list[str] = []
     home = None
