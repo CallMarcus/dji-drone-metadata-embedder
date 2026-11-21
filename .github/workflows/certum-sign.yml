@@ -31,7 +31,13 @@ permissions:
 
 jobs:
   sign:
-    runs-on: ubuntu-latest
+    # Pinned host, so a move of ubuntu-latest can't change what the GUI
+    # drive runs on unannounced. Move only after a green Sign test.
+    runs-on: ubuntu-24.04
+    # A healthy run takes about two minutes. When the login fails, the
+    # PKCS#11 probes block for a minute each, which once held a release
+    # for 20 minutes per leg with no output.
+    timeout-minutes: 20
     container:
       # Version-coded tag: bump alongside the ARGs in
       # docker/certum-signer/Dockerfile and the IMAGE env in signer-image.yml
