@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **timeline**: new `dji-embed timeline` command builds one FCPXML timeline from a folder of clips, laid end to end in recording order, with the moments worth cutting to (steady stretches, gimbal reveals, tilts and pans, altitude rises) already marked on each clip. Slow-motion clips get their own time scale so markers stay on the move. Import it in DaVinci Resolve or another FCPXML editor; the clips are only read (#604) (f469f9f)
+- **GoPro GPS**: `convert`, `flightmap`, `check` and `verify-sun` read the GPS track inside GoPro footage (`.MP4`, `.360`, and the `.LRV` proxy) through the same ExifTool path as sidecar-less DJI clips. A low-resolution proxy sitting beside its full clip is skipped so a ride isn't drawn twice. The same path maps Insta360 and DJI Osmo Action tags, but those two are untested on real files (#276) (#612) (f3e6f09)
+- **Autel EVO**: Autel's `.ass` telemetry sidecars are read wherever an `.SRT` is: `embed`, `convert` (including `--extract-home`), `flightmap` and `check`. Ordinary caption `.ass` files are left alone. Support is provisional: it follows published format descriptions, not a real Autel file, and the telemetry track inside an Autel MP4 is refused with a pointer to the sidecar because its clock and gimbal axes can't be trusted yet (#324) (#613) (f489f2c)
+- **gui**: the desktop app recognises action-camera files (`.360`, `.insv`, `.lrv`) and Autel `.ass` sidecars as sources for Flight map, Convert and Verify, in folders and as single files. Embed still asks for an `.MP4` (#614) (#615) (8328449)
+
+### Changed
+
+🚨 - Python 3.10 is no longer supported; the package now needs Python 3.11 or newer and is tested on 3.11, 3.12 and 3.14. The Windows and macOS apps bundle their own Python and are unaffected (#609) (fdc4b6d) **[BREAKING]**
+- README is now a short landing page; the option reference moved to `docs/cli-reference.md` (#605) (a774c55) (#606) (2e40084)
+- Dependency refresh: certifi 2026.10.19 (#607) (1e65cc0), hatchling 1.33.0 (#611) (b5e6538), and ruff 0.17.3, mypy 2.4.1, pytest 9.2, coverage 7.17, playwright 1.64.1 (#610) (c4c7a1d)
+
+### Security
+
+- Pillow moves to 13.0.0 for the October 2026 security fixes, which were not backported to 12.x. The Windows and macOS apps bundle Pillow, so this is the first release whose apps carry the fixed version (#608) (a8d94e9)
+
 ## [2.18.0] - 2026-10-02
 
 ### Added
